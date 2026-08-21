@@ -1,7 +1,7 @@
 /**
  * Purpose: Perform one non-streaming or streaming proxy request and return normalized response facts.
  * Owner: core:ai-service
- * Responsibility: HTTP status handling and response extraction; retry policy belongs to retry-executor.
+ * Responsibility: HTTP status handling and response extraction for one request; callers decide whether the player may try again.
  */
 
 import { logger } from '../../logger/client-logger'
@@ -19,6 +19,7 @@ export async function fetchAIResponse(
   proxyBody: Record<string, unknown>,
   cacheContext: AiUsageContext,
   signal?: AbortSignal,
+  responseToolName?: string,
 ): Promise<FetchAIResult> {
   const { response, clearDeadline } = await fetchWithDeadline('/api/proxy', {
     method: 'POST',
@@ -49,8 +50,14 @@ export async function fetchAIResponse(
     const data = (await response.json()) as AIResponse
     const usage = parseUsage(data.usage)
     if (usage) recordCacheUsage(usage, cacheContext)
+    const message = data.choices?.[0]?.message
+    const toolCalls = message?.tool_calls ?? []
+    const matchedTool = responseToolName
+      ? toolCalls.find((tool) => tool?.function?.name === responseToolName)
+      : undefined
+    const toolArguments = matchedTool?.function?.arguments
     return {
-      content: data.choices?.[0]?.message?.content ?? '',
+      content: toolArguments?.trim() ? toolArguments : message?.content ?? '',
       usage,
       finishReason: data.choices?.[0]?.finish_reason,
       requestId,

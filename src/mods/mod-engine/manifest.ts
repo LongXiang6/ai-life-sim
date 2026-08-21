@@ -1,7 +1,7 @@
 /**
- * @module manifest.ts
- * @description MOD 身份声明 —— AI 人生模拟器引擎
- * @mod mod-engine
+ * Purpose: Declare the engine MOD identity and registration metadata.
+ * Owner: mod-engine
+ * Responsibility: Static MOD manifest only; runtime behavior remains in registered engine systems.
  */
 
 import { defineMod } from '@/core'
@@ -24,7 +24,7 @@ export default defineMod({
   serverOnlyPublicEntries: ['server-prompt-assets.ts'],
   stores: ['useEngineStore'],
   events: {
-    emits: ['mod-engine:round-start', 'mod-engine:round-complete', 'mod-engine:post-narrative-notification', 'mod-engine:narrative-compressed', 'mod-character:died'],
+    emits: ['mod-engine:round-start', 'mod-engine:round-complete', 'mod-engine:narrative-compressed', 'mod-character:died'],
     listens: ['core:all-mods-loaded'],
   },
   campaignHooks: {
@@ -37,14 +37,11 @@ export default defineMod({
       'event-lifecycle',
       'assemble-prompt',
       'ai-narration',
-      'publish-narrative',
-      'ai-data-analysis',
-      'ai-basic-attribute-analysis',
-      'ai-event-recognition',
-      'ai-macro-impact',
-      'post-processing',
-      'epilogue-check',
-      'compress-save',
+      'prepare-narrative',
+      'ai-story-continuity',
+      'ai-talent-growth',
+      'commit-round',
+      'finalize-round',
     ],
   },
 })

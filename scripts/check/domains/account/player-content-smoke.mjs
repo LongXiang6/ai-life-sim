@@ -41,16 +41,6 @@ const metadata = {
   savedAt: 1000,
 }
 
-const scoringProfile = {
-  profileVersion: 1,
-  worldId: 'test-world',
-  dimensions: [
-    { id: 'growth', label: '成长', description: '角色能力与心智成长', weight: 34, evidenceKinds: ['attributes'], curveId: 'growth' },
-    { id: 'agency', label: '抉择', description: '关键选择与承担', weight: 33, evidenceKinds: ['choices'], curveId: 'agency' },
-    { id: 'impact', label: '影响', description: '对世界和他人的影响', weight: 33, evidenceKinds: ['achievements', 'completion'], curveId: 'impact' },
-  ],
-}
-
 function gameRecord(overrides = {}) {
   const recordId = overrides.recordId ?? 'record-default'
   const rounds = overrides.rounds ?? 101
@@ -80,38 +70,10 @@ function gameRecord(overrides = {}) {
     validationClean: true,
     reasons: [],
   }))
-  let attributes = overrides.attributes ?? { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
-  let result
-  if (!overrides.attributes) {
-    for (let value = 0; value <= 100; value += 1) {
-      const candidate = { physique: value, mind: value, talentAptitude: value, charisma: value }
-      const candidateResult = scoring.calculateLifeScore({
-        profile: scoringProfile,
-        lifeRunId: `life-${recordId}`,
-        attributeValues: Object.values(candidate),
-        rounds,
-        committedRounds: rounds,
-        narrativeIds,
-        resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
-        achievementIds: achievements.map((item) => item.id),
-        completed: true,
-        terminalCommitted: true,
-        stateTransitionsTrusted: true,
-        hasValidationFailure: false,
-        transitionAudits,
-      })
-      if (candidateResult.score === targetScore) {
-        attributes = candidate
-        result = candidateResult
-        break
-      }
-    }
-  }
-  result ??= scoring.calculateLifeScore({
-    profile: scoringProfile,
+  const attributes = overrides.attributes ?? { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+  const audit = {
+    schemaVersion: 1,
     lifeRunId: `life-${recordId}`,
-    attributeValues: Object.values(attributes),
-    rounds,
     committedRounds: rounds,
     narrativeIds,
     resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
@@ -121,6 +83,24 @@ function gameRecord(overrides = {}) {
     stateTransitionsTrusted: true,
     hasValidationFailure: false,
     transitionAudits,
+  }
+  const evidenceIds = [
+    ...narrativeIds.map((id) => `narrative:${id}`),
+    ...achievements.map((item) => `achievement:${item.id}`),
+  ]
+  const result = scoring.createLifeScoringResult({
+    response: {
+      dimensions: Array.from({ length: 5 }, (_, index) => ({
+        id: `dimension-${index + 1}`,
+        label: `世界维度${index + 1}`,
+        description: `测试世界中的第${index + 1}项人生衡量`,
+        value: targetScore,
+        comment: `你在第${index + 1}项维度留下了完整证据。`,
+        evidenceIds: [evidenceIds[index]],
+      })),
+    },
+    allowedEvidenceIds: evidenceIds,
+    audit,
   })
   assert.equal(result.score, targetScore, `无法构造目标分数 ${targetScore} 的有效测试记录`)
   return {
@@ -131,38 +111,21 @@ function gameRecord(overrides = {}) {
     finalAge: 101,
     rounds,
     died: false,
-    moralityLabel: '至善',
     overallScore: result.score,
     attributes,
     dimensions: result.dimensions,
     destinyNames: ['照夜星'],
     achievements,
     scoring: {
-      version: result.version,
-      profile: scoringProfile,
-      rawScore: result.rawScore,
-      validCompletedLife: result.validCompletedLife,
-      evidence: result.evidence,
-      integrity: result.integrity,
-      audit: {
-        schemaVersion: 1,
-        lifeRunId: `life-${recordId}`,
-        committedRounds: rounds,
-        narrativeIds,
-        resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
-        achievementIds: achievements.map((item) => item.id),
-        completed: true,
-        terminalCommitted: true,
-        stateTransitionsTrusted: true,
-        hasValidationFailure: false,
-        transitionAudits,
-      },
+      ...result,
+      audit,
     },
     endingReview: {
       perspective: 'macro',
       review: '你把这一生的选择变成了能够被后来者看见的结果。',
-      evidenceIds: [achievements[0].id],
-      source: 'local',
+      verse: '长路回声落故城\n旧灯照见后来人\n一生取舍留青简\n此夜星河照远程',
+      evidenceIds: [evidenceIds[0]],
+      source: 'ai',
     },
     gameVersion: '5.2.9',
     ...overrides,
@@ -207,27 +170,62 @@ try {
     payload: { ...payload, futureSegment: {} },
   }).success, false)
 
-  assert.equal(service.projectLeaderboardRecord('boundary-round', gameRecord({ recordId: 'round-100', rounds: 100 })).rounds, 100)
-  assert.equal(service.projectLeaderboardRecord('boundary-score', gameRecord({ recordId: 'score-97', overallScore: 97 })), null)
+  assert.equal(service.projectLeaderboardRecord('boundary-round', gameRecord({ recordId: 'round-100', rounds: 100 })), null)
+  assert.equal(service.projectLeaderboardRecord('boundary-score', gameRecord({ recordId: 'score-97', overallScore: 97 })).score, 97)
+  const missingVerse = gameRecord({ recordId: 'missing-verse', overallScore: 98 })
+  delete missingVerse.endingReview.verse
+  assert.equal(service.projectLeaderboardRecord('missing-verse', missingVerse), null)
   const forgedScore = gameRecord({ recordId: 'forged-score', overallScore: 98 })
   forgedScore.overallScore = 99
   assert.equal(service.projectLeaderboardRecord('forged-score', forgedScore), null)
   const missingAudit = gameRecord({ recordId: 'missing-audit', overallScore: 99 })
   delete missingAudit.scoring.audit
-  assert.equal(service.projectLeaderboardRecord('missing-audit', missingAudit), null)
+  assert.throws(() => service.projectLeaderboardRecord('missing-audit', missingAudit))
   assert.deepEqual(service.projectLeaderboardRecord('account-a', gameRecord({ recordId: 'score-98', overallScore: 98, rounds: 101 })), {
     score: 98, rounds: 101, recordId: 'score-98', completedAt: 10,
   })
-  assert.equal(service.projectLeaderboardRecord('account-a', gameRecord({ recordId: 'same-shorter', overallScore: 98, rounds: 1000 })).rounds, 1000)
+  assert.equal(service.projectLeaderboardRecord('account-a', gameRecord({ recordId: 'same-account-longer', overallScore: 98, rounds: 1000 })).rounds, 1000)
   assert.equal(service.projectLeaderboardRecord('account-a', gameRecord({ recordId: 'score-99', overallScore: 99, rounds: 101 })).score, 99)
   assert.equal(service.projectLeaderboardRecord('account-b', gameRecord({ recordId: 'b-score-99', overallScore: 99, rounds: 900 })).rounds, 900)
   const ranked = service.readLeaderboardEntries(new Map([['account-a', '甲'], ['account-b', '乙']]))
-  assert.deepEqual(ranked.map((entry) => [entry.username, entry.score, entry.rounds]), [['乙', 99, 900], ['甲', 99, 101]])
+  assert.deepEqual(ranked.map((entry) => [entry.username, entry.score, entry.rounds]), [
+    ['乙', 99, 900],
+    ['甲', 99, 101],
+    ['甲', 98, 1000],
+    ['甲', 98, 101],
+  ])
+  assert.equal(database.prepare(`
+    SELECT COUNT(*) AS count FROM leaderboard_best_runs WHERE account_id = 'account-a'
+  `).get().count, 3)
+
+  database.prepare('DELETE FROM leaderboard_best_runs').run()
+  const firstSyncedRun = gameRecord({ recordId: 'sync-first', overallScore: 97 })
+  const secondSyncedRun = gameRecord({ recordId: 'sync-second', overallScore: 98 })
+  service.projectStructuredGameRecords('sync-account', [firstSyncedRun], 20)
+  service.projectStructuredGameRecords('sync-account', [secondSyncedRun], 21)
+  assert.equal(database.prepare(`
+    SELECT COUNT(*) AS count FROM leaderboard_best_runs WHERE account_id = 'sync-account'
+  `).get().count, 2)
+
+  database.prepare('DELETE FROM leaderboard_best_runs').run()
+  const retentionBase = gameRecord({ recordId: 'retention-base', overallScore: 97 })
+  for (let index = 0; index < 55; index += 1) {
+    service.projectLeaderboardRecord('retention-account', {
+      ...retentionBase,
+      recordId: `retention-${String(index).padStart(2, '0')}`,
+      completedAt: 100 + index,
+    })
+  }
+  const retained = service.readLeaderboardEntries(new Map([['retention-account', '留名者']]))
+  assert.equal(retained.length, 50)
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM leaderboard_best_runs').get().count, 50)
+  assert.equal(retained[0].recordId, 'retention-00')
+  assert.equal(retained.at(-1).recordId, 'retention-49')
+  assert.equal(service.getPlayerContentAggregateCounts().eligibleLeaderboardRecords, 50)
 
   const perfect = gameRecord({ recordId: 'perfect', overallScore: 100, rounds: 120 })
-  assert.equal(service.queuePortraitMailJob('account-a', perfect), true)
   assert.equal(service.queuePortraitMailJob('account-a', perfect), false)
-  assert.equal(service.getPlayerContentAggregateCounts().queuedPortraitJobs, 1)
+  assert.equal(service.getPlayerContentAggregateCounts().queuedPortraitJobs, 0)
 
   const accountDatabase = accountDatabaseModule.getAccountDatabase()
   const ensureAccountRecord = (accountId, record) => {
@@ -294,74 +292,6 @@ try {
     (error) => error?.code === 'invalid_image_type',
   )
 
-  // 画像任务必须先入队、再由 worker 消费；重复消费和失败重试均有明确边界。
-  process.env.PORTRAIT_IMAGE_ENABLED = '1'
-  process.env.PORTRAIT_IMAGE_API_KEY = 'test-only-key'
-  process.env.PORTRAIT_IMAGE_BASE_URL = 'https://api.openai.com'
-  const portraitSuccess = gameRecord({ recordId: 'portrait-success', overallScore: 100, rounds: 120 })
-  ensureAccountRecord('portrait-success-account', portraitSuccess)
-  assert.equal(service.queuePortraitMailJob('portrait-success-account', portraitSuccess), true)
-  let successProviderCalls = 0
-  const successFetch = async () => {
-    successProviderCalls += 1
-    return new Response(JSON.stringify({ data: [{ b64_json: png.toString('base64') }] }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  await portraitMail.processPortraitMailJobForTests(
-    'portrait-success-account',
-    portraitSuccess.recordId,
-    successFetch,
-  )
-  const readyJob = database.prepare(`
-    SELECT status, attempts FROM portrait_mail_jobs WHERE account_id = ? AND record_id = ?
-  `).get('portrait-success-account', portraitSuccess.recordId)
-  assert.deepEqual(readyJob, { status: 'ready', attempts: 1 })
-  assert.equal(playerMail.readPlayerMailboxPage({
-    identity: { accountId: 'portrait-success-account', username: 'portrait-success-account' },
-    folder: 'inbox',
-  }).messages[0].kind, 'portrait')
-  await portraitMail.processPortraitMailJobForTests(
-    'portrait-success-account',
-    portraitSuccess.recordId,
-    successFetch,
-  )
-  assert.equal(successProviderCalls, 1)
-
-  const portraitFailure = gameRecord({ recordId: 'portrait-failure', overallScore: 100, rounds: 120 })
-  ensureAccountRecord('portrait-failure-account', portraitFailure)
-  assert.equal(service.queuePortraitMailJob('portrait-failure-account', portraitFailure), true)
-  let failureProviderCalls = 0
-  const failureFetch = async () => {
-    failureProviderCalls += 1
-    return new Response('provider failure', { status: 503 })
-  }
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await portraitMail.processPortraitMailJobForTests(
-      'portrait-failure-account',
-      portraitFailure.recordId,
-      failureFetch,
-    )
-  }
-  const failedJob = database.prepare(`
-    SELECT status, attempts, last_error_code FROM portrait_mail_jobs
-    WHERE account_id = ? AND record_id = ?
-  `).get('portrait-failure-account', portraitFailure.recordId)
-  assert.equal(failedJob.status, 'failed')
-  assert.equal(failedJob.attempts, 3)
-  assert.equal(failureProviderCalls, 3)
-  assert.equal(playerMail.readPlayerMailboxPage({
-    identity: { accountId: 'portrait-failure-account', username: 'portrait-failure-account' },
-    folder: 'inbox',
-  }).messages.length, 0)
-  await portraitMail.processPortraitMailJobForTests(
-    'portrait-failure-account',
-    portraitFailure.recordId,
-    failureFetch,
-  )
-  assert.equal(failureProviderCalls, 3)
-
   // 邮箱同时覆盖诊断身份、幂等发送、已读/删除、单份广播和唯一天赋托管。
   const mailNow = Date.now() + 10_000
   const senderRecord = gameRecord({ recordId: 'mail-sender-record', overallScore: 98 })
@@ -377,15 +307,21 @@ try {
   assert.equal(playerMail.bindDiagnosticMailboxIdentity(diagnosticA, `DEV-${'C'.repeat(32)}`, mailNow), null)
 
   const transferableTalent = {
-    id: 'mythic-mail-transfer',
+    id: 'reincarnation-mail-transfer',
+    lineageId: 'mail-transfer-lineage',
+    version: 1,
     name: '星河留灯',
-    concept: '为远行者留下回程的光',
+    description: '为远行者留下回程的光',
+    category: 'exploration',
+    rarity: 'mythic',
     effect: '在最困难的选择中仍记得当初的承诺',
+    attrBonus: {},
+    strengthenLevel: 1,
     acquiredAt: mailNow - 1_000,
     source: { worldName: '测试世界', characterName: '林见星', runId: 'mail-source-run' },
   }
   accountDatabase.prepare(`
-    INSERT INTO account_mythic_talents(account_id, slot, talent_id, data_json, updated_at)
+    INSERT INTO account_reincarnation_talents(account_id, slot, talent_id, data_json, updated_at)
     VALUES ('mail-sender', 1, ?, ?, ?)
   `).run(transferableTalent.id, JSON.stringify(transferableTalent), mailNow)
 
@@ -401,7 +337,7 @@ try {
   })
   assert.equal(firstSend.updated, true)
   assert.equal(accountDatabase.prepare(`
-    SELECT COUNT(*) AS count FROM account_mythic_talents
+    SELECT COUNT(*) AS count FROM account_reincarnation_talents
     WHERE account_id = 'mail-sender' AND talent_id = ?
   `).get(transferableTalent.id).count, 0)
   assert.equal(playerMail.sendPlayerMail({
@@ -456,7 +392,7 @@ try {
   })
   assert.equal(receiverAccept.acceptedTalent.id, transferableTalent.id)
   assert.equal(accountDatabase.prepare(`
-    SELECT COUNT(*) AS count FROM account_mythic_talents
+    SELECT COUNT(*) AS count FROM account_reincarnation_talents
     WHERE account_id = 'mail-receiver' AND talent_id = ?
   `).get(transferableTalent.id).count, 1)
   assert.equal(playerMail.reconcileAccountMailTalents({
@@ -467,12 +403,12 @@ try {
 
   const returnedTalent = {
     ...transferableTalent,
-    id: 'mythic-mail-return',
+    id: 'reincarnation-mail-return',
     name: '未寄出的潮声',
     source: { ...transferableTalent.source, runId: 'mail-return-run' },
   }
   accountDatabase.prepare(`
-    INSERT INTO account_mythic_talents(account_id, slot, talent_id, data_json, updated_at)
+    INSERT INTO account_reincarnation_talents(account_id, slot, talent_id, data_json, updated_at)
     VALUES ('mail-sender', 2, ?, ?, ?)
   `).run(returnedTalent.id, JSON.stringify(returnedTalent), mailNow)
   const returnMailId = crypto.randomUUID()
@@ -491,7 +427,7 @@ try {
     now: mailNow + 9,
   })
   assert.equal(accountDatabase.prepare(`
-    SELECT COUNT(*) AS count FROM account_mythic_talents
+    SELECT COUNT(*) AS count FROM account_reincarnation_talents
     WHERE account_id = 'mail-sender' AND talent_id = ?
   `).get(returnedTalent.id).count, 1)
 
@@ -527,12 +463,12 @@ try {
 
   const expiryTalent = {
     ...returnedTalent,
-    id: 'mythic-mail-expiry',
+    id: 'reincarnation-mail-expiry',
     name: '三日归途',
     source: { ...returnedTalent.source, runId: 'mail-expiry-run' },
   }
   accountDatabase.prepare(`
-    INSERT INTO account_mythic_talents(account_id, slot, talent_id, data_json, updated_at)
+    INSERT INTO account_reincarnation_talents(account_id, slot, talent_id, data_json, updated_at)
     VALUES ('mail-sender', 3, ?, ?, ?)
   `).run(expiryTalent.id, JSON.stringify(expiryTalent), mailNow)
   const expiryMailId = crypto.randomUUID()
@@ -554,7 +490,7 @@ try {
     SELECT COUNT(*) AS count FROM player_mail_messages WHERE id = ?
   `).get(expiryMailId).count, 0)
   assert.equal(accountDatabase.prepare(`
-    SELECT COUNT(*) AS count FROM account_mythic_talents
+    SELECT COUNT(*) AS count FROM account_reincarnation_talents
     WHERE account_id = 'mail-sender' AND talent_id = ?
   `).get(expiryTalent.id).count, 1)
 

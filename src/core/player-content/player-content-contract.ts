@@ -1,10 +1,16 @@
+/**
+ * Purpose: Define public player-content schemas and data contracts.
+ * Owner: core:player-content
+ * Responsibility: Contract declarations only; persistence and lifecycle behavior remain in owning services.
+ */
+
 import { z } from 'zod'
 
 import {
   CloudGameRecordSchema,
-  CloudMythicTalentSchema,
+  ReincarnationTalentSchema,
   type CloudGameRecord,
-  type CloudMythicTalent,
+  type CloudReincarnationTalent,
 } from '@/core/account/account-contract'
 
 export const CLOUD_MANUAL_SAVE_SCHEMA_VERSION = 1
@@ -59,7 +65,7 @@ export const PlayerMailCommandSchema = z.discriminatedUnion('action', [
     recipient: PlayerMailRecipientSchema,
     title: z.string().min(1),
     body: z.string().min(1),
-    talent: CloudMythicTalentSchema.optional(),
+    talent: ReincarnationTalentSchema.optional(),
   }).strict(),
   z.object({ action: z.literal('read'), messageId: z.string().uuid() }).strict(),
   z.object({ action: z.literal('delete'), messageId: z.string().uuid() }).strict(),
@@ -95,7 +101,7 @@ export interface LeaderboardEntry extends LeaderboardProjection {
   worldName: string
   finalAge: number
   dimensions: CloudGameRecord['dimensions']
-  endingReview: NonNullable<CloudGameRecord['endingReview']>
+  endingReview: NonNullable<CloudGameRecord['endingReview']> & { verse: string }
   achievements: NonNullable<CloudGameRecord['achievements']>
   portraitAssetId: string | null
   portraitAssetUrl: string | null
@@ -103,7 +109,7 @@ export interface LeaderboardEntry extends LeaderboardProjection {
 
 export interface PlayerMailTalentAttachment {
   status: 'pending' | 'accepted' | 'returned'
-  talent: CloudMythicTalent
+  talent: CloudReincarnationTalent
   acceptedAt: number | null
   returnedAt: number | null
 }
@@ -135,14 +141,14 @@ export interface PlayerMailPage {
   accountRevision: number | null
   talentReconciliation: {
     removeTalentIds: string[]
-    ownedTalents: CloudMythicTalent[]
+    ownedTalents: CloudReincarnationTalent[]
   }
 }
 
 export interface PlayerMailCommandResult {
   updated: boolean
   message?: PlayerMailMessageView
-  acceptedTalent?: CloudMythicTalent
+  acceptedTalent?: CloudReincarnationTalent
   accountRevision: number | null
 }
 
@@ -156,11 +162,16 @@ export interface LegendaryEncounterProjection {
 }
 
 export function isLeaderboardEligible(record: CloudGameRecordLeaderboard): boolean {
-  return Number.isInteger(record.overallScore)
-    && record.overallScore > 97
+  const scoring = record.scoring
+  return scoring?.version === 2
+    && scoring.source === 'ai'
+    && Number.isInteger(record.overallScore)
+    && record.overallScore >= 0
     && record.overallScore <= 100
-    && record.scoring?.validCompletedLife === true
-    && record.scoring.integrity.passed
-    && (record.overallScore < 100 || record.scoring.integrity.perfectGatePassed)
+    && record.overallScore === scoring.score
+    && record.rounds > 100
+    && record.dimensions.length === 5
+    && scoring.integrity.passed
     && Boolean(record.endingReview?.review.trim())
+    && Boolean(record.endingReview?.verse?.trim())
 }

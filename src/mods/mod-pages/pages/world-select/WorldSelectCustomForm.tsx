@@ -1,3 +1,9 @@
+/**
+ * Purpose: Render the custom-world input form within world selection.
+ * Owner: mod-pages/world-select
+ * Responsibility: Form presentation and event forwarding only.
+ */
+
 import type { WorldSelectLogic } from './world-select.types'
 
 import styles from './WorldSelectMobile.module.css'

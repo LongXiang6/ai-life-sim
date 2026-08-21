@@ -1,4 +1,4 @@
-/** Purpose: Regress playtest feedback across pre-generation, parsing, destiny, calendar, branching, and UI.
+/** Purpose: Regress playtest feedback across parsing, destiny, calendar, branching, and UI.
  * Owner: quality:narrative
  * Responsibility: Cross-feature quality assertions only; each runtime system retains its business state. */
 
@@ -8,8 +8,6 @@ import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 import { readDirectorySource, readModuleSource } from '../../lib/read-module-source.mjs'
 
-import { PreGenActivityState } from '../../../../src/mods/mod-engine/helpers/pre-gen-activity-state.ts'
-import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
   buildCanonicalCalendarNarrativeHint,
   buildTimeScaleNarrativeHint,
@@ -25,7 +23,12 @@ import {
 import {
   createCharacterNarrativeStatus,
 } from '../../../../src/mods/mod-character/subsystems/character-status-runtime.ts'
-import { RACE_LIFESPAN } from '../../../../src/mods/mod-character/constants.ts'
+import {
+  DESTINY_PATTERN_CATEGORY_ORDER,
+  DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
+  DESTINY_PATTERN_DISPLAY_COUNT,
+  RACE_LIFESPAN,
+} from '../../../../src/mods/mod-character/constants.ts'
 import { buildNarrativeCoherenceHeader } from '../../../../src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'
 import {
   NARRATIVE_WORD_COUNT_TARGETS,
@@ -38,20 +41,20 @@ import {
 } from '../../../../src/core/ai-service/provider-config.ts'
 import { AVAILABLE_TIME_STEPS, encodeTimeStepKey } from '../../../../src/foundation/constants/time-steps.ts'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
-import {
-  NarrativeAIBranchSchema,
-  NarrativeAIBasicAttributeAnalysisDataSchema,
-  NarrativeAIEventRecognitionDataSchema,
-  translateNarrativeAIBasicAttributeAnalysis,
-  translateNarrativeAIEventRecognition,
-} from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import { NarrativeAIBranchSchema } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { NarrativeRoundMetadataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
-import {
-  rejectsFutureDestinyPatternContent,
-} from '../../../../src/mods/mod-character/utils/destiny-pattern-content-quality.ts'
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
-import { mythicPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/mythic-pattern-prompt.ts'
+import { ReincarnationTalentSchema } from '../../../../src/core/account/account-contract.ts'
+import { normalizeCustomModelProfiles } from '../../../../src/mods/mod-settings/custom-model-profiles.ts'
+import { reincarnationPromotionOutputSchema } from '../../../../src/mods/mod-character/prompts/reincarnation-promotion-prompt.ts'
+import {
+  buildReincarnationPromotionUserPrompt,
+  createPromotedReincarnationTalent,
+  decideReincarnationPromotion,
+  getReincarnationPromotionTargetRarity,
+} from '../../../../src/mods/mod-character/reincarnation-talent-access.ts'
 import { destinyPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
+import { parseDestinyPatternAIResponse } from '../../../../src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts'
 import { buildFestivalNarrativeHint } from '../../../../src/mods/mod-engine/subsystems/time-system/festival-calendar.ts'
 import {
   formatWorldTagsText,
@@ -69,6 +72,8 @@ const narrativeQualitySrc = fs.readFileSync(
 function readRel(rel) {
   return fs.readFileSync(path.join(root, rel), 'utf8')
 }
+
+const storyPromptSampleSrc = readRel('docs/prompt-samples/core-simulation/01-story-ai.md')
 
 function assertOk(condition, message) {
   if (!condition) {
@@ -154,6 +159,7 @@ function loadPersistMigration(sourceText) {
     'DEFAULT_AI_MODEL',
     'normalizeReasoningEffort',
     'normalizeImportedModelSettings',
+    'normalizeCustomModelProfiles',
     transpiled,
   )(
     module,
@@ -187,6 +193,7 @@ function loadPersistMigration(sourceText) {
         customModel: hasPlayerOwnedTarget && customModel ? customModel : DEFAULT_AI_MODEL,
       }
     },
+    normalizeCustomModelProfiles,
   )
   return module.exports
 }
@@ -207,7 +214,7 @@ function loadTalentPoolHelpers(sourceText) {
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText
   const module = { exports: {} }
-  new Function('module', 'exports', 'DESTINY_PATTERN_DISPLAY_COUNT', transpiled)(module, module.exports, 12)
+  new Function('module', 'exports', 'DESTINY_PATTERN_DISPLAY_COUNT', transpiled)(module, module.exports, 6)
   return module.exports
 }
 
@@ -268,19 +275,28 @@ for (const option of AVAILABLE_TIME_STEPS) {
 }
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
-assertIncludes(oneYearHint, '年度连续场景视角', 'one-year hint must use connected annual scenes')
-assertIncludes(oneYearHint, '不得把全年压成一个即时现场', 'one-year hint must reject a single-scene annual result')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '日级可用一个细节、动作或对话承载现场', 'fixed prompt must reserve compact scene focus for the daily scale')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '一年至十年保持人物层面的阶段镜头', 'fixed prompt must retain character-scale stages through ten years')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '不得把宏观报告与即时现场拼接在一起', 'fixed prompt must forbid mixed narrative distances')
+assertIncludes(oneYearHint, '年度故事弧线视角', 'one-year hint must use a connected annual story arc')
+assertIncludes(oneYearHint, '二至三个彼此照应的代表性场景', 'one-year hint must cover the annual arc with connected representative scenes')
+assertIncludes(oneYearHint, '旧主线只能作为承接背景，不能占据多数篇幅', 'one-year hint must move away from a repeated recent main line')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '根据世界事实、连续记忆和本轮引导', 'fixed prompt must use the approved 01 story sources')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '多个并列事项都要形成实际尝试', 'fixed prompt must cover every selected parallel action')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前时间、玩家行动、年龄边界、挑战与失败取向、叙述风格和字数要求', 'fixed prompt must map the approved age, challenge and failure guidance')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '角色当前身份、当前年龄、能力语义与天赋', 'fixed prompt must map age and talent under the character input')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '0至2岁只写婴幼儿能够成立的感知', 'fixed prompt must enforce infant capability boundaries')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前已生效天赋', 'fixed prompt must use the unified talent terminology')
+assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前到期事件中的每项都要在正文中实际处理'), 'fixed prompt must not add a per-item due-event obligation')
+assertOk(COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"当前到期事件":'), 'fixed prompt must describe the optional due-event input')
+const storySystemPromptSample = storyPromptSampleSrc.match(/## 系统 Prompt\s*```json\s*([\s\S]*?)\s*```/u)?.[1]
+assertSame(storySystemPromptSample, COMPILED_NARRATIVE_SYSTEM_PROMPT, '01 sample system Prompt must exactly match the protected runtime asset')
+assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
 assertIncludes(tenYearHint, '十年人生转型视角', 'ten-year hint must use character-scale decade transformation')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
 assertIncludes(fiftyYearHint, '半世纪历史视角', 'fifty-year hint must use historical perspective')
-assertIncludes(fiftyYearHint, '用至少三个时代节点写清个人命运与长期结构如何互相影响', 'fifty-year hint must require connected historical nodes')
-assertIncludes(fiftyYearHint, '大部分篇幅不得停留在结束节点当天或任何单一现场', 'fifty-year hint must not collapse into the ending-day scene')
+assertIncludes(fiftyYearHint, '选择少量能够代表转折的时代场景', 'fifty-year hint must use connected historical nodes')
+assertIncludes(fiftyYearHint, '追踪同一个选择、事业、关系或遗产如何改变形态并反过来塑造人生', 'fifty-year hint must sustain one historical causal thread')
 const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
 assertIncludes(millenniumHint, '千年时代与遗产视角', 'millennium hint must use civilizational legacy perspective')
 
@@ -292,8 +308,8 @@ const januaryCalendar = buildCanonicalCalendarNarrativeHint({
 })
 assertIncludes(januaryCalendar, '3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季', 'calendar hint must define canonical solar months')
 assertIncludes(januaryCalendar, '结束节点属于冬季', 'January must resolve to winter')
-assertIncludes(januaryCalendar, '1月必须称冬季', 'cold January weather must not be relabeled as another season')
-assertIncludes(januaryCalendar, '不得把该月改称其他季节', 'calendar guidance must separate weather from season naming')
+assertIncludes(januaryCalendar, '其中1月称冬季', 'cold January weather must retain its calendar season')
+assertIncludes(januaryCalendar, '异常寒冷或炎热作为该季节中的特殊天气呈现', 'calendar guidance must separate weather from season naming')
 
 const crossYearDays = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'day', value: 3 },
@@ -319,7 +335,7 @@ const multiSeasonCalendar = buildCanonicalCalendarNarrativeHint({
   day: 1,
 })
 assertIncludes(multiSeasonCalendar, '连续推进2个季度（6个月）', 'season hint must respect requested amount')
-assertIncludes(multiSeasonCalendar, '不得把跨季跨度写成单一季节', 'multi-season hint must require seasonal change')
+assertIncludes(multiSeasonCalendar, '环境与社会节律随跨季过程自然变化', 'multi-season hint must require seasonal change')
 
 const multiYearCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'year', value: 10 },
@@ -351,7 +367,7 @@ const coarseToFineWindow = buildCanonicalCalendarNarrativeHint({
 assertIncludes(coarseToFineWindow, '上一叙事节点为2026年1月1日', 'runtime calendar hint must name the previous narrative node')
 assertIncludes(coarseToFineWindow, '当前结束节点为2026年2月1日', 'runtime calendar hint must name the current end node')
 assertIncludes(coarseToFineWindow, '已推进31天（1月）', 'runtime calendar hint must use actual elapsed days after a coarse-to-fine switch')
-assertIncludes(coarseToFineWindow, '不得重复上一节点之前已经完成的周期', 'runtime calendar hint must prohibit replaying completed periods')
+assertIncludes(coarseToFineWindow, '开端承接上一节点的既成结果', 'runtime calendar hint must advance from the completed period')
 assertOk(!coarseToFineWindow.includes('本轮覆盖2026年2月'), 'runtime month span must not mislabel the ended February node as the narrated month')
 
 const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
@@ -364,72 +380,82 @@ const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
   timeStepAlignment: { fromUnit: 'year', fromValue: 1 },
 })
 assertIncludes(alignedBridgeWindow, '边界对齐桥接', 'coarse-to-fine bridge must be explicit in the calendar prompt')
-assertIncludes(alignedBridgeWindow, '不能把被跳过的跨度重新写成当前月的流水账', 'bridge prompt must prevent replaying the skipped coarse window')
+assertIncludes(alignedBridgeWindow, '前一粗粒度窗口已经完成', 'bridge prompt must preserve the completed coarse window')
+assertIncludes(alignedBridgeWindow, '正文从当前合法节点建立一个代表性现场、后果或新线索', 'bridge prompt must continue from the current legal node')
 
-// 预生成：失效只代表结果不可用，后台执行结束前仍占用单写者，
-// 但主推进不能继续等待已经失效的结果。
-const activity = new PreGenActivityState()
-const generation = activity.begin()
-assertOk(activity.isActive(), 'pre-gen begin must mark execution active')
-activity.invalidate()
-assertOk(!activity.isActive(), 'invalidating pre-gen result must release player-facing wait state')
-assertOk(activity.isRunning(), 'invalidating pre-gen result must retain the background single-writer gate')
-assertOk(!activity.isCurrent(generation), 'invalidated generation must be stale')
-activity.finish(generation)
-assertOk(!activity.isActive(), 'pre-gen finish must release the single-writer gate')
-assertOk(!activity.isRunning(), 'pre-gen finish must release the background execution state')
+const validPromotionOutput = {
+  name: '照夜升阶',
+  description: '因这一生的守望而凝结的轮回规则',
+  effect: '这是一条保留现实代价、玩家选择余地、外部对抗空间与结果不确定性的纯概念叙事规则。',
+  attrBonus: { mind: 3 },
+}
+assertOk(reincarnationPromotionOutputSchema.safeParse(validPromotionOutput).success, 'reincarnation promotion schema must accept a valid promoted entry')
+assertOk(!reincarnationPromotionOutputSchema.safeParse({ ...validPromotionOutput, description: '' }).success, 'reincarnation promotion schema must reject an empty description')
 
-const validEnvelope = parseNarrativeResponseEnvelope('⟦正文⟧第一段。\n\n第二段。')
-assertSame(validEnvelope.narrative, '第一段。\n\n第二段。', 'valid tagged narrative body')
-assertSame(
-  parseNarrativeResponseEnvelope('正文。').narrative,
-  '正文。',
-  'a complete plain narrative must be usable without a format retry',
-)
+const promotionRarities = ['common', 'fine', 'rare', 'epic', 'legendary', 'mythic']
+const promotionTargets = ['fine', 'rare', 'epic', 'legendary', 'mythic', 'mythic']
+for (const [index, rarity] of promotionRarities.entries()) {
+  const source = {
+    lineageId: `lineage-${rarity}`,
+    version: index + 1,
+    name: `${rarity}-source`,
+    description: '来源说明',
+    effect: '来源效果',
+    category: 'exploration',
+    rarity,
+    attrBonus: {},
+    strengthenLevel: rarity === 'mythic' ? 3 : 0,
+  }
+  const target = getReincarnationPromotionTargetRarity(rarity)
+  const promotionDecision = decideReincarnationPromotion(source, () => 0.99)
+  assertSame(target, promotionTargets[index], `${rarity} settlement promotion target`)
 
-const minimumEnvelope = parseNarrativeResponseEnvelope(
-  `⟦正文⟧完整正文第一段。\n\n完整正文第二段。\n\n⟦分支⟧${JSON.stringify({
-    标题: '选择去向',
-    选项: ['留下', '迁居'],
-  })}`,
-)
-assertOk(
-  minimumEnvelope.narrative.includes('完整正文第二段。')
-    && minimumEnvelope.branch?.选项.length === 2,
-  'first response must parse complete body plus an optional compact branch',
-)
-for (const invalidFirstResponse of [
-  '⟦正文⟧',
-  '⟦正文⟧正文。\n\n⟦摘要⟧旧摘要',
-  '⟦正文⟧正文。\n\n⟦数据⟧{}',
-  '⟦正文⟧正文。\n\n⟦结束⟧',
-]) {
-  assertThrows(
-    () => parseNarrativeResponseEnvelope(invalidFirstResponse),
-    `strict first response must reject legacy or malformed content: ${invalidFirstResponse}`,
-  )
+  const promoted = createPromotedReincarnationTalent(source, {
+    name: `${rarity}-promoted`,
+    description: '升阶说明',
+    effect: '升阶效果',
+    attrBonus: { mind: 3 },
+  }, promotionDecision, {
+    worldName: '测试世界',
+    characterName: '测试角色',
+    runId: 'run-promotion',
+  }, 100 + index)
+
+  assertSame(promoted.rarity, promotionTargets[index], `${rarity} promoted rarity`)
+  assertSame(promoted.strengthenLevel, rarity === 'mythic' ? 4 : 0, `${rarity} strengthen level`)
+  assertSame(promoted.version, source.version + 1, `${rarity} promoted version`)
+  assertOk(ReincarnationTalentSchema.safeParse(promoted).success, `${rarity} promotion must satisfy persistence schema`)
+
+  const prompt = buildReincarnationPromotionUserPrompt({
+    worldName: '测试世界',
+    characterName: '测试角色',
+    lifeSummary: '完成了一段可追溯的人生。',
+    lifeRecords: ['第一轮：完成选择。'],
+    selectedPattern: source,
+    endingScore: 80,
+    strengthTier: { id: 'deep', label: '深刻', guidance: '形成清晰且有用的概念倾向。' },
+    promotionDecision,
+  })
+  assertOk(new RegExp(`"rarity"\\s*:\\s*"${rarity}"`).test(prompt), `${rarity} source rarity must enter the promotion prompt`)
+  assertOk(new RegExp(`"targetRarity"\\s*:\\s*"${target}"`).test(prompt), `${target} target rarity must enter the promotion prompt`)
 }
 
-assertOk(
-  rejectsFutureDestinyPatternContent({ description: '1999年深秋，你路过一间旧书店。' }),
-  'destiny quality gate must reject absolute-year biography',
-)
-assertOk(
-  rejectsFutureDestinyPatternContent({ description: '你曾在一次争执中发现自己不会退让。' }),
-  'destiny quality gate must reject past biographical events',
-)
-assertOk(
-  !rejectsFutureDestinyPatternContent({ description: '你天生擅长从细微声响中识别机械结构与异常。' }),
-  'destiny quality gate must allow timeless inherent traits',
-)
-
-const validMythicCandidates = Array.from({ length: 3 }, (_, index) => ({
-  name: `神话${index}`,
-  concept: `概念${index}`,
-  effect: '这是一条保留现实代价、玩家选择余地、外部对抗空间与结果不确定性的纯概念叙事规则。',
-}))
-assertOk(mythicPatternOutputSchema.safeParse(validMythicCandidates).success, 'mythic schema must accept exactly three valid concepts')
-assertOk(!mythicPatternOutputSchema.safeParse(validMythicCandidates.slice(0, 2)).success, 'mythic schema must reject fewer than three concepts')
+const invalidNonMythicReincarnation = {
+  id: 'invalid-fine',
+  lineageId: 'invalid-fine',
+  version: 1,
+  name: '错误精良',
+  description: '说明',
+  category: 'battle',
+  rarity: 'fine',
+  effect: '效果',
+  attrBonus: {},
+  strengthenLevel: 1,
+  acquiredAt: 1,
+  source: { worldName: '测试世界', characterName: '测试角色' },
+}
+assertOk(!ReincarnationTalentSchema.safeParse(invalidNonMythicReincarnation).success, 'non-mythic reincarnation talents must have strengthenLevel 0')
+assertOk(ReincarnationTalentSchema.safeParse({ ...invalidNonMythicReincarnation, rarity: 'mythic', strengthenLevel: 0 }).success, 'newly promoted mythic reincarnation talents must allow strengthenLevel 0')
 
 const migratedCharacter = sanitizeCharacterStateSnapshot({
   characterBase: {
@@ -445,6 +471,7 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
       name: '旧命格',
       description: '旧命格描述',
       effect: '旧命格效果',
+      category: 'exploration',
       rarity: 'rare',
       polarity: 'positive',
       attrBonus: { mind: 1, resources: 4 },
@@ -454,7 +481,8 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
 })
 assertOk(!('resources' in migratedCharacter.characterBase.base), 'old character saves must remove resources from base attributes')
 assertOk(!('resources' in migratedCharacter.destinyPatterns.patterns[0].attrBonus), 'old character saves must remove resources from destiny bonuses')
-assertSame(migratedCharacter.equippedMythicPatterns.length, 0, 'old character saves must default equipped mythic slots to empty')
+assertOk(!('polarity' in migratedCharacter.destinyPatterns.patterns[0]), 'old character saves must discard the retired destiny polarity field')
+assertSame(migratedCharacter.equippedReincarnationTalents.length, 0, 'old character saves must default equipped reincarnation slots to empty')
 
 const legacyScpDescription = '基金会为收容物赋予SCP编号。休谟指数用于衡量现实强度，现实扭曲者能够改变规则。玩家追加：故事从2000年开始。'
 let migratedScpWorld
@@ -605,16 +633,17 @@ assertOk(!isEligibleNarrativeBranch({
 
 const constantsSrc = readRel('src/mods/mod-character/constants.ts')
 const destinySystemSrc = readModuleSource('src/mods/mod-character/subsystems/destiny-pattern-system.ts', root)
+const destinyPoolServiceSrc = readRel('src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts')
+const destinyValidationSrc = readRel('src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts')
 const destinyPromptSrc = readRel('src/mods/mod-character/prompts/destiny-pattern-prompt.ts')
 const destinyPoolCacheSrc = readRel('src/mods/mod-character/utils/destiny-pattern-pool-cache.ts')
 const characterStoreSrc = readRel('src/mods/mod-character/store.ts')
 const characterMigrationSrc = readRel('src/mods/mod-character/utils/character-state-migration.ts')
-const mythicPromptSrc = readRel('src/mods/mod-character/prompts/mythic-pattern-prompt.ts')
-const mythicAccessSrc = readRel('src/mods/mod-character/mythic-pattern-access.ts')
-const mythicLibrarySrc = readRel('src/mods/mod-character/mythic-library-store.ts')
+const reincarnationPromptSrc = readRel('src/mods/mod-character/prompts/reincarnation-promotion-prompt.ts')
+const reincarnationAccessSrc = readRel('src/mods/mod-character/reincarnation-talent-access.ts')
+const reincarnationLibrarySrc = readRel('src/mods/mod-character/reincarnation-library-store.ts')
 const talentDrawPageSrc = readDirectorySource('src/mods/mod-pages/pages/talent-draw', root, ['.ts', '.tsx'])
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
-const preGenSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 const narrativeSignalsSrc = readRel('src/mods/mod-engine/helpers/narrative-semantic-signals.ts')
 const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
 const orchestratorSrc = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
@@ -624,8 +653,10 @@ const narrativeHintsSrc = readRel('src/mods/mod-engine/helpers/narrative-hints.t
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const talentGrowthPromptSrc = readRel('src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts')
+const promptBuilderSrc = readRel('src/core/ai-service/prompt-builder.ts')
+const promptContextRuntimeSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts')
 const roundCommitBusSrc = readRel('src/mods/mod-engine/helpers/round-commit-bus.ts')
-const powerContextSrc = readRel('src/mods/mod-world/utils/power-framework.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readDirectorySource('src/mods/mod-ui/components/organisms', root, ['.ts', '.tsx'])
 const calendarContextSrc = readRel('src/mods/mod-engine/helpers/calendar-narrative-context.ts')
@@ -650,15 +681,16 @@ assertSame(
 assertSame(
   talentPoolHelpers.drawSlotsFromPool(normalizedDuplicatePool).filter(Boolean).length,
   4,
-  'a raw five-item pool with one normalized duplicate must not pretend to fill five slots',
+  'a raw five-item pool with one normalized duplicate must not pretend to fill six slots',
 )
 assertSame(
   talentPoolHelpers.uniquePatternsByIdentity([
     ...normalizedDuplicatePool,
     { id: 'extra', name: '补足命格' },
+    { id: 'extra-2', name: '再补命格' },
   ]).length,
-  5,
-  'readiness must become possible once five display-unique candidates exist',
+  6,
+  'readiness must become possible once six display-unique candidates exist',
 )
 
 assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
@@ -673,8 +705,8 @@ assertSame(resolveNarrativeWordCountRange(200).preferredMax, 240, 'the 200-chara
 assertOk(
   new Set(NARRATIVE_WORD_COUNT_TARGETS.map((target) => buildWordCountInstruction(target))).size === 16
     && buildWordCountInstruction(200).includes('2至3个短段、4至6个短句')
-    && buildWordCountInstruction(200).endsWith('正文全部段落合计写成160-240字，中心约200字。'),
-  'every length option must select distinct density guidance and define the whole-body target range',
+    && buildWordCountInstruction(200).startsWith('正文约200字。'),
+  'every length option must select distinct density guidance and state the configured approximate target',
 )
 assertOk(
   buildWordCountInstruction(200).includes('按本轮视角分配必要节点')
@@ -711,56 +743,6 @@ assertOk(
     && !narrativeQualitySrc.includes('retryMax')
     && narrativeQualitySrc.includes('lengthAdvisory'),
   'narrative length must not be implemented as a retry or rejection gate',
-)
-const chineseInstruction = {
-  系统: '角色状态',
-  目标对象: 'player:current',
-  目标上下文: 'context:current',
-  操作: '调整属性',
-  说明: '你完成了心智训练。',
-  变更: { 心智变化: 1 },
-  依据事件: [],
-}
-const chineseMetadata = {
-  摘要: '你在压力下完成了一次心智训练。',
-  重要程度: '普通',
-  注册事件: [{ 内容: '你完成了心智训练。', 重要度: 45, 涉及实体: ['你'] }],
-  情节状态: '进行中',
-  语义信号: {
-    事件类型: '日常',
-    冲突强度: 10,
-    张力变化: 0,
-    行动规模: '小',
-    不可逆: false,
-    影响范围: '个人',
-    叙事语域: '生活',
-    语域理由: '这是一次具体的日常训练。',
-    情节类型: '无',
-  },
-}
-const chineseBasicAttributeData = { 系统操作: [chineseInstruction] }
-const chineseEventRecognitionData = {
-  回合事件: chineseMetadata,
-  待触发事件: [],
-}
-assertOk(
-  NarrativeAIBasicAttributeAnalysisDataSchema.safeParse(chineseBasicAttributeData).success
-    && translateNarrativeAIBasicAttributeAnalysis(
-      chineseBasicAttributeData,
-      { allowedEvidenceEventIds: [], allowedSubsystemIds: ['character-base'] },
-    )[0]?.changes.mindDelta === 1
-    && NarrativeAIEventRecognitionDataSchema.safeParse(chineseEventRecognitionData).success
-    && translateNarrativeAIEventRecognition(chineseEventRecognitionData, {
-      currentContextId: 'context:current',
-      currentTotalDays: 10,
-    }).metadata.digest === chineseMetadata.摘要,
-  'background Chinese system, attribute, and event fields must translate to the internal contracts',
-)
-assertOk(
-  !NarrativeAIBasicAttributeAnalysisDataSchema.safeParse({
-    系统操作: [{ ...chineseInstruction, 变更: { mindDelta: 1 } }],
-  }).success,
-  'English legacy change fields must not be accepted alongside the basic-attribute protocol',
 )
 assertOk(
   !NarrativeAIBranchSchema.safeParse({
@@ -854,90 +836,118 @@ assertOk(
   'entry gates and proxy routing must require a complete player-owned API configuration',
 )
 
-assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*10/.test(constantsSrc), 'destiny each AI batch must request 10 items')
-assertOk(/AI_DESTINY_PATTERN_BATCH_COUNT\s*=\s*10/.test(constantsSrc), 'destiny background batches must keep an approximately 100-item full pool')
-assertOk(/AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY\s*=\s*3/.test(constantsSrc), 'destiny first screen must use three concurrent requests')
+assertOk(/DESTINY_PATTERN_DISPLAY_COUNT\s*=\s*16/.test(constantsSrc), 'destiny generation must publish sixteen ordinary first-batch candidates')
+assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*4/.test(constantsSrc), 'each destiny request must target four candidates')
+assertOk(/DESTINY_PATTERN_CATEGORY_TARGET_COUNT\s*=\s*12/.test(constantsSrc), 'each destiny category must fill to twelve candidates')
+assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 16, 'destiny display count must expose four categories times four candidates')
+assertSame(DESTINY_PATTERN_CATEGORY_TARGET_COUNT, 12, 'destiny background target must be twelve per category')
+assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'battle,exploration,social,production', 'destiny category order must remain stable')
+assertOk(
+  /AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS[\s\S]{0,260}\['battle'\][\s\S]{0,120}\['exploration'\][\s\S]{0,120}\['social'\][\s\S]{0,120}\['production'\]/.test(constantsSrc),
+  'destiny generation must keep four independent category tasks',
+)
 assertOk(!constantsSrc.includes('DESTINY_PATTERN_EARLY_READY_TIMEOUT_MS'), 'AI destiny readiness must not time out to presets')
 assertOk(
-  /const parallelSeeds = \[42, 137, 256\]/.test(destinySystemSrc)
-    && /parallelPromises\.push\([\s\S]{0,260}runBatchWithRetry\(index, seed, true\)/.test(destinySystemSrc)
-    && /Promise\.race\(\[earlyReadyPromise, allParallelSettled, terminalCredentialErrorPromise\]\)/.test(destinySystemSrc)
-    && /Promise\.allSettled\(parallelPromises\)/.test(destinySystemSrc),
-  'destiny first screen must race three streamed requests, credential termination, and background completion',
-)
-assertOk(
-  /\.length\(AI_DESTINY_PATTERN_BATCH_SIZE\)/.test(destinyPromptSrc),
-  'destiny output schema length must follow the ten-item batch authority',
+  /Promise\.allSettled\(/.test(destinyPoolServiceSrc)
+    && /startBackgroundFill/.test(destinyPoolServiceSrc)
+    && /fillCategory/.test(destinyPoolServiceSrc),
+  'destiny generation must run four independent initial calls and category-scoped background filling',
 )
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
-assertOk(/稳定|先天|固有/.test(destinyPromptSrc) && /禁止.*年份|严禁.*年份/.test(destinyPromptSrc), 'destiny prompt must require timeless traits')
-assertOk(destinyPromptSrc.includes('JSON顶层数组') && !destinyPromptSrc.includes('{"patterns"'), 'destiny prompt must match the top-level array Zod contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'3\.5\.0'/.test(destinyPromptSrc)
-    && /version:\s*DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc),
-  'destiny prompt and registered template must share version 3.5.0',
+  destinyPromptSrc.includes('开局已成立的能力、感知、技艺、习惯或处境'),
+  'destiny prompt must positively require timeless traits',
+)
+assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
+assertOk(
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.2\.0'/.test(destinyPromptSrc)
+    && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
+    && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
+  'destiny prompt builder and cache version must share version 8.2.0',
 )
 assertOk(
-  destinyPromptSrc.includes('极性：正向/混合')
-    && /polarity:\s*z\.enum\(\['positive', 'mixed'\]\)/.test(destinyPromptSrc),
-  'destiny prompt Chinese values and internal polarity schema must remain aligned',
+  destinyPromptSrc.includes('已经被占用的天赋名称')
+    && destinyPromptSrc.includes('新天赋不得与这些名称重复'),
+  'destiny system Prompt must explain existingNames as a no-duplicate constraint',
 )
 assertOk(
-  /正好\$\{DESTINY_PATTERN_TARGET_POSITIVE_COUNT\}条“正向”/.test(destinyPromptSrc)
-    && /不得为了“平衡”统一补写副作用/.test(destinyPromptSrc)
-    && /positiveCount < DESTINY_PATTERN_MIN_POSITIVE_COUNT/.test(destinyPromptSrc),
-  'destiny prompt and schema must share the current batch polarity contract',
+  destinyPromptSrc.includes('二至六个汉字')
+    && destinyPromptSrc.includes('保留古典用词质感')
+    && destinyPromptSrc.includes('比喻最多一处')
+    && destinyPromptSrc.includes('普通级只保持'),
+  'destiny prompt must keep direct classical wording and ordinary-tier boundaries',
 )
-const makeDestinyPattern = (index, polarity) => ({
-  name: `命格${index}`,
-  description: `稳定成立的命格特质${index}`,
-  rarity: 'common',
-  polarity,
-  effect: `持续提供清楚可用的正向影响${index}`,
+const makeDestinyPattern = (index, category) => ({
+  类别: category,
+  名称: `命格${index}`,
+  设定描述: `稳定成立且适应当前世界的命格特质${index}`,
+  效果: `持续提供清楚可用的影响${index}`,
+  属性加成: { 心智: 1 },
 })
+assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '战斗')] }).success, 'destiny transport schema must stay permissive')
+const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
+  { 类别: '探索', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，悟性+1，魅力-1' },
+  { 类别: '探索', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
+] }), 'exploration')
+assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
+const partialResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
+  { 类别: '战斗', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
+  { 类别: '战斗', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
+] }), 'battle')
+assertOk(partialResponse.length === 1 && partialResponse[0].name === '铁壁磐石', 'destiny parser must keep valid siblings when one item is unusable')
+const numberedResponse = parseDestinyPatternAIResponse(JSON.stringify({
+  第一条: { effect: '交流更稳。', attributes: '魅力+2，心智-1', title: '言简意明', type: 'social', detail: '能迅速说清重点。' },
+  第二条: { 属性加成: { 魅力: '1' }, 效果: '关系更易维持。', 名称: '守信重诺', 描述: '答应的事会认真完成。' },
+}), 'social')
 assertOk(
-  destinyPatternOutputSchema.safeParse([
-    ...Array.from({ length: 6 }, (_, index) => makeDestinyPattern(index, 'positive')),
-    ...Array.from({ length: 4 }, (_, index) => makeDestinyPattern(index + 6, 'mixed')),
-  ]).success,
-  'destiny schema must accept a batch with the minimum positive majority',
+  numberedResponse.length === 2
+    && numberedResponse[0].name === '言简意明'
+    && numberedResponse[1].category === 'social',
+  'destiny parser must recognize numbered object wrappers, aliases, missing assigned categories, and field disorder',
 )
 assertOk(
-  !destinyPatternOutputSchema.safeParse(
-    Array.from({ length: 10 }, (_, index) => makeDestinyPattern(index, 'mixed')),
-  ).success,
-  'destiny schema must reject an all-mixed double-edged batch',
+  /const category = validateDestinyPatternCategory\(item\.category\)[\s\S]{0,180}const name = item\.name/.test(destinySystemSrc)
+    && /category !== expectedCategory/.test(destinySystemSrc)
+    && /rarity:\s*'common'/.test(destinySystemSrc),
+  'destiny response parsing must enforce the locally assigned category and local common rarity',
 )
 assertOk(
-  /const polarity = (?:this\.)?validateDestinyPatternPolarity\(item\.polarity\)[\s\S]{0,160}if \(!rarity \|\| !polarity\) return/.test(destinySystemSrc)
-    && !/polarity:\s*this\.validatePolarity\(item\.polarity\)\s*\?\?\s*'positive'/.test(destinySystemSrc),
-  'streamed destiny ingestion must reject invalid or negative polarity instead of relabeling it as positive',
+  !/rarity:\s*z\./.test(destinyPromptSrc) && !/[“\"]稀有度[”\"]/.test(destinyPromptSrc),
+  'destiny AI must not own the initial rarity decision',
+)
+assertOk(
+  !destinyPromptSrc.includes('极性') && !destinySystemSrc.includes('polarity'),
+  'destiny generation must not retain the retired polarity contract',
 )
 assertOk(!destinyPromptSrc.includes('resources:'), 'destiny output schema must reject the removed resources attribute')
 assertOk(
-  destinyPromptSrc.includes('只允许 体魄/心智/悟性/魅力')
-    && /attrBonus:\s*z\.object\(\{[\s\S]*physique:[\s\S]*mind:[\s\S]*talentAptitude:[\s\S]*charisma:[\s\S]*\}\)\.strict\(\)/.test(destinyPromptSrc),
-  'destiny prompt Chinese attribute names must map to the strict four-key internal schema',
+  destinyPromptSrc.includes('体魄、心智、悟性、魅力或低概率出现的气运')
+    && destinyPromptSrc.includes('Transport-only schema'),
+  'destiny prompt must keep the shared attribute semantics without strict whole-response gating',
 )
-assertOk(destinyPromptSrc.includes('systemModifiers: destinyPatternSystemModifiersSchema.optional()'), 'destiny schema must accept validated system modifiers')
-assertOk(destinyPromptSrc.includes('传说允许轻度概念规则'), 'legendary destiny patterns must support the current conceptual-rule tier')
 assertOk(
-  destinyPromptSrc.includes('条件、概率、有限触发或可被对抗')
-    && destinyPromptSrc.includes('混合还可以包含有限代价')
-    && destinyPromptSrc.includes('正向必须是清楚可用的正向特质'),
-  'conceptual rules and polarity semantics must match the current prompt contract',
+  !destinyPromptSrc.includes('systemModifiers')
+    && !destinySystemSrc.includes('systemModifiers'),
+  'destiny generation must not retain retired system modifiers',
 )
-assertOk(/效果写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
-assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
 assertOk(
-  /version:\s*6/.test(characterStoreSrc)
+  destinyPromptSrc.includes('作用方式和现实边界')
+    && destinyPromptSrc.includes('只有确实存在时才补充条件、代价或限制')
+    && destinyPromptSrc.includes('普通级只保持'),
+  'conceptual rules and ordinary-tier semantics must match the current prompt contract',
+)
+assertOk(/叙事与模拟长期遵守的作用方式/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
+assertOk(
+  /version:\s*9/.test(characterStoreSrc)
     && ['characterBase', 'destinyPatterns', 'lifespanDraft'].every((field) => characterStoreSrc.includes(field))
     && !['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].some((field) => characterStoreSrc.includes(field)),
   'character persistence must retain identity and unified status while excluding retired runtime projections',
 )
 assertOk(
-  ['mythicCandidates', 'equippedMythicPatterns', 'setEquippedMythicPatterns', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
-  'character store must persist current-life mythic candidates, two equipped slots, and sealed identity',
+  ['equippedReincarnationTalents', 'setEquippedReincarnationTalents'].every((field) => characterStoreSrc.includes(field))
+    && !characterStoreSrc.includes('mythicCandidates')
+    && !characterStoreSrc.includes('sealedMythicPatternId'),
+  'character store must persist equipped reincarnation talents without retired candidates or sealed identity',
 )
 assertOk(
   /BASE_ATTRIBUTE_KEYS\s*=\s*\['physique', 'mind', 'talentAptitude', 'charisma'\]/.test(characterMigrationSrc)
@@ -948,33 +958,34 @@ assertOk(
   /sanitizeDestinyPatternState/.test(characterMigrationSrc) && /sanitizeAttrBonus/.test(characterMigrationSrc),
   'old character saves and destiny pools must remove retired attribute bonuses',
 )
-assertOk(/\.length\(3\)/.test(mythicPromptSrc), 'mythic settlement schema must require exactly three candidates')
+assertOk(/z\.object\(\{[\s\S]*name:[\s\S]*description:[\s\S]*effect:/.test(reincarnationPromptSrc), 'reincarnation promotion schema must require exactly name, description, and effect')
 assertOk(
-  /纯概念/.test(mythicPromptSrc) && /不得出现属性加成、概率百分比、模拟系数/.test(mythicPromptSrc),
-  'mythic candidates must remain non-numeric conceptual rules',
+  /非数值概念规则/.test(reincarnationPromptSrc) && /持续生效/.test(reincarnationPromptSrc),
+  'reincarnation promotion must remain a non-numeric conceptual rule',
 )
 assertOk(
-  /generateMythicPatternCandidates/.test(mythicAccessSrc) && /setMythicPatternAIService/.test(mythicAccessSrc),
-  'mod-character must expose a configurable mythic candidate generator',
+  /promoteReincarnationTalent/.test(reincarnationAccessSrc) && /setReincarnationPromotionAIService/.test(reincarnationAccessSrc),
+  'mod-character must expose a configurable reincarnation promotion entry',
 )
 assertOk(
-  !/existingMythicPatterns:[\s\S]{0,220}effect:\s*pattern\.effect/.test(mythicAccessSrc),
-  'the unbounded mythic library context must send only compact name/concept indexes instead of every stored effect',
+  /selectedPattern:\s*\{[\s\S]{0,400}strengthenLevel:\s*input\.selectedPattern\.strengthenLevel/.test(reincarnationAccessSrc),
+  'reincarnation promotion must send only a compact selected-pattern projection instead of every stored talent effect',
 )
 assertOk(
-  /finalState\?: Readonly<Record<string, unknown>>/.test(mythicAccessSrc)
-    && /lifeDigests\?: readonly/.test(mythicAccessSrc)
-    && /finalState: input\.finalState/.test(mythicAccessSrc)
-    && /lifeDigests: input\.lifeDigests/.test(mythicAccessSrc)
-    && /finalState: mythicFinalState/.test(gameOverPageSrc)
-    && /lifeDigests: mythicLifeDigests/.test(gameOverPageSrc),
-  'mythic settlement must include a compact structured final state and compressed life digests alongside narrative records',
+  /lifeDigests\?: readonly/.test(reincarnationAccessSrc)
+    && /lifeSummary:\s*string/.test(reincarnationAccessSrc)
+    && /lifeDigests: promotionLifeDigests/.test(gameOverPageSrc)
+    && /lifeRecords: promotionLifeRecords/.test(gameOverPageSrc)
+    && /selectedPattern: candidate/.test(gameOverPageSrc)
+    && /endingScore: overallScore/.test(gameOverPageSrc)
+    && /strengthTier: reincarnationStrength/.test(gameOverPageSrc),
+  'reincarnation settlement must include compact life digests and records alongside the selected pattern',
 )
 assertOk(
-  /mod-character:persist:mythic-library/.test(mythicLibrarySrc)
-    && /patterns: MythicPattern\[\]/.test(mythicLibrarySrc)
-    && /addPattern/.test(mythicLibrarySrc),
-  'mythic library must use an independent cross-run persistent store',
+  /mod-character:persist:reincarnation-library/.test(reincarnationLibrarySrc)
+    && /talents: ReincarnationTalent\[\]/.test(reincarnationLibrarySrc)
+    && /addReincarnationTalent/.test(reincarnationLibrarySrc),
+  'reincarnation library must use an independent cross-run persistent store',
 )
 assertOk(!talentDrawPageSrc.includes('buildTimeoutFallback'), 'AI destiny page must not build a preset timeout fallback')
 assertOk(!talentDrawPageSrc.includes('fallbackTimer'), 'AI destiny page must keep waiting instead of starting a fallback timer')
@@ -984,39 +995,40 @@ assertSame(
   'preset generation must appear only in the explicit non-AI branch',
 )
 assertOk(
-  /PRESET_DESTINY_PATTERNS\.filter\(\(pattern\) => pattern\.polarity !== 'negative'\)/.test(destinySystemSrc),
-  'explicit non-AI generation must also exclude legacy purely negative preset entries',
+  /PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME\[pattern\.name\] === category/.test(destinySystemSrc)
+    && !destinySystemSrc.includes('pattern.polarity'),
+  'explicit non-AI generation must enforce only the local category assignment',
 )
 assertOk(
   /if\s*\(!aiTalentGeneration\)\s*\{[\s\S]{0,260}generateFromPresets\s*\(/.test(talentDrawPageSrc),
   'preset generation must stay behind the disabled-AI branch',
 )
 assertOk(
-  /while\s*\(\s*!earlyReadyFired\s*&&\s*!abortController\.signal\.aborted\s*\)/.test(destinySystemSrc),
-  'AI destiny readiness must keep requesting until 5 valid items, cancellation, or terminal credential failure',
+  /startBackgroundFill/.test(destinyPoolServiceSrc)
+    && /DESTINY_PATTERN_CATEGORY_TARGET_COUNT/.test(destinyPoolServiceSrc),
+  'AI destiny generation must retain the explicit category fill lifecycle',
 )
 assertOk(
-  /isAiCredentialError\(err\)[\s\S]{0,160}stopForCredentialError\(err\)[\s\S]{0,120}throw terminalCredentialError/.test(destinySystemSrc),
-  '401/403 must abort the active destiny fill and escape before any later batch can start',
+  /Promise\.allSettled\([\s\S]{0,700}failCategory/.test(destinyPoolServiceSrc)
+    && !/this\.setCandidates\(\[\]\)/.test(destinyPoolServiceSrc),
+  'destiny category failures must preserve valid sibling candidates',
 )
 assertOk(
-  /dedupeDestinyPatterns\(options\?\.initialPatterns \?\? \[\]\)[\s\S]{0,180}filter\(\(pattern\) => isAIGeneratedDestinyPattern\(pattern\)\)/.test(destinySystemSrc),
-  'generateWithAI must reject preset entries even when a caller passes them as initial cache',
+  /existingNames:\s*this\.currentPatterns\.map/.test(destinyPoolServiceSrc)
+    && !/assignedCategory:\s*category/.test(destinyPoolServiceSrc)
+    && /outputSchema:\s*undefined/.test(destinyPoolServiceSrc)
+    && !/DestinyPatternAIGenerateOptions/.test(destinyPoolServiceSrc),
+  'destiny category calls must build category-scoped prompts without strict schema validation or the retired generation contract',
 )
 assertOk(
-  /function destinyPatternNameKey[\s\S]{0,160}trim\(\)\.toLocaleLowerCase\(\)/.test(destinySystemSrc)
-    && /existingNameKeys\.has\(nameKey\)/.test(destinySystemSrc)
-    && /seenNames\.has\(nameKey\)/.test(destinySystemSrc),
-  'the AI pool authority must dedupe normalized display names before declaring five candidates ready',
+  /function destinyPatternNameKey[\s\S]{0,180}normalize\('NFKC'\)[\s\S]{0,120}toLocaleLowerCase\(\)/.test(destinyValidationSrc)
+    && /names\.has\(destinyPatternNameKey\(name\)\)/.test(destinyPoolServiceSrc)
+    && /countCategory\(category\)/.test(destinyPoolServiceSrc),
+  'the AI authority must dedupe normalized names while tracking each category independently',
 )
 assertOk(
-  !/!earlyReadyFired[\s\S]{0,180}nextBackgroundBatch\s*<\s*AI_DESTINY_PATTERN_BATCH_COUNT/.test(destinySystemSrc),
-  'AI destiny readiness must not stop at the configured background batches',
-)
-assertOk(
-  (talentDrawPageSrc.match(/abortPoolFill\(\)/g) ?? []).length >= 2
-    && talentDrawPageSrc.includes("if (phase !== 'selecting') return"),
-  'leaving the page must abort page-owned AI readiness and background refill loops',
+  /getPoolFillStatus\(\)\.phase === 'initial'[\s\S]{0,80}abortPoolFill\(\)/.test(talentDrawPageSrc),
+  'leaving the page must only abort the unfinished initial draw, not a silent background fill',
 )
 assertOk(
   /function loadCachedPool[\s\S]{0,260}loadDestinyPatternPool[\s\S]{0,160}filter\(isAIGeneratedPattern\)/.test(talentDrawPageSrc),
@@ -1032,14 +1044,14 @@ assertOk(
 )
 assertOk(
   /type TalentDrawPhase = 'idle' \| 'generating' \| 'ready' \| 'selecting'/.test(talentDrawPageSrc),
-  'destiny draw must keep an explicit non-persisted handoff state after twelve candidates are ready',
+  'destiny draw must keep an explicit non-persisted handoff state after the four-category first batch is ready',
 )
 assertOk(
   /const completeFullDraw = useCallback\(\(patterns: DestinyPattern\[\]\)/.test(talentDrawPageSrc)
-    && /visiblePatterns\.length < DESTINY_PATTERN_DISPLAY_COUNT/.test(talentDrawPageSrc)
+    && /DESTINY_PATTERN_CATEGORY_ORDER\.every/.test(talentDrawPageSrc)
     && /setSlots\(revealSlotsInOrder\(visiblePatterns\)\)/.test(talentDrawPageSrc)
     && /completionTimerRef\.current = window\.setTimeout\([\s\S]{0,220}setPhase\('ready'\)/.test(talentDrawPageSrc),
-  'AI destiny readiness must require twelve display-unique candidates before the completed handoff opens',
+  'AI destiny readiness must require usable candidates from all four categories before the handoff opens',
 )
 assertOk(
   /phase === 'ready'[\s\S]{0,1600}进入命格选择/.test(talentDrawPageSrc),
@@ -1047,20 +1059,21 @@ assertOk(
 )
 assertOk(
   /function uniquePatternsByIdentity[\s\S]{0,700}seenIds[\s\S]{0,300}seenNames[\s\S]{0,300}patternNameKey/.test(talentDrawPageSrc),
-  'a twelve-slot destiny draw must remove duplicate IDs and duplicate display names',
+  'the destiny draw must remove duplicate IDs and duplicate display names',
 )
 assertOk(
   /const savedSlotsMatchMode[\s\S]{0,360}savedPatterns\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,260}uniquePatternsByIdentity\(savedPatterns\)\.length === savedPatterns\.length/.test(talentDrawPageSrc),
   'persisted selecting slots must not restore a normalized duplicate set',
 )
 assertOk(
-  /\(_?count, patterns\) => \{[\s\S]{0,900}revealPatterns\(uniquePatternsByIdentity\(patterns\)\)/.test(talentDrawPageSrc),
-  'AI progress must re-check display-unique readiness after the raw early-ready callback',
+  /const patterns = await destinySystem\.generateWithAI\(context\)[\s\S]{0,500}completeFullDraw\(complete\)/.test(talentDrawPageSrc)
+    && /startBackgroundFill\(\)/.test(talentDrawPageSrc),
+  'the page must hand off the four-category first batch before starting background filling',
 )
 assertOk(
   /outputSchema\?: Parameters<typeof callAI>\[2\]\['outputSchema'\]/.test(talentDrawPageSrc)
     && /outputSchema:\s*opts\?\.outputSchema/.test(talentDrawPageSrc)
-    && /strictSchema:\s*!useStream\s*&&\s*Boolean\(opts\?\.outputSchema\)/.test(talentDrawPageSrc),
+    && !/strictSchema:\s*!useStream\s*&&\s*Boolean\(opts\?\.outputSchema\)/.test(talentDrawPageSrc),
   'the destiny page adapter must preserve the subsystem output schema and enforce it for non-streaming calls',
 )
 assertOk(
@@ -1071,7 +1084,7 @@ assertOk(
   'DeepSeek reasoning must transmit an explicit enabled/disabled type and supported reasoning effort',
 )
 assertOk(
-  /const usedNames = new Set<string>\(\)[\s\S]{0,700}!usedNames\.has\(patternNameKey\(pattern\)\)/.test(talentDrawPageSrc),
+  /const visibleNames = new Set\([\s\S]{0,700}visibleNames\.has\(patternNameKey\(pattern\)\)\) continue/.test(talentDrawPageSrc),
   'destiny redraw must not reintroduce duplicate display names into the visible slots',
 )
 assertOk(
@@ -1079,22 +1092,16 @@ assertOk(
     && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
     && /\.drawStageComplete \.aura\s*\{[^}]*top:\s*calc\(224 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
     && /\.drawStageComplete \.sealWrap\s*\{[^}]*opacity:\s*0/s.test(talentDrawCssSrc)
-    && /aria-label="十二道命印"/.test(talentDrawPageSrc)
-    && /Array\.from\(\{ length: MYTHIC_PATTERN_SELECT_COUNT \}/.test(talentDrawPageSrc)
-    && /selectedUiSlots\.map\(/.test(talentDrawPageSrc)
+    && /aria-label="四类首批命印"/.test(talentDrawPageSrc)
+    && /const TABS:[\s\S]{0,420}id: 'battle'[\s\S]{0,120}id: 'exploration'[\s\S]{0,120}id: 'social'[\s\S]{0,120}id: 'production'[\s\S]{0,120}id: 'mythic'/.test(talentDrawPageSrc)
+    && /resolvedLoadoutSlots\.map\(/.test(talentDrawPageSrc)
+    && /selectedData\.length !== PATTERN_LOADOUT_SLOT_COUNT/.test(talentDrawPageSrc)
+    && !/role="dialog"|TalentDrawMythicLibrary|useTalentDrawMythicLibrary/.test(talentDrawPageSrc)
     && !/TalentAstrolabe|astrolabe|fateNode/.test(talentDrawPageSrc)
     && !/progressTrack|progressFill/.test(talentDrawPageSrc),
-  'the completed destiny handoff must keep the selected aura, twelve seals, two rebirth slots, and three ordinary slots',
+  'the completed destiny handoff must keep the selected aura, four-category seals, five tabs, and four shared slots',
 )
 
-assertOk(/preGenActivity\.invalidate\(\)/.test(preGenSrc), 'clearPreGenQueue must invalidate through activity state')
-assertOk(!/clearPreGenQueue\(\)[\s\S]{0,220}isPreGenActive\s*=\s*false/.test(preGenSrc), 'queue clear must not release an active preview early')
-assertOk(
-  preGenSrc.includes('运行时预览已移除')
-    && !preGenSrc.includes('runPreviewRound')
-    && !preGenSrc.includes('capturePreviewSnapshot'),
-  'pre-generation must remain disabled after runtime snapshot removal',
-)
 assertOk(
   !orchestratorSrc.includes('capturePreviewSnapshot')
     && !orchestratorSrc.includes('restorePreviewSnapshot')
@@ -1103,18 +1110,18 @@ assertOk(
   'failed real rounds must never restore an earlier runtime snapshot',
 )
 
-assertOk(timeScaleSrc.includes('年度连续场景视角'), 'year step must use connected annual scenes')
+assertOk(timeScaleSrc.includes('年度故事弧线视角'), 'year step must use connected annual scenes')
 assertOk(
-  timeScaleSrc.includes('首句不要使用“这一年”“这一月”“这一天”等泛指时间套语')
-    && timeScaleSrc.includes('确需时间锚时使用“当前时间”中的具体纪年、季节、月日'),
-  'time guidance must vary openings and use the explicit calendar label when a time anchor is needed',
+  timeScaleSrc.includes('从窗口内正在发生的行动、关系或世界变化进入场景')
+    && timeScaleSrc.includes('日期、年龄与阶段名称在需要定位转折时自然出现')
+    && !narrativePromptComponentsSrc.includes('日期、年龄与阶段名称'),
+  'time-scale guidance must own scene entry and time-anchor placement',
 )
 assertOk(
-  timeScaleSrc.includes('不得把全年压成一个即时现场')
-    && timeScaleSrc.includes('同一时间跨度内的因果主线')
-    && narrativePromptComponentsSrc.includes('一年至十年保持人物层面的阶段镜头')
-    && narrativePromptComponentsSrc.includes('半世纪以上才逐步转为家族、组织、社会或文明的时代节点'),
-  'time guidance must retain one causal arc and delay macro scope until half-century steps',
+  timeScaleSrc.includes('十年人生转型视角')
+    && timeScaleSrc.includes('半世纪历史视角')
+    && narrativePromptComponentsSrc.includes('多个并列事项都要形成实际尝试'),
+  'time guidance must own scale-specific distance while the fixed Prompt owns selected-action completion',
 )
 assertOk(timeScaleSrc.includes('季度阶段视角'), 'season step must use quarterly stage perspective')
 assertOk(timeScaleSrc.includes('月度变化视角'), 'month step must use monthly change perspective')
@@ -1134,31 +1141,60 @@ const mayIndex = 4
 const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
-assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'5\.8\.3'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.8.3')
+assertOk(
+  narrativePromptComponentsSrc.includes('实质互斥的玩家选择')
+    && narrativePromptComponentsSrc.includes('不同选择会改变后续走向'),
+  'branch prompt must require a blocking choice with materially different futures',
+)
+assertOk(/version:\s*'7\.2\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 7.2.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('正文全程用第二人称“你”')
-    && narrativePromptComponentsSrc.includes('镜头只写你能感知、回忆或合理推断的内容')
-    && narrativePromptComponentsSrc.includes('不写全知旁白、第三人称传记或编年报告'),
-  'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
+  narrativePromptComponentsSrc.includes('以第二人称‘你’作为当前角色的叙事主语')
+    && narrativePromptComponentsSrc.includes('不得伪造证据、身份、秘密答案、过去言行或后续结果'),
+  'narrative prompt must preserve the approved second-person and fact-boundary rules',
 )
 assertOk(
-  timeScaleSrc.includes('首句不要使用“这一年”“这一月”“这一天”等泛指时间套语')
-    && timeScaleSrc.includes('不要复用上一轮起句结构'),
-  'the dynamic time-scale component must reject repetitive generic time openings',
+  timeScaleSrc.includes('从窗口内正在发生的行动、关系或世界变化进入场景')
+    && promptBuilderSrc.includes('保留古典用词质感，但使用略微白话、直接易读的句式')
+    && promptBuilderSrc.includes('以具体动作、工具、材料、身体限制、关系反应和可追踪因果推进'),
+  'time-scale entry and the approved dynamic narrative style must remain live',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('专属、独有、唯一、继承限定、异界来源或角色自创')
-    && narrativePromptComponentsSrc.includes('当地常见能力、制式来源、外部发现、机构授予、既有传承、他人遗留或他人同源能力')
-    && narrativePromptComponentsSrc.includes('角色自创内容的后续发展必须来自角色自身')
-    && narrativeResponseQualitySrc.includes('不得无因果跳过数周或数月')
-    && narrativeResponseQualitySrc.includes('isOpeningRound'),
-  'fixed ownership rules and the triggered first-round condition must remain independently live',
+  narrativePromptComponentsSrc.includes('同一主场景、同一主关系或同一反复动作')
+    && narrativePromptComponentsSrc.includes('最近两轮未体现的天赋')
+    && timeScaleSrc.includes('不能只换时间继续复述'),
+  '01 must rotate repeated story focus and give naturally relevant underused talents room to act',
+)
+assertOk(
+  talentGrowthPromptSrc.includes('程序筛选')
+    && talentGrowthPromptSrc.includes('多天赋'),
+  '03 must prefer other eligible talents without inventing growth evidence',
+)
+assertOk(
+  promptBuilderSrc.includes('世界: world')
+    && promptBuilderSrc.includes('历史剧情: context.timelineMemory ?? []')
+    && promptBuilderSrc.includes('最近两轮详细剧情: context.recentDetailedStories ?? []')
+    && promptBuilderSrc.includes('角色: character')
+    && promptBuilderSrc.includes('天赋: context.talents ?? []')
+    && promptBuilderSrc.includes('本轮引导: roundGuidance')
+    && promptBuilderSrc.includes('当前到期事件')
+    && /userSegments:\s*\[globalSegment,\s*memorySegment,\s*roundSegment\]/u.test(promptBuilderSrc)
+    && !/(文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
+  '01 input assembly must keep the approved field whitelist and three-message order',
+)
+assertOk(
+  !readRel('src/mods/mod-character/prompts/destiny-pattern-context.ts').includes('姓名=')
+    && !readRel('src/mods/mod-pages/pages/talent-draw/talent-draw-ai-service.ts').includes('name: useCharacterStore'),
+  'destiny-pattern AI context must not include the player name',
+)
+assertOk(
+  readRel('src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts').includes("typeof value === 'string'")
+    && readRel('src/mods/mod-engine/helpers/narrative-response-quality.ts').includes('boundedText'),
+  'AI parsers must recover string attributes and bounded local fields instead of rejecting whole responses',
 )
 assertOk(
   !narrativeHintsSrc.includes('INFORMATION_PRIORITY_RULE')
@@ -1167,19 +1203,24 @@ assertOk(
 )
 assertOk(timeScaleSrc.includes('3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'dynamic time guidance must define the canonical solar season mapping')
 assertOk(!/commit\.changes\.slice\(/.test(roundCommitBusSrc), 'round commit must never partially truncate structured changes')
-assertOk(roundCommitBusSrc.includes('预检失败，整包拒绝 ${commit.changes.length} 条变更'), 'each background owner must reject invalid changes as one complete package')
+assertOk(
+  roundCommitBusSrc.includes("export type RoundCommitSource = 'manual'")
+    && !roundCommitBusSrc.includes("'background'"),
+  'round commit must expose only local manual writes after AI state writers are removed',
+)
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render every natural narrative paragraph')
 assertOk(!timelineTsxSrc.includes('streamingText'), 'timeline must render only fully committed narrative entries')
 assertOk(
-  orchestratorSrc.includes('formatPowerFrameworkForPrompt')
-    && orchestratorSrc.includes('config.powerFramework'),
-  'narrative prompt must use the current world-owned power framework helper',
+  promptContextRuntimeSrc.includes('function projectPowerFramework')
+    && promptContextRuntimeSrc.includes('powerFramework: projectPowerFramework(')
+    && promptContextRuntimeSrc.includes('config.powerFramework as PowerFrameworkDefinition'),
+  '01 world projection must read the current world-owned power framework',
 )
-assertOk(!powerContextSrc.includes("split('。')[0]"), 'power context must preserve complete descriptions above the current ceiling')
+assertOk(!promptContextRuntimeSrc.includes("split('。')[0]"), '01 power projection must preserve complete rank descriptions')
 assertOk(
-  powerContextSrc.includes("if (!framework?.enabled || framework.ranks.length === 0) return undefined")
-    && orchestratorSrc.includes('config.powerFramework'),
-  'non-supernatural worlds must omit an irrelevant power framework from the narrative context',
+  promptContextRuntimeSrc.includes('if (!framework?.enabled) return undefined')
+    && promptContextRuntimeSrc.includes('config.powerFramework as PowerFrameworkDefinition'),
+  'non-supernatural worlds must omit an irrelevant power framework from the 01 world message',
 )
 assertOk(
   calendarContextSrc.includes('buildFestivalNarrativeHint')

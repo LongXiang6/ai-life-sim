@@ -7,7 +7,7 @@
 import { z } from 'zod'
 import { createHash, randomUUID } from 'node:crypto'
 
-import { DEFAULT_AI_PROVIDER_ID } from '@/core/ai-service/provider-config'
+import { DEFAULT_AI_PROVIDER_ID, isDeepSeekOfficialBaseUrl } from '@/core/ai-service/provider-config'
 import { computeAiCallDeadlineMs } from '@/core/ai-service/ai-call-deadline'
 import {
   isRegisteredServerProviderBaseUrl,
@@ -277,7 +277,7 @@ export async function POST(request: Request): Promise<Response> {
         ])
         return jsonWithRequestId(
           requestId,
-          { error: '受保护的主叙事当前只支持 DeepSeek 官方接口；请填入 DeepSeek 预设并使用自己的 API Key' },
+          { error: '受保护的提示词需要有效的 HTTPS API 地址；请检查自定义地址并使用自己的 API Key' },
           400,
         )
       }
@@ -301,7 +301,7 @@ export async function POST(request: Request): Promise<Response> {
       request: buildTraceRequest(body, upstreamMessages),
     })
 
-    const apiKey = body.apiKey || ''
+    const apiKey = body.apiKey?.trim() || ''
 
     if (!baseUrl) {
       await Promise.all([
@@ -328,6 +328,8 @@ export async function POST(request: Request): Promise<Response> {
     if (body.temperature !== undefined) forwardBody.temperature = body.temperature
     if (body.stream !== undefined) forwardBody.stream = body.stream
     if (body.response_format !== undefined) forwardBody.response_format = body.response_format
+    if (body.tools !== undefined) forwardBody.tools = body.tools
+    if (body.tool_choice !== undefined) forwardBody.tool_choice = body.tool_choice
     const isDeepSeekTarget = body.model.toLowerCase().includes('deepseek')
     const trustedUserId = source.accountId
       ?? source.deviceProvenanceId
@@ -354,7 +356,12 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // 5. 转发请求（带超时 + 客户端取消接线）
-    const apiUrl = `${baseUrl}/chat/completions`
+    const usesDeepSeekStrictTool = isDeepSeekOfficialBaseUrl(baseUrl)
+      && isDeepSeekTarget
+      && body.tools?.some((tool) => tool.function.strict === true) === true
+    const apiUrl = usesDeepSeekStrictTool
+      ? 'https://api.deepseek.com/beta/chat/completions'
+      : `${baseUrl.replace(/\/+$/u, '')}/chat/completions`
 
     // 若客户端已断开，直接放弃，避免发起注定被丢弃的上游调用
     if (request.signal.aborted) {

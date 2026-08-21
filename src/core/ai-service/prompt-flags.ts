@@ -4,9 +4,6 @@
  * @mod core
  */
 
-/** false = 跳过 AI L1-L3 压缩（由 mod-engine orchestrator 读取） */
-export const USE_AI_SUMMARY_COMPRESSION = true
-
 /** year×N 达到此 tick 数时注入 bridge summary */
 export const BRIDGE_SUMMARY_MIN_TICKS = 10
 

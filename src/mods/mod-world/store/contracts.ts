@@ -9,7 +9,6 @@ import type {
   SpatialEdge,
 } from '@/foundation'
 import type {
-  FormulaModifierKey,
   WorldCalibration,
   WorldConfig,
   WorldContextInstance,
@@ -29,7 +28,6 @@ export interface WorldStore {
   eraStartYear: number
   eraName: string
   calibration: WorldCalibration | null
-  destinyPatternModifiers: Partial<Record<FormulaModifierKey, number>>
   worldInitAIStatus: WorldInitAIStatus | null
   setWorldConfig: (config: WorldConfig) => void
   setInitialized: (value: boolean) => void
@@ -39,7 +37,6 @@ export interface WorldStore {
   setEraStartYear: (year: number) => void
   setEraName: (name: string) => void
   setCalibration: (calibration: WorldCalibration | null) => void
-  setDestinyPatternModifiers: (modifiers: Partial<Record<FormulaModifierKey, number>>) => void
   setWorldInitAIStatus: (status: WorldInitAIStatus | null) => void
   registerContext: (instance: WorldContextInstance, makeActive?: boolean) => void
   replaceContext: (instance: WorldContextInstance) => void
@@ -64,6 +61,5 @@ export const initialWorldState = {
   eraStartYear: 0,
   eraName: '',
   calibration: null as WorldCalibration | null,
-  destinyPatternModifiers: {} as Partial<Record<FormulaModifierKey, number>>,
   worldInitAIStatus: null as WorldInitAIStatus | null,
 }

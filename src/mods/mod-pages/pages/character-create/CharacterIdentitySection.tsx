@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized character identity section. Owner: mod-pages. Responsibility: Identity inputs and presentation only. */
+
 import type { UseCharacterCreateLogicReturn } from './useCharacterCreateLogic'
 
 import styles from './CharacterCreateMobile.module.css'
@@ -5,7 +7,7 @@ import styles from './CharacterCreateMobile.module.css'
 export function CharacterIdentitySection({ logic }: { logic: UseCharacterCreateLogicReturn }) {
   return (
     <section className={`${styles.section} ${styles.identitySection}`}>
-      <div className={styles.sectionHeading}><h2><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>核心身份</h2><span>01 / 03 · 姓名、性别与种族</span></div>
+      <div className={styles.sectionHeading}><h2><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>核心身份</h2></div>
       <div className={styles.identityCard}>
         <div className={styles.softGroup}>
           <div className={styles.groupHeading}><label htmlFor="character-name">角色姓名</label><span>必填 · 可随机</span></div>
@@ -17,7 +19,7 @@ export function CharacterIdentitySection({ logic }: { logic: UseCharacterCreateL
         </div>
 
         <div className={styles.softGroup}>
-          <div className={styles.groupHeading}><span>性别</span><button type="button" onClick={() => logic.setShowCustomGender(!logic.showCustomGender)} aria-expanded={logic.showCustomGender}>更多选择⌄</button></div>
+          <div className={styles.groupHeading}><span>性别</span><button type="button" className={styles.moreLink} onClick={() => logic.setShowCustomGender(!logic.showCustomGender)} aria-expanded={logic.showCustomGender}>更多选择⌄</button></div>
           <div className={styles.chipRow}>
             {logic.allGenders.map((gender) => (
               <span key={gender} className={styles.removableChip}>
@@ -50,7 +52,7 @@ export function CharacterIdentitySection({ logic }: { logic: UseCharacterCreateL
         </div>
 
         <div className={styles.softGroup}>
-          <div className={styles.groupHeading}><span>种族</span><button type="button" onClick={() => logic.setShowRaceCatalog(!logic.showRaceCatalog)} aria-expanded={logic.showRaceCatalog}>种族目录⌄</button></div>
+          <div className={styles.groupHeading}><span>种族</span><button type="button" className={styles.moreLink} onClick={() => logic.setShowRaceCatalog(!logic.showRaceCatalog)} aria-expanded={logic.showRaceCatalog}>种族目录⌄</button></div>
           <div className={styles.chipRow}>
             <button type="button" className={logic.race === 'human' ? styles.chipActive : ''} onClick={() => logic.setRace('human')} aria-pressed={logic.race === 'human'}>人类</button>
             <button
@@ -61,7 +63,6 @@ export function CharacterIdentitySection({ logic }: { logic: UseCharacterCreateL
               aria-pressed={logic.customRaces.includes(logic.race)}
             >自定义种族</button>
           </div>
-          <p className={styles.groupCaption}>{logic.raceInfo ? `${logic.raceInfo.name} · 基础寿命 ${logic.raceInfo.baseLifespanYears} 年` : logic.getRaceDisplayName(logic.race)}</p>
           {logic.showCustomRace && <div className={styles.inlinePanel}><div className={styles.inlineInputRow}><input value={logic.customRaceInput} placeholder={logic.LABELS.customRacePlaceholder} onChange={(event) => logic.setCustomRaceInput(event.target.value)} /><button type="button" onClick={logic.handleAddCustomRace}>添加</button></div></div>}
           {logic.showRaceCatalog && <div className={styles.inlinePanel}><input className={styles.searchInput} value={logic.raceSearch} placeholder={logic.LABELS.raceSearchPlaceholder} onChange={(event) => logic.setRaceSearch(event.target.value)} /><div className={styles.catalogGrid}>{logic.raceCatalogOptions.map((race) => <button type="button" key={race.id} className={logic.race === race.id ? styles.catalogOptionActive : ''} aria-pressed={logic.race === race.id} onClick={() => { logic.setRace(race.id); logic.setShowRaceCatalog(false) }}>{race.name}</button>)}</div></div>}
         </div>

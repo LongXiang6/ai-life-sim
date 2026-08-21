@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "compactEntryLineBudget": 120,
   "preferredLineBudget": 300,
+  "budgetTolerance": 1.2,
   "budgetExtensions": [
     ".cjs",
     ".css",

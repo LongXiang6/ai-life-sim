@@ -1,0 +1,130 @@
+<!-- Purpose: Record the second UI iteration round for the talent-select SELECT sub-interface (05). Owner: Interface system. Responsibility: Compare confirmed select-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命格选取 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">TALENT-SELECT / ROUND-02</p>
+      <h1>命格选取 · 第二轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>重构命格选取（05）布局与层级，解决第一轮「三段堆叠排版不符合设计直觉」。三个候选均沿用暖纸墨定版语言，仅在信息架构上分向：候选 A 已选进度置顶（轮回 + 普通槽位横排常驻顶部，候选列表为主体）；候选 B 已选槽位贴底（候选为主体，槽位贴近底栏拇指区）；候选 C 候选分组置顶（候选按稀有度分组，选中卡片移入已选区并打勾）。动效全部照抄运行时 TalentDraw.module.css（candidate-breathe / seal-breathe / rebirth-flow / rebirth-seal-halo 及候选选中态）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（05 / 08）、标题「选择命格」、副句、轮回 · 可选（2 槽）、普通命格（选 3 槽）、普通命格候选（12 条）、重抽未选、底部返回（返回命格抽取）与确认（06 确认命格 / 正在确认）。命格抽取（04）独立在 talent-draw/ 目录迭代，不混入本工作表。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>布局直觉（候选与槽位的主次关系、滚动时已选是否始终可见）、选中反馈（选中后槽位 / 卡片 / 已选区的映射清晰度）、操作效率（选满 3 条最短路径）、动效（照抄运行时后与布局的结合）、精简协调性（与已定版抽取页 02 及角色塑造的基线与谐统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>进度置顶</strong></header>
+          <p>「我的选择」横条常驻顶部：轮回 2 槽 + 普通 3 槽横排（滚动吸顶），候选列表为主体在下，已选进度始终可见。</p>
+          <a class="candidate-open" href="candidates/candidate-01-progress-top.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>槽位贴底</strong></header>
+          <p>候选列表为主体，轮回 + 普通槽位合并为「已选」条贴底栏上方（拇指区），点候选即时上移进槽，就近反馈。</p>
+          <a class="candidate-open" href="candidates/candidate-02-slots-bottom.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>分组置顶</strong></header>
+          <p>候选按稀有度分组展示，选中后卡片移入顶部「已选」区并打勾，选择结果显性化、取消直观。</p>
+          <a class="candidate-open" href="candidates/candidate-03-group-top.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 进度置顶</span><span role="columnheader">B 槽位贴底</span><span role="columnheader">C 分组置顶</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯选取界面（抽取独立在 talent-draw/）</span><span role="cell">纯选取界面</span><span role="cell">纯选取界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">布局直觉</strong><span role="cell">进度常驻顶部，候选为主</span><span role="cell">候选为主，槽位就近拇指区</span><span role="cell">分组扫读 + 已选置顶显性</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">选中反馈</strong><span role="cell">卡片降态 + 顶部槽位填入</span><span role="cell">卡片降态 + 贴底槽位填入</span><span role="cell">卡片移入已选区打勾</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">滚动中不丢进度</span><span role="cell">拇指就近确认</span><span role="cell">选择结果一目了然</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">呼吸/流光/选中态照抄运行时</span><span role="cell">同上，参数照抄</span><span role="cell">同上，参数照抄</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取页 02 定版语言统一</span><span role="cell">与抽取页 02 定版语言统一</span><span role="cell">与抽取页 02 定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-draft">待比较</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>待用户比较后确认。</dd></div>
+        <div><dt>淘汰</dt><dd>待用户比较后确认。</dd></div>
+        <div><dt>下一轮继承</dt><dd>待用户比较后确认；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

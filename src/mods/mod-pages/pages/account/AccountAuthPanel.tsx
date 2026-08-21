@@ -41,7 +41,7 @@ export function AccountAuthPanel(props: AccountAuthPanelProps) {
         <div className={styles.form}>
           <label className={styles.field}>
             <span>账号</span>
-            <input value={props.username} onChange={(event) => props.onUsernameChange(event.target.value)} autoComplete="username" maxLength={24} />
+            <input value={props.username} placeholder="输入账号" onChange={(event) => props.onUsernameChange(event.target.value)} autoComplete="username" maxLength={24} />
           </label>
           {mode === 'register' ? (
             <label className={styles.field}>
@@ -51,7 +51,7 @@ export function AccountAuthPanel(props: AccountAuthPanelProps) {
           ) : null}
           <label className={styles.field}>
             <span>密码</span>
-            <input type="password" value={props.password} onChange={(event) => props.onPasswordChange(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} maxLength={128} />
+            <input type="password" value={props.password} placeholder="输入密码" onChange={(event) => props.onPasswordChange(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} maxLength={128} />
           </label>
           {mode === 'register' ? (
             <>

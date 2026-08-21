@@ -10,9 +10,9 @@ export interface GameOverShareDimension {
   comment?: string
 }
 
-export interface GameOverShareMythic {
+export interface GameOverShareReincarnation {
   name: string
-  concept: string
+  description: string
   effect: string
 }
 
@@ -22,12 +22,11 @@ export interface GameOverShareCardData {
   worldName: string
   ageLabel: string
   rounds: number
-  moralityLabel: string
   overallScore: number
   achievementCount: number
   featuredAchievement?: { title: string; detail: string } | null
   dimensions: readonly GameOverShareDimension[]
-  mythic?: GameOverShareMythic | null
+  reincarnation?: GameOverShareReincarnation | null
   shareUrl?: string
 }
 

@@ -54,21 +54,21 @@ interface SectionConfig {
 const SECTIONS: Record<'surrounding' | 'basicStatus' | 'characterStatus', SectionConfig> = {
   surrounding: {
     title: '你的周边',
-    bgClass: 'bg-sky-500/[0.06]',
-    borderClass: 'border-sky-500/20',
-    iconColorClass: 'text-sky-400',
+    bgClass: 'bg-[var(--color-info-bg)]',
+    borderClass: 'border-[var(--flow-line-strong)]',
+    iconColorClass: 'text-[var(--color-info)]',
   },
   basicStatus: {
     title: '基础状态',
-    bgClass: 'bg-emerald-500/[0.06]',
-    borderClass: 'border-emerald-500/20',
-    iconColorClass: 'text-emerald-400',
+    bgClass: 'bg-[var(--color-success-bg)]',
+    borderClass: 'border-[var(--flow-line-strong)]',
+    iconColorClass: 'text-[var(--color-success)]',
   },
   characterStatus: {
     title: '角色状态',
-    bgClass: 'bg-amber-500/[0.06]',
-    borderClass: 'border-amber-500/20',
-    iconColorClass: 'text-amber-400',
+    bgClass: 'bg-[var(--color-warning-bg)]',
+    borderClass: 'border-[var(--flow-line-strong)]',
+    iconColorClass: 'text-[var(--color-warning)]',
   },
 }
 

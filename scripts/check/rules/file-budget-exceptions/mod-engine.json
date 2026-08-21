@@ -4,38 +4,8 @@
     {
       "path": "src/mods/mod-engine/campaigns/default/index.ts",
       "owner": "mod-engine",
-      "reviewedLines": 961,
+      "reviewedLines": 1012,
       "reason": "默认 Campaign 的完整阶段执行图，所有阶段共享一套显式 order、依赖和上下文契约。"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/digest-ledger.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 398,
-      "reason": "剧情摘要账本的单一状态所有者，记录、查询、快照和恢复共享同一顺序与去重不变式。"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 669,
-      "reason": "主叙事 AI 协议的唯一 Schema、中文键映射和解析校验入口，拆分会形成协议第二真源。"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/narrative-macro-impact-context.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 436,
-      "reason": "宏观影响 AI 的完整字段投影与校验组件，只负责同一分析协议的上下文组装。"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/save-restore.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 405,
-      "reason": "核心模拟存档恢复的单一编排组件，跨 Store 快照必须按一个原子恢复顺序执行。"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/subsystem-field-registry.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 789,
-      "reason": "子系统字段所有权的中央静态注册表，字段、别名和 owner 必须保留为一个命名源。"
     },
     {
       "path": "src/mods/mod-engine/hooks.ts",
@@ -46,38 +16,20 @@
     {
       "path": "src/mods/mod-engine/subsystems/causal-delay-system.ts",
       "owner": "mod-engine",
-      "reviewedLines": 905,
+      "reviewedLines": 915,
       "reason": "延迟因果的单一状态所有者；契约已下沉，剩余登记、投递、判定和持久化共享原子事件不变式。"
     },
     {
       "path": "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
       "owner": "mod-engine",
-      "reviewedLines": 465,
+      "reviewedLines": 475,
       "reason": "伏笔生命周期的单一状态系统，登记、兑现、索引和快照共享同一 ID 与状态迁移契约。"
-    },
-    {
-      "path": "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 1045,
-      "reason": "记忆生命周期的单一状态所有者；契约已下沉，剩余评分、聚合、索引和检索共享同一层级索引。"
     },
     {
       "path": "src/mods/mod-engine/subsystems/orchestrator-system.ts",
       "owner": "mod-engine",
       "reviewedLines": 2254,
       "reason": "核心回合唯一总指挥；Prompt、压缩、历史、后台分析、诊断和阶段机已拆为下级组件，主类保留状态与原子回合协调。"
-    },
-    {
-      "path": "src/mods/mod-engine/subsystems/plot-structure-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 431,
-      "reason": "情节阶段与语义信号的单一状态机，阶段判定、推进和快照共享同一结构状态。"
-    },
-    {
-      "path": "src/mods/mod-engine/subsystems/summary-compressor-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 598,
-      "reason": "L1-L3 摘要压缩的单一状态系统，候选生成、层级合并、统计和持久化共享同一摘要树。"
     },
     {
       "path": "src/mods/mod-engine/subsystems/time-system.ts",

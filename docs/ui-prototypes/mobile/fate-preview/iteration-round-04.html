@@ -1,0 +1,130 @@
+<!-- Purpose: Record the fourth UI iteration round for the fate-preview page (07). Owner: Interface system. Responsibility: Compare confirmed preview-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命运预览 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">FATE-PREVIEW / ROUND-04</p>
+      <h1>命运预览 · 第四轮</h1>
+    </div>
+    <span class="status status-selected">已选择 B</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-03 定版候选 B（装饰分隔：轻虚线 + ✦ 仪式装饰，不拆卡）为基线，第四轮迭代方向「描述沉浸 + 属性值直显」——描述文案回归属性分配定版的命书口吻（❖ 装饰 + 沉浸措辞），同时属性值不再显示「基础 3 + 修正 1」分离格式，直接显示合并后的最终有效值（体魄 4 / 心智 4 / 悟性 5 / 魅力 5，修正并入不另行展示）。结构与数值口径照抄运行时 fate-preview 页面。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（07 / 08）、标题「核对命书」+ 副句「确认所有起点，然后开启人生。」、世界与角色（已确认世界 · 描述原文、世界名与描述、姓名 · 性别 · 种族、起始年龄、预期寿命 ⏳ / 力量体系 ⚡ / 世界空间 🗺️ 三格）、属性与命格（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫 四格基础值 + 独立修正、命格行名称 + 稀有度 · 极性 + 描述、轮回天赋行；不含角色天赋 pill——运行时 setTalents 无调用点、talents 恒为空数组、该区块永不渲染）、模拟种子（最多 8 位数字输入 + 随机按钮 + 提示）、世界初始化（4 步：校准 / 标签 / 参数 / 区域，完成 ✓ / 调用中 spinner / 等待 / 失败 ×，进度 X / 4 完成、底部说明与门禁提示）、底部返回（返回确认属性 / 返回确认角色）与确认（开始人生，确认号 08）。属性值显示改为合并最终有效值（本轮唯一契约呈现变化：修正不再分离展示）。运行时 FatePreview.module.css 仅世界初始化 spinner（loading149Spin 0.8s linear infinite，reduced-motion 2s）一处动画，候选照抄该参数，不加其他动画。候选不含 localStorage/sessionStorage/fetch（种子输入为纯 DOM 状态，不持久化）。</dd></div>
+        <div><dt>比较维度</dt><dd>描述沉浸（命书口吻与 ❖ 装饰的融入度）、数值可读性（最终值直显 vs 分离展示）、分区强度（保持不拆卡）、精简协调性（与抽取 / 选取 / 属性分配定版语言的连贯统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>属性区描述沉浸</strong></header>
+          <p>最终值直显（体魄 4 / 心智 4 / 悟性 5 / 魅力 5）；命格行描述与轮回天赋行加 ❖ 装饰 + 命书口吻措辞，世界区描述保持原文。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-attr-immersive.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>全页描述沉浸</strong></header>
+          <p>最终值直显；世界描述、命格描述、轮回天赋描述、初始化说明全部命书口吻 + ❖✦ 装饰，沉浸最完整。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-full-immersive.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>最终值直显</strong></header>
+          <p>最终值直显为唯一变化，描述保持运行时原文与 ✦ 装饰分隔不变，改动最小、聚焦数值呈现。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-value-only.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 属性区描述沉浸</span><span role="columnheader">B 全页描述沉浸</span><span role="columnheader">C 最终值直显</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值呈现</strong><span role="cell">最终值直显</span><span role="cell">最终值直显</span><span role="cell">最终值直显</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">描述沉浸</strong><span role="cell">属性命格区 ❖ 命书口吻</span><span role="cell">全页 ❖✦ 命书口吻</span><span role="cell">保持原文</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">分区强度</strong><span role="cell">✦ 装饰分隔不拆卡</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">spinner 0.8s 照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">与抽取/选取/属性定版统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 B</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 B（全页描述沉浸）。用户确认「B，下一轮优化描述」。要点：最终值直显（体魄 4 / 心智 4 / 悟性 5 / 魅力 5），世界描述、身份行、命格描述、轮回天赋、种子提示、初始化说明全部 ❖✦ 命书口吻，沉浸最完整且各区一致。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A（属性区描述沉浸）：仅属性与命格区命书口吻，世界区保持原文，页内沉浸强度不齐，先不采纳；候选 C（最终值直显）：描述保持运行时原文，与「描述要有沉浸感」的目标不符，先不采纳。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 B（全页描述沉浸）为基线开始第五轮迭代，方向「描述沉浸深化」；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

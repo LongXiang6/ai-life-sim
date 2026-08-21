@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress account draft and completed-life persistence limits.
+ * Owner: quality:account
+ * Responsibility: Isolated storage fixtures and persistence assertions only.
+ */
+
 import assert from 'node:assert/strict'
 
 class MemoryStorage {
@@ -20,13 +26,13 @@ storage.setItem('mod-pages:persist:character-creation-draft', JSON.stringify({
 }))
 
 const [
-  { useCharacterCreationDraftStore },
+  { getCharacterCreationDraftSnapshot, useCharacterCreationDraftStore },
   { clearNewLifeCreationDrafts },
   { configStore },
   contract,
   { saveManager },
   { useLifeRecordStore },
-  { useMythicLibraryStore },
+  { useReincarnationLibraryStore },
 ] = await Promise.all([
   import('../../../../src/mods/mod-pages/helpers/character-creation-draft-store.ts'),
   import('../../../../src/mods/mod-pages/helpers/creation-draft-storage.ts'),
@@ -34,7 +40,7 @@ const [
   import('../../../../src/core/account/account-contract.ts'),
   import('../../../../src/core/storage/save-manager.ts'),
   import('../../../../src/mods/mod-character/life-record-store.ts'),
-  import('../../../../src/mods/mod-character/mythic-library-store.ts'),
+  import('../../../../src/mods/mod-character/reincarnation-library-store.ts'),
 ])
 
 assert.equal(useCharacterCreationDraftStore.getState().draft.name, '')
@@ -46,7 +52,6 @@ useCharacterCreationDraftStore.getState().updateDraft({
   gender: '流性别',
   race: '云上住民',
   background,
-  attributes: { physique: 4, mind: 8, talentAptitude: 7, charisma: 5 },
   manualLifespan: '240',
   manualStartingAge: '21',
   customGenders: ['流性别'],
@@ -57,6 +62,14 @@ useCharacterCreationDraftStore.getState().updateDraft({
 const expected = structuredClone(useCharacterCreationDraftStore.getState().draft)
 const persisted = JSON.parse(storage.getItem('mod-pages:persist:character-creation-draft'))
 assert.equal(persisted.state.draft.background, background)
+assert.equal('attributes' in expected, false)
+assert.equal('attributes' in persisted.state.draft, false)
+assert.deepEqual(getCharacterCreationDraftSnapshot().attributes, {
+  physique: 0,
+  mind: 0,
+  talentAptitude: 0,
+  charisma: 0,
+})
 
 let changes = 0
 const unsubscribe = useCharacterCreationDraftStore.subscribe(() => { changes++ })
@@ -84,7 +97,6 @@ const records = Array.from({ length: 10 }, (_, index) => ({
   finalAge: 80,
   rounds: 10,
   died: true,
-  moralityLabel: '中立',
   overallScore: 80,
   dimensions: [],
   destinyNames: [],
@@ -97,24 +109,31 @@ assert.throws(
 )
 assert.equal(useLifeRecordStore.getState().records.length, 10)
 
-const patterns = Array.from({ length: 10 }, (_, index) => ({
-  id: `mythic-${index}`,
+const talents = Array.from({ length: 36 }, (_, index) => ({
+  id: `reincarnation-${index}`,
+  lineageId: `lineage-${index}`,
+  version: 1,
   name: `神话${index}`,
-  concept: `概念${index}`,
+  description: `概念${index}`,
+  category: 'battle',
+  rarity: 'mythic',
   effect: '保持完整。',
+  attrBonus: {},
+  strengthenLevel: 1,
   acquiredAt: index,
   source: { worldName: '云城', characterName: '沈长明', runId: `run-${index}` },
 }))
-useMythicLibraryStore.getState().replacePatterns(patterns)
+useReincarnationLibraryStore.getState().replaceReincarnationTalents(talents)
 assert.throws(
-  () => useMythicLibraryStore.getState().addPattern({
-    ...patterns[0],
-    id: 'mythic-11',
-    name: '第十一项',
-    source: { ...patterns[0].source, runId: 'run-11' },
+  () => useReincarnationLibraryStore.getState().addReincarnationTalent({
+    ...talents[0],
+    id: 'reincarnation-36',
+    lineageId: 'lineage-36',
+    name: '第三十七项',
+    source: { ...talents[0].source, runId: 'run-36' },
   }),
   /轮回天赋栏位已满/u,
 )
-assert.equal(useMythicLibraryStore.getState().patterns.length, 10)
+assert.equal(useReincarnationLibraryStore.getState().talents.length, 36)
 
 console.log('[character-draft-persistence-smoke] PASS')

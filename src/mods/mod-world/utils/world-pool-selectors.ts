@@ -3,10 +3,8 @@
  * @description 世界模拟池选择器 —— 仅依赖「世界 store」的纯运行时判定
  * @mod mod-world
  *
- * 从 world-init-fallback.ts 拆出：这两个选择器只读 useWorldStore，
- * 不触碰 mod-settings barrel（SettingsModal CSS / mod-engine barrel），
- * 因此可被纯计算模块（calibration-clamp 等）在不拉起 UI/设置链的前提下安全依赖。
- * 依赖设置 store 的 isWorldInitAIAvailable / shouldUseStaticEntityFallback 仍在 world-init-fallback.ts。
+ * 这两个选择器只读 useWorldStore，不触碰设置或 UI 依赖，
+ * 因此可被纯计算模块（calibration-clamp 等）安全使用。
  */
 
 import { useWorldStore } from '../store'
@@ -31,7 +29,7 @@ export function shouldUseGenericSimulationPools(): boolean {
   return false
 }
 
-/** 静态池 lookup 键：AI/自定义世界 → default，离线预设 → 原 worldview */
+/** 静态池 lookup 键：AI/自定义世界 → default，结构化预设 → 原 worldview */
 export function resolveStaticPoolWorldviewKey(worldview: string): string {
   if (shouldUseGenericSimulationPools()) return 'default'
   const key = worldview?.trim()

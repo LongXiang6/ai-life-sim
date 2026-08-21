@@ -58,7 +58,7 @@ export function useWorldSelectLogic() {
     () => resolveRestoredWorld(existingWorldConfig, existingWorldCode, custom.savedWorlds),
     [custom.savedWorlds, existingWorldCode, existingWorldConfig],
   )
-  const selectedWorld = selectedWorldOverride ?? restoredWorld
+  const selectedWorld = selectedWorldOverride ?? restoredWorld ?? PRESET_WORLDS[0] ?? null
   const { difficulty, setDifficulty } = useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')
   const { presetMain, presetMore } = useMemo(() => ({
     presetMain: PRESET_WORLDS.slice(0, 6),

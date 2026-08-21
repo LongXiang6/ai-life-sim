@@ -61,10 +61,13 @@ export class CombatPowerSystem extends BaseSubsystem {
     return { id: this.id, summary: `【力量】${formatCombatPower(state.rankLabel, state.subStage, state.progress)}；体系 ${state.framework.label}`, data: structuredClone(state) }
   }
 
-  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+  private applyToState(
+    state: CombatPowerState,
+    changes: SubSystemChanges,
+    context: RoundContext,
+  ): void {
     if (changes.id !== this.id) throw new Error('力量指令目标不匹配')
     assertContext(changes, context, '力量')
-    const state = this.ensure(context)
     const operation = changes.operation ?? 'adjust-progress'
     if (operation === 'adjust-progress') {
       if (typeof changes.changes.progressDelta !== 'number') throw new Error('力量进度变化缺少数值')
@@ -85,6 +88,21 @@ export class CombatPowerSystem extends BaseSubsystem {
       if (state.rankId === rankId) state.rankLabel = label
     } else throw new Error(`未知力量操作：${operation}`)
     state.updatedAtTotalDays = context.totalDays
+  }
+
+  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+    const candidate = clone(this.states[context.contextId] ?? createState(context))
+    this.applyToState(candidate, changes, context)
+  }
+
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    this.applyToState(this.ensure(context), changes, context)
+  }
+
+  captureTransactionState(): Record<string, CombatPowerState> { return clone(this.states) }
+  restoreTransactionState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('力量事务快照无效')
+    this.states = clone(snapshot as Record<string, CombatPowerState>)
   }
 
   comparePower(a: CombatPowerState, b: CombatPowerState): number {

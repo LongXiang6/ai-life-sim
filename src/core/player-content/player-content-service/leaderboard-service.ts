@@ -1,7 +1,7 @@
 /**
- * Purpose: Project verified records into leaderboard and portrait-job views and read leaderboard results.
+ * Purpose: Project verified completed runs into the bounded public leaderboard.
  * Owner: core:player-content
- * Responsibility: Leaderboard projection and reads only; cloud saves and legendary encounters stay separate.
+ * Responsibility: Per-run leaderboard projection, global retention, reads, and portrait lookup only.
  */
 
 import type { CloudGameRecord } from '@/core/account/account-contract'
@@ -16,6 +16,19 @@ import {
 import { getPlayerContentDatabase } from '../player-content-database'
 import { recordScoringVerification } from './scoring-diagnostic'
 
+export const LEADERBOARD_RECORD_LIMIT = 50
+
+function trimLeaderboardRecords(): void {
+  getPlayerContentDatabase().prepare(`
+    DELETE FROM leaderboard_best_runs
+    WHERE rowid IN (
+      SELECT rowid FROM leaderboard_best_runs
+      ORDER BY score DESC, rounds DESC, completed_at ASC, record_id ASC, account_id ASC
+      LIMIT -1 OFFSET ?
+    )
+  `).run(LEADERBOARD_RECORD_LIMIT)
+}
+
 export function projectLeaderboardRecord(
   accountId: string,
   source: CloudGameRecord,
@@ -24,25 +37,13 @@ export function projectLeaderboardRecord(
   const record = CloudGameRecordLeaderboardSchema.parse(source)
   const verification = verifyStoredLifeScore(record)
   recordScoringVerification(record, 'leaderboard-projection', verification)
-  if (!verification.valid || !isLeaderboardEligible(record)) return null
   const database = getPlayerContentDatabase()
-  const current = database.prepare(`
-    SELECT score, rounds, record_id, completed_at
-    FROM leaderboard_best_runs WHERE account_id = ?
-  `).get(accountId) as { score: number; rounds: number; record_id: string; completed_at: number } | undefined
-  const isBetter = !current
-    || record.overallScore > current.score
-    || (record.overallScore === current.score && record.rounds > current.rounds)
-    || (record.overallScore === current.score
-      && record.rounds === current.rounds
-      && record.completedAt < current.completed_at)
-  if (!isBetter) {
-    return current ? {
-      score: current.score,
-      rounds: current.rounds,
-      recordId: current.record_id,
-      completedAt: current.completed_at,
-    } : null
+  const scoring = record.scoring
+  if (!verification.valid || !isLeaderboardEligible(record) || scoring?.version !== 2) {
+    database.prepare(`
+      DELETE FROM leaderboard_best_runs WHERE account_id = ? AND record_id = ?
+    `).run(accountId, record.recordId)
+    return null
   }
   const portrait = database.prepare(`
     SELECT asset_id FROM player_mail_messages
@@ -52,8 +53,7 @@ export function projectLeaderboardRecord(
     INSERT INTO leaderboard_best_runs(
       account_id, record_id, score, rounds, completed_at, record_json, portrait_asset_id, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(account_id) DO UPDATE SET
-      record_id = excluded.record_id,
+    ON CONFLICT(account_id, record_id) DO UPDATE SET
       score = excluded.score,
       rounds = excluded.rounds,
       completed_at = excluded.completed_at,
@@ -63,15 +63,16 @@ export function projectLeaderboardRecord(
   `).run(
     accountId,
     record.recordId,
-    record.overallScore,
+    scoring.score,
     record.rounds,
     record.completedAt,
     JSON.stringify(record),
     portrait?.asset_id ?? null,
     now,
   )
+  trimLeaderboardRecords()
   return {
-    score: record.overallScore,
+    score: scoring.score,
     rounds: record.rounds,
     recordId: record.recordId,
     completedAt: record.completedAt,
@@ -79,22 +80,11 @@ export function projectLeaderboardRecord(
 }
 
 export function queuePortraitMailJob(
-  accountId: string,
-  source: CloudGameRecord,
-  now = Date.now(),
+  _accountId: string,
+  _source: CloudGameRecord,
+  _now = Date.now(),
 ): boolean {
-  const record = CloudGameRecordLeaderboardSchema.parse(source)
-  const verification = verifyStoredLifeScore(record)
-  recordScoringVerification(record, 'portrait-queue', verification)
-  if (!verification.valid
-    || !isLeaderboardEligible(record)
-    || record.overallScore !== 100
-    || record.scoring?.integrity.perfectGatePassed !== true) return false
-  return getPlayerContentDatabase().prepare(`
-    INSERT INTO portrait_mail_jobs(account_id, record_id, status, created_at, updated_at)
-    VALUES (?, ?, 'awaiting_brief', ?, ?)
-    ON CONFLICT(account_id, record_id) DO NOTHING
-  `).run(accountId, record.recordId, now, now).changes > 0
+  return false
 }
 
 export function projectStructuredGameRecords(
@@ -104,44 +94,20 @@ export function projectStructuredGameRecords(
 ): void {
   const database = getPlayerContentDatabase()
   database.transaction(() => {
-    database.prepare('DELETE FROM leaderboard_best_runs WHERE account_id = ?').run(accountId)
-    const perfectRecordIds = new Set<string>()
-    for (const record of records) {
-      projectLeaderboardRecord(accountId, record, now)
-      if (record.overallScore === 100 && record.scoring?.integrity.perfectGatePassed) {
-        perfectRecordIds.add(record.recordId)
-      }
-      queuePortraitMailJob(accountId, record, now)
-    }
-    const removableJobs = database.prepare(`
-      SELECT record_id FROM portrait_mail_jobs
-      WHERE account_id = ? AND status IN ('awaiting_brief', 'failed')
-    `).all(accountId) as Array<{ record_id: string }>
-    const removeJob = database.prepare(
-      'DELETE FROM portrait_mail_jobs WHERE account_id = ? AND record_id = ?',
-    )
-    for (const job of removableJobs) {
-      if (!perfectRecordIds.has(job.record_id)) removeJob.run(accountId, job.record_id)
-    }
+    for (const record of records) projectLeaderboardRecord(accountId, record, now)
+    trimLeaderboardRecords()
   })()
-  if (records.some((record) => (
-    record.overallScore === 100 && record.scoring?.integrity.perfectGatePassed === true
-  ))) {
-    void import('../portrait-mail-service')
-      .then(({ schedulePortraitMailWorker }) => schedulePortraitMailWorker())
-      .catch(() => undefined)
-  }
 }
 
 export function readLeaderboardEntries(
   usernames: ReadonlyMap<string, string>,
-  limit = 100,
+  limit = LEADERBOARD_RECORD_LIMIT,
 ): LeaderboardEntry[] {
-  const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)))
+  const safeLimit = Math.max(1, Math.min(LEADERBOARD_RECORD_LIMIT, Math.trunc(limit)))
   const rows = getPlayerContentDatabase().prepare(`
     SELECT account_id, record_id, score, rounds, completed_at, record_json, portrait_asset_id
     FROM leaderboard_best_runs
-    ORDER BY score DESC, rounds DESC, completed_at ASC, record_id ASC
+    ORDER BY score DESC, rounds DESC, completed_at ASC, record_id ASC, account_id ASC
     LIMIT ?
   `).all(safeLimit) as Array<{
     account_id: string
@@ -163,6 +129,9 @@ export function readLeaderboardEntries(
       continue
     }
     if (!verifyStoredLifeScore(record).valid || !isLeaderboardEligible(record)) continue
+    const scoring = record.scoring
+    if (scoring?.version !== 2) continue
+    const endingReview = record.endingReview!
     entries.push({
       rank: entries.length + 1,
       username,
@@ -173,8 +142,8 @@ export function readLeaderboardEntries(
       characterName: record.characterName,
       worldName: record.worldName,
       finalAge: record.finalAge,
-      dimensions: record.dimensions,
-      endingReview: record.endingReview!,
+      dimensions: scoring.dimensions,
+      endingReview: { ...endingReview, verse: endingReview.verse! },
       achievements: record.achievements ?? [],
       portraitAssetId: row.portrait_asset_id,
       portraitAssetUrl: row.portrait_asset_id

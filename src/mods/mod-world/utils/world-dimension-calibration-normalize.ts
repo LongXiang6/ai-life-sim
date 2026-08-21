@@ -1,6 +1,6 @@
 /**
  * @module world-dimension-calibration-normalize.ts
- * @description 合并步 AI 响应归一化 —— 修复常见字段名/类型错误，避免盲重试
+ * @description 合并步 AI 响应归一化 —— 只统一等价字段表达，不补造缺失内容
  * @mod mod-world
  */
 
@@ -11,11 +11,10 @@ import {
   mapWorldviewEssenceZhToTag,
   SPATIAL_FORM_ZH_MAP,
 } from './world-config-mapping'
-import { createDefaultPowerFramework } from './power-framework'
-
 const METADATA_TAG_KEYS = ['essenceTag', 'civilizationStage', 'powerSystemTag', 'spatialForm'] as const
 
-function normalizePowerFramework(raw: unknown, powerSystem: string): Record<string, unknown> | null {
+function normalizePowerFramework(raw: unknown): unknown {
+  if (raw === null) return null
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     const value = raw as Record<string, unknown>
     const ranks = Array.isArray(value.ranks)
@@ -37,31 +36,17 @@ function normalizePowerFramework(raw: unknown, powerSystem: string): Record<stri
       }
     }
   }
-  const fallback = createDefaultPowerFramework(powerSystem)
-  if (!fallback.enabled) return null
-  return {
-    label: fallback.label,
-    progression: fallback.progression,
-    ranks: fallback.ranks.map(({ label, description }) => ({ label, description })),
-  }
+  return raw
 }
 
-/** 修复 dimensions 常见结构错误，并为缺失框架生成世界观默认提议。 */
+/** 统一 dimensions 中等价的力量框架结构，不填充缺失维度。 */
 export function normalizeDimensionsPayload(payload: unknown): Record<string, unknown> | null {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
   const raw = payload as Record<string, unknown>
-  const powerSystem = typeof raw.powerSystem === 'string' ? raw.powerSystem : '混合'
 
   return {
     ...raw,
-    powerSystem,
-    worldviewEssence: typeof raw.worldviewEssence === 'string' ? raw.worldviewEssence : '混合',
-    civilizationStage: typeof raw.civilizationStage === 'string' ? raw.civilizationStage : '现代',
-    spatialForm: typeof raw.spatialForm === 'string' ? raw.spatialForm : '宇宙',
-    powerFramework: normalizePowerFramework(raw.powerFramework, powerSystem),
-    worldType: raw.worldType === 'materialist' || raw.worldType === 'idealist' || raw.worldType === 'mixed'
-      ? raw.worldType
-      : 'mixed',
+    powerFramework: normalizePowerFramework(raw.powerFramework),
   }
 }
 

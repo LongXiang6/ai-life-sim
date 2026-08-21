@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命运预览 · 第六轮候选 A · 纯描述区头</title>
+  <style>
+    /* Purpose: Static interactive prototype: fate-preview page (07) round-06 candidate A (plain description section head): based on the settled round-05 candidate A (narrative destiny-book prose, final attribute values merged as 体魄 4 / 心智 4 / 悟性 5 / 魅力 5). This round's direction: remove the out-of-character functional section names from sectionHead (<strong>世界与角色 / 属性与命格 / 模拟种子 / 世界初始化</strong>) and turn the head into small destiny-book copy only. Candidate A keeps the head as a single left-aligned small line (命书所载 · 此界此身 / 根基既定 · 命格相赠 / 同因同果 · 命途自循 / 世界已备 · 序幕将启), the plainest execution. Facts and structure unchanged; no new lines. Ritual ✦ dividers kept; no sub-cards. Warm paper/ink language matching the settled pages. Only the world-init spinner animation is copied from runtime FatePreview.module.css (loading149Spin 0.8s linear infinite, 2s under reduced motion); no other animations are added. No role-talent pill: runtime setTalents has no callers, talents stays empty, that block never renders. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page::-webkit-scrollbar {
+      display: none;
+    }
+
+    .paper {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      align-content: start;
+      padding: 20px 20px 96px;
+    }
+
+    .runningHead {
+      display: flex;
+      height: 16px;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a0907a;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    .titleCopy {
+      text-align: center;
+      padding: 4px 0 0;
+    }
+    .titleCopy h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .titleCopy p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+    }
+
+    .section {
+      padding: 14px 16px 13px;
+      border: 1px solid #e5e1d6;
+      border-radius: 18px;
+      background: #fffdf8;
+    }
+
+    /* 区头：去掉 strong 功能化区名，仅保留一行 small 命书描述 */
+    .sectionHead {
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed #eadfce;
+    }
+    .sectionHead small { color: #a0907a; font-size: 10px; font-weight: 500; }
+
+    /* 装饰分隔：细线 + ✦ 仪式装饰（呼应属性分配定版仪式铭文） */
+    .ritualDivider {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .ritualDivider::before,
+    .ritualDivider::after { content: ''; height: 1px; background: linear-gradient(90deg, transparent, #d8c9a8, transparent); }
+    .ritualDivider i { color: #96783f; font-style: normal; font-size: 11px; line-height: 1; }
+
+    /* 世界与角色 */
+    .reviewWorld { text-align: center; }
+    .worldSource {
+      display: block;
+      overflow: hidden;
+      color: #a0907a;
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .reviewWorld h2 {
+      margin: 6px 0 0;
+      color: #241f18;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+    .reviewWorld > p {
+      margin: 7px 0 0;
+      color: #8a7f6e;
+      font-size: 10.5px;
+      line-height: 1.55;
+      text-align: left;
+    }
+    .reviewIdentity {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px 12px;
+      margin-top: 10px;
+      color: #a0907a;
+      font-size: 10px;
+      text-align: left;
+    }
+    .reviewIdentity strong {
+      min-width: 0;
+      overflow: hidden;
+      color: #6b4d1d;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .startingAge {
+      display: inline-flex;
+      flex: 0 0 auto;
+      gap: 3px;
+      white-space: nowrap;
+    }
+    .startingAge b { color: #96783f; font-weight: 700; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .stats div {
+      min-width: 0;
+      padding: 6px 2px;
+      border-bottom: 1px solid #eadfce;
+      text-align: center;
+    }
+    .stats b,
+    .stats span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .stats b { color: #241f18; font-size: 12px; font-weight: 680; font-variant-numeric: tabular-nums; }
+    .stats span { margin-top: 2px; color: #a0907a; font-size: 9.5px; }
+    .stats span .semantic-emoji { margin-right: 2px; font-size: 10px; }
+
+    /* 属性与命格 */
+    .attrGrid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+    }
+    .attrItem {
+      min-width: 0;
+      text-align: center;
+    }
+    .attrItem span,
+    .attrItem b { display: block; }
+    .attrItem span { color: #a0907a; font-size: 9.5px; }
+    .attrItem span .semantic-emoji { margin-right: 2px; font-size: 10px; }
+    .attrValue {
+      margin-top: 3px;
+      color: #241f18;
+      font-size: 15px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .talentRow {
+      display: grid;
+      gap: 0;
+      margin-top: 10px;
+    }
+    .patternRow {
+      display: grid;
+      grid-template-columns: minmax(88px, 0.72fr) minmax(0, 1.28fr);
+      gap: 10px;
+      padding: 7px 0;
+      border-top: 1px solid #eadfce;
+    }
+    .patternRow:first-child { padding-top: 0; border-top: 0; }
+    .patternRow:last-child { padding-bottom: 0; }
+    .patternHeading {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .patternHeading strong {
+      overflow: hidden;
+      color: #241f18;
+      font-size: 12px;
+      font-weight: 680;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .patternHeading small {
+      overflow: hidden;
+      color: #a0907a;
+      font-size: 9.5px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .patternRow > span {
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .patternRow.isRebirth .patternHeading strong { color: #96783f; }
+
+    .mythicEmpty {
+      margin: 8px 0 0;
+      color: #b5ab96;
+      font-size: 10px;
+    }
+
+    /* 模拟种子 */
+    .seedRow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 54px;
+      gap: 8px;
+    }
+    .seedInput,
+    .seedBtn {
+      min-height: 38px;
+      border: 1px solid #e5e1d6;
+      border-radius: 12px;
+      font: inherit;
+    }
+    .seedInput {
+      min-width: 0;
+      padding: 0 12px;
+      background: #fff;
+      color: #241f18;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0;
+    }
+    .seedInput::placeholder { color: #b5ab96; }
+    .seedBtn {
+      padding: 0 10px;
+      background: #fff;
+      color: #7a7160;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .seedInput:focus-visible,
+    .seedBtn:focus-visible {
+      outline: 2px solid rgba(150 122 66 / 32%);
+      outline-offset: 2px;
+    }
+    .seedHint {
+      margin: 7px 0 0;
+      color: #b5ab96;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    /* 世界初始化（spinner 动画照抄运行时 loading149Spin 0.8s linear infinite） */
+    .gateNotice {
+      margin: 0 0 8px;
+      padding: 7px 10px;
+      border: 1px solid rgba(150 122 66 / 30%);
+      border-radius: 10px;
+      background: rgba(150 122 66 / 7%);
+      color: #8a6a2f;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .initStepList {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .initStepRow {
+      display: flex;
+      min-width: 0;
+      min-height: 52px;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 3px;
+      border: 1px solid #e5e1d6;
+      border-radius: 10px;
+      background: #fff;
+      text-align: center;
+    }
+    .initStepIcon {
+      display: grid;
+      width: 17px;
+      height: 17px;
+      place-items: center;
+      border-radius: 50%;
+      background: #f1ead9;
+      color: #a0907a;
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+    .initStepLabel {
+      overflow: hidden;
+      max-width: 100%;
+      color: #2e2922;
+      font-size: 10px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .initStepTimer {
+      overflow: hidden;
+      max-width: 100%;
+      color: #b5ab96;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .initStepDone { border-color: #d8c9a8; background: #faf4e8; }
+    .initStepDone .initStepIcon { background: #96783f; color: #fff; }
+    .initStepCurrent { border-color: #96783f; box-shadow: inset 0 0 0 1px rgba(150 122 66 / 12%); }
+    .initStepCurrent .initStepLabel { color: #96783f; }
+    .initStepFailed { border-color: #c9b6a0; background: #faf4e8; }
+    .initStepFailed .initStepIcon,
+    .initStepFailed .initStepLabel { color: #a0713f; }
+
+    .loading149 {
+      position: relative;
+      display: inline-block;
+      width: 9px;
+      aspect-ratio: 1;
+      border: 1px solid rgba(150 122 66 / 26%);
+      border-top-color: #96783f;
+      border-radius: 50%;
+      animation: loading149Spin 0.8s linear infinite;
+    }
+    @keyframes loading149Spin {
+      to { transform: rotate(1turn); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .loading149 { animation-duration: 2s; }
+    }
+
+    .initCaption {
+      margin: 8px 0 0;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    /* 双文字等宽纯白同底按钮（与角色塑造定版一致） */
+    .bottomBar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .confirmButton {
+      border: 1px solid #d8c9a8;
+      background: #fff;
+    }
+
+    .confirmButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small { display: block; }
+
+    .backButton strong,
+    .confirmButton strong { font-size: 14px; font-weight: 650; }
+    .backButton small,
+    .confirmButton small { margin-top: 2px; color: #8a7f6e; font-size: 11px; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <main class="paper">
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>07 / 08</span></div>
+
+          <header class="titleCopy">
+            <h1>核对命书</h1>
+            <p>确认所有起点，然后开启人生。</p>
+          </header>
+
+          <section class="section" aria-labelledby="world-character-title">
+            <div class="sectionHead">
+              <small id="world-character-title">命书所载 · 此界此身</small>
+            </div>
+            <div class="reviewWorld">
+              <span class="worldSource">❖ 已确认世界 · 描述原文 ❖</span>
+              <h2>沧澜界</h2>
+              <p>❖ 你将踏入一片灵气弥漫的东方大陆：宗门林立，凡人亦可修行。以灵力为尊，弱肉强食；亦有桃源坊市与市井烟火，供你安身。</p>
+            </div>
+            <div class="ritualDivider" aria-hidden="true"><i>✦</i></div>
+            <div class="reviewIdentity">
+              <strong>林晚 · 女 · 人族</strong>
+              <span class="startingAge"><span>起始年龄：</span><b>18 岁</b></span>
+            </div>
+            <div class="ritualDivider" aria-hidden="true"><i>✦</i></div>
+            <div class="stats">
+              <div><b>100 年</b><span><span class="semantic-emoji" aria-hidden="true">⏳</span>预期寿命</span></div>
+              <div><b>灵力修行</b><span><span class="semantic-emoji" aria-hidden="true">⚡</span>力量体系</span></div>
+              <div><b>广袤大陆</b><span><span class="semantic-emoji" aria-hidden="true">🗺️</span>世界空间</span></div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="attributes-patterns-title">
+            <div class="sectionHead">
+              <small id="attributes-patterns-title">根基既定 · 命格相赠</small>
+            </div>
+            <div class="attrGrid">
+              <div class="attrItem"><span><span class="semantic-emoji" aria-hidden="true">💪</span>体魄</span><b class="attrValue">4</b></div>
+              <div class="attrItem"><span><span class="semantic-emoji" aria-hidden="true">🧠</span>心智</span><b class="attrValue">4</b></div>
+              <div class="attrItem"><span><span class="semantic-emoji" aria-hidden="true">✨</span>悟性</span><b class="attrValue">5</b></div>
+              <div class="attrItem"><span><span class="semantic-emoji" aria-hidden="true">💫</span>魅力</span><b class="attrValue">5</b></div>
+            </div>
+            <div class="ritualDivider" aria-hidden="true"><i>✦</i></div>
+            <div class="talentRow">
+              <div class="patternRow">
+                <div class="patternHeading"><strong>灵根淬体</strong><small>稀有 · 正向</small></div>
+                <span>❖ 灵根与体魄共鸣，修行之途较常人略快一线。</span>
+              </div>
+              <div class="patternRow">
+                <div class="patternHeading"><strong>慧心通明</strong><small>史诗 · 正向</small></div>
+                <span>❖ 心智澄澈如镜，你的学习与领悟，皆有超群之姿。</span>
+              </div>
+              <div class="patternRow">
+                <div class="patternHeading"><strong>笑靥如花</strong><small>精良 · 正向</small></div>
+                <span>❖ 仪态亲和不设防，世人皆愿亲近托付。</span>
+              </div>
+              <div class="patternRow isRebirth">
+                <div class="patternHeading"><strong>轮回 · 前世武骨</strong><small>轮回天赋</small></div>
+                <span>❖ 战意铭刻于魂：濒危之际，你的战意高涨，可短暂压制伤势。</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="seed-title">
+            <div class="sectionHead">
+              <small id="seed-title">同因同果 · 命途自循</small>
+            </div>
+            <div class="seedRow">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" id="seedInput" value="" placeholder="最多 8 位数字" class="seedInput" aria-label="自定义模拟种子">
+              <button type="button" id="seedRandomBtn" class="seedBtn">随机</button>
+            </div>
+            <p class="seedHint">❖ 相同种子与相同操作，将引向相近的剧情走向。</p>
+          </section>
+
+          <section class="section" aria-labelledby="world-init-title">
+            <div class="sectionHead">
+              <small id="world-init-title" aria-live="polite">世界已备 · 序幕将启</small>
+            </div>
+            <div class="initStepList">
+              <div class="initStepRow initStepDone" title="AI 推断世界观维度与规则体系"><i class="initStepIcon">✓</i><strong class="initStepLabel">校准</strong><span class="initStepTimer">2s</span></div>
+              <div class="initStepRow initStepDone" title="生成力量体系/文明阶段等标签"><i class="initStepIcon">✓</i><strong class="initStepLabel">标签</strong><span class="initStepTimer">3s</span></div>
+              <div class="initStepRow initStepDone" title="整理世界规则与运行参数"><i class="initStepIcon">✓</i><strong class="initStepLabel">参数</strong><span class="initStepTimer">2s</span></div>
+              <div class="initStepRow initStepDone" title="生成区域概况与生命阶段结构"><i class="initStepIcon">✓</i><strong class="initStepLabel">区域</strong><span class="initStepTimer">4s</span></div>
+            </div>
+            <p class="initCaption">❖ 世界已为你备好一切，可以开启这段人生。</p>
+          </section>
+        </main>
+      </div>
+
+      <div class="bottomBar">
+        <a class="backButton" href="../attribute-alloc/candidates/candidate-round-04-02-budget-immersive.html" title="返回确认属性">
+          <strong>返回</strong>
+          <small>返回确认属性</small>
+        </a>
+        <button type="button" class="confirmButton" title="开始人生">
+          <strong>开始人生</strong>
+          <small>所有起点已确认 · 开启人生</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      /* 纯 DOM 交互：随机种子生成（最多 8 位数字），不持久化、不含 localStorage/sessionStorage/fetch */
+      var seedInput = document.getElementById('seedInput')
+      var seedRandomBtn = document.getElementById('seedRandomBtn')
+      seedRandomBtn.addEventListener('click', function () {
+        var digits = String(Math.floor(Math.random() * 100000000))
+        while (digits.length < 8) digits = '0' + digits
+        seedInput.value = digits
+      })
+      seedInput.addEventListener('input', function () {
+        seedInput.value = seedInput.value.replace(/\D/g, '').slice(0, 8)
+      })
+    })()
+  </script>
+</body>
+</html>

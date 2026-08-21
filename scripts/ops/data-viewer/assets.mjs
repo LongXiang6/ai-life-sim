@@ -39,7 +39,7 @@ renderOverview = async function renderOverviewEnhanced() {
   main.replaceChildren(head('总览', '今天与昨天的完整明文日志只读聚合'));
   main.append(metrics([
     ['今日调用', today.calls, '成功率 ' + ratio(today.successRate)],
-    ['修复轮次', today.repairedRounds, '修复率 ' + ratio(today.repairRate)],
+    ['已接纳回合', today.adoptedRounds, '正文已写入故事历史'],
     ['缓存命中', ratio(today.cacheHitRate), fmt(today.hitTokens) + ' / ' + fmt((today.hitTokens || 0) + (today.missTokens || 0)) + ' Token'],
     ['平均延迟', duration(today.averageLatencyMs), '最大 ' + duration(today.latencyMaxMs)],
     ['输入 Token', (today.hitTokens || 0) + (today.missTokens || 0), '命中 + 未命中'],

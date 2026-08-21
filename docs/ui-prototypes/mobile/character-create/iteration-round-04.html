@@ -1,0 +1,127 @@
+<!-- Purpose: Record the fourth UI iteration round for the character-create sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CHARACTER-CREATE / ROUND-04</p>
+      <h1>角色塑造 · 第四轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 02（单行句）基础上按用户指示微调寿命区与背景输入区：寿命句单行不换行（消除下半空白与多余高度）；重新检测按钮放入句子同一行；lifespanResult 段落排序与句子一致（「于 X 开始人生」在前、「预计寿命 Y 岁」在后）；背景 textarea 随内容自动换行并自动增高。三个候选围绕按钮形态与结果行去留差异。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（03 / 08）、去 header 后角色摘要（头像/名字/性别·种族·背景/寿命·起始·世界）、核心身份（姓名·随机、性别、种族）、人生背景（背景输入/预设/保存预设）、寿命与起始（寿命上限/起始年龄/重新检测）、底部双文字等宽返回与确认角色（04，下一页面为命格抽取）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>寿命区高度（单行是否真正压缩）、按钮与句子融合（同行不溢出）、结果行信息（排序一致、去留）、背景区自适应（换行增高）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>同行文字钮</strong></header>
+          <p>寿命句单行不换行，重新检测文字按钮置于句子同一行右端；结果行保留且排序与句子一致（于 X 开始人生在前，预计寿命 Y 岁在后）；背景 textarea 随内容自动增高。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-inline-button.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>同行图标钮</strong></header>
+          <p>同候选 01，但重新检测按钮最小化为图标「🔄」贴在句子右端，最省空间；结果行保留排序一致；背景 textarea 自适应增高。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-icon-button.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>无结果行</strong></header>
+          <p>同候选 01，但删除 lifespanResult 结果行（角色摘要卡的寿命/起始 facts 已即时反馈），寿命区最紧凑；背景 textarea 自适应增高。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-no-result.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 同行文字钮</span><span role="columnheader">02 同行图标钮</span><span role="columnheader">03 无结果行</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">寿命区高度</strong><span role="cell">单行紧凑</span><span role="cell">单行最省</span><span role="cell">单行最紧凑</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">按钮与句子</strong><span role="cell">文字钮同行</span><span role="cell">图标钮同行</span><span role="cell">文字钮同行</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">结果行信息</strong><span role="cell">保留且排序一致</span><span role="cell">保留且排序一致</span><span role="cell">删除（facts 反馈）</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（同行图标钮）。用户确认：寿命句单行不换行、重新检测按钮最小化为「🔄」图标贴在句子右端（最省空间）、结果行排序与句子一致（「于 X 开始人生」在前「预计寿命 Y 岁」在后）、背景 textarea 随内容自动增高，为角色塑造第四轮定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（同行文字钮）：文字钮同行占用横向空间，句子可读宽度稍紧。候选 03（无结果行）：删除结果行后寿命区缺失即时复核，信息不如保留结果行完整。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留单行寿命句 + 图标钮 + 结果行排序一致 + textarea 自适应；按用户指示：runningHead（顶部「AI LIFE SIM · 命书 / 03 · 08」行）高度缩短、不留大片空白，进入第五轮。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

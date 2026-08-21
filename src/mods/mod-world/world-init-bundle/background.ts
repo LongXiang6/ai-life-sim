@@ -1,11 +1,9 @@
 /**
- * Purpose: Launch deduplicated background world-init channels without blocking the UI.
+ * Purpose: Launch one deduplicated background world-init pipeline without blocking the UI.
  * Owner: mod-world / world-init bundle.
- * Responsibility: Launch locking and channel dispatch only; AI pipeline work stays in generation.ts.
+ * Responsibility: Launch locking only; AI pipeline work stays in generation.ts.
  */
 
-import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
-import { useWorldStore } from '../store'
 import type { WorldConfig } from '../types'
 import { resolvePipelineAnchorYear } from '../utils/world-init-anchor-year'
 import { generateWorldInitBundle } from './generation'
@@ -32,28 +30,6 @@ export function startBackgroundWorldInit(
 ): void {
   const lockKey = `init:${worldCode}`
   if (!tryAcquireFillLock(lockKey)) return
-
-  const worldState = useWorldStore.getState()
-  const needServerCalibration = !worldState.calibration || !worldState.worldTags?.length
-  if (needServerCalibration) {
-    const settings = useSettingsStore.getState()
-    const clientApiKey = settings.customKey || undefined
-    const clientBaseUrl = settings.customUrl || undefined
-    const clientModel = settings.customModel || undefined
-    void fetch('/api/world-init', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        worldCode,
-        config,
-        ...(clientApiKey ? { apiKey: clientApiKey } : {}),
-        ...(clientBaseUrl ? { baseUrl: clientBaseUrl } : {}),
-        ...(clientModel ? { model: clientModel } : {}),
-      }),
-    }).catch((error) => {
-      console.warn('[mod-world] 服务端初始化请求失败（不影响客户端管道）', error)
-    })
-  }
 
   void generateWorldInitBundle(config, worldCode, startingYear).catch((error) => {
     console.warn('[mod-world] 后台世界 AI 初始化失败', error)

@@ -13,6 +13,8 @@ import type {
   HistoricalEventCandidateSubmission,
   HistoricalEventCommitBatch,
   HistoricalEventCommitResult,
+  HistoricalEventLedgerPersistenceState,
+  HistoricalEventPreparedAppend,
   HistoricalEventPreflightResult,
   HistoricalEventScope,
   HistoricalEventValidationContext,
@@ -30,6 +32,14 @@ export type HistoricalEventLedgerRuntime = ISubSystem & {
     batch: HistoricalEventCommitBatch,
     context: RoundContext | HistoricalEventValidationContext,
   ) => HistoricalEventCommitResult
+  commitPrepared: (preflight: HistoricalEventPreflightResult) => HistoricalEventCommitResult
+  prepareCandidateSubmission: (
+    submission: HistoricalEventCandidateSubmission,
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => {
+    prepared: HistoricalEventPreparedAppend
+    candidateAudits: HistoricalEventCandidateAudit[]
+  }
   submitCandidates: (
     submission: HistoricalEventCandidateSubmission,
     context: RoundContext | HistoricalEventValidationContext,
@@ -44,6 +54,12 @@ export type HistoricalEventLedgerRuntime = ISubSystem & {
     batch: HistoricalEventCandidateDispositionBatch,
     context: RoundContext | HistoricalEventValidationContext,
   ) => HistoricalEventCandidateDispositionResult
+  prepareCandidateDispositions: (
+    batch: HistoricalEventCandidateDispositionBatch,
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => HistoricalEventCandidateDispositionResult & { prepared?: HistoricalEventPreparedAppend }
+  capturePersistenceState: () => HistoricalEventLedgerPersistenceState
+  restorePersistenceState: (snapshot: unknown) => void
   getEvent: (eventId: string) => HistoricalEventView | undefined
 }
 
@@ -56,10 +72,15 @@ export function getHistoricalEventLedgerRuntimeRuntime(
   if (
     typeof candidate.preflightBatch !== 'function'
     || typeof candidate.commitBatch !== 'function'
+    || typeof candidate.commitPrepared !== 'function'
+    || typeof candidate.prepareCandidateSubmission !== 'function'
     || typeof candidate.submitCandidates !== 'function'
     || typeof candidate.queryCandidates !== 'function'
     || typeof candidate.getDueCandidates !== 'function'
     || typeof candidate.commitCandidateDispositions !== 'function'
+    || typeof candidate.prepareCandidateDispositions !== 'function'
+    || typeof candidate.capturePersistenceState !== 'function'
+    || typeof candidate.restorePersistenceState !== 'function'
     || typeof candidate.getEvent !== 'function'
   ) {
     return undefined

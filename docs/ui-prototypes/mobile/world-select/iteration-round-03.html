@@ -1,0 +1,132 @@
+<!-- Purpose: Record the third UI iteration round for the world-select sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界选择 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WORLD-SELECT / ROUND-03</p>
+      <h1>世界选择 · 第三轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第二轮入选的精简装饰基础上，把 Stage 中影响沉浸感的标签化元信息（来源/年代/难度）从"标签行"改造为语义化、沉浸化的明确表达：信息仍然明确，但不再以规则表格的形式呈现。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（01 / 08）、标题「选择世界」、世界聚焦 Stage（世界图标、名称、年代、难度可切换）、三来源 tabs（预设/已存/自创）与各自面板、预设世界卡与更多入口、底部返回与确认世界（02）；候选仍可串联、不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>沉浸感（元信息的呈现是否融入体验）、明确性（年代/难度/来源是否仍可感知）、交互串联（切换与联动的完整性）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>基线微调</strong></header>
+          <p>继承上轮 02 精简装饰，规则小字（来源 · 年代 · 难度）保留但弱化，作对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>叙事化精简</strong></header>
+          <p>去掉规则小字标签行：来源由 tabs 高亮体现；年代融入世界名副句；难度改为底部柔和"人生基调"切换。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-narrative.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>沉浸极简</strong></header>
+          <p>Stage 只留大图标 + 世界名 + 一句世界引语；难度为微型右下角 emoji 按钮；来源完全由 tabs 承担。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-immersive.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 叙事化精简</span><span role="columnheader">03 沉浸极简</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">沉浸感</strong><span role="cell">规则小字弱化</span><span role="cell">元信息语义化融入</span><span role="cell">只留世界引语</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">明确性</strong><span role="cell">标签仍可见</span><span role="cell">年代/难度可感知</span><span role="cell">年代/难度仍可感知</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">交互串联</strong><span role="cell">完整</span><span role="cell">完整</span><span role="cell">完整</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（沉浸极简）。用户确认：世界引语、大图标、来源由 tabs 承担、年代引语下小字的方向被接受；同时指出仍需继续优化。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（基线微调）：规则小字标签行与沉浸方向不符。候选 02（叙事化精简）："人生基调"行仍显功能化。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 03 的沉浸极简语言（世界引语、大 emoji 图标、来源由 tabs 承担、微型难度按钮），下一轮优化明确性与引语质感。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

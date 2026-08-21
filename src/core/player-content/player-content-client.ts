@@ -1,7 +1,7 @@
 'use client'
 
 import type {
-  CloudMythicTalent,
+  CloudReincarnationTalent,
 } from '@/core/account/account-contract'
 import type {
   CloudManualSaveSummary,
@@ -134,7 +134,7 @@ export function sendPlayerMailMessage(input: {
   recipient: PlayerMailRecipient
   title: string
   body: string
-  talent?: CloudMythicTalent
+  talent?: CloudReincarnationTalent
 }): Promise<PlayerMailCommandResult> {
   return postPlayerMailCommand({ action: 'send', ...input })
 }

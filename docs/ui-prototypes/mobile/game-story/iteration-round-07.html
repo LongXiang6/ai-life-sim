@@ -1,0 +1,135 @@
+<!-- Purpose: Record the seventh UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第七轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-07</p>
+      <h1>游戏故事 · 第七轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-06 定版候选 C 修正版（✦ 菱形 · 标题居中 · 菱形骑线对齐）为基线，方向「标题居中 · 分隔对齐」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：未选框白板 #fff、删 kicker、h3「✦ 命运分叉点」文字居中、每轮条目间顶部细线 + 居中菱形分隔且菱形中心精确骑线（两端端点与线条对齐）、entryMeta 时间+年龄、描边单选圆、chip 米白、网页底色 #fdf9f1。分向为 h3 居中标题的装饰演进：候选 A ✦ 双饰（两侧对称 ✦）、候选 B ✦ 底线（标题下细线）、候选 C ✦ 纯净（纯文字居中，定版基准）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、命格胶囊最多 3 个、轮回天赋流光胶囊——第一行标签「轮回」、第二行胶囊「前世武骨」）、章节头单行化结构（第 1 回 · 故事进程 / 故事进行中 / 等待你的选择 / 三步 01 生成正文 02 完成本轮 03 继续人生）、长篇时间线五轮 + 暮年 70 岁待抉择编辑器（圆形单选选项 + textarea「写下你的做法……」+ 清空 / 请先选择禁用）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉与面板为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（轮回流光，nth-child(2) 延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>h3 居中标题的装饰演进（双✦ 对称 / 标题下细线 / 纯文字）与编辑区整体协调度、菱形分隔两端端点与线条对齐度（三候选均精确骑线）、未选框白板层次、单选圆识别度、chip 白底、长篇时间线滚动节奏、轮回标签可读性、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>✦ 双饰</strong></header>
+          <p>h3「✦ 命运分叉点 ✦」文字居中，标题两侧对称 ✦ 装饰（呼应章节头 chapterRule 式两侧装饰）；菱形居中骑线对齐保持；其余全部同定版 C。已选择为本轮定版。</p>
+          <a class="candidate-open" href="candidates/candidate-round-07-01-double-star.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>✦ 底线</strong></header>
+          <p>h3「✦ 命运分叉点」居中 + 标题下方 1px #eadfce 细分隔线（标题区与选项区轻分隔，白板内层次更清晰）；菱形居中骑线对齐保持；其余全部同定版 C。</p>
+          <a class="candidate-open" href="candidates/candidate-round-07-02-rule-under-title.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>✦ 纯净</strong></header>
+          <p>h3「✦ 命运分叉点」居中纯文字、无附加装饰（定版基准）；菱形居中骑线对齐保持；其余全部同定版 C。</p>
+          <a class="candidate-open" href="candidates/candidate-round-07-03-plain-center.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A ✦ 双饰</span><span role="columnheader">B ✦ 底线</span><span role="columnheader">C ✦ 纯净</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">网页底色</strong><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">h3 标题</strong><span role="cell">✦ 命运分叉点 ✦ 居中</span><span role="cell">✦ 命运分叉点 居中 + 下方细线</span><span role="cell">✦ 命运分叉点 居中纯文字</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">未选框底色</strong><span role="cell">白色 #fff 白板</span><span role="cell">白色 #fff 白板</span><span role="cell">白色 #fff 白板</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">kicker 小字</strong><span role="cell">已删除</span><span role="cell">已删除</span><span role="cell">已删除</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span：时间 + 年龄</span><span role="cell">单 span：时间 + 年龄</span><span role="cell">单 span：时间 + 年龄</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选圆形</strong><span role="cell">1.5px 描边空心圆 + 选中实心填充</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性变化 chip</strong><span role="cell">米白 #fffdf8 + 细边框</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A ✦ 双饰——h3「✦ 命运分叉点 ✦」文字居中、两侧对称 ✦ 装饰呼应章节头装饰语言，标题收束最完整；菱形居中骑线对齐、未选框白板、单选圆、chip 米白等共同基线全部保持。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B ✦ 底线——标题下方 1px 细线与轮次分隔线语义重复，白板内出现第二道分隔略重；候选 C ✦ 纯净——纯文字居中在页面装饰语言中略单薄，缺少标题的仪式收束。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 四条指示进入 ROUND-08（去轮回字 · 分叉着色 · 岁数精简），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

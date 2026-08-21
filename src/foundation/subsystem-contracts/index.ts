@@ -1,7 +1,7 @@
 /**
- * @module index.ts
- * @description Foundation 跨域数据契约聚合导出 —— 子系统间通过 BaseSubsystem.readSubsystem<T>() 类型安全读取彼此数据
- * @mod foundation
+ * Purpose: Aggregate foundation-owned cross-subsystem read contracts.
+ * Owner: foundation
+ * Responsibility: Type exports only; subsystem owners retain runtime validation and state mutation.
  *
  * 背景：模拟系统全面重写梯队一（`ai-life-sim/docs/simulation-rewrite-architecture.md` §三、
  * `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem-contracts.md`）。
@@ -53,8 +53,6 @@ export type {
   CharacterHealthState,
   CharacterFortuneLevel,
   CharacterFortuneState,
-  CharacterMoralityLevel,
-  CharacterMoralityState,
   CharacterNarrativeStatus,
 } from './character-state.contract'
 

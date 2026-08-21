@@ -1,21 +1,22 @@
 /**
- * Purpose: Execute mythic generation, sealing, sharing, and new-life commands from game over.
+ * Purpose: Execute optional reincarnation promotion, sharing, and new-life commands from game over.
  * Owner: mod-pages/game-over
  * Responsibility: User command state and side effects only; scoring and publication live elsewhere.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { callAI } from '@/core'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
+import { useReincarnationLibraryStore } from '@/mods/mod-character'
 import {
-  useCharacterStore,
-  useMythicLibraryStore,
-} from '@/mods/mod-character'
-import { generateMythicPatternCandidates } from '@/mods/mod-character/mythic-pattern-access'
+  createPromotedReincarnationTalent,
+  decideReincarnationPromotion,
+  promoteReincarnationTalent,
+} from '@/mods/mod-character/reincarnation-talent-access'
 import { useSettingsStore } from '@/mods/mod-settings'
-import type { AIModelConfig } from '@/foundation'
+import type { AIModelConfig, LifeScoringResult } from '@/foundation'
 
 import { resetForNewLife } from '../../helpers/new-life-reset'
 import {
@@ -23,89 +24,84 @@ import {
   shareGameOverLife,
 } from './game-over-share-card'
 import type { useGameOverArtifacts } from './useGameOverArtifacts'
-import type { useGameOverScore } from './useGameOverScore'
+import type { useGameOverSnapshot } from './useGameOverSnapshot'
 
 type GameOverArtifacts = ReturnType<typeof useGameOverArtifacts>
-type GameOverScore = ReturnType<typeof useGameOverScore>
+type GameOverSnapshot = ReturnType<typeof useGameOverSnapshot>
 
 interface UseGameOverActionsOptions {
   artifacts: GameOverArtifacts
   lifeSummary: string
-  preGenerationActive: boolean
-  score: GameOverScore
+  scoreResult: LifeScoringResult | null
+  settlementReady: boolean
+  snapshot: GameOverSnapshot
 }
 
 export function useGameOverActions({
   artifacts,
   lifeSummary,
-  preGenerationActive,
-  score,
+  scoreResult,
+  settlementReady,
+  snapshot,
 }: UseGameOverActionsOptions) {
   const router = useRouter()
-  const setMythicCandidates = useCharacterStore((state) => state.setMythicCandidates)
-  const setSealedMythicPatternId = useCharacterStore((state) => state.setSealedMythicPatternId)
-  const addMythicPattern = useMythicLibraryStore((state) => state.addPattern)
   const [confirmingNewLife, setConfirmingNewLife] = useState(false)
-  const [mythicGenerating, setMythicGenerating] = useState(false)
-  const [mythicError, setMythicError] = useState('')
+  const [promoting, setPromoting] = useState(false)
+  const [promotionError, setPromotionError] = useState('')
   const [shareBusy, setShareBusy] = useState<'share' | 'save' | null>(null)
   const [shareStatus, setShareStatus] = useState('')
   const [startingNewLife, setStartingNewLife] = useState(false)
   const leavingForNewLifeRef = useRef(false)
   const startingNewLifeRef = useRef(false)
-  const mythicAbortRef = useRef<AbortController | null>(null)
+  const promotingRef = useRef(false)
   const {
-    activeMythicCandidate,
-    mythicCandidates,
-    mythicFinalState,
-    mythicLibrary,
-    mythicLifeDigests,
-    mythicLifeRecords,
-    sealedMythicPatternId,
-    setActiveMythicIndex,
+    activePromotionCandidate,
+    promotionLifeDigests,
+    promotionLifeRecords,
+    promotedTalent,
+    reincarnationStrength,
+    setPromotedTalent,
     shareCardData,
   } = artifacts
   const {
-    canViewGameOver,
     characterAge,
     characterName,
     lifeRunId,
-    overallScore,
-    regularPatterns,
-    reincarnationStrength,
     worldConfig,
     worldName,
-  } = score
+  } = snapshot
+  const overallScore = scoreResult?.score ?? 0
 
-  const handleGenerateMythics = useCallback(async () => {
-    if (mythicCandidates.length === 3 || mythicAbortRef.current) return
-    const controller = new AbortController()
-    mythicAbortRef.current = controller
-    setMythicGenerating(true)
-    setMythicError('')
+  const handlePromote = useCallback(async () => {
+    const candidate = activePromotionCandidate
+    if (!candidate || !settlementReady || !scoreResult || promotingRef.current || promotedTalent) return
+    promotingRef.current = true
+    setPromoting(true)
+    setPromotionError('')
     try {
       const { provider, customKey, customUrl, customModel } = useSettingsStore.getState()
       const model = customModel || DEFAULT_AI_MODEL
-      const candidates = await generateMythicPatternCandidates({
+      const promotionDecision = decideReincarnationPromotion(candidate)
+      const result = await promoteReincarnationTalent({
         worldName,
         worldDescription: worldConfig?.description,
         characterName: characterName || '无名之辈',
         finalAge: characterAge,
-        lifeSummary: `${lifeSummary} 普通命格：${regularPatterns.map((pattern) => `${pattern.name}：${pattern.effect}`).join('；') || '无'}。`,
-        finalState: mythicFinalState,
-        lifeDigests: mythicLifeDigests,
-        lifeRecords: mythicLifeRecords,
-        existingPatterns: mythicLibrary,
+        lifeSummary,
+        lifeDigests: promotionLifeDigests,
+        lifeRecords: promotionLifeRecords,
+        selectedPattern: candidate,
         endingScore: overallScore,
         strengthTier: reincarnationStrength,
+        promotionDecision,
       }, {
-        signal: controller.signal,
         callAI: async (systemPrompt, userPrompt, rawOptions) => {
           const options = rawOptions as {
             pool?: 'lowFrequency'
             jsonMode?: boolean
             signal?: AbortSignal
             outputSchema?: Parameters<typeof callAI>[2]['outputSchema']
+            logContext?: { callKind: string }
           }
           const config: AIModelConfig = {
             model,
@@ -119,71 +115,49 @@ export function useGameOverActions({
             jsonMode: options.jsonMode ?? true,
             signal: options.signal,
             outputSchema: options.outputSchema,
-            strictSchema: true,
             providerId: provider,
             apiKey: customKey || undefined,
             customBaseUrl: customUrl || undefined,
             customModel: model,
             reasoningEffort: 'disabled',
-            logContext: { callKind: 'mythic-pattern-generate', pool: 'lowFrequency', model },
+            logContext: options.logContext ?? { callKind: 'reincarnation-promotion', pool: 'lowFrequency', model },
           })
         },
       })
-      setMythicCandidates(candidates)
-      setActiveMythicIndex(0)
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setMythicError(error instanceof Error ? error.message : '轮回天赋生成失败，请重试')
-      }
-    } finally {
-      if (mythicAbortRef.current === controller) mythicAbortRef.current = null
-      if (!controller.signal.aborted) setMythicGenerating(false)
-    }
-  }, [
-    characterAge,
-    characterName,
-    lifeSummary,
-    mythicCandidates.length,
-    mythicFinalState,
-    mythicLibrary,
-    mythicLifeDigests,
-    mythicLifeRecords,
-    overallScore,
-    reincarnationStrength,
-    regularPatterns,
-    setActiveMythicIndex,
-    setMythicCandidates,
-    worldConfig,
-    worldName,
-  ])
-
-  const handleSealMythic = useCallback(() => {
-    if (!activeMythicCandidate || sealedMythicPatternId) return
-    try {
-      const sealed = addMythicPattern(activeMythicCandidate, {
+      const talent = createPromotedReincarnationTalent(candidate, result, promotionDecision, {
         worldName,
         characterName: characterName || '无名之辈',
         finalAge: characterAge,
         runId: lifeRunId,
       })
-      setSealedMythicPatternId(sealed.id)
-      setMythicError('')
+      useReincarnationLibraryStore.getState().addReincarnationTalent(talent)
+      setPromotedTalent(talent)
     } catch (error) {
-      setMythicError(error instanceof Error ? error.message : '轮回天赋封存失败')
+      setPromotionError(error instanceof Error ? error.message : '轮回天赋升阶失败，请重试')
+    } finally {
+      promotingRef.current = false
+      setPromoting(false)
     }
   }, [
-    activeMythicCandidate,
-    addMythicPattern,
+    activePromotionCandidate,
     characterAge,
     characterName,
     lifeRunId,
-    sealedMythicPatternId,
-    setSealedMythicPatternId,
+    lifeSummary,
+    overallScore,
+    promotedTalent,
+    promotionLifeDigests,
+    promotionLifeRecords,
+    reincarnationStrength,
+    scoreResult,
+    setPromotedTalent,
+    settlementReady,
+    worldConfig,
     worldName,
   ])
 
   const handleShareLife = useCallback(async () => {
-    if (shareBusy) return
+    if (!settlementReady || shareBusy) return
     setShareBusy('share')
     setShareStatus('正在生成此生分享卡…')
     try {
@@ -198,10 +172,10 @@ export function useGameOverActions({
     } finally {
       setShareBusy(null)
     }
-  }, [shareBusy, shareCardData])
+  }, [settlementReady, shareBusy, shareCardData])
 
   const handleSaveShareCard = useCallback(async () => {
-    if (shareBusy) return
+    if (!settlementReady || shareBusy) return
     setShareBusy('save')
     setShareStatus('正在生成 PNG…')
     try {
@@ -212,16 +186,10 @@ export function useGameOverActions({
     } finally {
       setShareBusy(null)
     }
-  }, [shareBusy, shareCardData])
+  }, [settlementReady, shareBusy, shareCardData])
 
   const handleStartNewLife = useCallback(async () => {
-    if (preGenerationActive || startingNewLifeRef.current) return
-    if (!sealedMythicPatternId) {
-      setMythicError(mythicCandidates.length === 3
-        ? '请先从三个轮回天赋中选择一项并封存。'
-        : '请先完成轮回天赋的生成与封存。')
-      return
-    }
+    if (!settlementReady || startingNewLifeRef.current) return
     if (!confirmingNewLife) {
       setConfirmingNewLife(true)
       return
@@ -229,7 +197,7 @@ export function useGameOverActions({
     startingNewLifeRef.current = true
     setStartingNewLife(true)
     leavingForNewLifeRef.current = true
-    setMythicError('')
+    setPromotionError('')
     try {
       await resetForNewLife()
       router.push('/new-game/world-select')
@@ -237,9 +205,9 @@ export function useGameOverActions({
       leavingForNewLifeRef.current = false
       startingNewLifeRef.current = false
       setStartingNewLife(false)
-      setMythicError(error instanceof Error ? error.message : '开启新人生失败，请稍后重试')
+      setPromotionError(error instanceof Error ? error.message : '开启新人生失败，请稍后重试')
     }
-  }, [confirmingNewLife, mythicCandidates.length, preGenerationActive, router, sealedMythicPatternId])
+  }, [confirmingNewLife, router, settlementReady])
 
   const handleFooterBack = useCallback(() => {
     if (confirmingNewLife) {
@@ -253,27 +221,17 @@ export function useGameOverActions({
     document.getElementById('dimensions-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  useEffect(() => {
-    if (!canViewGameOver || mythicCandidates.length === 3 || sealedMythicPatternId) return
-    const timer = window.setTimeout(() => { void handleGenerateMythics() }, 0)
-    return () => {
-      window.clearTimeout(timer)
-      mythicAbortRef.current?.abort()
-    }
-  }, [canViewGameOver, handleGenerateMythics, mythicCandidates.length, sealedMythicPatternId])
-
   return {
     confirmingNewLife,
     handleFooterBack,
-    handleGenerateMythics,
+    handlePromote,
     handleSaveShareCard,
-    handleSealMythic,
     handleShareLife,
     handleStartNewLife,
     handleViewSimulationData,
     leavingForNewLifeRef,
-    mythicError,
-    mythicGenerating,
+    promoting,
+    promotionError,
     setShareStatus,
     shareBusy,
     shareStatus,

@@ -7,16 +7,27 @@
 import {
   ATTRIBUTE_NAMES,
   DESTINY_PATTERN_DISPLAY_COUNT,
-  DESTINY_PATTERN_SELECT_COUNT,
+  PATTERN_LOADOUT_SLOT_COUNT,
 } from '@/mods/mod-character'
 
 import type { DestinyPattern } from '@/mods/mod-character'
-import type { TalentDrawSlots } from './talent-draw.types'
+import type {
+  TalentDrawSlots,
+  TalentLoadoutEntry,
+  TalentLoadoutSlots,
+} from './talent-draw.types'
 
 const ATTR_BONUS_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-export function createSelectedUiSlots(indices: number[]): Array<number | null> {
-  return Array.from({ length: DESTINY_PATTERN_SELECT_COUNT }, (_, index) => indices[index] ?? null)
+export function createLoadoutSlots(entries: readonly TalentLoadoutEntry[]): TalentLoadoutSlots {
+  const seen = new Set<string>()
+  const unique = entries.filter((entry) => {
+    const key = `${entry.kind}:${entry.patternId}`
+    if (!entry.patternId || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return Array.from({ length: PATTERN_LOADOUT_SLOT_COUNT }, (_, index) => unique[index] ?? null)
 }
 
 export function formatPatternAttrSummary(pattern: DestinyPattern): string {
@@ -41,7 +52,6 @@ export function uniquePatternsByIdentity(patterns: DestinyPattern[]): DestinyPat
   const seenIds = new Set<string>()
   const seenNames = new Set<string>()
   return patterns.filter((pattern) => {
-    if (pattern.polarity === 'negative') return false
     const nameKey = patternNameKey(pattern)
     if (seenIds.has(pattern.id) || seenNames.has(nameKey)) return false
     seenIds.add(pattern.id)

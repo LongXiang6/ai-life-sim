@@ -4,10 +4,6 @@
  * Responsibility: Public exports only; execution, AI transport, and state adoption live in the sibling directory.
  */
 
-export {
-  MAX_AI_RETRIES,
-  RETRY_DELAY_MS,
-} from './world-init-pipeline/contracts'
 export type {
   WorldInitPipelineContext,
   WorldInitPipelineResult,

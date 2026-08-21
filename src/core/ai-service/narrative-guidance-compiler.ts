@@ -25,8 +25,7 @@ interface GuidanceSource {
 
 export const NARRATIVE_GUIDANCE_SOURCE_DEFINITIONS = [
   { id: 'round-system-guidance', order: 10, contextKey: 'roundSystemGuidanceText' },
-  { id: 'time-guide', order: 20, contextKey: 'timeGuideText' },
-  { id: 'dynamic-guidance', order: 30, contextKey: 'narrativeGuidanceText' },
+  { id: 'dynamic-guidance', order: 20, contextKey: 'narrativeGuidanceText' },
 ] as const
 
 function compareAscii(left: string, right: string): number {

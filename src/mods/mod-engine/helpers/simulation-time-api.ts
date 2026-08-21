@@ -1,6 +1,6 @@
 /**
  * @module simulation-time-api.ts
- * @description 时间推进公开命令 —— UI 只提交选择键，由引擎统一处理步长与预生成失效
+ * @description 时间推进公开命令 —— UI 只提交选择键，由引擎统一处理步长
  * @mod mod-engine
  */
 
@@ -14,7 +14,6 @@ import {
 
 import { useEngineStore } from '../store'
 import { orchestrator } from '../subsystems/orchestrator-system'
-import { clearPreGenQueue } from './pre-gen-queue'
 
 export { AVAILABLE_TIME_STEPS, encodeTimeStepKey }
 export type { TimeStepOption }
@@ -23,12 +22,10 @@ function sameTimeStep(a: TimeStep, b: TimeStep): boolean {
   return a.unit === b.unit && a.value === b.value
 }
 
-/** 设置推进步长；步长变化时由引擎统一抛弃预生成，避免页面层直接操作队列。 */
+/** 设置推进步长。 */
 export function setSimulationTimeStep(step: TimeStep): void {
   const current = useEngineStore.getState().timeStep
-  if (!sameTimeStep(current, step)) {
-    clearPreGenQueue()
-  }
+  if (sameTimeStep(current, step)) return
   orchestrator.setTimeStep(step)
 }
 

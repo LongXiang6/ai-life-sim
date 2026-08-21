@@ -1,48 +1,46 @@
 /**
- * @file theme-minimal-white.css
- * @description 极简白主题 —— Apple HIG 极简模式，中性灰色系，大留白
- * @mod foundation
- *
- * Apple HIG 极简白原则：
- *   - Deference：UI 退居其次，大片留白
- *   - Clarity：高对比度文字，清晰的层次
- *   - Depth：极微阴影 + 半透明表面，营造空间感
+ * Purpose: Define the low-saturation pale-yellow application theme.
+ * Owner: foundation / theme tokens
+ * Responsibility: Shared semantic colors and creation-flow palette only.
  */
 
 :root,
 [data-theme='minimal-white'] {
   /* ==================== 主色 ==================== */
-  --color-primary: #555555;
-  --color-primary-hover: #444444;
-  --color-primary-light: #f5f5f5;
-  --color-secondary: #6b7280;
+  --color-primary: #9b8350;
+  --color-primary-hover: #806a3d;
+  --color-primary-light: #fffef8;
+  --color-secondary: #77736c;
   --color-text-on-primary: #ffffff;
 
   /* ==================== 状态色 ==================== */
   --color-success: #1d9b4d;
-  --color-warning: #c67a06;
+  --color-warning: #b6842f;
   --color-error: #dc2626;
-  --color-info: #555555;
-  --color-error-bg: #fef2f2;
+  --color-info: #8d7747;
+  --color-success-bg: #fbfdf8;
+  --color-warning-bg: #fffef8;
+  --color-error-bg: #fffaf9;
+  --color-info-bg: #fbfdfb;
 
   /* ==================== 背景层次（Apple HIG Depth） ==================== */
-  --color-bg: #f8f9fa;
-  --color-bg-primary: #f8f9fa;
-  --color-bg-secondary: #f0f1f3;
-  --color-bg-tertiary: #e5e7eb;
+  --color-bg: #fffdf7;
+  --color-bg-primary: #fffdf7;
+  --color-bg-secondary: #fffefa;
+  --color-bg-tertiary: #fffffd;
   --color-bg-card: #ffffff;
-  --color-surface: rgba(248, 249, 250, 0.8);
+  --color-surface: rgba(255, 255, 255, 0.94);
 
   /* ==================== 文字层次 ==================== */
   --color-text-primary: #1a1a2e;
-  --color-text-secondary: #4a4a6a;
-  --color-text-tertiary: #8a8aaa;
+  --color-text-secondary: #625f59;
+  --color-text-tertiary: #918d85;
   --text-on-accent: #ffffff;
 
   /* ==================== 边框 ==================== */
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-border-focus: #555555;
-  --color-border-hover: rgba(0, 0, 0, 0.15);
+  --color-border: rgba(110, 100, 82, 0.1);
+  --color-border-focus: #c8bda8;
+  --color-border-hover: rgba(110, 100, 82, 0.16);
 
   /* ==================== 阴影 ==================== */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -53,13 +51,13 @@
   --color-accent-glow: rgba(0, 0, 0, 0.04);
 
   /* ==================== 创建流程纸张界面 ==================== */
-  --flow-canvas: #f2f4f3;
+  --flow-canvas: #fffdf7;
   --flow-paper: #ffffff;
   --flow-ink: #17191d;
-  --flow-muted: #626870;
-  --flow-faint: #969ba2;
-  --flow-line: #e5e7ea;
-  --flow-line-strong: #dce2e8;
-  --flow-accent: #6d7f94;
-  --flow-accent-soft: #f0f3f6;
+  --flow-muted: #716d66;
+  --flow-faint: #9b978f;
+  --flow-line: #f0ede6;
+  --flow-line-strong: #e6e1d7;
+  --flow-accent: #a48b52;
+  --flow-accent-soft: #fffef8;
 }

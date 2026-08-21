@@ -1,7 +1,7 @@
 /**
- * @module index.ts
- * @description MOD 公共 API 导出 —— 角色系统
- * @mod mod-character
+ * Purpose: Export the public character MOD contracts and runtime capabilities.
+ * Owner: mod-character
+ * Responsibility: Public exports only; implementation and state remain in their owning modules.
  */
 
 export type {
@@ -9,12 +9,15 @@ export type {
   AttributeModifiers,
   CharacterBaseState,
   DestinyPattern,
+  DestinyPatternCategory,
+  DestinyPatternGrowthDirection,
+  DestinyPatternGrowthHistoryEntry,
+  DestinyPatternGrowthOption,
   DestinyPatternRarity,
-  DestinyPatternPolarity,
   DestinyPatternState,
-  MythicPattern,
-  MythicPatternCandidate,
-  MythicPatternSource,
+  PendingDestinyPatternGrowth,
+  ReincarnationTalent,
+  ReincarnationTalentSource,
   RaceLifespanConfig,
   LifespanDraftState,
   CharacterBiologicalClockMode,
@@ -25,8 +28,6 @@ export type {
   CharacterFortuneState,
   CharacterHealthState,
   CharacterLifeStageDefinition,
-  CharacterMoralityLevel,
-  CharacterMoralityState,
   CharacterNarrativeStatus,
   PendingCharacterDeath,
   CharacterSummary,
@@ -39,32 +40,17 @@ export {
   ZERO_BASE_ATTRIBUTES,
   ROUND_DECIMALS,
   RACE_LIFESPAN,
-  TRANSMIGRATOR_KEYWORDS,
   PRESET_DESTINY_PATTERNS,
-  DESTINY_PATTERN_RARITY_WEIGHTS,
-  DESTINY_PATTERN_RARITY_LIMITS,
+  DESTINY_PATTERN_CATEGORY_CONFIG,
   DESTINY_PATTERN_RARITY_CONFIG,
-  DESTINY_PATTERN_PERSONAL_MODIFIERS,
-  DESTINY_PATTERN_PERSONAL_MODIFIER_META,
-  DESTINY_PATTERN_PERSONAL_MODIFIER_KEYS,
-  DESTINY_PATTERN_WORLD_MODIFIERS,
-  DESTINY_PATTERN_WORLD_MODIFIER_META,
-  DESTINY_PATTERN_WORLD_MODIFIER_KEYS,
-  DESTINY_PATTERN_MODIFIER_BENEFIT_DIRECTION,
   DESTINY_PATTERN_RARITY_RANK,
-  DESTINY_PATTERN_POLARITY_CONFIG,
-  DESTINY_PATTERN_SELECT_COUNT,
-  DESTINY_PATTERN_EARLY_READY_COUNT,
   DESTINY_PATTERN_DISPLAY_COUNT,
   DEFAULT_DESTINY_PATTERN_COUNT,
-  MYTHIC_PATTERN_SELECT_COUNT,
-  MYTHIC_PATTERN_CANDIDATE_COUNT,
+  PATTERN_LOADOUT_SLOT_COUNT,
   AI_DESTINY_PATTERN_BATCH_SIZE,
-  AI_DESTINY_PATTERN_BATCH_COUNT,
-  AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY,
-  DESTINY_PATTERN_BULK_COUNT,
-  DESTINY_PATTERN_FULL_POOL_COUNT,
-  DESTINY_PATTERN_FAST_DRAW_THRESHOLD,
+  AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS,
+  DESTINY_PATTERN_CATEGORY_ORDER,
+  DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
   CUSTOM_WORLD_CODE_START,
   DESTINY_PATTERN_ID_PREFIX,
   DEFAULT_MAX_VITALITY,
@@ -79,7 +65,23 @@ export {
 } from './utils'
 
 export { useCharacterStore } from './store'
-export { useMythicLibraryStore, sealMythicPatternCandidate } from './mythic-library-store'
+export {
+  assertPatternLoadout,
+  getPatternLoadoutCount,
+  isPatternLoadoutComplete,
+} from './pattern-loadout'
+export {
+  createDestinyPatternLineageId,
+  createPendingDestinyPatternGrowth,
+  DESTINY_PATTERN_GROWTH_MINIMUM_AGE,
+  getNextDestinyPatternRarity,
+  registerPendingDestinyPatternGrowthInState,
+  resolvePendingDestinyPatternGrowth,
+  resolvePendingDestinyPatternGrowthInState,
+  withInitialDestinyPatternGrowthIdentity,
+} from './destiny-pattern-growth'
+export { useReincarnationLibraryStore } from './reincarnation-library-store'
+export { getReincarnationPromotionTargetRarity } from './reincarnation-talent-access'
 export { useLifeRecordStore } from './life-record-store'
 export { useCharacter, useCharacterStatus, useDestinyPatterns } from './hooks'
 export { useRaceOrigin } from './prompts/use-race-origin'
@@ -88,13 +90,7 @@ export { DESTINY_PATTERN_PRESETS_MATERIALIST } from './destiny-pattern-presets-m
 export { DESTINY_PATTERN_PRESETS_IDEALIST } from './destiny-pattern-presets-idealist'
 
 export { raceOriginPrompt } from './prompts/race-origin'
-export { destinyPatternPrompt } from './prompts/destiny-pattern-prompt'
 export { sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
-export { aggregatePatternSystemModifiers } from './utils/destiny-pattern-modifiers'
-export {
-  formatPatternSystemModifiersForDisplay,
-  type PatternModifierDisplayItem,
-} from './utils/destiny-pattern-modifiers'
 export type { PromptTemplate } from '@/foundation'
 
 export { randomName } from './utils/name'

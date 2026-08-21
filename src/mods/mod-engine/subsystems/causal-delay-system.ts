@@ -26,7 +26,10 @@ import type {
   RoundContext,
 } from '@/foundation'
 
-import { memoryLifecycle } from './memory-lifecycle-system'
+import {
+  MemoryLifecycleSystem,
+  memoryLifecycle,
+} from './memory-lifecycle-system'
 import {
   buildCausalEventFingerprint,
   CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION,
@@ -73,6 +76,10 @@ export class CausalDelaySystem implements ISubSystem {
   readonly mod = 'mod-engine' as const
   readonly label = '延迟因果' as const
   readonly description = '保存叙事承诺，按规范时间确定性到期，并在完整叙事提交后确认兑现' as const
+
+  constructor(
+    private readonly memoryLifecycleRuntime: MemoryLifecycleSystem = memoryLifecycle,
+  ) {}
 
   /** 因果配置 */
   private config: CausalConfig = DEFAULT_CAUSAL_CONFIG
@@ -253,7 +260,7 @@ export class CausalDelaySystem implements ISubSystem {
     this.stats.pendingEvents++
 
     // 统一记忆生命周期保护未兑现的因果事件。
-    memoryLifecycle.addCausalMark({
+    this.memoryLifecycleRuntime.addCausalMark({
       round,
       type,
       description,
@@ -507,7 +514,7 @@ export class CausalDelaySystem implements ISubSystem {
         event.deliveryState = 'resolved'
         this.stats.totalTriggered++
         this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
-        memoryLifecycle.resolveCausalMark(event.round, event.type, event.contextId)
+        this.memoryLifecycleRuntime.resolveCausalMark(event.round, event.type, event.contextId)
       } else {
         event.schedule = 'canonical-days'
         event.createdTotalDays = currentTotalDays
@@ -541,9 +548,21 @@ export class CausalDelaySystem implements ISubSystem {
     const idSet = new Set(eventIds)
     if (idSet.size === 0) return []
 
+    if (idSet.size !== eventIds.length) {
+      throw new Error(`[${this.id}] Duplicate causal trigger id`)
+    }
+    const matching = this.causalEvents.filter((event) => idSet.has(event.id))
+    if (matching.length !== idSet.size) {
+      throw new Error(`[${this.id}] Causal trigger set is incomplete`)
+    }
+    for (const event of matching) {
+      if (event.triggered || event.deliveryState === 'resolved') {
+        throw new Error(`[${this.id}] Causal event is already resolved: ${event.id}`)
+      }
+    }
+
     const committed: CausalEvent[] = []
-    for (const event of this.causalEvents) {
-      if (event.triggered || !idSet.has(event.id)) continue
+    for (const event of matching) {
       event.triggered = true
       event.triggeredRound = currentRound
       event.triggeredTotalDays = options.currentTotalDays
@@ -552,8 +571,12 @@ export class CausalDelaySystem implements ISubSystem {
       event.deliveryState = 'resolved'
       this.stats.totalTriggered++
       this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
-      memoryLifecycle.resolveCausalMark(event.round, event.type, event.contextId)
+      this.memoryLifecycleRuntime.resolveCausalMark(event.round, event.type, event.contextId)
       committed.push(structuredClone(event))
+    }
+
+    if (committed.length !== eventIds.length) {
+      throw new Error(`[${this.id}] Causal trigger commit is incomplete`)
     }
 
     if (committed.length > 0) {

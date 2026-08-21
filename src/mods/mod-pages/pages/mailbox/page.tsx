@@ -56,9 +56,9 @@ export default function MailboxPage() {
             <div className={styles.screen}>
               <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 邮箱</span></div>
               <header className={styles.header}>
-                <div><h1>邮箱</h1><p>{diagnosticCode ? `我的诊断编号 ${diagnosticCode}` : '人生来信'}</p></div>
+                <div><h1>✉️ 邮箱</h1><p>{diagnosticCode ? `我的诊断编号 ${diagnosticCode}` : '人生来信'}</p></div>
                 <button type="button" className={styles.composeButton} onClick={() => setComposeOpen((open) => !open)}>
-                  {composeOpen ? '收起' : '写邮件'}
+                  {composeOpen ? '收起' : '✍️ 写邮件'}
                 </button>
               </header>
 
@@ -91,9 +91,9 @@ export default function MailboxPage() {
 
               <nav className={styles.folderTabs} aria-label="邮箱分类">
                 <button type="button" data-active={folder === 'inbox'} onClick={() => setFolder('inbox')}>
-                  收件箱{unreadCount > 0 ? ` (${unreadCount})` : ''}
+                  📥 收件箱{unreadCount > 0 ? ` (${unreadCount})` : ''}
                 </button>
-                <button type="button" data-active={folder === 'sent'} onClick={() => setFolder('sent')}>已发送</button>
+                <button type="button" data-active={folder === 'sent'} onClick={() => setFolder('sent')}>📤 已发送</button>
               </nav>
 
               <section className={styles.content} aria-label={folder === 'inbox' ? '收件箱' : '已发送'}>
@@ -121,6 +121,7 @@ export default function MailboxPage() {
             <BottomActionBar
               onBack={() => router.back()}
               backTitle="返回上一页"
+              backDescription="退回上一界面"
               onConfirm={() => router.push('/welcome')}
               confirmNumber="00"
               confirmText="返回欢迎界面"

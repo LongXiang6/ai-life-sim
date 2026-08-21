@@ -1,0 +1,130 @@
+<!-- Purpose: Record the first UI iteration round for the fate-preview page (07). Owner: Interface system. Responsibility: Compare confirmed preview-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命运预览 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">FATE-PREVIEW / ROUND-01</p>
+      <h1>命运预览 · 第一轮</h1>
+    </div>
+    <span class="status status-selected">已选择 C</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>迭代创建流程命运预览（07）界面：沿用命格抽取 / 命格选取 / 属性分配已定版的暖纸墨语言（.page/.paper/.runningHead 框架、米纸底、卡片语言），仅在上层布局分向——候选 A 初始化置顶（世界初始化门禁区移最前，状态最先可见）；候选 B 核对卡片分组（保持运行时四区顺序，世界/属性/种子/初始化独立卡片强化分区与属性分层）；候选 C 运行时结构（忠实照抄运行时四 section 顺序：世界与角色 → 属性与命格 → 模拟种子 → 世界初始化）。结构与数值口径全部照抄运行时 fate-preview 页面。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（07 / 08）、标题「核对命书」+ 副句「确认所有起点，然后开启人生。」、世界与角色（已确认世界 · 描述原文、世界名与描述、姓名 · 性别 · 种族、起始年龄、预期寿命 ⏳ / 力量体系 ⚡ / 世界空间 🗺️ 三格）、属性与命格（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫 四格基础值 + 独立修正、命格行名称 + 稀有度 · 极性 + 描述、轮回天赋行、天赋 pill）、模拟种子（最多 8 位数字输入 + 随机按钮 + 提示）、世界初始化（4 步：校准 / 标签 / 参数 / 区域，完成 ✓ / 调用中 spinner / 等待 / 失败 ×，进度 X / 4 完成、底部说明与门禁提示）、底部返回（返回确认属性 / 返回确认角色）与确认（开始人生，确认号 08）。运行时 FatePreview.module.css 仅世界初始化 spinner（loading149Spin 0.8s linear infinite，reduced-motion 2s）一处动画，候选照抄该参数，不加其他动画。候选不含 localStorage/sessionStorage/fetch（种子输入为纯 DOM 状态，不持久化）。</dd></div>
+        <div><dt>比较维度</dt><dd>布局直觉（门禁状态与核对内容的先后、滚动路径）、信息层级（世界 / 属性 / 种子 / 初始化四区主次）、数值可读性（基础值 + 修正的合并显示）、精简协调性（与抽取 / 选取 / 属性分配定版语言的连贯统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>初始化置顶</strong></header>
+          <p>世界初始化门禁区移到 header 之后最前（进度 / 失败 / 开始条件最先可见），其余顺序：世界初始化 → 世界与角色 → 属性与命格 → 模拟种子。</p>
+          <a class="candidate-open" href="candidates/candidate-01-init-top.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>核对卡片分组</strong></header>
+          <p>保持运行时四区顺序，四区独立卡片分区更清晰，属性与命格区细化分层（属性四格 → 命格行 → 轮回行 → 天赋 pill），逐项核对更直观。</p>
+          <a class="candidate-open" href="candidates/candidate-02-card-groups.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>运行时结构</strong></header>
+          <p>忠实照抄运行时四 section 顺序与内容（世界与角色 → 属性与命格 → 模拟种子 → 世界初始化），仅替换为暖纸墨语言与框架，验证原结构在定版语言下的表现。</p>
+          <a class="candidate-open" href="candidates/candidate-03-runtime-layout.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 初始化置顶</span><span role="columnheader">B 核对卡片分组</span><span role="columnheader">C 运行时结构</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">布局直觉</strong><span role="cell">门禁置顶，状态最先</span><span role="cell">四区独立卡片逐项核对</span><span role="cell">运行时四区顺序原样</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">初始化优先，核对在后</span><span role="cell">属性区细化分层</span><span role="cell">世界/属性/种子/初始化</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值可读性</strong><span role="cell">基础值 + 修正同格</span><span role="cell">同上，属性区更清晰</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">spinner 0.8s 照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">与抽取/选取/属性定版统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 C</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 C（运行时结构）。用户确认「选择C版继续迭代」。要点：忠实照抄运行时四 section 顺序与内容（世界与角色 → 属性与命格 → 模拟种子 → 世界初始化），仅替换为暖纸墨语言；结构与数值口径全部照抄运行时，不含角色天赋 pill（运行时 setTalents 无调用点、该区块永不渲染）。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A（初始化置顶）：把世界初始化门禁区移到最前，破坏运行时「先核对后执行」的阅读顺序，先不采纳；候选 B（核对卡片分组）：世界区拆 3 子卡 + 属性与命格区拆 3 子卡共 6 子卡，板块区分过多、同屏层级过碎，先不采纳（作为下一轮「折中」的参照基准）。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 C（运行时结构）为基线开始第二轮迭代，方向为「板块区分折中」——避免 B 的过度拆卡，也不保持 C 的完全无分区；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

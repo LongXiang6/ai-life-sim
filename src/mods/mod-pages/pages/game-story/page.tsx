@@ -1,5 +1,5 @@
 /**
- * Purpose: Coordinate the live story round, branching, retry, save, and navigation state.
+ * Purpose: Coordinate the live story round, branching, save, and navigation state.
  * Owner: mod-pages/game-story
  * Responsibility: Core story page orchestration; reader bar, information ledger, and tag parsing live in sibling modules.
  */
@@ -8,13 +8,13 @@
 
 import { useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useEngine, usePreGenQueueStatus, useSimulationAdvance } from '@/mods/mod-engine'
-import { useEngineStore } from '@/mods/mod-engine'
+import { useCharacterStore } from '@/mods/mod-character'
+import { resolveDestinyPatternGrowthChoice } from '@/mods/mod-character/destiny-pattern-access'
+import { useEngine, useEngineStore, useSimulationAdvance } from '@/mods/mod-engine'
 import { useToastStore } from '@/mods/mod-ui'
 import { GameStoryBook } from './GameStoryBook'
 import { GameStoryFlowGuard } from './GameStoryFlowGuard'
 import { resolveGameStoryProgress } from './game-story-progress'
-import { useGameStoryAutoRetry } from './useGameStoryAutoRetry'
 import { useGameStoryAutoScroll } from './useGameStoryAutoScroll'
 import { useGameStoryPresentation } from './useGameStoryPresentation'
 import { useGameStorySave } from './useGameStorySave'
@@ -36,6 +36,8 @@ export default function GamePage() {
   const runtimeBlockedText = runtimeIncomplete
     ? '核心系统加载不完整'
     : '核心系统初始化中'
+  const pendingDestinyPatternGrowth = useCharacterStore((state) => state.destinyPatterns.pendingGrowth)
+  const hasPendingDestinyPatternGrowth = pendingDestinyPatternGrowth !== null
 
   const {
     hasUnresolvedBranch,
@@ -50,7 +52,10 @@ export default function GamePage() {
     setBranchCustomText,
     selectedBranchOptionId,
     setSelectedBranchOptionId,
-  } = useSimulationBranch({ advanceRound })
+  } = useSimulationBranch({
+    advanceRound,
+    holdAdvanceAfterConfirm: hasPendingDestinyPatternGrowth,
+  })
   const addToast = useToastStore((s) => s.addToast)
 
   const handleBranchConfirmWithFeedback = useCallback(async () => {
@@ -78,7 +83,7 @@ export default function GamePage() {
     characterName,
     destinyPatterns,
     displayBaseAttrs,
-    equippedMythicPatterns,
+    equippedReincarnationTalents,
     genderLabel,
     health,
     narrativeEntries,
@@ -92,6 +97,7 @@ export default function GamePage() {
     worldCharStatus,
     worldCode,
     worldConfig,
+    worldIcon,
     worldSurrounding,
     worldTagSections,
   } = presentation
@@ -99,7 +105,6 @@ export default function GamePage() {
   const displayRoundCount = hasVisiblePendingNarrative
     ? pendingNarrative?.roundSequence ?? totalRounds
     : totalRounds
-  const preGenStatus = usePreGenQueueStatus()
   const {
     activeTimeStepKey,
     activeTimeStepLabel,
@@ -130,15 +135,33 @@ export default function GamePage() {
   const isComplete = status === 'complete'
   const isDead = !health.alive
 
-  const { autoRetryPending, handleNarrativeAdvance } = useGameStoryAutoRetry({
+  const handleDestinyPatternGrowthSelect = useCallback((optionId: string) => {
+    if (isAdvancing) return
+    const result = resolveDestinyPatternGrowthChoice(optionId)
+    if (!result.ok) {
+      addToast('warning', result.error)
+    }
+  }, [addToast, isAdvancing])
+
+  const handleNarrativeAdvance = useCallback(async () => {
+    if (
+      !isRuntimeReady
+      || isDead
+      || isComplete
+      || isAdvancing
+      || hasUnresolvedBranch
+      || hasPendingDestinyPatternGrowth
+    ) return
+    await advanceRound()
+  }, [
     advanceRound,
+    hasPendingDestinyPatternGrowth,
     hasUnresolvedBranch,
     isAdvancing,
     isComplete,
     isDead,
     isRuntimeReady,
-    narrativeError,
-  })
+  ])
 
   const handleGoToGameOver = useCallback(() => {
     stop()
@@ -153,8 +176,8 @@ export default function GamePage() {
     storyProgressLabel,
     storyProgressSteps,
   } = resolveGameStoryProgress({
-    autoRetryPending,
     forceBranchNext,
+    hasPendingDestinyPatternGrowth,
     hasUnresolvedBranch,
     hasVisiblePendingNarrative,
     isAdvancing,
@@ -186,7 +209,6 @@ export default function GamePage() {
 
   return (
     <GameStoryBook
-      autoRetryPending={autoRetryPending}
       displayRoundCount={displayRoundCount}
       endingDescription={isDead
         ? `角色在第 ${round.year} 年 ${seasonName} 离世。`
@@ -197,15 +219,14 @@ export default function GamePage() {
         characterAge,
         characterName,
         destinyPatterns: destinyPatterns ?? [],
-        equippedMythicPatterns,
+        displayBaseAttrs,
+        equippedReincarnationTalents,
         genderLabel,
         health,
         isAdvancing,
         isRuntimeReady,
         latestWordRepeatRate: narrativeHistory[narrativeHistory.length - 1]?.repetitionMetric?.wordRepeatRate,
         narrativeTimeLabel,
-        preGenerationActive: preGenStatus.isActive,
-        preGenerationQueueLength: preGenStatus.queueLength,
         raceName,
         recentRepetitionMetrics,
         repetitionStats: storyRepetitionStats,
@@ -218,6 +239,7 @@ export default function GamePage() {
         worldTagSections,
         onClose: () => setShowWorldPanel(false),
         onFeedback: () => router.push('/feedback'),
+        onForceSettle: handleGoToGameOver,
         onOpenSave: () => { setShowWorldPanel(false); setShowSaveDialog(true) },
         onWelcome: () => router.push('/welcome'),
       } : null}
@@ -233,7 +255,7 @@ export default function GamePage() {
         characterName,
         destinyPatterns: destinyPatterns ?? [],
         displayBaseAttrs,
-        equippedMythicPatterns,
+        equippedReincarnationTalents,
         forceBranchNext,
         genderLabel,
         hasUnresolvedBranch,
@@ -245,6 +267,7 @@ export default function GamePage() {
         showStepMenu,
         showWorldPanel,
         timeStepOptions,
+        worldIcon,
         worldName: worldConfig?.name ?? '未知世界',
         onForceBranch: handleForceBranch,
         onSelectTimeStep: handleTimeStepChange,
@@ -270,7 +293,7 @@ export default function GamePage() {
         entries: narrativeEntries,
         turnCount: displayRoundCount,
         showAdvance: !isDead && !isComplete,
-        advanceBlocked: !isRuntimeReady || hasUnresolvedBranch,
+        advanceBlocked: !isRuntimeReady || hasUnresolvedBranch || hasPendingDestinyPatternGrowth,
         advanceBlockedText: narrativeAdvanceBlockedText,
         advanceText: narrativeAdvanceText,
         advanceHint: narrativeAdvanceHint,
@@ -290,6 +313,7 @@ export default function GamePage() {
         onBranchConfirm: handleBranchConfirmWithFeedback,
         onBranchCancel: handleBranchCancel,
         onCustomInputChange: setBranchCustomText,
+        onDestinyPatternGrowthSelect: handleDestinyPatternGrowthSelect,
       }}
       toastProps={{ toasts, onDismiss: dismissToast }}
       onCloseSaveDialog={() => setShowSaveDialog(false)}

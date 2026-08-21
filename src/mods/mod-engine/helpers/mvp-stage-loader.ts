@@ -1,4 +1,8 @@
 /**
+ * Purpose: Load and validate the active MVP stage configuration.
+ * Owner: mod-engine
+ * Responsibility: Parse configured runtime and Prompt subsystem membership without owning subsystem behavior.
+ *
  * @module mvp-stage-loader.ts
  * @description MVP 阶段策略配置加载器 —— 将硬编码的子系统白名单外部化为可配置 JSON
  * @mod mod-engine
@@ -23,7 +27,6 @@ const MvpStageSchema = z.object({
     external: z.array(z.string()),
     engine: z.array(z.string()),
   }),
-  systemInstruction: z.array(z.string()),
 })
 
 export const MvpStagesConfigSchema = z.object({
@@ -113,11 +116,6 @@ export class MvpStageLoader {
   getPromptSubsystems(): Set<string> {
     const stage = this.getCurrentStageConfig()
     return new Set([...stage.runtime.external, ...stage.runtime.engine])
-  }
-
-  /** 允许叙事 AI 提交系统指令的子系统集合 */
-  getSystemInstructionSubsystems(): Set<string> {
-    return new Set(this.getCurrentStageConfig().systemInstruction)
   }
 
 }

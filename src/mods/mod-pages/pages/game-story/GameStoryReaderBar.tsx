@@ -20,7 +20,7 @@ interface GameStoryReaderBarProps {
   characterName: string
   destinyPatterns: PatternView[]
   displayBaseAttrs: Record<string, number>
-  equippedMythicPatterns: PatternView[]
+  equippedReincarnationTalents: PatternView[]
   forceBranchNext: boolean
   genderLabel: string
   hasUnresolvedBranch: boolean
@@ -34,6 +34,7 @@ interface GameStoryReaderBarProps {
   stepButtonRef: RefObject<HTMLButtonElement | null>
   stepMenuRef: RefObject<HTMLDivElement | null>
   timeStepOptions: TimeStepOption[]
+  worldIcon: string
   worldName: string
   onForceBranch: () => void
   onSelectTimeStep: (value: string) => void
@@ -48,7 +49,7 @@ export function GameStoryReaderBar({
   characterName,
   destinyPatterns,
   displayBaseAttrs,
-  equippedMythicPatterns,
+  equippedReincarnationTalents,
   forceBranchNext,
   genderLabel,
   hasUnresolvedBranch,
@@ -62,6 +63,7 @@ export function GameStoryReaderBar({
   stepButtonRef,
   stepMenuRef,
   timeStepOptions,
+  worldIcon,
   worldName,
   onForceBranch,
   onSelectTimeStep,
@@ -69,11 +71,15 @@ export function GameStoryReaderBar({
   onSetShowWorldPanel,
 }: GameStoryReaderBarProps) {
   return (
-    <header className={`${styles.readerBar} ${styles.barStatus}`}>
+    <header className={styles.readerBar}>
       <div className={styles.barTop}>
         <span className={styles.identity}>
-          <strong>{characterName || '未命名'} · {genderLabel}</strong>
-          <small>{worldName} · {characterAge}岁 · {narrativeTimeLabel}</small>
+          <strong className={styles.identityLine}>
+            <span className={styles.identityWorldIcon} aria-hidden="true">{worldIcon}</span>
+            <span className={styles.identityWorldName}>{worldName || '未知世界'}</span>
+            <span className={styles.identitySeparator} aria-hidden="true">·</span>
+            <small className={styles.identityTime}>{narrativeTimeLabel}</small>
+          </strong>
         </span>
         <div ref={stepMenuRef} className={styles.barActions}>
           <div className={styles.stepMenu}>
@@ -106,7 +112,7 @@ export function GameStoryReaderBar({
             disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch}
             onClick={onForceBranch}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" /><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
+            <span className={styles.forceIcon} aria-hidden="true">⚖️</span>
             <span className={styles.srOnly}>{forceBranchNext ? '取消下一轮命运分叉' : '请求下一轮命运分叉'}</span>
           </button>
         </div>
@@ -123,13 +129,19 @@ export function GameStoryReaderBar({
           })}
         </div>
         <div className={styles.barTalents} aria-label="已选命格">
-          {destinyPatterns.slice(0, 3).map((pattern) => <span key={pattern.id} className={styles.barTalent} data-rarity={pattern.rarity}>{pattern.name}</span>)}
+          {destinyPatterns.map((pattern) => <span key={pattern.id} className={styles.barTalent} data-rarity={pattern.rarity}>{pattern.name}</span>)}
           {destinyPatterns.length === 0 ? <span className={`${styles.barTalent} ${styles.barTalentEmpty}`}>尚未携带命格</span> : null}
+          {equippedReincarnationTalents.length > 0 ? (
+            <span className={styles.barTalentRebirthRow}>
+              {equippedReincarnationTalents.map((pattern) => <span key={pattern.id} className={`${styles.barTalent} ${styles.barTalentRebirth}`} data-rarity={pattern.rarity}>{pattern.name}</span>)}
+            </span>
+          ) : null}
         </div>
-        <div className={styles.barRebirths} aria-label="轮回天赋">
-          {equippedMythicPatterns.length > 0
-            ? equippedMythicPatterns.map((pattern) => <span key={pattern.id} className={`${styles.barTalent} ${styles.barTalentRebirth}`}>{pattern.name}</span>)
-            : <span className={`${styles.barTalent} ${styles.barTalentEmpty}`}>未携带轮回</span>}
+        <div className={styles.vitalsIdentity} aria-label="身份">
+          <strong>
+            <span>{characterName || '未命名'} · {genderLabel} 🪪</span>
+            <span>{characterAge} 岁 ⏳</span>
+          </strong>
         </div>
       </div>
     </header>

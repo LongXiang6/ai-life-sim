@@ -83,18 +83,22 @@ const settingsStoreSrc = readRel('src/mods/mod-settings/store.ts')
 const preferenceEffectsSrc = readRel('src/app/_components/preference-effects.tsx')
 const rootLayoutSrc = readRel('src/app/layout.tsx')
 const globalCssSrc = readRel('src/app/globals.css')
+const flowRunningHeadSrc = readRel('src/mods/mod-ui/components/atoms/FlowRunningHead.tsx')
+const flowRunningHeadCssSrc = readRel('src/mods/mod-ui/components/atoms/FlowRunningHead.module.css')
 const themeStoreSrc = readRel('src/core/theme/theme-store.ts')
 const settingsParamCardSrc = readRel('src/mods/mod-settings/components/SettingsParamCard.tsx')
 const settingsPresetsSrc = readRel('src/mods/mod-settings/components/SettingsTabPresets.tsx')
+const settingsProfilesSrc = readRel('src/mods/mod-settings/components/SettingsCustomProfiles.tsx')
 const deepSeekPresetHandler = settingsPresetsSrc.slice(
   settingsPresetsSrc.indexOf('const handleApplyDeepSeekPreset'),
   settingsPresetsSrc.indexOf('const handleClearKey'),
 )
-const preGenQueueSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 const helpModalSrc = readRel('src/mods/mod-ui/components/organisms/HelpModal.tsx')
 const helpFocusTrapSrc = readRel('src/mods/mod-ui/components/organisms/HelpModalFocusTrap.ts')
 const helpNavigationSrc = readRel('src/mods/mod-ui/components/organisms/HelpModalNavigation.tsx')
 const helpModalCssSrc = readRel('src/mods/mod-ui/components/organisms/HelpModal.module.css')
+const helpProjectContentSrc = readRel('src/mods/mod-ui/components/organisms/HelpWorkspaceProjectContent.tsx')
+const helpTabsSrc = readRel('src/mods/mod-ui/components/organisms/help-tabs.ts')
 const disclaimerModalSrc = readRel('src/mods/mod-ui/components/organisms/DisclaimerModal.tsx')
 const disclaimerModalCssSrc = readRel('src/mods/mod-ui/components/organisms/DisclaimerModal.module.css')
 const helpModalSurfaceSrc = `${helpModalSrc}\n${helpNavigationSrc}`
@@ -122,6 +126,7 @@ const characterCreateCssSrc = readRel('src/mods/mod-pages/pages/character-create
 const talentDrawPageSrc = readCodeDirectory('src/mods/mod-pages/pages/talent-draw')
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const attributeAllocPageSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/page.tsx')
+const attributeAllocCssSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css')
 const productDecisionsSrc = readRel('docs/product-decisions.md')
 const worldCustomizeMobileSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.tsx')
 const worldCustomizePageSrc = readRel('src/mods/mod-pages/pages/world-customize/page.tsx')
@@ -143,6 +148,8 @@ const gameOverPageSrc = readCodeDirectory('src/mods/mod-pages/pages/game-over')
 const gameOverRadarSrc = readRel('src/mods/mod-pages/pages/game-over/GameOverRadar.tsx')
 const gameOverShareCardSrc = readRel('src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const gameOverCssSrc = readRel('src/mods/mod-pages/pages/game-over/GameOver.module.css')
+const leaderboardPageSrc = readRel('src/mods/mod-pages/pages/leaderboard/page.tsx')
+const leaderboardCssSrc = readRel('src/mods/mod-pages/pages/leaderboard/Leaderboard.module.css')
 const accountPageSrc = readCodeDirectory('src/mods/mod-pages/pages/account')
 const feedbackPageSrc = readRel('src/mods/mod-pages/pages/feedback/page.tsx')
 const prototypeLibraryCssSrc = readRel('docs/ui-prototypes/mobile/assets/library.css')
@@ -179,6 +186,39 @@ const prototypeAccountIterationSrc = readRel('docs/ui-prototypes/mobile/account/
 const prototypeAccountIterationRound02Src = readRel('docs/ui-prototypes/mobile/account/iteration-round-02.html')
 const prototypeAccountIterationRound03Src = readRel('docs/ui-prototypes/mobile/account/iteration-round-03.html')
 const prototypeAccountCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/account/candidates')).sort()
+const prototypeWorldSelectIterationSrc = readRel('docs/ui-prototypes/mobile/world-select/iteration-round-01.html')
+const prototypeWorldSelectIterationRound02Src = readRel('docs/ui-prototypes/mobile/world-select/iteration-round-02.html')
+const prototypeWorldSelectIterationRound03Src = readRel('docs/ui-prototypes/mobile/world-select/iteration-round-03.html')
+const prototypeWorldSelectIterationRound04Src = readRel('docs/ui-prototypes/mobile/world-select/iteration-round-04.html')
+const prototypeWorldSelectIndexSrc = readRel('docs/ui-prototypes/mobile/world-select/index.html')
+const prototypeWorldSelectCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/world-select/candidates')).sort()
+const prototypeWorldCustomizeIterationSrc = readRel('docs/ui-prototypes/mobile/world-customize/iteration-round-01.html')
+const prototypeWorldCustomizeIterationRound02Src = readRel('docs/ui-prototypes/mobile/world-customize/iteration-round-02.html')
+const prototypeWorldCustomizeIterationRound03Src = readRel('docs/ui-prototypes/mobile/world-customize/iteration-round-03.html')
+const prototypeWorldCustomizeIndexSrc = readRel('docs/ui-prototypes/mobile/world-customize/index.html')
+const prototypeWorldCustomizeCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/world-customize/candidates')).sort()
+const prototypeCharacterCreateIterationSrc = readRel('docs/ui-prototypes/mobile/character-create/iteration-round-01.html')
+const prototypeCharacterCreateIterationRound02Src = readRel('docs/ui-prototypes/mobile/character-create/iteration-round-02.html')
+const prototypeCharacterCreateIndexSrc = readRel('docs/ui-prototypes/mobile/character-create/index.html')
+const prototypeCharacterCreateCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/character-create/candidates')).sort()
+const prototypeTalentDrawIterationSrc = readRel('docs/ui-prototypes/mobile/talent-draw/iteration-round-01.html')
+const prototypeTalentDrawIndexSrc = readRel('docs/ui-prototypes/mobile/talent-draw/index.html')
+const prototypeTalentDrawCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/talent-draw/candidates')).sort()
+const prototypeTalentSelectIterationSrc = readRel('docs/ui-prototypes/mobile/talent-select/iteration-round-01.html')
+const prototypeTalentSelectIndexSrc = readRel('docs/ui-prototypes/mobile/talent-select/index.html')
+const prototypeTalentSelectCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/talent-select/candidates')).sort()
+const prototypeAttributeAllocIterationSrc = readRel('docs/ui-prototypes/mobile/attribute-alloc/iteration-round-01.html')
+const prototypeAttributeAllocIndexSrc = readRel('docs/ui-prototypes/mobile/attribute-alloc/index.html')
+const prototypeAttributeAllocCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/attribute-alloc/candidates')).sort()
+const prototypeFatePreviewIterationSrc = readRel('docs/ui-prototypes/mobile/fate-preview/iteration-round-01.html')
+const prototypeFatePreviewIndexSrc = readRel('docs/ui-prototypes/mobile/fate-preview/index.html')
+const prototypeFatePreviewCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/fate-preview/candidates')).sort()
+const prototypeGameStoryIterationSrc = readRel('docs/ui-prototypes/mobile/game-story/iteration-round-01.html')
+const prototypeGameStoryIndexSrc = readRel('docs/ui-prototypes/mobile/game-story/index.html')
+const prototypeGameStoryCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/game-story/candidates')).sort()
+const prototypeGameOverIterationSrc = readRel('docs/ui-prototypes/mobile/game-over/iteration-round-01.html')
+const prototypeGameOverIndexSrc = readRel('docs/ui-prototypes/mobile/game-over/index.html')
+const prototypeGameOverCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/game-over/candidates')).sort()
 const prototypeHelpIterationSrc = readRel('docs/ui-prototypes/mobile/help/iteration-round-01.html')
 const prototypeHelpCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/help/candidates')).sort()
 const prototypeFeedbackIterationSrc = readRel('docs/ui-prototypes/mobile/feedback/iteration-round-01.html')
@@ -211,19 +251,19 @@ assertOk(
   'creation routes must redirect to the nearest missing prerequisite after persisted stores hydrate',
 )
 assertOk(
-  attributeAllocPageSrc.includes('const TOTAL_POINTS = 15')
+  attributeAllocPageSrc.includes('const TOTAL_POINTS = 4')
     && attributeAllocPageSrc.includes('const effectiveValue = value + bonus')
     && attributeAllocPageSrc.includes('nextUsedPoints > TOTAL_POINTS')
     && !attributeAllocPageSrc.includes('const MAX_VALUE = 10')
     && !attributeAllocPageSrc.includes('const MIN_VALUE = 0')
     && attributeAllocPageSrc.includes('setCharacterBase({')
     && attributeAllocPageSrc.includes("router.push('/fate-preview')"),
-  'the creation flow must expose the confirmed 15-point allocation with unbounded per-attribute values and effective-value display',
+  'the creation flow must expose the confirmed four-point allocation with unbounded per-attribute values and effective-value display',
 )
 assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'welcome page must use the single responsive WelcomeView')
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
 assertOk(welcomePageSrc.includes('<WelcomeView'), 'welcome page must render WelcomeView exactly once')
-assertOk(welcomeViewSrc.includes('一生很长，') && welcomeViewSrc.includes('也只由几次选择组成。'), 'welcome title must use the approved T2 copy')
+assertOk(welcomeViewSrc.includes('命书已翻至首页，') && welcomeViewSrc.includes('故事由你落笔。'), 'welcome title must use the finalized warm-paper copy')
 assertOk(welcomeViewSrc.includes('选择世界与角色。'), 'welcome introduction must use the approved short copy from the selected RF4 refinement')
 assertOk(welcomeViewSrc.includes('开始新人生'), 'welcome primary action must use the approved T2 label')
 assertOk(!welcomeViewSrc.includes('styles.trajectory'), 'welcome must not reintroduce the retired decorative trajectory ornament')
@@ -231,7 +271,7 @@ assertOk(/hasAnySave\s*&&\s*\(/.test(welcomeViewSrc), 'continue action must only
 assertOk(
   welcomeViewSrc.includes('onDeleteSave={onDeleteSave}')
     && welcomeViewSrc.includes('onDeleteCloudSave={onDeleteCloudSave}')
-    && welcomeSaveSheetSrc.includes('删除已选择的存档')
+    && welcomeSaveSheetSrc.includes('删除这段人生？')
     && welcomeSaveSheetSrc.includes('role="alertdialog"')
     && welcomeSaveSheetSrc.includes('确认删除')
     && welcomeSaveSheetSrc.includes('onDeleteCloudSave()')
@@ -240,15 +280,53 @@ assertOk(
     && welcomeCssSrc.includes('.deleteConfirm'),
   'welcome local and cloud save selection must expose destructive deletion with an explicit second-confirmation dialog',
 )
-assertOk(!/[🎮⚙️📖]/u.test(welcomeViewSrc), 'welcome actions must not use the rejected emoji icon treatment')
+assertOk(welcomeViewSrc.includes('🌱 开始新人生') && welcomeViewSrc.includes('⚙️ 设置') && welcomeViewSrc.includes('📜 游戏说明'), 'welcome actions must use the finalized semantic emoji labels')
 assertOk(
   welcomePageSrc.includes('flow-responsive-viewport')
     && welcomePageSrc.includes('flow-responsive-layout')
     && !welcomePageSrc.includes('final-flow-design-fit'),
   'welcome must use the shared native viewport layout without a fixed-size design canvas',
 )
+assertOk(
+  flowRunningHeadSrc.includes('data-flow-running-head')
+    && flowRunningHeadSrc.includes('AI LIFE SIM · 命书')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'height', '16px')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'font-size', '11px')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'color', 'var(--flow-faint)')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'gap', '8px'),
+  'the finalized running head must have one shared 16px by 11px presentation contract',
+)
+assertOk(
+  [
+    welcomeViewSrc,
+    worldSelectMobileSrc,
+    worldCustomizeMobileSrc,
+    characterCreateMobileSrc,
+    talentDrawPageSrc,
+    attributeAllocPageSrc,
+    fatePreviewPageSrc,
+    gameOverPageSrc,
+    leaderboardPageSrc,
+    helpModalSrc,
+  ].every((source) => source.includes('<FlowRunningHead')),
+  'finalized flow, settlement, leaderboard, and help surfaces must use the shared running head',
+)
+assertOk(
+  !/\.runningHead\s*\{/.test(welcomeCssSrc)
+    && !/\.runningHead\s*\{/.test(worldSelectCssSrc)
+    && !/\.runningHead\s*\{/.test(worldCustomizeCssSrc)
+    && !/\.runningHead\s*\{/.test(characterCreateCssSrc)
+    && !/\.runningHead\s*\{/.test(talentDrawCssSrc)
+    && !/\.runningHead\s*\{/.test(attributeAllocCssSrc)
+    && !/\.runningHead\s*\{/.test(fatePreviewCssSrc)
+    && !/\.runningHead\s*\{/.test(gameOverCssSrc)
+    && !/\.meta\s*\{/.test(worldSelectCssSrc)
+    && !/\.meta\s*\{/.test(leaderboardCssSrc)
+    && !/\.metaRow\s*\{/.test(helpModalCssSrc),
+  'target surfaces must not retain page-local running-head implementations',
+)
 
-assertOk(!/[🎨🤖🔌📝⚙️]/u.test(settingsModalSrc), 'approved settings tabs and title must not use emoji icons')
+assertOk(settingsModalSrc.includes('⚙️ 设置') && settingsModalSrc.includes('📖 阅读与界面') && settingsModalSrc.includes('🔌 模型与调用'), 'finalized settings title and tabs must retain their semantic emoji labels')
 assertOk(settingsModalSrc.includes('role="tablist"'), 'settings navigation must expose a tablist')
 assertOk(settingsModalSrc.includes('role="tab"') && settingsModalSrc.includes('aria-selected='), 'settings tabs must expose selected state')
 assertOk(
@@ -268,14 +346,14 @@ assertOk(
   'settings tabs must support native horizontal touch scrolling with hidden scrollbars',
 )
 assertOk(settingsModalCssSrc.includes('flex: 0 0 auto'), 'settings tabs must keep the approved compact horizontal sizing')
-assertOk(/\.tabActive\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#7382bb;/s.test(settingsModalCssSrc), 'active settings tab must use the approved white-on-accent navigation treatment')
+assertOk(/\.tabActive\s*\{[^}]*border-bottom-color:\s*(?:#977026|var\(--flow-accent\)|var\(--color-border-focus\));[^}]*color:\s*(?:#241f18|var\(--flow-ink\));/s.test(settingsModalCssSrc), 'active settings tab must use the finalized warm-paper underline treatment')
 assertOk(
   settingsModalSrc.includes('flow-responsive-viewport')
     && settingsModalSrc.includes('flow-responsive-layout')
     && !settingsModalSrc.includes('final-flow-design-fit'),
   'mobile settings must use the shared native viewport layout without canvas scaling',
 )
-assertOk(settingsModalSrc.includes('aria-label="关闭设置"') && settingsModalSrc.includes('>×</button>'), 'settings modal must use the shared accessible circular close control')
+assertOk(settingsModalSrc.includes('<footer className={styles.footer}>') && settingsModalSrc.includes('<strong>返回上一页</strong>') && settingsModalSrc.includes('<strong>完成</strong>'), 'settings modal must use the finalized two-action footer')
 assertOk(
   disclaimerModalSrc.includes('role="dialog"')
     && disclaimerModalSrc.includes('aria-modal="true"')
@@ -288,12 +366,7 @@ assertOk(
     && themeStoreSrc.includes("theme: 'minimal-white', themes: ['minimal-white']"),
   'approved settings must not expose alternate themes that conflict with the fixed white-paper UI',
 )
-assertOk(
-  settingsModalCssSrc.includes(`width: ${scaledPx(34)}`)
-    && settingsModalCssSrc.includes(`height: ${scaledPx(34)}`),
-  'settings close control must use the shared 1.2x density size',
-)
-assertOk(settingsModalCssSrc.includes('border-radius: 50%'), 'settings close control must be circular')
+assertOk(settingsModalCssSrc.includes('.footerButton') && settingsModalCssSrc.includes(`min-height: ${scaledPx(38.333)}`), 'settings footer controls must use the finalized shared density')
 assertOk(settingsModelSrc.includes('styles.sectionLabel') && settingsModelSrc.includes('styles.sectionCard'), 'model settings must use independent section labels and cards')
 assertOk(settingsModelCssSrc.includes('.sectionLabel') && settingsModelCssSrc.includes('.sectionCard'), 'model settings section hierarchy must be styled explicitly')
 assertOk(
@@ -333,11 +406,11 @@ assertOk(
   'approved presentation preferences must update actual narrative spacing and motion behavior',
 )
 assertOk(
-  settingsModelSrc.includes("{ value: 1, label: '预生成下一轮' }")
-    && !settingsModelSrc.includes('{ value: 2')
-    && !settingsModelSrc.includes('{ value: 3')
-    && preGenQueueSrc.includes('return configuredRounds > 0 ? 1 : 0'),
-  'pre-generation must expose only off/next-round and cap historical positive values at one queued round',
+  settingsModelSrc.includes('预生成下一轮（已停用）')
+    && settingsModelSrc.includes('disabled={true}')
+    && !settingsModelSrc.includes('preGenerateRounds === 1')
+    && !settingsModelSrc.includes('setPreGenerateRounds('),
+  'settings must show that next-round pre-generation is disabled and cannot issue a request',
 )
 assertOk(
   settingsPresetsSrc.includes('setProvider(DEFAULT_AI_PROVIDER_ID)')
@@ -363,27 +436,43 @@ assertOk(
   'model settings must not expose free providers, vendor grids, or generation presets',
 )
 assertOk(
-  !settingsPresetsSrc.includes('保存配置')
+  settingsProfilesSrc.includes('保存配置')
     && settingsPresetsSrc.includes('修改后自动保存')
     && settingsPresetsSrc.includes('测试连接'),
-  'API model settings must explain automatic persistence and keep connectivity testing as a real action',
+  'API model settings must support named local profiles while keeping connectivity testing as a real action',
 )
 
 assertOk(!helpModalSrc.includes('useIsMobile'), 'help modal must use one responsive DOM without viewport branching')
 assertOk(helpModalSrc.includes("import styles from './HelpModal.module.css'"), 'help modal must use one responsive CSS module')
-assertOk(helpModalSurfaceSrc.includes('HELP_CHAPTERS') && helpModalSurfaceSrc.includes('styles.chapterNav'), 'help docs must expose the approved H1 chapter navigation')
-assertOk(helpModalSrc.includes('aria-label="关闭说明"') && helpModalSrc.includes('>×</button>'), 'help modal must use the approved accessible C3 close control')
+assertOk(helpModalSrc.includes('ApprovedHelpGuide') && helpModalSrc.includes('styles.chapter') && helpModalSrc.includes('06 / 故事'), 'help docs must expose the finalized six chapter-card guide')
+assertOk(helpModalSrc.includes('<footer className={styles.footer}>') && helpModalSrc.includes('<strong>返回上一页</strong>') && helpModalSrc.includes('<strong>完成</strong>'), 'help modal must use the finalized two-action footer')
 assertOk(helpModalSurfaceSrc.includes('role="tablist"') && helpModalSurfaceSrc.includes('aria-selected='), 'help tabs must expose semantic selected state')
 assertOk(helpModalSrc.includes('useHelpModalFocusTrap') && helpModalSrc.includes('tabIndex={-1}') && helpFocusTrapSrc.includes("document.addEventListener('keydown'") && helpFocusTrapSrc.includes("event.key === 'Escape'"), 'help modal must trap focus, close globally on Escape, and restore focus')
-assertOk(helpModalSrc.includes('<h2 className={styles.headerTitle}>说明</h2>') && helpModalSrc.includes('沿章节阅读，也可快速定位当前需要的功能。'), 'help header must use the flow-approved title and copy')
-assertOk(!helpNavigationSrc.includes('<small>01</small>') && !helpNavigationSrc.includes('<small>02</small>'), 'help two-tab navigation must not add settings-style chapter numbers')
-assertOk(helpModalSrc.includes('<strong>读完说明</strong><small>返回进入说明前的界面</small>'), 'help footer must use the flow-approved return copy')
+assertOk(helpModalSrc.includes('<h2 className={styles.headerTitle}>游戏说明</h2>') && helpModalSrc.includes('沿章节阅读，也可快速定位当前需要的功能。'), 'help header must use the finalized title and copy')
 assertOk(
-  helpModalCssSrc.includes(`width: ${scaledPx(34)}`)
-    && helpModalCssSrc.includes(`height: ${scaledPx(34)}`),
-  'help close control must keep the approved hierarchy at 1.2x density',
+  helpTabsSrc.indexOf("{ id: 'docs', label: '说明' }") < helpTabsSrc.indexOf("{ id: 'changelog', label: '更新日志' }")
+    && helpTabsSrc.indexOf("{ id: 'changelog', label: '更新日志' }") < helpTabsSrc.indexOf("{ id: 'qq-bot', label: 'QQ群机器人' }")
+    && helpTabsSrc.includes("{ id: 'factorio-localizer', label: 'FACTORIO模组汉化器' }")
+    && helpTabsSrc.includes("{ id: 'novelist-sim', label: '小说模拟器' }")
+    && helpTabsSrc.includes("{ id: 'wechat-advisor', label: '微信聊天军师' }"),
+  'help tabs must keep docs and changelog first, followed by the four workspace project guides',
 )
-assertOk(helpModalCssSrc.includes('border-radius: 50%'), 'help close control must remain circular')
+assertOk(
+  helpNavigationSrc.includes('HELP_TABS.map')
+    && helpProjectContentSrc.includes("'qq-bot':")
+    && helpProjectContentSrc.includes("'factorio-localizer':")
+    && helpProjectContentSrc.includes("'novelist-sim':")
+    && helpProjectContentSrc.includes("'wechat-advisor':"),
+  'help navigation must render the shared six-tab contract and every project tab must own static guide content',
+)
+assertOk(
+  hasCssDeclaration(helpModalCssSrc, 'tabBar', 'overflow-x', 'auto')
+    && hasCssDeclaration(helpModalCssSrc, 'tab', 'white-space', 'nowrap')
+    && helpModalCssSrc.includes('.tabBar::-webkit-scrollbar'),
+  'help six-tab navigation must remain horizontally scrollable without wrapping on narrow viewports',
+)
+assertOk(helpModalSrc.includes('<small>退出说明页</small>') && helpModalSrc.includes('<small>返回欢迎界面</small>'), 'help footer must use the finalized return copy')
+assertOk(helpModalCssSrc.includes('.footerButton') && helpModalCssSrc.includes(`min-height: ${scaledPx(38.333)}`), 'help footer controls must keep the finalized hierarchy at 1.2x density')
 assertOk(
   helpModalSrc.includes('flow-responsive-viewport')
     && helpModalSrc.includes('flow-responsive-layout')
@@ -397,27 +486,26 @@ assertOk(worldSelectMobileSrc.includes('<WorldSelectStage') && worldSelectMobile
 assertOk(worldSelectMobileSrc.includes('role="tablist"') && worldSelectMobileSrc.includes('role="tab"') && worldSelectMobileSrc.includes('aria-selected=') && worldSelectMobileSrc.includes('role="tabpanel"'), 'world source switching must preserve the approved tab and panel semantics')
 assertOk(
   worldSelectLogicSrc.includes('resolveRestoredWorld(existingWorldConfig, existingWorldCode, custom.savedWorlds)')
-    && worldSelectLogicSrc.includes('const selectedWorld = selectedWorldOverride ?? restoredWorld')
+    && worldSelectLogicSrc.includes('const selectedWorld = selectedWorldOverride ?? restoredWorld ?? PRESET_WORLDS[0] ?? null')
     && worldSelectLogicSrc.includes("useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')"),
   'returning from world customization must restore the completed world selection and difficulty',
 )
-assertOk(worldSelectStageSrc.includes('世界规则摘要') && worldSelectStageSrc.includes('world.summary'), 'WF2 stage must keep the selected-world rule summary inside the large stage')
+assertOk(worldSelectStageSrc.includes('styles.stageIcon') && worldSelectStageSrc.includes('styles.stageQuote') && worldSelectStageSrc.includes('world.summary || world.description'), 'world focus stage must use the finalized icon, title, quote, and era composition')
 assertOk(
-  worldSelectStageSrc.includes('difficultySection')
-    && worldSelectStageSrc.includes('difficultyOptions')
-    && worldSelectStageSrc.includes('人生难度')
+  worldSelectStageSrc.includes('difficultyButton')
+    && worldSelectStageSrc.includes('difficultyEmoji')
+    && worldSelectStageSrc.includes('人生基调')
     && worldSelectStageSrc.includes('challengeLabel')
     && worldSelectStageSrc.includes('type="button"')
     && worldSelectStageSrc.includes('onClick={logic.handleCycleDifficulty}')
     && !worldSelectStageSrc.includes('role="button"'),
-  'difficulty controls must use the approved native cycle button inside the world-focus stage card',
+  'difficulty controls must use the finalized circular native cycle button inside the world-focus stage card',
 )
 assertOk(
-  worldSelectMobileSrc.includes("['saved', '已保存']")
-    && worldSelectMobileSrc.includes("['custom', '自定义']")
-    && worldSelectMobileSrc.includes("['preset', '预设世界']")
+  worldSelectMobileSrc.indexOf("['preset', '预设世界']") < worldSelectMobileSrc.indexOf("['saved', '已保存']")
+    && worldSelectMobileSrc.indexOf("['saved', '已保存']") < worldSelectMobileSrc.indexOf("['custom', '自定义']")
     && worldSelectMobileSrc.includes('role="tablist"'),
-  'WF2 directory must expose the approved saved/custom/preset source tabs',
+  'world directory must expose the finalized preset/saved/custom tab order',
 )
 assertOk(
   !worldSelectBottomBarSrc.includes('logic.difficultyItems')
@@ -430,11 +518,10 @@ assertOk(
   'WF2 compact bottom bar must keep back/confirm actions and disabled confirmation semantics',
 )
 assertOk(
-  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(52)}`)
-    && bottomActionBarCssSrc.includes(`min-height: ${scaledPx(48)}`)
-    && bottomActionBarCssSrc.includes(`width: ${scaledPx(38)}`)
+  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(38.333)}`)
+    && bottomActionBarCssSrc.includes(`border-radius: ${scaledPx(20)}`)
     && bottomActionBarCssSrc.includes('position: absolute'),
-  'WF2 floating bottom bar must use the approved unified 52/48/38 creation-flow hierarchy',
+  'world selection bottom bar must use the finalized equal white-button hierarchy',
 )
 assertOk(
   worldSelectMobileSrc.includes('flow-responsive-viewport')
@@ -465,12 +552,7 @@ assertOk(
     && worldSelectCacheDialogSrc.includes("event.key !== 'Tab'"),
   'WF2 cache reset must use an explicit accessible confirmation dialog and disclose the preserved data',
 )
-assertOk(
-  bottomActionBarSrc.includes('<span className={styles.confirmArrow}')
-    && bottomActionBarSrc.includes('M5 12h14m-6-6 6 6-6 6')
-    && !bottomActionBarSrc.includes('aria-hidden="true">→</span>'),
-  'WF2 bottom action must use the approved centered SVG arrow instead of a font glyph',
-)
+assertOk(!bottomActionBarSrc.includes('confirmArrow') && bottomActionBarSrc.includes('styles.actionCopy'), 'finalized bottom actions must use two-line text without a trailing arrow glyph')
 assertOk(worldSelectMobileSrc.trimEnd().split('\n').length <= 200, 'world select mobile composer must stay at or below the 200-line UI limit')
 
 assertOk(!characterCreateMobileSrc.includes('BottomActionBar'), 'N2A character create must use its page-specific edge-aligned bottom bar')
@@ -485,26 +567,27 @@ assertOk(
 )
 assertOk(characterIdentitySrc.includes('角色姓名') && characterIdentitySrc.includes('性别') && characterIdentitySrc.includes('种族'), 'N2A identity section must preserve all three core identity groups')
 assertOk(
-  characterIdentitySrc.includes('01 / 03 · 姓名、性别与种族')
-    && characterIdentitySrc.includes('必填 · 可随机')
+  characterIdentitySrc.includes('必填 · 可随机')
+    && characterIdentitySrc.includes('styles.moreLink')
+    && !characterIdentitySrc.includes('01 / 03 · 姓名、性别与种族')
     && !characterIdentitySrc.includes('姓名留空将自动生成')
     && !characterIdentitySrc.includes('可选 · 可随机'),
-  'character identity copy must describe the required-name contract enforced by the confirmation action',
+  'character identity must keep the required-name contract inside the finalized uncluttered section heading',
 )
 assertOk(characterIdentitySrc.includes('styles.softGroup') && !characterIdentitySrc.includes('divider'), 'N2A identity groups must use same-tone soft grouping without divider lines')
-assertOk(characterCreateMobileSrc.includes('logic.background.trim()'), 'character summary must not treat whitespace-only background text as completed')
+assertOk(!characterCreateMobileSrc.includes('已填写背景') && characterCreateMobileSrc.includes('📜</span>'), 'character summary must use the finalized compact identity projection without a background completion badge')
 assertOk(characterBottomBarSrc.includes('<BottomActionBar') && characterBottomBarSrc.includes('onBack={logic.handleBack}') && characterBottomBarSrc.includes('onConfirm={logic.handleNext}'), 'N2A bottom bar must delegate back and confirm actions to the unified creation-flow control')
 assertOk(
   bottomActionBarCssSrc.includes('.backButton')
     && bottomActionBarCssSrc.includes('.confirmButton')
-    && bottomActionBarCssSrc.includes(`min-height: ${scaledPx(48)}`),
+    && bottomActionBarCssSrc.includes(`min-height: ${scaledPx(38.333)}`),
   'N2A bottom buttons must share the approved creation-flow control height',
 )
-assertOk(characterCreateCssSrc.includes('justify-content: space-between'), 'N2A bottom actions must align to opposite page edges')
+assertOk(bottomActionBarCssSrc.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'), 'N2A bottom actions must remain equal-width')
 assertOk(
-  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(52)}`)
-    && bottomActionBarCssSrc.includes(`border-radius: ${scaledPx(18)}`),
-  'N2A mobile CSS must keep the floating creation-flow bottom bar treatment',
+  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(38.333)}`)
+    && bottomActionBarCssSrc.includes(`border-radius: ${scaledPx(20)}`),
+  'N2A mobile CSS must keep the finalized equal white-button treatment',
 )
 assertOk(
   characterCreateLogicSrc.includes('const manualStartingAge = storedManualStartingAge')
@@ -512,16 +595,17 @@ assertOk(
     && characterCreateLogicSrc.includes('Number.parseInt(input.manualStartingAge, 10)')
     && characterCreateLogicSrc.includes('previewStartingAge: ageSetupPreview.startingAge')
     && characterCreateLogicSrc.includes('起始年龄必须小于预期寿命')
-    && characterLifespanSrc.includes('logic.previewStartingAge === 0 ? \'出生\'')
+    && characterLifespanSrc.includes("logic.previewStartingAge === 0 ? '初生'")
+    && characterLifespanSrc.includes('className={styles.lifeSentence}')
     && characterBottomBarSrc.includes('confirmDisabled={!logic.canProceed}'),
   'character lifespan must retain an empty birth-age input, preview edits immediately, and block an age at or beyond the lifespan',
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
 assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 → 角色创建'), 'PD-002 must preserve the live world-customize step before character creation')
-assertOk(worldSelectMobileSrc.includes('<span>01 / 08</span>') && worldSelectBottomBarSrc.includes('confirmNumber="02"'), 'world selection must use the selected flow step-01 header and advance to step 02')
-assertOk(worldCustomizeMobileSrc.includes('<span>02 / 08</span>') && worldCustomizeBottomBarSrc.includes('confirmNumber="03"'), 'world customization must use the selected flow step-02 header and advance to step 03')
-assertOk(characterCreateMobileSrc.includes('<span>03 / 08</span>') && characterBottomBarSrc.includes('confirmNumber="04"'), 'character creation must use the selected flow step-03 header and advance to step 04')
-assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '05' : '04'") && talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("/ 08</span>"), 'talent draw and selection must occupy creation steps 04 and 05 before final review')
+assertOk(worldSelectMobileSrc.includes('<FlowRunningHead stepLabel="01 / 08" />') && worldSelectBottomBarSrc.includes('confirmNumber="02"'), 'world selection must use the selected flow step-01 header and advance to step 02')
+assertOk(worldCustomizeMobileSrc.includes('<FlowRunningHead stepLabel="02 / 08" />') && worldCustomizeBottomBarSrc.includes('confirmNumber="03"'), 'world customization must use the selected flow step-02 header and advance to step 03')
+assertOk(characterCreateMobileSrc.includes('<FlowRunningHead stepLabel="03 / 08" />') && characterBottomBarSrc.includes('confirmNumber="04"'), 'character creation must use the selected flow step-03 header and advance to step 04')
+assertOk(talentDrawPageSrc.includes("<FlowRunningHead stepLabel={`${phase === 'selecting' ? '05' : '04'} / 08`} />") && talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'"), 'talent draw and selection must occupy creation steps 04 and 05 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
     && !talentDrawPageSrc.includes('styles.titleMark')
@@ -533,8 +617,8 @@ assertOk(
     && talentDrawPageSrc.includes('className={styles.aura}')
     && talentDrawPageSrc.includes('<b>命</b>')
     && talentDrawPageSrc.includes('className={styles.seals}')
-    && talentDrawPageSrc.includes('aria-label="十二道命印"'),
-  'runtime talent draw must use the selected cloud-purple aura and twelve fate seals instead of the retired astrolabe',
+    && talentDrawPageSrc.includes('aria-label="四类首批命印"'),
+  'runtime talent draw must use the selected aura and sixteen four-category seals instead of the retired astrolabe',
 )
 assertOk(
   !talentDrawPageSrc.includes('progressTrack')
@@ -546,21 +630,19 @@ assertOk(
 assertOk(
   !/window\.setInterval\([\s\S]*?4000\s*\)/.test(talentDrawPageSrc)
     && !talentDrawPageSrc.includes('handleTurnAstrolabe')
-    && /const\s+handleCandidateClick[\s\S]{0,260}handleSlotClick\(index\)/.test(talentDrawPageSrc)
+    && /const\s+handleCandidateClick[\s\S]{0,220}toggleEntry\(\{ kind: 'destiny'/.test(talentDrawPageSrc)
     && !talentDrawPageSrc.includes('持续轮转')
-    && talentDrawPageSrc.includes('visiblePatterns.length < DESTINY_PATTERN_DISPLAY_COUNT')
-    && /completionTimerRef\.current\s*=\s*window\.setTimeout\([\s\S]{0,240}setPhase\('ready'\)[\s\S]{0,80}1000\)/.test(talentDrawPageSrc)
+    && talentDrawPageSrc.includes('DESTINY_PATTERN_CATEGORY_ORDER.every((category) => visiblePatterns.some')
     && !talentDrawPageSrc.includes('可先进入选择'),
-  'talent draw must reveal real progress, wait for all twelve candidates, and hold the completed seals for one second before handoff',
+  'talent draw must reveal real progress and wait for the complete four-category batch before handoff',
 )
 assertOk(
-  talentDrawPageSrc.includes('useState<Array<number | null>>')
-    && talentDrawPageSrc.includes('function createSelectedUiSlots')
-    && talentDrawPageSrc.includes('Array.from({ length: DESTINY_PATTERN_SELECT_COUNT')
-    && talentDrawPageSrc.includes('selectedUiSlots.map(')
-    && talentDrawPageSrc.includes('setSelectedUiSlots((current) => current.map(')
-    && talentDrawPageSrc.includes('index === uiSlotIndex ? null : value'),
-  'MI-RF1-1 must keep three position-stable UI slots and clear a removed selection in place',
+  talentDrawPageSrc.includes('function createLoadoutSlots')
+    && talentDrawPageSrc.includes('Array.from({ length: PATTERN_LOADOUT_SLOT_COUNT')
+    && talentDrawPageSrc.includes('resolvedLoadoutSlots.map(')
+    && talentDrawPageSrc.includes('setLoadoutSlots((current) => current.map(')
+    && talentDrawPageSrc.includes('index === slotIndex ? null : item'),
+  'the selection stage must keep four position-stable shared loadout slots and clear a removed entry in place',
 )
 
 assertOk(
@@ -569,32 +651,38 @@ assertOk(
     && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
     && talentDrawCssSrc.includes(`.drawStageComplete .aura { top: ${scaledPx(224)};`)
     && talentDrawCssSrc.includes('.drawStageComplete .sealWrap { opacity: 0;')
-    && talentDrawCssSrc.includes('.candidateList')
-    && talentDrawCssSrc.includes(`min-height: ${scaledPx(76)}`)
-    && talentDrawCssSrc.includes('.sealLit[data-rarity="传世"]'),
-  'the selected draw ritual must keep its exact 220px aura, centered completion state, hidden seal handoff, and content-sized candidate rows',
+    && talentDrawPageSrc.includes('<FlowRunningHead')
+    && talentDrawPageSrc.includes('四类命印，静待天命。')
+    && talentDrawPageSrc.includes('aria-hidden="true">🔮</span>'),
+  'the finalized draw ritual must keep its 220px aura, four-column handoff, and selected warm-paper title copy',
 )
 assertOk(
-  talentDrawPageSrc.includes('Array.from({ length: MYTHIC_PATTERN_SELECT_COUNT }')
-    && talentDrawPageSrc.includes('selectedUiSlots.map(')
-    && talentDrawPageSrc.includes('role="dialog"')
-    && talentDrawCssSrc.includes('.rebirthSlotFilled')
+  ['battle', 'exploration', 'social', 'production', 'mythic'].every((tabId) => talentDrawPageSrc.includes(`id: '${tabId}'`))
+    && talentDrawPageSrc.includes('role="tablist"')
+    && talentDrawPageSrc.includes('role="tabpanel"')
+    && !talentDrawPageSrc.includes('role="dialog"')
+    && !talentDrawPageSrc.includes('TalentDrawMythicLibrary')
+    && !talentDrawPageSrc.includes('useTalentDrawMythicLibrary')
     && talentDrawCssSrc.includes('.selectedSlotFilled')
     && talentDrawCssSrc.includes('animation: candidate-breathe')
     && talentDrawCssSrc.includes('animation: seal-breathe')
     && talentDrawCssSrc.includes('animation: rebirth-flow')
     && talentDrawCssSrc.includes('rebirth-seal-halo')
     && talentDrawCssSrc.includes('@keyframes rebirth-seal-halo'),
-  'selected fate runtime must keep two rebirth slots, three ordinary slots, the bottom sheet, and all selected glow effects',
+  'selected fate runtime must keep five direct category tabs, four shared slots, and the finalized selected glow effects',
 )
 assertOk(
-  talentDrawCssSrc.includes(`margin-right: ${scaledPx(8)}`)
-    && talentDrawCssSrc.includes(`padding: ${scaledPx(14)} ${scaledPx(16)} ${scaledPx(96)}`)
+  ['progressBar', 'progressRow', 'categoryTabs', 'candidateBand'].every((className) => talentDrawPageSrc.includes(`className={styles.${className}}`))
+    && ['candidateRarity', 'rebirthHeading', 'slotHeading'].every((className) => !talentDrawPageSrc.includes(`styles.${className}`))
+    && hasCssDeclaration(talentDrawCssSrc, 'selectionView', 'display', 'contents')
+    && hasCssDeclaration(talentDrawCssSrc, 'progressBar', 'position', 'sticky')
     && talentDrawPageSrc.includes('confirmationRef.current')
-    && talentDrawPageSrc.includes('destinyPatterns.patterns.length !== DESTINY_PATTERN_SELECT_COUNT')
-    && talentDrawPageSrc.includes("window.location.assign('/attribute-alloc')")
-    && talentDrawPageSrc.includes('三条普通命格已选择 · 进入属性分配'),
-  'talent selection must preserve glow clearance and make one confirmation commit reliably without requiring a reincarnation talent',
+    && talentDrawPageSrc.includes('selectedData.length !== PATTERN_LOADOUT_SLOT_COUNT')
+    && talentDrawPageSrc.includes('assertPatternLoadout(selectedPatterns, selectedMythicPatterns, true)')
+    && talentDrawPageSrc.includes('useCharacterStore.getState().setPatternLoadout(')
+    && talentDrawPageSrc.includes("navigate('/attribute-alloc')")
+    && talentDrawPageSrc.includes('四个携带槽已确认 · 进入属性分配'),
+  'talent selection must use the finalized shared-slot layout and make one atomic owner commit',
 )
 assertOk(
   talentDrawPageSrc.includes('轮回天赋')
@@ -603,7 +691,7 @@ assertOk(
     && !fatePreviewPageSrc.includes('转世天赋'),
   'the creation flow must use the current player-facing reincarnation-talent terminology without changing internal mythic contracts',
 )
-assertOk(fatePreviewPageSrc.includes('<span>07 / 08</span>') && fatePreviewPageSrc.includes('confirmNumber="08"') && !fatePreviewPageSrc.includes('CREATION FLOW ·') && !fatePreviewPageSrc.includes('FATE · PREVIEW'), 'fate preview must use the selected flow step-07 and close the creation flow')
+assertOk(fatePreviewPageSrc.includes('<FlowRunningHead stepLabel="07 / 08" />') && fatePreviewPageSrc.includes('confirmNumber="08"') && !fatePreviewPageSrc.includes('CREATION FLOW ·') && !fatePreviewPageSrc.includes('FATE · PREVIEW'), 'fate preview must use the selected flow step-07 and close the creation flow')
 assertOk(
   fatePreviewPageSrc.includes('useCreationStoresHydrated()')
     && fatePreviewPageSrc.includes("router.replace('/new-game/world-select')")
@@ -612,10 +700,10 @@ assertOk(
   'fate preview must wait for persisted creation state and reject out-of-order direct entry',
 )
 assertOk(
-  fatePreviewPageSrc.includes("status?.status === 'complete'")
-    && fatePreviewPageSrc.includes('completedSteps === WORLD_INIT_STEPS.length')
-    && fatePreviewPageSrc.includes('!aiComplete'),
-  'fate preview must not unlock start from initialized=true when the explicit four-step status failed or is incomplete',
+  fatePreviewPageSrc.includes('const worldReady = worldInitialized && !!worldConfig && worldCode > 0')
+    && !fatePreviewPageSrc.includes('FatePreviewWorldInit')
+    && !fatePreviewPageSrc.includes('getWorldInitState'),
+  'fate preview must use local world readiness and must not display the inactive world-init AI panel',
 )
 assertOk(!fatePreviewPageSrc.includes('maxWidth='), 'fate preview bottom bar must inherit the shared content-width token')
 assertOk(
@@ -625,11 +713,18 @@ assertOk(
     && globalCssSrc.includes('height: 100dvh')
     && globalCssSrc.includes('--final-flow-density-px: 1.2px')
     && globalCssSrc.includes('--final-flow-density-rem: 1.2rem')
+    && globalCssSrc.includes('--final-flow-content-max-width: 30rem')
+    && globalCssSrc.includes('@media (min-width: 48rem)')
+    && globalCssSrc.includes('--final-flow-content-max-width: max(42rem, 58vw)')
+    && globalCssSrc.includes('width: min(100%, var(--final-flow-content-max-width))')
+    && !globalCssSrc.includes('--final-flow-content-max-width: clamp(42rem, 58vw, 60rem)')
+    && globalCssSrc.includes('--final-flow-content-gutter: calc(16.667 * var(--final-flow-density-px))')
     && globalCssSrc.includes('--final-flow-inline-unit: clamp(3.84px, 1.2vw, 5.16px)')
     && globalCssSrc.includes('--final-flow-block-unit: clamp(7.68px, 1.2dvh, 11.184px)')
     && globalCssSrc.includes('.final-flow-frame--core-simulation {')
     && globalCssSrc.includes('--final-flow-density-px: 1px')
     && globalCssSrc.includes('--final-flow-density-rem: 1rem')
+    && globalCssSrc.includes('--final-flow-content-gutter: 20px')
     && globalCssSrc.includes('.final-flow-frame--core-simulation .flow-responsive-layout')
     && globalCssSrc.includes('--final-flow-inline-unit: clamp(3.2px, 1vw, 4.3px)')
     && globalCssSrc.includes('--final-flow-block-unit: clamp(6.4px, 1dvh, 9.32px)')
@@ -640,7 +735,25 @@ assertOk(
     && finalFlowScaleRuntimeSrc === ''
     && !rootLayoutSrc.includes('FinalFlowScaleRuntime')
     && mobileBaseCssSrc === '',
-  'runtime pages must use native 1.2x non-core density while the story reader keeps its tuned size without fixed-canvas or zoom scaling',
+  'runtime pages must share one desktop content width while preserving native non-core density and the story reader tuned density without fixed-canvas or zoom scaling',
+)
+assertOk(
+  [
+    welcomeCssSrc,
+    worldSelectCssSrc,
+    worldCustomizeCssSrc,
+    characterCreateCssSrc,
+    talentDrawCssSrc,
+    attributeAllocCssSrc,
+    fatePreviewCssSrc,
+    gameOverCssSrc,
+    leaderboardCssSrc,
+    helpModalCssSrc,
+  ].every((source) => source.includes('var(--final-flow-content-gutter)'))
+    && hasCssDeclaration(gameStoryCssSrc, 'barTop', 'padding', '0 var(--final-flow-content-gutter)')
+    && hasCssDeclaration(gameStoryCssSrc, 'barVitals', 'padding', '6px var(--final-flow-content-gutter) 8px')
+    && hasCssDeclaration(gameStoryCssSrc, 'reading', 'padding', '0 var(--final-flow-content-gutter)'),
+  'finalized pages and the core reader must share one horizontal content gutter',
 )
 assertOk(
   [
@@ -660,7 +773,7 @@ assertOk(
   'all fixed-unit non-core surfaces must consume the 1.2x density unit and game-story must remain explicitly excluded',
 )
 assertOk(
-  globalCssSrc.includes('position: fixed !important')
+  globalCssSrc.includes('position: absolute !important')
     && globalCssSrc.includes('env(safe-area-inset-bottom')
     && !globalCssSrc.includes('data-final-flow-mobile-height-fit')
     && !globalCssSrc.includes('data-final-flow-height-owner'),
@@ -678,31 +791,28 @@ assertOk(
   'all primary flow pages must wrap content in the shared final-flow viewport frame',
 )
 assertOk(
-  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc, talentDrawCssSrc, fatePreviewCssSrc, settingsModalCssSrc, helpModalCssSrc]
-    .every((source) => source.includes('display: none') && (source.includes('.titleMark') || source.includes('titleMark'))),
-  'selected B1 creation and auxiliary pages must hide title marks per the approved prototypes',
+  [worldSelectMobileSrc, worldCustomizeMobileSrc, characterCreateMobileSrc, talentDrawPageSrc, fatePreviewPageSrc, settingsModalSrc, helpModalSrc]
+    .every((source) => !source.includes('styles.titleMark')),
+  'finalized creation and auxiliary pages must not render retired title marks',
 )
 assertOk(
-  gameOverCssSrc.includes('.header')
-    && /\.header\s*\{[^}]*display:\s*none/s.test(gameOverCssSrc)
-    && !gameOverPageSrc.includes('LIFE ARCHIVE · FINAL'),
-  'game over must keep the approved identity-first composition without a legacy eyebrow header',
+  gameOverPageSrc.includes('<FlowRunningHead stepLabel="09 / 09" />')
+    && gameOverPageSrc.includes('className={styles.titleCopy}')
+    && gameOverPageSrc.includes('09 / 09')
+    && gameOverPageSrc.includes('一生回望')
+    && !gameOverPageSrc.includes('maxWidth={330}'),
+  'game over must use the finalized running head and centered title composition',
 )
 assertOk(
   gameOverPageSrc.includes('<GameOverRadar')
     && !gameOverPageSrc.includes('<RadarChart')
-    && gameOverRadarSrc.includes('styles.metricTop')
-    && gameOverRadarSrc.includes('styles.metricRight')
-    && gameOverRadarSrc.includes('styles.metricBottom')
-    && gameOverRadarSrc.includes('styles.metricLeft')
+    && gameOverRadarSrc.includes('function labelStyle(axisIndex: number, axisCount: number)')
+    && gameOverRadarSrc.includes('axisIndex * ((2 * Math.PI) / axisCount)')
+    && gameOverRadarSrc.includes('style={labelStyle(index, axisCount)}')
     && gameOverRadarSrc.includes('aria-pressed={activeIndex === index}')
     && gameOverRadarSrc.includes('activeIndex === index ? 4.4 : 3')
     && /\.radarGraph\s*\{[^}]*position:\s*relative;/s.test(gameOverCssSrc)
-    && /\.metricButton\s*\{[^}]*position:\s*absolute;/s.test(gameOverCssSrc)
-    && /\.metricTop\s*\{[^}]*top:\s*0;/s.test(gameOverCssSrc)
-    && /\.metricRight\s*\{[^}]*right:/s.test(gameOverCssSrc)
-    && /\.metricBottom\s*\{[^}]*bottom:\s*0;/s.test(gameOverCssSrc)
-    && /\.metricLeft\s*\{[^}]*left:/s.test(gameOverCssSrc),
+    && /\.metricButton\s*\{[^}]*position:\s*absolute;/s.test(gameOverCssSrc),
   'game-over metrics must surround the radar and preserve the approved interactive axis layout',
 )
 assertOk(
@@ -730,16 +840,17 @@ assertOk(
   'world customization must block confirmation while a player-selected or custom rule is blank',
 )
 assertOk(
-  worldCustomizeCssSrc.includes(`min-height: ${scaledPx(42)}`)
-    && worldCustomizeMobileSrc.includes('worldConfig?.name')
-    && worldCustomizeMobileSrc.includes('difficultyLabel'),
-  'M2 world customization must use compact controls and bind the summary card to live world data',
+  !worldCustomizeMobileSrc.includes('styles.worldBanner')
+    && !worldCustomizeMobileSrc.includes('styles.bannerName')
+    && !worldCustomizeMobileSrc.includes('当前世界</')
+    && !worldCustomizeCssSrc.includes('.worldBanner'),
+  'world customization must omit the removed current-world summary block',
 )
 assertOk(worldCustomizeMobileSrc.trimEnd().split('\n').length <= 200, 'world customization mobile composer must stay at or below the 200-line UI limit')
 
 const informationPanelStart = gameStoryPageSrc.indexOf('id="current-information-panel"')
 const informationActionsStart = gameStoryPageSrc.indexOf('className={styles.moreActions}', informationPanelStart)
-const informationLedgerStart = gameStoryPageSrc.indexOf('className={styles.ledgerDisclosure}', informationPanelStart)
+const informationLedgerStart = gameStoryPageSrc.indexOf('className={styles.ledger}', informationPanelStart)
 assertOk(
   informationPanelStart >= 0
     && informationActionsStart > informationPanelStart
@@ -782,7 +893,7 @@ assertOk(
 
 const readingOpeningTag = gameStoryPageSrc.match(/<(?:main|div|section)\b(?=[^>]*className=\{styles\.reading\})[^>]*>/)?.[0] ?? ''
 const readingStart = gameStoryPageSrc.indexOf(readingOpeningTag)
-const chapterHeadStart = gameStoryPageSrc.indexOf('className={styles.chapterHead}', readingStart)
+const chapterHeadStart = gameStoryPageSrc.indexOf('className={styles.chapterHeadLine}', readingStart)
 const narrativeTimelineStart = gameStoryPageSrc.indexOf('<NarrativeTimeline', readingStart)
 const scrollMainOpeningTag = narrativeTimelineSrc.match(/<(?:main|div|section)\b(?=[^>]*className=\{styles\.scrollMain\})[^>]*>/)?.[0] ?? ''
 const scrollMainHasSafeRef = !scrollMainOpeningTag.includes('ref=')
@@ -799,9 +910,9 @@ assertOk(
   readingStart >= 0
     && chapterHeadStart > readingStart
     && narrativeTimelineStart > chapterHeadStart
-    && cssClassAvoidsValue(gameStoryCssSrc, 'chapterHead', 'position', 'sticky')
-    && cssClassAvoidsValue(gameStoryCssSrc, 'chapterHead', 'position', 'fixed')
-    && cssClassAvoidsValue(gameStoryCssSrc, 'chapterHead', 'position', 'absolute'),
+    && cssClassAvoidsValue(gameStoryCssSrc, 'chapterHeadLine', 'position', 'sticky')
+    && cssClassAvoidsValue(gameStoryCssSrc, 'chapterHeadLine', 'position', 'fixed')
+    && cssClassAvoidsValue(gameStoryCssSrc, 'chapterHeadLine', 'position', 'absolute'),
   'game-story chapter information must stay inside the continuous reading flow without an independent fixed title layer',
 )
 assertOk(
@@ -831,15 +942,16 @@ assertOk(
   'NarrativeTimeline scrollMain must not create a nested scrolling or viewport-height layer',
 )
 assertOk(
-  gameStoryPageSrc.includes('getAutoNarrativeRetryDelay')
-    && gameStoryPageSrc.includes('runAutoNarrativeRetryAttempt')
-    && gameStoryPageSrc.includes('invalidateAutoNarrativeRetry(autoRetryGateRef.current)')
-    && gameStoryPageSrc.includes('setAutoRetryAttempt(attemptIndex + 1)')
+  !gameStoryPageSrc.includes('getAutoNarrativeRetryDelay')
+    && !gameStoryPageSrc.includes('runAutoNarrativeRetryAttempt')
+    && !gameStoryPageSrc.includes('invalidateAutoNarrativeRetry')
+    && !gameStoryPageSrc.includes('setAutoRetryAttempt')
+    && gameStoryPageSrc.includes('narrativeError = useEngineStore')
     && gameStoryPageSrc.includes('advanceBlocked: !isRuntimeReady || hasUnresolvedBranch')
     && gameStoryPageSrc.includes('advanceText: narrativeAdvanceText')
     && gameStoryPageSrc.includes('advanceHint: narrativeAdvanceHint')
     && !gameStoryPageSrc.includes('handleNarrativeRetry'),
-  'game story narrative errors must retry automatically and reuse the bottom timeline control for manual retry',
+  'game story narrative errors must stay visible and wait for the player to use the normal advance control again',
 )
 assertOk(
   gameStoryPageSrc.includes('resolveWorldDimensionLabels(worldConfig)')
@@ -883,9 +995,8 @@ assertOk(
     && worldSelectCustomFormSrc.includes('{logic.customName.length} 字'),
   'custom world names must preserve complete input and expose only a non-destructive character count',
 )
-
 assertOk(
-  JSON.stringify(prototypeRootEntries) === JSON.stringify(['account', 'assets', 'feedback', 'help', 'index.html', 'leaderboard', 'mailbox', 'main-flow', 'save-sheet', 'settings', 'template', 'welcome'])
+  JSON.stringify(prototypeRootEntries) === JSON.stringify(['account', 'assets', 'attribute-alloc', 'character-create', 'fate-preview', 'feedback', 'game-over', 'game-story', 'help', 'index.html', 'leaderboard', 'mailbox', 'main-flow', 'save-sheet', 'settings', 'talent-draw', 'talent-select', 'template', 'welcome', 'world-customize', 'world-select'])
     && JSON.stringify(prototypeAssetEntries) === JSON.stringify(['library.css'])
     && JSON.stringify(prototypeTemplateEntries) === JSON.stringify(['iteration.html'])
     && prototypeWelcomeIterationSrc.includes('data-template-purpose="ui-iteration"')
@@ -943,7 +1054,46 @@ assertOk(
     && prototypeFeedbackIteration02Src.includes('data-template-purpose="ui-iteration"')
     && ['candidate-round-01-01-category-cards.html', 'candidate-round-01-02-guided-steps.html', 'candidate-round-01-03-compact-single.html',
         'candidate-round-02-01-guided-input.html', 'candidate-round-02-02-structured-fields.html', 'candidate-round-02-03-submit-review.html']
-      .every(marker => prototypeFeedbackCandidateEntries.includes(marker)),
+      .every(marker => prototypeFeedbackCandidateEntries.includes(marker))
+    && prototypeWorldSelectIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeWorldSelectIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWorldSelectIterationRound03Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWorldSelectIterationRound04Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-baseline.html', 'candidate-round-02-02-decorated.html', 'candidate-round-02-03-emoji-led.html',
+        'candidate-round-03-01-baseline.html', 'candidate-round-03-02-narrative.html', 'candidate-round-03-03-immersive.html',
+        'candidate-round-04-01-baseline.html', 'candidate-round-04-02-tone-inline.html', 'candidate-round-04-03-scenery.html']
+      .every(marker => prototypeWorldSelectCandidateEntries.includes(marker))
+    && prototypeWorldCustomizeIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeWorldCustomizeIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWorldCustomizeIterationRound03Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-header-line.html', 'candidate-round-02-02-banner.html', 'candidate-round-02-03-quote.html',
+        'candidate-round-03-01-baseline.html', 'candidate-round-03-02-clean.html', 'candidate-round-03-03-immersive.html']
+      .every(marker => prototypeWorldCustomizeCandidateEntries.includes(marker))
+    && prototypeCharacterCreateIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeCharacterCreateIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-direct.html', 'candidate-round-02-02-clean.html', 'candidate-round-02-03-immersive.html']
+      .every(marker => prototypeCharacterCreateCandidateEntries.includes(marker))
+    && prototypeTalentDrawIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html']
+      .every(marker => prototypeTalentDrawCandidateEntries.includes(marker))
+    && prototypeTalentSelectIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html']
+      .every(marker => prototypeTalentSelectCandidateEntries.includes(marker))
+    && prototypeAttributeAllocIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-budget-top.html', 'candidate-02-attribute-cards.html', 'candidate-03-runtime-layout.html']
+      .every(marker => prototypeAttributeAllocCandidateEntries.includes(marker))
+    && prototypeFatePreviewIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-init-top.html', 'candidate-02-card-groups.html', 'candidate-03-runtime-layout.html']
+      .every(marker => prototypeFatePreviewCandidateEntries.includes(marker))
+    && prototypeGameStoryIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-runtime-layout.html', 'candidate-02-folio-merge.html', 'candidate-03-focus-advance.html']
+      .every(marker => prototypeGameStoryCandidateEntries.includes(marker))
+    && prototypeGameOverIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-runtime-layout.html', 'candidate-02-book-scroll.html', 'candidate-03-score-led.html']
+      .every(marker => prototypeGameOverCandidateEntries.includes(marker)),
   'the UI solution library must contain the generic index, structural stylesheet, reusable template, and the registered welcome iteration directories',
 )
 assertOk(
@@ -952,6 +1102,15 @@ assertOk(
     && prototypeIndexSrc.includes('当前不保留任何既定主题、定版稿或页面构图')
     && prototypeIndexSrc.includes('Runtime authority: none')
     && prototypeIndexSrc.includes('href="main-flow/index.html"')
+    && prototypeIndexSrc.includes('href="world-select/index.html"')
+    && prototypeIndexSrc.includes('href="world-customize/index.html"')
+    && prototypeIndexSrc.includes('href="character-create/index.html"')
+    && prototypeIndexSrc.includes('href="talent-draw/index.html"')
+    && prototypeIndexSrc.includes('href="talent-select/index.html"')
+    && prototypeIndexSrc.includes('href="attribute-alloc/index.html"')
+    && prototypeIndexSrc.includes('href="fate-preview/index.html"')
+    && prototypeIndexSrc.includes('href="game-story/index.html"')
+    && prototypeIndexSrc.includes('href="game-over/index.html"')
     && !prototypeIndexSrc.includes('class="iteration-branch'),
   'the generic library index must stay neutral, register logical-interface entries only, and leave page iterations to the middle layer',
 )
@@ -965,6 +1124,84 @@ assertOk(
     && prototypeMainFlowIndexSrc.includes('iteration-branch-current')
     && prototypeMainFlowIndexSrc.includes('Runtime authority: none'),
   'the mobile main-flow middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeWorldSelectIndexSrc.includes('data-flow-purpose="world-select-flow"')
+    && prototypeWorldSelectIndexSrc.includes('href="../index.html"')
+    && prototypeWorldSelectIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeWorldSelectIndexSrc.includes('href="iteration-round-02.html"')
+    && prototypeWorldSelectIndexSrc.includes('href="iteration-round-03.html"')
+    && prototypeWorldSelectIndexSrc.includes('href="iteration-round-04.html"')
+    && prototypeWorldSelectIndexSrc.includes('iteration-branch-current')
+    && prototypeWorldSelectIndexSrc.includes('Runtime authority: none'),
+  'the world-select middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeWorldCustomizeIndexSrc.includes('data-flow-purpose="world-customize-flow"')
+    && prototypeWorldCustomizeIndexSrc.includes('href="../index.html"')
+    && prototypeWorldCustomizeIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeWorldCustomizeIndexSrc.includes('href="iteration-round-02.html"')
+    && prototypeWorldCustomizeIndexSrc.includes('href="iteration-round-03.html"')
+    && prototypeWorldCustomizeIndexSrc.includes('iteration-branch-current')
+    && prototypeWorldCustomizeIndexSrc.includes('Runtime authority: none'),
+  'the world-customize middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeCharacterCreateIndexSrc.includes('data-flow-purpose="character-create-flow"')
+    && prototypeCharacterCreateIndexSrc.includes('href="../index.html"')
+    && prototypeCharacterCreateIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeCharacterCreateIndexSrc.includes('href="iteration-round-02.html"')
+    && prototypeCharacterCreateIndexSrc.includes('iteration-branch-current')
+    && prototypeCharacterCreateIndexSrc.includes('Runtime authority: none'),
+  'the character-create middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeTalentDrawIndexSrc.includes('data-flow-purpose="talent-draw-flow"')
+    && prototypeTalentDrawIndexSrc.includes('href="../index.html"')
+    && prototypeTalentDrawIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeTalentDrawIndexSrc.includes('iteration-branch-current')
+    && prototypeTalentDrawIndexSrc.includes('Runtime authority: none'),
+  'the talent-draw middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeTalentSelectIndexSrc.includes('data-flow-purpose="talent-select-flow"')
+    && prototypeTalentSelectIndexSrc.includes('href="../index.html"')
+    && prototypeTalentSelectIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeTalentSelectIndexSrc.includes('iteration-branch-current')
+    && prototypeTalentSelectIndexSrc.includes('Runtime authority: none'),
+  'the talent-select middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeAttributeAllocIndexSrc.includes('data-flow-purpose="attribute-alloc-flow"')
+    && prototypeAttributeAllocIndexSrc.includes('href="../index.html"')
+    && prototypeAttributeAllocIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeAttributeAllocIndexSrc.includes('iteration-branch-current')
+    && prototypeAttributeAllocIndexSrc.includes('Runtime authority: none'),
+  'the attribute-alloc middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeFatePreviewIndexSrc.includes('data-flow-purpose="fate-preview-flow"')
+    && prototypeFatePreviewIndexSrc.includes('href="../index.html"')
+    && prototypeFatePreviewIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeFatePreviewIndexSrc.includes('iteration-branch-current')
+    && prototypeFatePreviewIndexSrc.includes('Runtime authority: none'),
+  'the fate-preview middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeGameStoryIndexSrc.includes('data-flow-purpose="game-story-flow"')
+    && prototypeGameStoryIndexSrc.includes('href="../index.html"')
+    && prototypeGameStoryIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeGameStoryIndexSrc.includes('iteration-branch-current')
+    && prototypeGameStoryIndexSrc.includes('Runtime authority: none'),
+  'the game-story middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeGameOverIndexSrc.includes('data-flow-purpose="game-over-flow"')
+    && prototypeGameOverIndexSrc.includes('href="../index.html"')
+    && prototypeGameOverIndexSrc.includes('href="iteration-round-01.html"')
+    && prototypeGameOverIndexSrc.includes('iteration-branch-current')
+    && prototypeGameOverIndexSrc.includes('Runtime authority: none'),
+  'the game-over middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
 )
 assertOk(
   prototypeIterationTemplateSrc.includes('data-template-purpose="ui-iteration"')
@@ -1008,24 +1245,42 @@ assertOk(
   'runtime pages must implement the selected small aria-hidden semantic markers without changing accessible labels',
 )
 assertOk(
-  [welcomeViewSrc, talentDrawPageSrc, settingsModalSrc, helpModalSurfaceSrc]
-    .every(source => !source.includes('data-semantic-emoji')),
-  'runtime welcome, talent selection, settings and help surfaces must remain free of forced semantic markers',
+  welcomeViewSrc.includes('🌱 开始新人生')
+    && talentDrawPageSrc.includes('aria-hidden="true">🔮</span>')
+    && settingsModalSrc.includes('⚙️ 设置')
+    && helpModalSrc.includes('🚪 开始与设置'),
+  'welcome, talent draw, settings and help must retain the finalized semantic emoji treatment',
 )
 assertOk(
-  hasCssDeclaration(gameOverCssSrc, 'footer', 'min-height', scaledPx(52))
-    && gameOverCssSrc.includes('.barTool')
-    && gameOverCssSrc.includes(`width: ${scaledPx(38)}`)
-    && gameOverCssSrc.includes(`height: ${scaledPx(38)}`)
-    && hasCssDeclaration(gameOverCssSrc, 'newLifeButton', 'min-height', scaledPx(48))
-    && gameOverCssSrc.includes('.newLifeArrow')
-    && gameOverCssSrc.includes(`width: ${scaledPx(25)}`)
-    && gameOverCssSrc.includes(`height: ${scaledPx(25)}`)
+  gameStoryPageSrc.includes('worldIcon')
+    && gameStoryPageSrc.includes('identityWorldName')
+    && gameStoryPageSrc.includes('identitySeparator')
+    && gameStoryPageSrc.includes('narrativeTimeLabel')
+    && gameStoryCssSrc.includes('.identityWorldIcon')
+    && gameStoryCssSrc.includes('.identityTime'),
+  'game story reader identity must show a semantic world icon and world name before the unadorned narrative time',
+)
+assertOk(
+  narrativeTimelineSrc.includes('growthAttributeChip')
+    && narrativeTimelineSrc.includes('data-rarity={option.rarity}')
+    && !narrativeTimelineSrc.includes('属性加成：')
+    && gameStoryPageSrc.includes('entryAge >= DESTINY_PATTERN_GROWTH_MINIMUM_AGE')
+    && narrativeTimelineCssSrc.includes('.growthSource[data-rarity="common"]')
+    && narrativeTimelineCssSrc.includes('.growthOption[data-rarity="mythic"]')
+    && narrativeTimelineCssSrc.includes('--growth-rarity-bg'),
+  'talent-growth cards must render separate emoji attribute chips and pale rarity-keyed containers without the old attribute prefix',
+)
+assertOk(
+  hasCssDeclaration(gameOverCssSrc, 'bottomBar', 'position', 'absolute')
+    && hasCssDeclaration(gameOverCssSrc, 'backButton', 'min-height', scaledPx(38.333))
+    && hasCssDeclaration(gameOverCssSrc, 'confirmButton', 'min-height', scaledPx(38.333))
+    && gameOverPageSrc.includes('className={styles.backButton}')
+    && gameOverPageSrc.includes('className={styles.confirmButton}')
     && gameOverPageSrc.includes("router.push('/welcome')")
-    && gameOverPageSrc.includes('aria-label="查看模拟数据"')
+    && gameOverPageSrc.includes('查看模拟数据')
     && gameOverPageSrc.includes('开始新人生')
     && gameOverPageSrc.includes('完成回望'),
-  'runtime game-over footer must match the compact creation-flow hierarchy while preserving real actions only',
+  'runtime game-over footer must match the finalized two-button hierarchy while preserving real actions',
 )
 if (failed === 0) {
   console.log('PASS: mobile-ui-regression')

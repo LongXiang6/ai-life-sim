@@ -33,16 +33,6 @@ export type {
   EntityCountRange,
 } from './types'
 
-export {
-  buildFallbackWorldScoringProfile,
-  isCompleteWorldScoringProfile,
-  normalizeWorldScoringProfile,
-  SCORING_CURVE_IDS,
-  SCORING_EVIDENCE_KINDS,
-  WorldScoringProfileSuggestionSchema,
-} from './scoring-profile'
-export { generateWorldScoringProfile } from './world-scoring-profile-generation'
-
 // 常量
 export {
   ESSENCE_TAGS,
@@ -98,7 +88,6 @@ export {
 
 // Hooks
 export { useWorld, useWorldRegions, useWorldTime } from './hooks'
-export { useWorldInitPoller } from './hooks/useWorldInitPoller'
 
 // AI Prompts
 export { worldConfigPrompt } from './prompts/world-config-prompt'
@@ -108,7 +97,7 @@ export {
   worldRegionProfileOutputSchema,
   type WorldRegionProfileOutput,
 } from './prompts/world-region-profile-prompt'
-export { worldCalibrationPrompt, worldCalibrationOutputSchema } from './prompts/world-calibration-prompt'
+export { worldCalibrationOutputSchema } from './prompts/world-calibration-prompt'
 export { worldDimensionCalibrationPrompt, worldDimensionCalibrationOutputSchema } from './prompts/world-dimension-calibration-prompt'
 export type { WorldDimensionCalibrationOutput } from './prompts/world-dimension-calibration-prompt'
 
@@ -132,11 +121,6 @@ export {
 } from './utils/world-scale-calibration'
 
 export { formatAdaptationCalibrationBlock, fillAdaptationPrompt } from './utils/adaptation-prompt-calibration'
-
-export {
-  isWorldInitAIAvailable,
-  shouldUseStaticEntityFallback,
-} from './utils/world-init-fallback'
 
 export {
   shouldUseGenericSimulationPools,

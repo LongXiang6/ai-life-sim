@@ -39,7 +39,6 @@ const settings = {
   reasoningEffort: 'level-2',
   talentThinkingIntensity: 'level-2',
   aiTalentGeneration: true,
-  preGenerateRounds: 1,
   storySeed: '',
   narrativeStyle: 'default',
   wordCountTarget: 1200,
@@ -75,11 +74,17 @@ const initialData = {
   saveApiKey: true,
   apiKey: 'sk-account-secret',
   characterDraft,
-  mythicTalents: [{
-    id: 'mythic-1',
+  reincarnationTalents: [{
+    id: 'reincarnation-1',
+    lineageId: 'lineage-1',
+    version: 1,
     name: '照夜星',
-    concept: '守望',
+    description: '守望',
+    category: 'battle',
+    rarity: 'mythic',
     effect: '在关键时刻保持清醒。',
+    attrBonus: {},
+    strengthenLevel: 1,
     acquiredAt: 1,
     source: { worldName: '测试世界', characterName: '林见星', runId: 'run-1' },
   }],
@@ -91,7 +96,6 @@ const initialData = {
     finalAge: 88,
     rounds: 20,
     died: true,
-    moralityLabel: '守序',
     overallScore: 90,
     dimensions: [{ label: '体魄', value: 8 }],
     destinyNames: ['照夜星'],
@@ -277,7 +281,7 @@ try {
   )
 
   const database = databaseModule.getAccountDatabase()
-  assert.equal(database.prepare("SELECT value FROM account_meta WHERE key = 'schema_version'").get().value, '5')
+  assert.equal(database.prepare("SELECT value FROM account_meta WHERE key = 'schema_version'").get().value, '6')
   if (process.platform !== 'win32') {
     for (const target of [
       process.env.ACCOUNT_DB_PATH,
@@ -366,7 +370,7 @@ try {
   assert.equal(service.cleanupInactiveAccounts(cleanupNow).deletedAccounts, 0)
   reopened.prepare('UPDATE accounts SET last_active_at = ? WHERE id = ?').run(cutoff - 1, accountId)
   assert.equal(service.cleanupInactiveAccounts(cleanupNow).deletedAccounts, 1)
-  assert.equal(reopened.prepare('SELECT COUNT(*) AS count FROM account_mythic_talents').get().count, 0)
+  assert.equal(reopened.prepare('SELECT COUNT(*) AS count FROM account_reincarnation_talents').get().count, 0)
   assert.equal(reopened.prepare('SELECT COUNT(*) AS count FROM account_game_records').get().count, 0)
   assert.equal(playerContentService.getPlayerContentAggregateCounts().queuedPortraitJobs, 0)
 

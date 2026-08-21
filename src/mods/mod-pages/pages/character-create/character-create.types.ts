@@ -6,7 +6,6 @@
 
 import { RACE_LIFESPAN } from '@/mods/mod-character'
 
-import { ATTRIBUTES } from './useCharacterCreateForm'
 import { LABELS } from './character-create-options'
 
 export interface UseCharacterCreateLogicReturn {
@@ -15,18 +14,11 @@ export interface UseCharacterCreateLogicReturn {
   gender: 'male' | 'female'
   race: string
   background: string
-  attributes: Record<string, number>
-  usedPoints: number
-  remainingPoints: number
-  maxPoints: number
-  attrMin: number
-  attrMax: number
   setFormName: (value: string) => void
   setNameError: (value: string) => void
   setFormGender: (value: 'male' | 'female') => void
   setRace: (value: string) => void
   setBackground: (value: string) => void
-  handleAttrChange: (key: string, value: number) => void
   handleDice: () => void
   allGenders: string[]
   customGenders: string[]
@@ -80,6 +72,5 @@ export interface UseCharacterCreateLogicReturn {
   handleBack: () => void
   handleNext: () => void
   LABELS: typeof LABELS
-  ATTRIBUTES: typeof ATTRIBUTES
   RACE_LIFESPAN: typeof RACE_LIFESPAN
 }

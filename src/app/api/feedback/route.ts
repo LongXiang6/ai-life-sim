@@ -6,6 +6,7 @@
 
 import { PlayerFeedbackEnvelopeSchema } from '@/core/logger/feedback-contract'
 import { storePlayerFeedback } from '@/core/logger/player-feedback-store'
+import { queryPlayerFeedback } from '@/core/logger/player-feedback-query'
 import { getServerRequestSource } from '@/core/logger/server-log-store'
 
 const MAX_BODY_SIZE = 16 * 1024 * 1024
@@ -27,6 +28,23 @@ function isRateLimited(sourceId: string, now: number): boolean {
   recent.push(now)
   recentSubmissions.set(sourceId, recent)
   return false
+}
+
+export async function GET(request: Request): Promise<Response> {
+  if (isDisabled()) {
+    return Response.json({ error: '反馈服务当前不可用' }, { status: 503 })
+  }
+  const url = new URL(request.url)
+  const limit = Number(url.searchParams.get('limit') ?? 20)
+  const offset = Number(url.searchParams.get('offset') ?? 0)
+  try {
+    const result = queryPlayerFeedback({ limit, offset })
+    return Response.json(result, {
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  } catch {
+    return Response.json({ error: '反馈列表暂时不可用' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {

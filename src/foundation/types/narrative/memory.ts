@@ -4,33 +4,22 @@
  * Responsibility: Persistable narrative event and memory shapes only.
  */
 
-export type SummaryLevel = 1 | 2 | 3
-
 export interface CompressedMemoryEvent {
   id: string
   timeSpan: string
   text: string
   occurrenceTime: string
-  sourceEventIds: string[]
-  sourceRounds: number[]
-  initialWeight: number
-  weightAnchorRound: number
-  permanent: boolean
+  weight?: number
 }
 
 export interface CompressedSummaryItem {
-  level: SummaryLevel
-  startRound: number
-  endRound: number
+  sourceRound: number
+  createdRound: number
   content: string
-  memoryEvents?: CompressedMemoryEvent[]
-  rawCompressionResponse?: string
-  archiveContent?: string
-  sourceSummaryIds?: string[]
-  createdRound?: number
-  contextIds?: string[]
-  startTotalDays?: number
-  endTotalDays?: number
+  memoryEvents: CompressedMemoryEvent[]
+  rawCompressionResponse: string
+  contextId?: string
+  totalDays?: number
 }
 
 export interface CompressedSummaries {
@@ -72,7 +61,6 @@ export interface YearEvent {
   importance?: 'HIGH' | 'NORMAL' | 'LOW'
   timeLabel: string
   dynamicAttrs?: Record<string, number>
-  baseAttrChanges?: Record<string, number>
   isTimeSkip?: boolean
   timeSkipYears?: number
   isBranchPoint?: boolean

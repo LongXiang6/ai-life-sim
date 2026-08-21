@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress player-mail runtime and deployment migration behavior from the v4 baseline.
+ * Owner: quality:account
+ * Responsibility: One isolated apply, verify, rollback, and archive assertion lifecycle only.
+ */
+
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs/promises'
@@ -44,7 +50,7 @@ try {
   const migrated = databaseModule.getPlayerContentDatabase()
   assert.equal(migrated.prepare(`
     SELECT value FROM player_content_meta WHERE key = 'schema_version'
-  `).get().value, '5')
+  `).get().value, '6')
   const message = migrated.prepare(`
     SELECT audience, kind, sender_key, recipient_key, record_id, expires_at
     FROM player_mail_messages WHERE id = 'legacy-mail'
@@ -125,8 +131,8 @@ try {
   await source.backup(baseline)
   source.close()
 
-  assert.match(runMigration('apply'), /"after":"5"/)
-  assert.match(runMigration('verify'), /"version":"5"/)
+  assert.match(runMigration('apply'), /"after":"6"/)
+  assert.match(runMigration('verify'), /"version":"6"/)
 
   const migrated = new Database(deploymentDatabase)
   migrated.exec(`CREATE TABLE rollback_probe(value TEXT NOT NULL); INSERT INTO rollback_probe VALUES ('preserved');`)
@@ -144,7 +150,7 @@ try {
   restored.close()
 
   const archived = new Database(rollbackArchive, { readonly: true })
-  assert.equal(archived.prepare(`SELECT value FROM player_content_meta WHERE key = 'schema_version'`).get().value, '5')
+  assert.equal(archived.prepare(`SELECT value FROM player_content_meta WHERE key = 'schema_version'`).get().value, '6')
   assert.equal(archived.prepare(`SELECT value FROM rollback_probe`).get().value, 'preserved')
   archived.close()
   assert.match(

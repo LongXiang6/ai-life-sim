@@ -13,26 +13,23 @@ import { useRouter } from 'next/navigation'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, FlowRunningHead } from '@/mods/mod-ui'
 
 import {
   DESTINY_PATTERN_RARITY_CONFIG,
-  DESTINY_PATTERN_POLARITY_CONFIG,
-  DESTINY_PATTERN_SELECT_COUNT,
+  PATTERN_LOADOUT_SLOT_COUNT,
   TALENT_RARITY_CONFIG,
   TALENT_POLARITY_CONFIG,
   ATTRIBUTE_NAMES,
+  getPatternLoadoutCount,
+  isPatternLoadoutComplete,
 } from '@/mods/mod-character'
 
 import styles from './FatePreview.module.css'
-import { FatePreviewWorldInit } from './FatePreviewWorldInit'
 import {
   ATTRIBUTE_ICONS,
   GENDER_LABELS,
-  getWorldInitState,
   hasConfirmedCharacter,
-  loadFatePreviewSeed,
-  persistFatePreviewSeed,
   resolvePreviewRaceInfo,
 } from './fate-preview-helpers'
 import { useFatePreviewStart } from './useFatePreviewStart'
@@ -47,48 +44,39 @@ function FatePreviewContent() {
   const race = useCharacterStore((s) => s.race)
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns)
-  const equippedMythicPatterns = useCharacterStore((s) => s.equippedMythicPatterns)
+  const equippedReincarnationTalents = useCharacterStore((s) => s.equippedReincarnationTalents)
   const lifespan = useCharacterStore((s) => s.lifespanDraft)
   const talents = useCharacterStore((s) => s.talents)
 
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
   const worldInitialized = useWorldStore((s) => s.initialized)
-  const worldInitAIStatus = useWorldStore((s) => s.worldInitAIStatus)
   const genderLabel = GENDER_LABELS[gender] ?? gender
   const startingAge = characterBase.startingAge
-  const savedSeed = loadFatePreviewSeed()
   const settingsStorySeed = useSettingsStore((s) => s.storySeed)
   const setSettingsStorySeed = useSettingsStore((s) => s.setStorySeed)
-  const [storySeed, _setStorySeed] = useState(savedSeed ?? settingsStorySeed ?? '')
+  const [storySeed, _setStorySeed] = useState(settingsStorySeed ?? '')
 
   const setStorySeed = useCallback((v: string) => {
     _setStorySeed(v)
-    persistFatePreviewSeed(v)
     setSettingsStorySeed(v)
   }, [setSettingsStorySeed])
 
   const selectedPatterns = useMemo(() => destinyPatterns.patterns ?? [], [destinyPatterns.patterns])
   const characterConfirmed = hasConfirmedCharacter(name, race, startingAge, lifespan)
-  const destinyPatternsConfirmed = selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT
+  const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)
+  const patternLoadoutCount = getPatternLoadoutCount(selectedPatterns, equippedReincarnationTalents)
   const creationGateReason = !characterConfirmed
     ? '角色资料尚未确认，请返回角色创建完成确认。'
-    : !destinyPatternsConfirmed
-      ? `当前已确认 ${selectedPatterns.length} 条命格；开始人生前必须恰好确认 ${DESTINY_PATTERN_SELECT_COUNT} 条。`
+    : !patternLoadoutConfirmed
+      ? `当前已确认 ${patternLoadoutCount} 项命格；开始人生前必须填满 ${PATTERN_LOADOUT_SLOT_COUNT} 个携带槽。`
       : null
-  const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
-  const {
-    complete: aiComplete,
-    failed: aiFailed,
-    progress: aiProgress,
-    running: aiIsRunning,
-    stepLabel: aiStepLabel,
-  } = getWorldInitState(worldInitAIStatus, localWorldReady)
-  const { allModsLoaded, handleStartLife, startError } = useFatePreviewStart({
-    aiComplete,
+  const worldReady = worldInitialized && !!worldConfig && worldCode > 0
+  const { allModsLoaded, handleStartLife, isStarting, startError } = useFatePreviewStart({
+    worldReady,
     characterBase,
     characterConfirmed,
-    destinyPatternsConfirmed,
+    patternLoadoutConfirmed,
     gender,
     name,
     selectedPatterns,
@@ -130,29 +118,28 @@ function FatePreviewContent() {
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.paper}>
           <header className={styles.header}>
-            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>07 / 08</span></div>
-            <div className={styles.titleRow}>
-              <div>
-                <h1 className={styles.headerTitle}>核对命书</h1>
-                <p className={styles.headerSubtitle}>确认所有起点，然后开启人生。</p>
-              </div>
+            <FlowRunningHead stepLabel="07 / 08" />
+            <div className={styles.titleCopy}>
+              <h1>核对命书</h1>
+              <p>确认所有起点，然后开启人生。</p>
             </div>
           </header>
 
           <section className={`${styles.section} ${styles.worldSection}`} aria-labelledby="world-character-title">
-            <div className={styles.sectionHeading}>
-              <strong id="world-character-title">世界与角色</strong>
-              <span>最终核对</span>
+            <div className={styles.sectionHead}>
+              <small id="world-character-title">命书所载 · 此界此身</small>
             </div>
             <div className={styles.reviewWorld}>
               <span className={styles.worldSource}>{worldConfig ? '已确认世界 · 描述原文' : '世界资料待确认'}</span>
               <h2>{worldConfig?.name ?? '尚未建立世界'}</h2>
               <p>{worldConfig?.description || '返回创建流程完成世界选择与规则确认。'}</p>
-              <div className={styles.reviewIdentity}>
-                <strong>{name || '未命名'} · {genderLabel || '未设定'} · {raceInfo.name}</strong>
-                <span className={styles.startingAge}><span>起始年龄：</span><span>{startingAge} 岁</span></span>
-              </div>
             </div>
+            <div className={styles.ritualDivider} aria-hidden="true"><i>✦</i></div>
+            <div className={styles.reviewIdentity}>
+              <strong>{name || '未命名'} · {genderLabel || '未设定'} · {raceInfo.name}</strong>
+              <span className={styles.startingAge}><span>起始年龄：</span><b>{startingAge} 岁</b></span>
+            </div>
+            <div className={styles.ritualDivider} aria-hidden="true"><i>✦</i></div>
             <div className={styles.stats}>
               <div><b>{lifespan.maximumLifespanYears > 0 ? lifespan.maximumLifespanYears : raceInfo.baseLifespanYears} 年</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⏳</span>预期寿命</span></div>
               <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⚡</span>力量体系</span></div>
@@ -161,47 +148,47 @@ function FatePreviewContent() {
           </section>
 
           <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attributes-patterns-title">
-            <div className={styles.sectionHeading}>
-              <strong id="attributes-patterns-title">属性与命格</strong>
-              <span>基础值 + 独立修正</span>
+            <div className={styles.sectionHead}>
+              <small id="attributes-patterns-title">根基既定 · 命格相赠</small>
             </div>
             <div className={styles.attrGrid}>
               {attrKeys.map((key) => {
                 const bonus = attrBonuses[key] ?? 0
                 const baseValue = characterBase.base[key] ?? 0
+                const finalValue = baseValue + bonus
                 return (
                   <div key={key} className={styles.attrItem}>
                     <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{ATTRIBUTE_ICONS[key]}</span>{ATTRIBUTE_NAMES[key]}</span>
-                    <b className={styles.attrValue}>{baseValue}<i>{bonus >= 0 ? '+' : ''}{bonus}</i></b>
+                    <b className={styles.attrValue}>{finalValue}</b>
                   </div>
                 )
               })}
             </div>
+            <div className={styles.ritualDivider} aria-hidden="true"><i>✦</i></div>
             <div className={styles.talentRow}>
               {selectedPatterns.length > 0 ? selectedPatterns.map((pattern) => {
                 const rarity = DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity]
-                const polarity = DESTINY_PATTERN_POLARITY_CONFIG[pattern.polarity]
                 return (
                   <div key={pattern.id} className={styles.patternRow}>
                     <div className={styles.patternHeading}>
                       <strong>{pattern.name}</strong>
-                      <small>{rarity.label}{polarity ? ` · ${polarity.label}` : ''}</small>
+                      <small>{rarity.label}</small>
                     </div>
                     <span>{pattern.description}</span>
                   </div>
                 )
               }) : <p className={styles.emptyText}>尚未确认命格。</p>}
-              {equippedMythicPatterns.map((pattern) => (
-                <div key={pattern.id} className={styles.patternRow}>
+              {equippedReincarnationTalents.map((pattern) => (
+                <div key={pattern.id} className={`${styles.patternRow} ${styles.isRebirth}`}>
                   <div className={styles.patternHeading}>
                     <strong>轮回 · {pattern.name}</strong>
                     <small>轮回天赋</small>
                   </div>
-                  <span>{pattern.concept}：{pattern.effect}</span>
+                  <span>{pattern.description}：{pattern.effect}</span>
                 </div>
               ))}
             </div>
-            {equippedMythicPatterns.length === 0 ? <p className={styles.mythicEmpty}>本局不携带轮回天赋。</p> : null}
+            {equippedReincarnationTalents.length === 0 ? <p className={styles.mythicEmpty}>本局不携带轮回天赋。</p> : null}
             {talents.length > 0 && (
               <div className={styles.talentPills} aria-label="角色天赋">
                 {talents.map((talent) => {
@@ -214,9 +201,8 @@ function FatePreviewContent() {
           </section>
 
           <section className={`${styles.section} ${styles.seedSection}`} aria-labelledby="seed-title">
-            <div className={styles.sectionHeading}>
-              <strong id="seed-title">模拟种子</strong>
-              <span>留空则每次随机</span>
+            <div className={styles.sectionHead}>
+              <small id="seed-title">同因同果 · 命途自循</small>
             </div>
             <div className={styles.seedRow}>
               <input
@@ -235,27 +221,21 @@ function FatePreviewContent() {
             <p className={styles.seedHint}>相同种子与相同操作会得到相近的剧情走向。</p>
           </section>
 
-          <FatePreviewWorldInit
-            complete={aiComplete}
-            failed={aiFailed}
-            progress={aiProgress}
-            running={aiIsRunning}
-            startNotice={startNotice}
-            status={worldInitAIStatus}
-            stepLabel={aiStepLabel}
-          />
+          {startNotice ? <p className={styles.gateNotice} role="alert">{startNotice}</p> : null}
             </div>
           </main>
 
           <BottomActionBar
         onBack={() => router.push(!characterConfirmed ? '/new-game/character-create' : '/attribute-alloc')}
         backTitle={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
+        backText="返回"
+        backDescription={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
         onConfirm={handleStartLife}
-        confirmText={creationGateReason ? '创建信息未完成' : runtimeGateReason ? '加载模拟系统' : aiComplete ? '开始人生' : aiFailed ? '初始化失败' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
+        confirmText={creationGateReason ? '创建信息未完成' : runtimeGateReason ? '加载模拟系统' : isStarting ? '正在确认…' : '开始人生'}
         confirmNumber="08"
-        confirmDescription={creationGateReason ?? runtimeGateReason ?? (aiComplete ? '所有起点已确认 · 开启人生' : aiFailed ? '请返回世界配置重新确认' : aiIsRunning ? `世界初始化 ${aiProgress} / 4` : '等待世界初始化完成')}
-        confirmDisabled={Boolean(creationGateReason || runtimeGateReason) || !aiComplete}
-        confirmTitle={creationGateReason ?? runtimeGateReason ?? (!aiComplete ? aiFailed ? '世界初始化失败，请返回世界配置重新确认' : '等待世界初始化完成' : '开始人生')}
+        confirmDescription={creationGateReason ?? runtimeGateReason ?? '世界与角色资料已确认 · 开启人生'}
+        confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}
+        confirmTitle={creationGateReason ?? runtimeGateReason ?? (!worldReady ? '世界资料尚未确认' : '开始人生')}
           />
         </div>
       </div>
@@ -270,10 +250,11 @@ export default function FatePreviewPage() {
   const worldCode = useWorldStore((state) => state.worldCode)
   const worldInitialized = useWorldStore((state) => state.initialized)
   const characterName = useCharacterStore((state) => state.name)
-  const selectedPatternCount = useCharacterStore((state) => state.destinyPatterns.patterns.length)
+  const selectedPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
+  const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
   const hasWorld = Boolean(worldConfig && worldCode > 0 && worldInitialized)
   const hasCharacter = Boolean(characterName.trim())
-  const hasPatterns = selectedPatternCount === DESTINY_PATTERN_SELECT_COUNT
+  const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)
 
   useEffect(() => {
     if (!storesHydrated) return

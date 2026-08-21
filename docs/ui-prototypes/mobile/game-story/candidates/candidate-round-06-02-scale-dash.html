@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第六轮候选 B · ⚖️ 虚线</title>
+  <style>
+    /* Purpose: Static interactive prototype: game-story main simulation page (08) round-06 candidate B (whiteboard, scale dash). Based on the round-05 settled candidate B (page tone, light line): the pending branch editor div (branchPending) background becomes white #fff (whiteboard); the redundant kicker p (命运分叉) is removed; the h3 title gains the ⚖️ ornament; each narrative entry (article) is separated by a 1px dashed #d8c9a8 line; entryMeta merges the time and age spans into one (time + age). The fate-branch echo (branchResolved) keeps the page tone #fdf9f1 with the #eadfce frame; the outlined circular radio (1.5px outline circle with a solid gold-brown fill when checked) and the milky white chip #fffdf8 stay. Rebirth label stays on the first line with the capsule on the second; the five-round timeline plus the pending branch editor is kept. All animation parameters are copied from runtime GameStory.module.css and NarrativeTimeline.module.css (bar-rebirth-flow 13s ease-in-out infinite with nth-child(2) delay -3.1s, reveal 0.18s ease both, narrativeFadeIn 280ms ease-out, blink 900ms step-end infinite, advancePulse 2.8s ease-in-out infinite idle-only, transform transition 0.16s ease on the step chevron). No other animations added; no role-talent pill (runtime talents stays empty); no localStorage/sessionStorage/fetch; step menu and information panel are pure DOM interactions. Owner: Interface system. Responsibility: Candidate only. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport { width: min(100%, 30rem); }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+    }
+
+    .page::-webkit-scrollbar { display: none; }
+
+    /* 粘性顶栏（两段保持 ROUND-01 基线） */
+    .stickyBar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(253, 249, 241, 0.98);
+      backdrop-filter: blur(10px);
+    }
+
+    .barTop {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto 40px;
+      gap: 6px;
+      align-items: center;
+      padding: 0 12px 0 16px;
+      min-height: 46px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .identity { display: block; min-width: 0; overflow: hidden; }
+    .identity strong,
+    .identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .identity strong {
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.25;
+      color: #241f18;
+    }
+    .identity small {
+      margin-top: 3px;
+      color: #a0907a;
+      font-size: 8px;
+      font-weight: 400;
+      line-height: 1.3;
+    }
+
+    .barActions { display: inline-flex; align-items: center; gap: 2px; }
+    .stepMenu { position: relative; z-index: 3; }
+
+    .stepButton {
+      display: inline-grid;
+      min-width: 40px;
+      min-height: 40px;
+      grid-auto-flow: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #241f18;
+      cursor: pointer;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .stepButton svg {
+      width: 10px;
+      height: 10px;
+      color: #b5ab96;
+      transition: transform 0.16s ease;
+    }
+    .stepButton[aria-expanded="true"] { background: #faf4e8; color: #6b4d1d; }
+    .stepButton[aria-expanded="true"] svg { color: #6b4d1d; transform: rotate(180deg); }
+    .stepButton:hover,
+    .stepButton:focus-visible { background: #faf4e8; }
+
+    .stepMenuPanel {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      z-index: 50;
+      display: none;
+      width: min(220px, calc(100vw - 48px));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 6px;
+      border: 1px solid #e5e1d6;
+      border-radius: 10px;
+      background: rgba(255, 253, 248, 0.98);
+      box-shadow: 0 14px 28px rgba(74, 62, 40, 0.14);
+      backdrop-filter: blur(10px);
+    }
+    .stepMenuPanelOpen { display: grid; }
+    .stepMenuPanel button {
+      min-height: 34px;
+      padding: 4px 2px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #b5ab96;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .stepMenuPanel button:hover,
+    .stepMenuPanel button:focus-visible { background: #faf4e8; color: #241f18; }
+    .stepMenuOptionActive {
+      background: #f1ead9 !important;
+      color: #6b4d1d !important;
+      box-shadow: inset 0 0 0 1px rgba(150, 122, 66, 0.28);
+    }
+
+    .forceButton {
+      position: relative;
+      display: grid;
+      width: 40px;
+      min-width: 40px;
+      height: 40px;
+      min-height: 40px;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #6b4d1d;
+      cursor: pointer;
+    }
+    .forceButton svg { width: 19px; height: 19px; }
+    .forceButtonActive { color: #96783f; }
+
+    .infoToggle {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+    }
+    .infoToggle svg { width: 18px; height: 18px; }
+    .infoToggle:hover { background: #faf4e8; }
+    .infoToggle[aria-expanded="true"] { color: #6b4d1d; }
+
+    /* vitals：四维 + 命格胶囊 + 轮回流光 */
+    .barVitals {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      gap: 5px 8px;
+      align-items: center;
+      padding: 6px 12px 8px 16px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .barTalents {
+      display: flex;
+      flex-wrap: wrap;
+      min-width: 0;
+      align-items: center;
+      gap: 5px;
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .barRebirths {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 4px;
+      grid-column: 2;
+      grid-row: 1 / -1;
+    }
+    .rebirthTag {
+      color: #96783f;
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      line-height: 1.2;
+    }
+
+    .barTalent {
+      --glow: 128, 143, 162;
+      flex: 0 0 auto;
+      padding: 3px 9px;
+      border: 1px solid rgba(var(--glow), 0.42);
+      border-radius: 999px;
+      background: rgba(var(--glow), 0.12);
+      color: rgb(var(--glow));
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1.35;
+      white-space: nowrap;
+    }
+    .barTalent[data-rarity="common"] { --glow: 128, 143, 162; }
+    .barTalent[data-rarity="fine"] { --glow: 78, 143, 116; }
+    .barTalent[data-rarity="rare"] { --glow: 80, 120, 196; }
+    .barTalent[data-rarity="epic"] { --glow: 144, 104, 184; }
+    .barTalent[data-rarity="legendary"] { --glow: 170, 132, 54; }
+
+    .barTalentRebirth {
+      --rebirth-flow: linear-gradient(110deg, rgba(167, 146, 224, 0.34), rgba(143, 185, 236, 0.3), rgba(130, 207, 187, 0.28), rgba(236, 193, 140, 0.32), rgba(227, 157, 189, 0.3), rgba(167, 146, 224, 0.34));
+      border-color: rgba(167, 146, 224, 0.28);
+      background: var(--rebirth-flow);
+      background-size: 420% 420%;
+      color: #3a3a3a;
+      font-weight: 650;
+      animation: bar-rebirth-flow 13s ease-in-out infinite;
+    }
+    .barRebirths .barTalentRebirth:nth-child(2) { animation-delay: -3.1s; }
+    @keyframes bar-rebirth-flow {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .barTalentRebirth { animation: none; background-position: 40% 50%; }
+    }
+
+    .barAttrs {
+      display: flex;
+      flex-wrap: wrap;
+      min-width: 0;
+      align-items: center;
+      gap: 6px 10px;
+      grid-column: 1;
+      grid-row: 2;
+      color: #b5ab96;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+    }
+    .barAttrs span { display: inline-flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+    .barAttrs em { display: inline-block; font-style: normal; font-size: 10px; line-height: 1; transform: translateY(0.5px); }
+    .barAttrs i { font-style: normal; color: #b5ab96; }
+    .barAttrs b { color: #241f18; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 12px; font-weight: 650; }
+    .barAttrs b.rise { color: #96783f; }
+
+    /* 菱形分隔 */
+    .readerDivider {
+      position: relative;
+      height: 11px;
+      background: rgba(253, 249, 241, 0.98);
+    }
+    .readerDivider::before {
+      position: absolute;
+      top: 4px;
+      right: 16px;
+      left: 16px;
+      height: 1px;
+      background: #e5dfd0;
+      content: "";
+    }
+    .readerDivider span {
+      position: absolute;
+      top: 1px;
+      left: 50%;
+      width: 7px;
+      height: 7px;
+      border: 1px solid #b5a88c;
+      background: #fdf9f1;
+      transform: translateX(-50%) rotate(45deg);
+    }
+    .readerDivider span::before,
+    .readerDivider span::after {
+      position: absolute;
+      top: 2px;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: #c9bda3;
+      content: "";
+    }
+    .readerDivider span::before { right: 10px; }
+    .readerDivider span::after { left: 10px; }
+
+    /* 信息面板：顶栏下方滑出（reveal 0.18s 照抄运行时） */
+    .infoPanel {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      bottom: calc(100% - 100dvh + env(safe-area-inset-bottom, 0px));
+      left: 0;
+      z-index: 50;
+      display: none;
+      max-height: 560px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      border-bottom: 1px solid #eadfce;
+      background: #fffdf8;
+      box-shadow: 0 16px 36px rgba(74, 62, 40, 0.1);
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .infoPanel::-webkit-scrollbar { display: none; }
+    .infoPanelOpen { display: block; animation: reveal 0.18s ease both; }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .infoInner { padding: 14px 20px 22px; }
+    .panelHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .panelHead strong { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 15px; font-weight: 600; color: #241f18; }
+    .infoClose {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+    }
+    .infoClose:hover { background: #faf4e8; }
+    .infoClose svg { width: 18px; height: 18px; }
+
+    .moreActions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin: 12px 0 0;
+    }
+    .moreActions button {
+      min-height: 32px;
+      padding: 4px 2px;
+      border: 1px solid #e5e1d6;
+      border-radius: 8px;
+      background: #fffdf8;
+      color: #8a7f6e;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .moreActions button:hover { border-color: #d8c9a8; color: #6b4d1d; }
+
+    .identityIndex {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 0;
+      border-top: 1px solid #eadfce;
+      border-bottom: 1px solid #eadfce;
+      color: #8a7f6e;
+      font-size: 9px;
+      margin-top: 14px;
+    }
+    .identityIndex strong { color: #241f18; font-weight: 650; }
+    .attributes {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      gap: 12px;
+      overflow-x: auto;
+      color: #b5ab96;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      scrollbar-width: none;
+    }
+    .attributes::-webkit-scrollbar { display: none; }
+    .attributes span { display: inline-flex; align-items: baseline; gap: 3px; }
+    .attributes em { display: inline-block; font-style: normal; font-size: 10px; line-height: 1; }
+    .attributes b { color: #8a7f6e; font-weight: 650; }
+
+    .ledger { margin: 0; }
+    .ledger summary {
+      display: flex;
+      min-height: 38px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      list-style: none;
+      border-top: 1px solid #eadfce;
+      color: #8a7f6e;
+      cursor: pointer;
+    }
+    .ledger summary::-webkit-details-marker { display: none; }
+    .ledger summary strong { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 12px; font-weight: 600; }
+    .ledger summary small { color: #b5ab96; font-size: 8px; }
+    .ledger summary::after { color: #b5ab96; font-size: 14px; font-weight: 400; content: "+"; }
+    .ledger[open] summary::after { content: "−"; }
+
+    .ledgerContent { min-width: 0; padding: 4px 0 12px; }
+    .ledgerRow {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 5px 0;
+      border-top: 1px dashed #eadfce;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .ledgerRow:first-child { border-top: 0; }
+    .ledgerRow span:first-child { flex: 0 0 auto; color: #b5ab96; }
+    .ledgerRow span:last-child { min-width: 0; text-align: right; color: #2e2922; }
+    .ledgerPillRow { display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 0; border-top: 1px dashed #eadfce; }
+    .ledgerPillRow:first-child { border-top: 0; }
+    .ledgerPill {
+      padding: 2px 8px;
+      border: 1px solid #e5e1d6;
+      border-radius: 999px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .ledgerSection {
+      margin-top: 10px;
+      color: #a0907a;
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    /* 阅读区 */
+    .reading { padding: 0 20px; }
+
+    /* 章节头单行化（ROUND-02 定版 C） */
+    .chapterHeadLine {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 14px;
+      align-items: start;
+      padding: 14px 0 2px;
+      text-align: left;
+    }
+    .chapterHeadTop { min-width: 0; }
+    .chapterHeadTop > small {
+      display: block;
+      color: #a0907a;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+    .chapterHeadTop h1 {
+      margin: 4px 0 0;
+      color: #241f18;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .chapterHeadTop .chapterRule {
+      justify-content: flex-start;
+      margin-top: 8px;
+    }
+    .chapterRule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chapterRule::before,
+    .chapterRule::after { content: ""; height: 1px; width: 22px; background: linear-gradient(90deg, transparent, #d8c9a8); }
+    .chapterRule::after { background: linear-gradient(90deg, #d8c9a8, transparent); }
+    .chapterRule span { color: #96783f; font-size: 10px; letter-spacing: 0.02em; }
+
+    .progressStepsInline {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+    .progressStep {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px 3px 4px;
+      border-radius: 999px;
+      color: #b5ab96;
+      font-size: 9px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .progressStep i {
+      display: inline-grid;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 50%;
+      background: #f1ead9;
+      color: #a0907a;
+      font-size: 8px;
+      font-style: normal;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+    .progressStepDone { color: #8a7f6e; }
+    .progressStepDone i { background: #96783f; color: #fff; }
+    .progressStepActive { color: #6b4d1d; font-weight: 650; }
+    .progressStepActive i { background: #d8c9a8; color: #6b4d1d; }
+
+    .chapterFoot {
+      grid-column: 1 / -1;
+      height: 1px;
+      margin: 4px 0 0;
+      background: repeating-linear-gradient(90deg, #eadfce 0 6px, transparent 6px 12px);
+    }
+
+    /* 时间线 */
+    .timelineHeader {
+      display: flex;
+      min-height: 30px;
+      padding: 10px 0 2px;
+      align-items: center;
+      justify-content: space-between;
+      color: #b5ab96;
+      font-size: 9px;
+      font-weight: 500;
+    }
+    .timelineHeaderRound { font-variant-numeric: tabular-nums; }
+
+    .entry { position: relative; padding: 18px 0 19px 13px; animation: narrativeFadeIn 280ms ease-out; }
+    /* 每轮之间分隔线：1px dashed #d8c9a8 虚线（候选 B 分向，与叙事流区分度适中） */
+    .entry:not(:first-child) { border-top: 1px dashed #d8c9a8; }
+    .entry::before {
+      position: absolute;
+      top: 22px;
+      left: 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #96783f;
+      content: "";
+      opacity: 0.42;
+    }
+    @keyframes narrativeFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .entryMeta {
+      display: flex;
+      margin-bottom: 9px;
+      color: #b5ab96;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      justify-content: space-between;
+    }
+
+    .entryBody { color: #2e2922; font-size: 15px; line-height: 1.87; overflow-wrap: anywhere; }
+    .entryParagraph { margin: 7px 0 0; text-align: justify; text-indent: 2em; }
+    .entryParagraph:first-child { margin-top: 0; }
+
+    /* 属性变化 chip：米白底（候选 B 分向） */
+    .attrChanges { display: flex; margin-top: 10px; flex-wrap: wrap; gap: 6px; }
+    .attrChangeChip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border: 1px solid #e5e1d6;
+      border-radius: 999px;
+      background: #fffdf8;
+      font-size: 9px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .attrChangePositive { color: #96783f; }
+    .attrChangeNegative { color: #a87268; }
+
+    /* 命运分叉回显：同底细线（页面同底零色差，边框换页面分隔线语言 #eadfce，边界最轻） */
+    .branchResolved {
+      margin: 22px 0 8px;
+      padding: 12px 14px;
+      border: 1px solid #eadfce;
+      border-radius: 6px;
+      background: #fdf9f1;
+    }
+    .branchResolvedTitle { margin: 0 0 6px; color: #b5ab96; font-size: 9px; }
+    .branchResolvedChoice { margin: 0; color: #8a7f6e; font-size: 12px; line-height: 1.7; }
+    .branchResolvedChoice span { color: #6b4d1d; }
+
+    /* 命运分叉编辑器：未选择状态（未选框白板 #fff） */
+    .branchPending {
+      margin: 22px 0 8px;
+      padding: 12px 14px;
+      border: 1px solid #eadfce;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .branchPendingTitle {
+      margin: 0 0 8px;
+      color: #241f18;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.7;
+    }
+    .branchOptionsList { display: flex; flex-direction: column; }
+    .branchOption {
+      position: relative;
+      display: grid;
+      min-height: 52px;
+      padding: 0;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      border-top: 1px solid #f1ecdf;
+      color: #8a7f6e;
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+    .branchOption:hover,
+    .branchOption:has(.branchOptionRadio:checked) { color: #241f18; }
+    .branchOptionRadio { position: absolute; opacity: 0; }
+    .branchOption::before {
+      content: "";
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid #b5ab96;
+      background: transparent;
+    }
+    .branchOption:has(.branchOptionRadio:checked)::before {
+      border-color: #96783f;
+      background: #96783f;
+    }
+    .branchOption:has(.branchOptionRadio:focus-visible)::before {
+      outline: 1px dotted #6b4d1d;
+      outline-offset: 2px;
+    }
+    .branchCustomInput {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 88px;
+      margin: 8px 0 0;
+      padding: 12px;
+      resize: none;
+      border: 1px solid #e5e1d6;
+      border-radius: 8px;
+      outline: 0;
+      background: transparent;
+      color: #2e2922;
+      font: 12px/1.7 "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      touch-action: manipulation;
+    }
+    .branchCustomInput:focus { border-color: #96783f; box-shadow: 0 0 0 2px rgba(150, 122, 63, 0.11); }
+    .branchCustomToggle {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 40px;
+      margin: 8px 0 0;
+      padding: 6px 12px;
+      border: 1px dashed #e5dfd0;
+      border-radius: 8px;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+      font: 10px/1.5 system-ui, sans-serif;
+      text-align: left;
+    }
+    .branchCustomToggle:hover,
+    .branchCustomToggle:focus-visible { border-color: #96783f; color: #6b4d1d; }
+    .branchActions { display: flex; margin-top: 5px; justify-content: space-between; gap: 18px; }
+    .branchActions button { min-height: 40px; padding: 6px 0; border: 0; background: transparent; font-family: system-ui, sans-serif; font-size: 10px; cursor: pointer; }
+    .branchCancelBtn { color: #b5ab96; }
+    .branchConfirmBtn {
+      min-width: 78px;
+      padding-inline: 12px !important;
+      border-radius: 6px !important;
+      background: #f1ead9 !important;
+      color: #241f18;
+      font-family: inherit !important;
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      overflow-wrap: anywhere;
+    }
+    .branchConfirmBtn:disabled { color: #b5ab96; cursor: not-allowed; }
+
+    /* 推进 dock：时间线流末（advancePulse 2.8s 照抄运行时 idle） */
+    .advanceDock { margin-top: 26px; padding: 0 0 40px; }
+    .advanceTap {
+      position: relative;
+      display: grid;
+      width: 100%;
+      min-height: 104px;
+      margin: 0;
+      padding: 16px 12px 10px;
+      grid-template-rows: auto auto;
+      place-items: center;
+      border: 0;
+      border-top: 1px dashed #eadfce;
+      background: transparent;
+      color: #2e2922;
+      text-align: center;
+      cursor: pointer;
+    }
+    .advanceTap::after {
+      width: 42px;
+      height: 1px;
+      margin-top: 10px;
+      background: #eadfce;
+      content: "";
+      opacity: 0.78;
+    }
+    .advanceTap:hover { color: #6b4d1d; }
+    .advanceTap strong,
+    .advanceTap small { display: block; }
+    .advanceTap strong { font-size: 17px; font-weight: 500; line-height: 1.45; }
+    .advanceTap small { margin-top: 4px; color: #b5ab96; font-size: 8px; line-height: 1.45; }
+    .advanceIdle { animation: advancePulse 2.8s ease-in-out infinite; }
+    @keyframes advancePulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .entry, .advanceIdle { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <div class="stickyBar">
+          <div class="barTop">
+            <span class="identity">
+              <strong>林晚 · 女</strong>
+              <small>沧澜界 · 18 岁 · 春</small>
+            </span>
+            <div class="barActions">
+              <div class="stepMenu">
+                <button type="button" class="stepButton" id="stepBtn" aria-expanded="false" aria-haspopup="listbox" aria-controls="time-step-menu" aria-label="推进步长 年">
+                  <span id="stepLabel">年</span>
+                  <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 8l3-3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+                <div id="time-step-menu" class="stepMenuPanel" role="listbox" aria-label="选择推进步长" aria-hidden="true">
+                  <button type="button" role="option" aria-selected="true" class="stepMenuOptionActive" data-step="年">年</button>
+                  <button type="button" role="option" aria-selected="false" data-step="3年">3 年</button>
+                  <button type="button" role="option" aria-selected="false" data-step="5年">5 年</button>
+                  <button type="button" role="option" aria-selected="false" data-step="10年">10 年</button>
+                </div>
+              </div>
+              <button type="button" class="forceButton" aria-label="请求下一轮命运分叉" title="请求下一轮命运分叉">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /><circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="1.6" /><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+              </button>
+            </div>
+            <button type="button" class="infoToggle" id="infoToggle" aria-label="展开当前信息" aria-expanded="false" aria-controls="current-information-panel">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.4" /><path d="M12 10.5v6M12 7.2v.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
+            </button>
+          </div>
+          <div class="barVitals">
+            <div class="barAttrs" aria-label="四维属性">
+              <span><em aria-hidden="true">💪</em><i>体魄</i><b class="rise">4</b></span>
+              <span><em aria-hidden="true">🧠</em><i>心智</i><b class="rise">4</b></span>
+              <span><em aria-hidden="true">✨</em><i>悟性</i><b class="rise">5</b></span>
+              <span><em aria-hidden="true">💫</em><i>魅力</i><b class="rise">5</b></span>
+            </div>
+            <div class="barTalents" aria-label="已选命格">
+              <span class="barTalent" data-rarity="rare">灵根淬体</span>
+              <span class="barTalent" data-rarity="epic">慧心通明</span>
+              <span class="barTalent" data-rarity="fine">笑靥如花</span>
+            </div>
+            <div class="barRebirths" aria-label="轮回天赋">
+              <span class="rebirthTag">轮回</span>
+              <span class="barTalent barTalentRebirth">前世武骨</span>
+            </div>
+          </div>
+
+          <div class="infoPanel" id="infoPanel">
+            <div class="infoInner">
+              <div class="panelHead">
+                <strong>当前信息</strong>
+                <button type="button" class="infoClose" id="infoClose" aria-label="收起当前信息">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+                </button>
+              </div>
+              <div class="moreActions">
+                <button type="button">手动存档</button>
+                <button type="button">反馈与建议</button>
+                <button type="button">返回主界面</button>
+              </div>
+              <div class="identityIndex">
+                <span><strong>林晚</strong> · 女 · 人族</span>
+                <span>沧澜界 · 18 岁 · 春</span>
+              </div>
+              <div class="attributes">
+                <span><em aria-hidden="true">❤️</em><span>生命</span><b>96/100</b></span>
+                <span><em aria-hidden="true">💪</em><span>体力</span><b>72</b></span>
+                <span><em aria-hidden="true">🧠</em><span>精神</span><b>81</b></span>
+              </div>
+              <details class="ledger" open>
+                <summary><strong>世界与角色账簿</strong><small>当前状态</small></summary>
+                <div class="ledgerContent">
+                  <div class="ledgerRow"><span>角色词条</span></div>
+                  <div class="ledgerPillRow">
+                    <span class="ledgerPill">灵根淬体 · 稀有</span>
+                    <span class="ledgerPill">慧心通明 · 史诗</span>
+                    <span class="ledgerPill">笑靥如花 · 精良</span>
+                    <span class="ledgerPill">轮回 · 前世武骨</span>
+                  </div>
+                  <div class="ledgerSection">轮回天赋 · 独立槽</div>
+                  <div class="ledgerRow"><span>前世武骨</span><span>战意铭刻于魂：濒危之际，你的战意高涨，可短暂压制伤势。</span></div>
+                  <div class="ledgerSection">世界与当前状态</div>
+                  <div class="ledgerRow"><span>世界</span><span>沧澜界</span></div>
+                  <div class="ledgerRow"><span>纪元 · 季节</span><span>沧澜历 · 春</span></div>
+                  <div class="ledgerRow"><span>修为</span><span>未入门</span></div>
+                  <div class="ledgerRow"><span>心境</span><span>平静</span></div>
+                  <div class="ledgerSection">叙事重复观测 · 近五轮</div>
+                  <div class="ledgerRow"><span>本轮 · 近五轮均值</span><span>0.42 / 0.36</span></div>
+                  <div class="ledgerRow"><span>峰值 · 趋势</span><span>0.55 / 平稳</span></div>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <div class="readerDivider" aria-hidden="true"><span></span></div>
+
+        <main class="reading" role="main">
+          <header class="chapterHeadLine">
+            <div class="chapterHeadTop">
+              <small>第 1 回 · 故事进程</small>
+              <h1>故事进行中</h1>
+              <div class="chapterRule"><span>等待你的选择</span></div>
+            </div>
+            <div class="progressStepsInline" aria-label="故事进程阶段">
+              <span class="progressStep progressStepDone"><i>01</i>生成正文</span>
+              <span class="progressStep progressStepActive" aria-current="step"><i>02</i>完成本轮</span>
+              <span class="progressStep"><i>03</i>继续人生</span>
+            </div>
+            <div class="chapterFoot" aria-hidden="true"></div>
+          </header>
+
+          <div class="timelineHeader">
+            <span class="timelineHeaderLabel">故事进程</span>
+            <span class="timelineHeaderRound">第 1 轮 · 已走过五段岁月</span>
+          </div>
+
+          <article class="entry">
+            <div class="entryMeta"><span>幼年 · 沧澜历 3 年 · 3 岁</span></div>
+            <div class="entryBody">
+              <p class="entryParagraph">春寒未尽，坊市外的田野刚冒出新绿。你被母亲抱在怀中，听着远处道观的钟声一下下敲进风里。尚不懂事的年纪，却已隐约觉得：这座宗门林立的沧澜界，迟早会与你有关。</p>
+            </div>
+            <div class="attrChanges">
+              <span class="attrChangeChip attrChangePositive">🧠 心智 +2</span>
+              <span class="attrChangeChip attrChangePositive">✨ 悟性 +1</span>
+            </div>
+          </article>
+
+          <article class="entry">
+            <div class="entryMeta"><span>少年 · 沧澜历 15 年 · 15 岁</span></div>
+            <div class="entryBody">
+              <p class="entryParagraph">镇上的猎户说你骨相清奇，道馆的先生却叹你心性不定。这一日，山道上传来异响，前方烟尘里似乎有人呼救，而背后是通往坊市的归途。</p>
+            </div>
+            <div class="branchResolved">
+              <p class="branchResolvedTitle">命运分叉 · 你的抉择</p>
+              <p class="branchResolvedChoice">你的选择：<span>避开人群，沿山道绕行</span></p>
+            </div>
+            <div class="attrChanges">
+              <span class="attrChangeChip attrChangePositive">💪 体魄 +1</span>
+              <span class="attrChangeChip attrChangePositive">💫 魅力 +1</span>
+            </div>
+          </article>
+
+          <article class="entry">
+            <div class="entryMeta"><span>青年 · 沧澜历 25 年 · 25 岁</span></div>
+            <div class="entryBody">
+              <p class="entryParagraph">数年流转，你在坊市间渐有名声。有人递来一封青云宗的外门信笺，说观你骨骼清奇，愿收为记名弟子。是去是留，只在你一念之间。</p>
+            </div>
+            <div class="attrChanges">
+              <span class="attrChangeChip attrChangePositive">🧠 心智 +1</span>
+              <span class="attrChangeChip attrChangePositive">✨ 悟性 +1</span>
+            </div>
+          </article>
+
+          <article class="entry">
+            <div class="entryMeta"><span>壮年 · 沧澜历 40 年 · 40 岁</span></div>
+            <div class="entryBody">
+              <p class="entryParagraph">宗门大比前夕，旧友登门求援——他卷入了一桩旧案，若不援手便前程尽毁；可若援手，你将错过这场苦等十年的比试。</p>
+            </div>
+            <div class="branchResolved">
+              <p class="branchResolvedTitle">命运分叉 · 你的抉择</p>
+              <p class="branchResolvedChoice">你的选择：<span>援手旧友，放弃大比</span></p>
+            </div>
+            <div class="attrChanges">
+              <span class="attrChangeChip attrChangePositive">💫 魅力 +2</span>
+              <span class="attrChangeChip attrChangePositive">✨ 悟性 +1</span>
+            </div>
+          </article>
+
+          <article class="entry">
+            <div class="entryMeta"><span>中年 · 沧澜历 55 年 · 55 岁</span></div>
+            <div class="entryBody">
+              <p class="entryParagraph">山雨欲来，边境烽烟骤起。为护一村百姓，你以多年修为硬撼敌阵，终将众人护入城中，自己却落下一身暗伤。夜深时分，旧伤隐隐作痛，你望着灯下族谱，忽然想起幼时山道上的那声钟响。</p>
+            </div>
+            <div class="attrChanges">
+              <span class="attrChangeChip attrChangePositive">💪 体魄 +1</span>
+              <span class="attrChangeChip attrChangePositive">🧠 心智 +1</span>
+              <span class="attrChangeChip attrChangeNegative">❤️ 生命 -12</span>
+            </div>
+          </article>
+
+          <article class="entry">
+            <div class="entryMeta"><span>暮年 · 沧澜历 70 年 · 70 岁</span></div>
+            <div class="entryBody">
+              <p class="entryParagraph">夜深灯下，你展开那张泛黄的丹方残页。山门之外，青云宗新一任掌门登基在即；坊市之内，旧友后代正为一段旧案奔走。这一晚，两条路同时摆到了你的面前。</p>
+            </div>
+            <div class="branchPending">
+              <h3 class="branchPendingTitle">⚖️ 命运分叉点</h3>
+              <div class="branchOptionsList">
+                <label class="branchOption">
+                  <input type="radio" name="branch-6" class="branchOptionRadio" />
+                  <span>携残卷入山，寻那门失传的续命之法</span>
+                </label>
+                <label class="branchOption">
+                  <input type="radio" name="branch-6" class="branchOptionRadio" />
+                  <span>留在坊市，将一身所学传于后人</span>
+                </label>
+              </div>
+              <button type="button" class="branchCustomToggle">写下自己的做法</button>
+              <div class="branchActions">
+                <button type="button" class="branchCancelBtn">清空</button>
+                <button type="button" class="branchConfirmBtn" disabled>请先选择</button>
+              </div>
+            </div>
+          </article>
+
+          <div class="advanceDock">
+            <button type="button" class="advanceTap advanceIdle">
+              <strong>轻触，让岁月流转</strong>
+              <small>下一段故事已经准备好</small>
+            </button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      /* 纯 DOM 交互：步长下拉 + 信息面板切换，不持久化、不含 localStorage/sessionStorage/fetch */
+      var stepBtn = document.getElementById('stepBtn')
+      var stepMenu = document.getElementById('time-step-menu')
+      var stepLabel = document.getElementById('stepLabel')
+      var infoToggle = document.getElementById('infoToggle')
+      var infoClose = document.getElementById('infoClose')
+      var infoPanel = document.getElementById('infoPanel')
+
+      stepBtn.addEventListener('click', function () {
+        var open = stepBtn.getAttribute('aria-expanded') === 'true'
+        if (infoPanel.classList.contains('infoPanelOpen')) { infoPanel.classList.remove('infoPanelOpen'); infoToggle.setAttribute('aria-expanded', 'false'); infoToggle.setAttribute('aria-label', '展开当前信息') }
+        stepBtn.setAttribute('aria-expanded', String(!open))
+        stepMenu.setAttribute('aria-hidden', String(open))
+        stepMenu.classList.toggle('stepMenuPanelOpen', !open)
+      })
+
+      stepMenu.addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-step]')
+        if (!button) return
+        stepLabel.textContent = button.getAttribute('data-step')
+        stepBtn.setAttribute('aria-label', '推进步长 ' + button.getAttribute('data-step'))
+        Array.prototype.forEach.call(stepMenu.querySelectorAll('button'), function (option) {
+          var selected = option === button
+          option.setAttribute('aria-selected', String(selected))
+          option.classList.toggle('stepMenuOptionActive', selected)
+        })
+        stepBtn.setAttribute('aria-expanded', 'false')
+        stepMenu.setAttribute('aria-hidden', 'true')
+        stepMenu.classList.remove('stepMenuPanelOpen')
+      })
+
+      function closeInfo() {
+        infoPanel.classList.remove('infoPanelOpen')
+        infoToggle.setAttribute('aria-expanded', 'false')
+        infoToggle.setAttribute('aria-label', '展开当前信息')
+      }
+      function openInfo() {
+        infoPanel.classList.add('infoPanelOpen')
+        infoToggle.setAttribute('aria-expanded', 'true')
+        infoToggle.setAttribute('aria-label', '收起当前信息')
+      }
+      infoToggle.addEventListener('click', function () {
+        var open = infoToggle.getAttribute('aria-expanded') === 'true'
+        if (stepBtn.getAttribute('aria-expanded') === 'true') { stepBtn.setAttribute('aria-expanded', 'false'); stepMenu.setAttribute('aria-hidden', 'true'); stepMenu.classList.remove('stepMenuPanelOpen') }
+        open ? closeInfo() : openInfo()
+      })
+      infoClose.addEventListener('click', closeInfo)
+    })()
+  </script>
+</body>
+</html>

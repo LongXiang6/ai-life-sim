@@ -10,7 +10,7 @@
     {
       "path": "src/core/account/account-contract.ts",
       "owner": "core:account",
-      "reviewedLines": 334,
+      "reviewedLines": 387,
       "reason": "账号公共数据契约的唯一声明源，拆分会分散字段语义和验证边界。"
     },
     {
@@ -22,7 +22,7 @@
     {
       "path": "src/core/player-content/player-content-database.ts",
       "owner": "core:player-content",
-      "reviewedLines": 347,
+      "reviewedLines": 429,
       "reason": "玩家内容 SQLite Schema 与迁移的原子声明，表和索引必须作为一个事务审查。"
     }
   ]

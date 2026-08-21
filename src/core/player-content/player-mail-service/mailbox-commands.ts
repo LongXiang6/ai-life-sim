@@ -4,7 +4,7 @@
  * Responsibility: Command transactions and responses only; identity, reads, and cleanup are delegated.
  */
 
-import { CloudMythicTalentSchema, type CloudMythicTalent } from '@/core/account/account-contract'
+import { ReincarnationTalentSchema, type CloudReincarnationTalent } from '@/core/account/account-contract'
 
 import type { PlayerMailCommandResult, PlayerMailRecipient } from '../player-content-contract'
 import { getPlayerContentDatabase, PLAYER_MAIL_RETENTION_MS } from '../player-content-database'
@@ -84,7 +84,7 @@ export function acceptPlayerMailboxTalent(input: {
   const actor = resolveActor(input.identity, now)
   getAccessibleMessage(actor, input.messageId, now)
   const database = ensureAccountStoreAttached()
-  let acceptedTalent: CloudMythicTalent | undefined
+  let acceptedTalent: CloudReincarnationTalent | undefined
   database.transaction(() => {
     const attachment = database.prepare(`
       SELECT message_id, talent_id, talent_json, sender_key, status,
@@ -101,11 +101,11 @@ export function acceptPlayerMailboxTalent(input: {
     }
     if (actor.accountId && !addTalentToAttachedAccount(database, actor.accountId, acceptedTalent, now)) {
       const alreadyOwned = database.prepare(`
-        SELECT 1 FROM account_store.account_mythic_talents
+        SELECT 1 FROM account_store.account_reincarnation_talents
         WHERE account_id = ? AND talent_id = ?
       `).get(actor.accountId, acceptedTalent.id)
       if (!alreadyOwned) {
-        throw new PlayerContentServiceError('轮回天赋栏位已满，请先腾出位置', 409, 'mythic_library_full')
+        throw new PlayerContentServiceError('轮回天赋栏位已满，请先腾出位置', 409, 'reincarnation_library_full')
       }
     }
     database.prepare(`
@@ -133,7 +133,7 @@ export function sendPlayerMail(input: {
   recipient: PlayerMailRecipient
   title: string
   body: string
-  talent?: CloudMythicTalent
+  talent?: CloudReincarnationTalent
   now?: number
 }): PlayerMailCommandResult {
   const now = input.now ?? Date.now()
@@ -162,7 +162,7 @@ export function sendPlayerMail(input: {
       now + PLAYER_MAIL_RETENTION_MS,
     )
     if (!input.talent) return
-    const requestedTalent = CloudMythicTalentSchema.parse(input.talent)
+    const requestedTalent = ReincarnationTalentSchema.parse(input.talent)
     const existingOwnership = database.prepare(`
       SELECT owner_key, talent_json FROM player_mail_talent_ownership WHERE talent_id = ?
     `).get(requestedTalent.id) as { owner_key: string; talent_json: string } | undefined
@@ -173,10 +173,10 @@ export function sendPlayerMail(input: {
         'mail_talent_not_owned',
       )
     }
-    let sentTalent: CloudMythicTalent
+    let sentTalent: CloudReincarnationTalent
     if (actor.accountId) {
       const stored = database.prepare(`
-        SELECT data_json FROM account_store.account_mythic_talents
+        SELECT data_json FROM account_store.account_reincarnation_talents
         WHERE account_id = ? AND talent_id = ?
       `).get(actor.accountId, requestedTalent.id) as { data_json: string } | undefined
       if (!stored) {
@@ -184,14 +184,14 @@ export function sendPlayerMail(input: {
       }
       sentTalent = parseTalent(stored.data_json)
       database.prepare(`
-        DELETE FROM account_store.account_mythic_talents WHERE account_id = ? AND talent_id = ?
+        DELETE FROM account_store.account_reincarnation_talents WHERE account_id = ? AND talent_id = ?
       `).run(actor.accountId, requestedTalent.id)
       database.prepare(`
         UPDATE account_store.accounts SET revision = revision + 1, last_active_at = ? WHERE id = ?
       `).run(now, actor.accountId)
     } else {
       const accountOwner = database.prepare(`
-        SELECT account_id FROM account_store.account_mythic_talents WHERE talent_id = ? LIMIT 1
+        SELECT account_id FROM account_store.account_reincarnation_talents WHERE talent_id = ? LIMIT 1
       `).get(requestedTalent.id)
       if (accountOwner) {
         throw new PlayerContentServiceError('这份轮回天赋已属于其他玩家', 409, 'mail_talent_not_owned')

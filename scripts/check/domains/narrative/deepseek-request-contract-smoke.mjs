@@ -1,5 +1,5 @@
 /**
- * Purpose: Verify custom and official DeepSeek request-body, retry, and JSON-repair contracts.
+ * Purpose: Verify custom DeepSeek request-body and single-attempt JSON contracts.
  * Owner: quality:narrative
  * Responsibility: DeepSeek request regression only; provider implementation remains in core AI service and proxy owners.
  */
@@ -7,7 +7,6 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { z } from 'zod'
 import { readModuleSource } from '../../lib/read-module-source.mjs'
 import {
   buildProxyBody,
@@ -167,7 +166,8 @@ try {
   for (const request of [
     routeRequest('narrative-main'),
     routeRequest('narrative-main'),
-    routeRequest('narrative-data-analysis'),
+    routeRequest('narrative-story-continuity'),
+    routeRequest('narrative-talent-growth'),
     routeRequest('narrative-main', 'gpt-compatible-model', 73),
   ]) {
     const response = await POST(request)
@@ -186,61 +186,16 @@ assert(
   'all DeepSeek and generic upstream requests must omit output-token caps',
 )
 assert(
-  forwardedBodies[0]?.user_id !== forwardedBodies[2]?.user_id,
-  'different internal cache pools must use isolated DeepSeek user_id values',
+  new Set(forwardedBodies.slice(0, 4).map((request) => request.user_id)).size === 3,
+  '01/02/03 internal cache pools must use isolated DeepSeek user_id values',
 )
 assert(
-  forwardedBodies.slice(0, 3).every((request) => request.seed === undefined && request.user === undefined),
+  forwardedBodies.slice(0, 4).every((request) => request.seed === undefined && request.user === undefined),
   'DeepSeek upstream requests must omit seed and generic user fields',
 )
 assert(
-  forwardedBodies[3]?.seed === 73 && typeof forwardedBodies[3]?.user === 'string',
+  forwardedBodies[4]?.seed === 73 && typeof forwardedBodies[4]?.user === 'string',
   'non-DeepSeek targets must retain their declared seed and generic trusted user field',
-)
-
-const repairRequests = []
-globalThis.fetch = async (input, init) => {
-  if (String(input) !== '/api/proxy') return new Response(null, { status: 204 })
-  repairRequests.push(JSON.parse(String(init?.body)))
-  const content = repairRequests.length === 1
-    ? '{"系统操作":"不是数组"}'
-    : '{"系统操作":[]}'
-  return new Response(JSON.stringify({
-    choices: [{ message: { content }, finish_reason: 'stop' }],
-  }), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  })
-}
-let repairedJson
-try {
-  repairedJson = await callAI('system', 'user', {
-    config: { ...config, reasoningEffort: 'disabled' },
-    pool: 'narrative',
-    providerId: 'custom',
-    customBaseUrl: 'https://example.invalid/v1',
-    customModel: 'deepseek-v4-pro',
-    apiKey: 'test-only-placeholder',
-    reasoningEffort: 'disabled',
-    jsonMode: true,
-    strictSchema: true,
-    outputSchema: z.object({ 系统操作: z.array(z.unknown()) }).strict(),
-    logContext: { callKind: 'narrative-data-analysis' },
-  })
-} finally {
-  globalThis.fetch = originalFetch
-}
-assert(repairedJson === '{"系统操作":[]}', 'JSON validation must return the successful repair response')
-assert(repairRequests.length === 2, 'JSON validation must make at most one format-repair request')
-assert(
-  repairRequests[0]?.cache_pool === 'narrative-data-analysis'
-    && repairRequests[1]?.cache_pool === 'narrative-data-analysis-repair',
-  'JSON repair must switch from the ordinary structured-analysis pool to its repair pool',
-)
-assert(
-  repairRequests[1]?.messages?.at(-1)?.content?.includes('前次输出不是合格的纯 JSON 对象')
-    && repairRequests[1]?.messages?.at(-1)?.content?.includes('{"系统操作":"不是数组"}'),
-  'the single JSON repair request must carry the schema failure and complete original response',
 )
 
 const [clientSource, proxySource, settingsSource] = await Promise.all([
@@ -249,8 +204,8 @@ const [clientSource, proxySource, settingsSource] = await Promise.all([
   fs.readFile(new URL('../../../../src/mods/mod-settings/components/SettingsTabPresets.tsx', import.meta.url), 'utf8'),
 ])
 assert(
-  /error\.status === 408 \|\| error\.status === 429 \|\| error\.status >= 500/.test(clientSource),
-  'deterministic 400 responses must not enter the internal retry path',
+  !/validateWithRetry|retryResult|format-repair/.test(clientSource),
+  'the public AI client must not expose an internal repair or retry path',
 )
 assert(
   !proxySource.includes('budget_tokens'),

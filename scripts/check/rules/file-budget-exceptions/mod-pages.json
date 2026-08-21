@@ -4,25 +4,31 @@
     {
       "path": "src/mods/mod-pages/pages/account/Account.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 366,
+      "reviewedLines": 401,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
       "path": "src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 345,
+      "reviewedLines": 413,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
       "path": "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 631,
+      "reviewedLines": 760,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
       "path": "src/mods/mod-pages/pages/fate-preview/FatePreview.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 502,
+      "reviewedLines": 569,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/feedback/Feedback.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 416,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
@@ -34,25 +40,31 @@
     {
       "path": "src/mods/mod-pages/pages/game-over/GameOver.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 930,
+      "reviewedLines": 1055,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
       "path": "src/mods/mod-pages/pages/game-story/GameStory.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 1029,
+      "reviewedLines": 1401,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/game-story/page.tsx",
+      "owner": "mod-pages",
+      "reviewedLines": 321,
+      "reason": "单个页面工作流组件，局部状态、事件处理和渲染共同维护同一用户流程，重复视图已下沉。"
     },
     {
       "path": "src/mods/mod-pages/pages/mailbox/Mailbox.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 419,
+      "reviewedLines": 446,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
       "path": "src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 699,
+      "reviewedLines": 921,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
@@ -70,13 +82,13 @@
     {
       "path": "src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 690,
+      "reviewedLines": 811,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
       "path": "src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css",
       "owner": "mod-pages",
-      "reviewedLines": 1250,
+      "reviewedLines": 1442,
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     }
   ]

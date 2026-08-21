@@ -3,7 +3,6 @@
  * Owner: foundation:index.ts
  * Responsibility: Public exports only; types, contracts, constants, and utilities remain in their owning directories.
  */
-
 export {
   cn,
   parseJSON,
@@ -74,17 +73,20 @@ export type {
   ReasoningEffort,
   NarrativeResponse,
   ResponseFormat,
-  ScoringEvidenceKind,
-  ScoringCurveId,
-  WorldScoringDimension,
-  WorldScoringProfile,
+  LifeScoringEvidenceKind,
+  LifeScoringEvidence,
+  LifeScoringDimension,
+  LifeScoringIntegrityResult,
+  LifeScoringResult,
   NarrativeTransitionAuditSnapshot,
   LifeScoringAuditSnapshot,
+  StoredLifeScoringResult,
   PromptTemplate,
   PromptContext,
   WorldSetting,
   CharacterState,
-  SummaryLevel,
+  NarrativeTalentPromptView,
+  NarrativeDetailedStoryPromptView,
   CompressedMemoryEvent,
   CompressedSummaryItem,
   CompressedSummaries,
@@ -195,8 +197,6 @@ export type {
   CharacterHealthState,
   CharacterFortuneLevel,
   CharacterFortuneState,
-  CharacterMoralityLevel,
-  CharacterMoralityState,
   CharacterNarrativeStatus,
 } from './subsystem-contracts'
 

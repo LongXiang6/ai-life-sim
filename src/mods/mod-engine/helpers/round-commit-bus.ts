@@ -1,4 +1,8 @@
 /**
+ * Purpose: Validate and apply locally owned subsystem changes for one frozen round context.
+ * Owner: mod-engine
+ * Responsibility: Prepare manual change packages and commit them only to their original round identity.
+ *
  * @module round-commit-bus.ts
  * @description 回合提交总线 —— 子系统状态写入的唯一通道
  * @mod mod-engine
@@ -11,19 +15,7 @@ import { runtimeRegistry } from '@/core'
 import type { ISubSystem, SubSystemChanges, RoundContext } from '@/foundation'
 
 import { deepSanitize } from './system-safety'
-import { validateChange } from './subsystem-field-registry'
-import {
-  getMacroImpactBlockReason,
-  getSystemInstructionBlockReason,
-} from './subsystem-prompt-gate'
-import { shouldApplyMvpCommit } from './mvp-runtime-policy'
-import { validateTranslatedNarrativeMacroChange } from './narrative-macro-impact-context'
-
-export type RoundCommitSource =
-  | 'narrative'
-  | 'post-narrative'
-  | 'macro-impact'
-  | 'manual'
+export type RoundCommitSource = 'manual'
 
 export interface RoundCommit {
   source: RoundCommitSource
@@ -41,17 +33,22 @@ export interface RoundCommitResult {
   rejected: RoundCommitRejected[]
 }
 
-const SCHEMA_VALIDATED_SOURCES: ReadonlySet<RoundCommitSource> = new Set([
-  'narrative',
-  'post-narrative',
-  'macro-impact',
-])
+export interface PreparedRoundCommit {
+  readonly source: RoundCommitSource
+  readonly roundSequence?: number
+  readonly contextIdentity: {
+    readonly contextId: string
+    readonly characterId: string
+    readonly roundSequence?: number
+    readonly totalDays: number
+  }
+  readonly changes: readonly SubSystemChanges[]
+}
 
-const ATOMIC_AI_SOURCES: ReadonlySet<RoundCommitSource> = new Set([
-  'narrative',
-  'post-narrative',
-  'macro-impact',
-])
+export interface RoundCommitPreparationResult {
+  prepared?: PreparedRoundCommit
+  rejected: RoundCommitRejected[]
+}
 
 const ENTITY_ID_FIELDS: ReadonlySet<string> = new Set([
   'entityId',
@@ -97,21 +94,13 @@ export class RoundCommitBus {
     private readonly applyChange: (change: SubSystemChanges, context: RoundContext) => void,
   ) {}
 
-  commit(commit: RoundCommit, context: RoundContext): RoundCommitResult {
-    const committed: SubSystemChanges[] = []
+  prepare(commit: RoundCommit, context: RoundContext): RoundCommitPreparationResult {
     const rejected: RoundCommitRejected[] = []
     const prepared: SubSystemChanges[] = []
 
     for (const raw of commit.changes) {
       if (!raw.id) {
         rejected.push({ change: raw, reason: '空子系统 id' })
-        continue
-      }
-
-      if (!shouldApplyMvpCommit(commit.source, raw.id)) {
-        if (commit.source === 'narrative') {
-          rejected.push({ change: raw, reason: `子系统 "${raw.id}" 不在本轮叙事可写范围` })
-        }
         continue
       }
 
@@ -126,37 +115,7 @@ export class RoundCommitBus {
         continue
       }
 
-      let change = raw
-      if (SCHEMA_VALIDATED_SOURCES.has(commit.source)) {
-        const validated = commit.source === 'macro-impact'
-          ? validateTranslatedNarrativeMacroChange(raw)
-          : validateChange(raw)
-        if (!validated) {
-          rejected.push({ change: raw, reason: 'schema 校验失败' })
-          continue
-        }
-        change = validated
-      }
-
-      change = normalizeEntityAliases(change, context)
-
-      if (ATOMIC_AI_SOURCES.has(commit.source)) {
-        if (!change.targetObjectId || !change.targetContextId || !change.operation) {
-          rejected.push({ change, reason: '系统指令缺少稳定目标对象、目标上下文或标准操作' })
-          continue
-        }
-        if (change.targetContextId !== context.contextId) {
-          rejected.push({ change, reason: '系统指令目标上下文不是当前回合上下文' })
-          continue
-        }
-        const blockReason = commit.source === 'macro-impact'
-          ? getMacroImpactBlockReason(change.id, change.changes ?? {}, context)
-          : getSystemInstructionBlockReason(change.id, change.changes ?? {}, context)
-        if (blockReason) {
-          rejected.push({ change, reason: blockReason })
-          continue
-        }
-      }
+      const change = normalizeEntityAliases(raw, context)
 
       const sanitized = deepSanitize(change.changes, `commit.${change.id}`)
       if (!sanitized.report.passed) {
@@ -169,12 +128,6 @@ export class RoundCommitBus {
       }
 
       prepared.push(safeChange)
-    }
-
-    // 每个后台 AI 所有者先完成自身整包预检；任一项失败时不写入该所有者的任何变更。
-    if (ATOMIC_AI_SOURCES.has(commit.source) && rejected.length > 0) {
-      console.warn(`[RoundCommit] ${commit.source} 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
-      return { committed: [], rejected }
     }
 
     // Owning systems preflight the complete instruction package before any write.
@@ -196,26 +149,64 @@ export class RoundCommitBus {
         })
       }
     }
-    if (ATOMIC_AI_SOURCES.has(commit.source) && rejected.length > 0) {
-      console.warn(`[RoundCommit] 系统指令 owning system 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
-      return { committed: [], rejected }
+    return {
+      prepared: {
+        source: commit.source,
+        roundSequence: commit.roundSequence,
+        contextIdentity: {
+          contextId: context.contextId,
+          characterId: context.characterId,
+          roundSequence: context.roundSequence,
+          totalDays: context.totalDays,
+        },
+        changes: structuredClone(prepared),
+      },
+      rejected,
+    }
+  }
+
+  commitPrepared(
+    preparedCommit: PreparedRoundCommit,
+    context: RoundContext,
+  ): RoundCommitResult {
+    const committed: SubSystemChanges[] = []
+    const rejected: RoundCommitRejected[] = []
+    const identity = preparedCommit.contextIdentity
+    if (
+      identity.contextId !== context.contextId
+      || identity.characterId !== context.characterId
+      || identity.roundSequence !== context.roundSequence
+      || identity.totalDays !== context.totalDays
+    ) {
+      return {
+        committed,
+        rejected: preparedCommit.changes.map((change) => ({
+          change,
+          reason: '已预检提交包不属于当前回合上下文',
+        })),
+      }
     }
 
-    for (const change of prepared) {
+    for (const change of preparedCommit.changes) {
       try {
         this.applyChange(change, context)
         committed.push(change)
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         rejected.push({ change, reason: msg })
-        if (ATOMIC_AI_SOURCES.has(commit.source)) break
       }
     }
 
     if (rejected.length > 0) {
-      console.warn(`[RoundCommit] ${commit.source} 拒绝 ${rejected.length} 条变更`)
+      console.warn(`[RoundCommit] ${preparedCommit.source} 拒绝 ${rejected.length} 条变更`)
     }
 
     return { committed, rejected }
+  }
+
+  commit(commit: RoundCommit, context: RoundContext): RoundCommitResult {
+    const preparation = this.prepare(commit, context)
+    if (!preparation.prepared) return { committed: [], rejected: preparation.rejected }
+    return this.commitPrepared(preparation.prepared, context)
   }
 }

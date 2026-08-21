@@ -26,7 +26,27 @@ export interface NarrativeEntry {
   isBranchPoint?: boolean
   branchTitle?: string
   resolvedChoice?: string
-  attrChanges?: Array<{ icon: string; label: string; change: number }>
+  destinyPatternGrowth?: NarrativeDestinyPatternGrowthEntry
+}
+
+export interface NarrativeDestinyPatternGrowthPatternEntry {
+  name: string
+  rarity: 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
+  rarityLabel: string
+  description: string
+  effect: string
+  attrBonus: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck', number>>
+}
+
+export interface NarrativeDestinyPatternGrowthEntry {
+  choiceId: string
+  source: NarrativeDestinyPatternGrowthPatternEntry
+  options: Array<NarrativeDestinyPatternGrowthPatternEntry & {
+    optionId: string
+    route: '深度强化' | '广度强化' | '转变强化'
+  }>
+  selectedOptionId?: string
+  result?: NarrativeDestinyPatternGrowthPatternEntry
 }
 
 export interface NarrativeTimelineProps {
@@ -55,6 +75,7 @@ export interface NarrativeTimelineProps {
   onBranchConfirm?: () => void
   onBranchCancel?: () => void
   onCustomInputChange?: (text: string) => void
+  onDestinyPatternGrowthSelect?: (optionId: string) => void
 }
 
 export function NarrativeTimeline({
@@ -83,6 +104,7 @@ export function NarrativeTimeline({
   onBranchConfirm,
   onBranchCancel,
   onCustomInputChange,
+  onDestinyPatternGrowthSelect,
 }: NarrativeTimelineProps) {
   const internalScrollRef = useRef<HTMLDivElement>(null)
   const scrollRef = scrollContainerRef ?? internalScrollRef
@@ -147,15 +169,7 @@ export function NarrativeTimeline({
     for (let index = renderStart; index < entries.length; index++) {
       const entry = entries[index]!
       if (index > renderStart || renderStart > 0) {
-        nodes.push(
-          <div data-separator-for={index} key={`divider-${index}`}>
-            <div className={styles.separator}>
-              <div className={styles.separatorLine} />
-              <span className={styles.separatorMark} aria-hidden="true" />
-              <div className={styles.separatorLine} />
-            </div>
-          </div>,
-        )
+        nodes.push(<div data-separator-for={index} key={`divider-${index}`} className={styles.separator}><span aria-hidden="true" /></div>)
       }
       nodes.push(
         <NarrativeTimelineEntryView
@@ -172,18 +186,13 @@ export function NarrativeTimeline({
           onBranchConfirm={onBranchConfirm}
           onBranchCancel={onBranchCancel}
           onCustomInputChange={onCustomInputChange}
+          onDestinyPatternGrowthSelect={onDestinyPatternGrowthSelect}
         />,
       )
     }
     if (showGenerationCursor) {
       nodes.push(
-        <div key="stream-divider">
-          <div className={styles.separator}>
-            <div className={styles.separatorLine} />
-            <span className={styles.separatorMark} aria-hidden="true" />
-            <div className={styles.separatorLine} />
-          </div>
-        </div>,
+        <div key="stream-divider" className={styles.separator}><span aria-hidden="true" /></div>,
         <div key="stream-entry" className={styles.streamEntry}>
           <div className={styles.entryBody}><p className={styles.entryParagraph}><span className={styles.cursor} /></p></div>
         </div>,
@@ -192,11 +201,13 @@ export function NarrativeTimeline({
     return nodes
   }, [
     branchCustomText, branchOptions, branchTitle, entries, isGenerating, onBranchCancel,
-    onBranchConfirm, onBranchSelect, onCustomInputChange, renderStart, selectedBranchOptionId,
+    onBranchConfirm, onBranchSelect, onCustomInputChange, onDestinyPatternGrowthSelect,
+    renderStart, selectedBranchOptionId,
     showGenerationCursor, unresolvedBranchIndex,
   ])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
+  const displayTurnCount = Math.max(turnCount, 1)
   const advanceTitle = isGenerating ? generatingText : advanceBlocked ? advanceBlockedText : advanceText
   const computedAdvanceHint = isGenerating
     ? generatingHint
@@ -208,7 +219,7 @@ export function NarrativeTimeline({
         <div className={styles.timelineInner}>
           <div data-narrative-header className={styles.timelineHeader}>
             <span className={styles.timelineHeaderLabel}>故事进程</span>
-            <span className={styles.timelineHeaderRound}>第 {turnCount} 轮</span>
+            <span className={styles.timelineHeaderRound}>第 {displayTurnCount} 轮 · 已走过 {displayTurnCount} 段岁月</span>
           </div>
           {entries.length === 0 && !showGenerationCursor ? (
             <div className={styles.emptyState}>

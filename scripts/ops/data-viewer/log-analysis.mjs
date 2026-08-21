@@ -94,9 +94,7 @@ export function aggregateLogWindow(database, from, to) {
     calls: 0,
     successes: 0,
     failures: 0,
-    repairs: 0,
     adoptedRounds: 0,
-    repairedRounds: 0,
     registeredCalls: 0,
     anonymousCalls: 0,
     latencySamples: 0,
@@ -122,13 +120,11 @@ export function aggregateLogWindow(database, from, to) {
         result.latencyMsTotal += trace.durationMs
         result.latencyMaxMs = Math.max(result.latencyMaxMs, trace.durationMs)
       }
-      if (trace.callKind.includes('repair')) result.repairs += 1
       continue
     }
     if (row.entry_type === 'narrative-round-commit') {
       const outcome = asObject(trace.payload.outcome ?? trace.payload)
       if (outcome.narrativeAdopted === true) result.adoptedRounds += 1
-      if (numeric(outcome.repairAttempts) > 0) result.repairedRounds += 1
       continue
     }
     if (row.entry_type !== 'proxy-trace' || row.event !== 'response') continue
@@ -152,7 +148,6 @@ export function aggregateLogWindow(database, from, to) {
   return {
     ...result,
     successRate: percent(result.successes, result.calls),
-    repairRate: percent(result.repairedRounds, result.adoptedRounds),
     cacheHitRate: percent(result.hitTokens, result.hitTokens + result.missTokens),
     averageLatencyMs: result.latencySamples > 0
       ? Math.round(result.latencyMsTotal / result.latencySamples)

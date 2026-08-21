@@ -11,7 +11,7 @@ export {
   worldRegionProfileOutputSchema,
   type WorldRegionProfileOutput,
 } from './world-region-profile-prompt'
-export { worldCalibrationPrompt, worldCalibrationOutputSchema } from './world-calibration-prompt'
+export { worldCalibrationOutputSchema } from './world-calibration-prompt'
 export {
   dimensionInferenceOutputSchema,
   type DimensionInferenceOutput,

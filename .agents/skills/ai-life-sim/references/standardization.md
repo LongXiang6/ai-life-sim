@@ -32,6 +32,12 @@
 
 frontmatter 只保留 `name`、`description` 两个字段，字段顺序固定；`name` 必须等于目录名。`agents/openai.yaml` 只保留 `interface.display_name`、`interface.short_description`、`interface.default_prompt`，按该顺序书写。`SKILL.md` 优先不超过 120 行，详细资料放在一层 `references/` 并由入口按需索引。
 
+Skill 指令行使用 `[核心原则]`、`[次要规则]`、`[辅助说明]` 标注权重，并按该顺序组织。
+
+每条 Skill 指令承担一个职责，相邻段落共同约束一个主题，表达采用目标状态、执行动作和验收结果。
+
+Prompt 专项语义、缓存排列和样品规则由 [Prompt 标准](../../ai-life-sim-prompt-engineering/references/prompt-standard.md) 负责。
+
 ## 文件与目录标准
 
 - 目录和机器文件名默认使用 ASCII 小写 kebab-case；子系统文件使用 `{subsystem-id}-system.ts`，MOD 目录使用 `mod-{name}`。
@@ -63,4 +69,4 @@ frontmatter 只保留 `name`、`description` 两个字段，字段顺序固定�
 
 运行 `npm run generate:structure-index` 更新自动结构索引，运行 `npm run check:standardization` 检查 Skill 结构、frontmatter、YAML 键序、文件命名、文本编码、Markdown 标题、JSON 格式、稳定排序、生成标记、引用、所有权、文件头、优先预算和索引漂移。该检查作为 `npm run check`、`npm run check:structural`、`npm run check:quick`、`npm run check:refactor` 和 `npm run gate-check` 的固定步骤执行。
 
-超预算文件必须在 `scripts/check/rules/file-budget-exceptions/` 的所属分片中记录路径、所有者、审查行数和单一职责理由；门禁拒绝空理由、重复路径、所有者漂移、继续增长和过期例外。存量缺失文件头以内容哈希建立迁移基线，内容变化后必须补齐文件头。不得通过静默跳过、兼容层、旁路或第二套配置绕过检查。
+文件预算以优先预算为基准，当前文件长度达到优先预算的 120% 以内时允许保留；超过 120% 才需要通过 `scripts/check/rules/file-budget-exceptions/` 的所属分片记录路径、所有者、审查行数和单一职责理由。已登记例外的增长同样不得超过审查上限的 120%。门禁仍拒绝空理由、重复路径、所有者漂移、继续增长和过期例外。存量缺失文件头以内容哈希建立迁移基线，内容变化后必须补齐文件头。不得通过静默跳过、兼容层、旁路或第二套配置绕过检查。

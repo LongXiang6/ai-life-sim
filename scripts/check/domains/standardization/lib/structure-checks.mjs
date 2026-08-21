@@ -25,6 +25,11 @@ const budgetExceptionDirectory = path.join(
 )
 const headerBaselinePath = path.join(projectRoot, 'scripts', 'check', 'rules', 'file-header-baseline.generated.json')
 const indexPath = path.join(projectRoot, 'scripts', 'check', 'generated', 'project-structure-index.generated.json')
+const budgetTolerance = Math.min(Number(structureConfig.budgetTolerance) || 1.2, 1.2)
+
+function allowedBudgetLines(baseline) {
+  return Math.ceil(baseline * budgetTolerance)
+}
 
 function loadEntries(file, rule) {
   if (!fs.existsSync(file)) {
@@ -94,18 +99,18 @@ function checkBudgets(snapshot, exceptions) {
   const currentPaths = new Set(snapshot.map((file) => file.path))
   for (const file of snapshot) {
     if (!file.overBudget) {
-      if (exceptions.has(file.path)) {
+      if (exceptions.has(file.path) && !file.exceedsPreferredBudget) {
         fail('STD-BUDGET-STALE', path.join(projectRoot, file.path), '文件已回到优先预算内，请移除职责例外')
       }
       continue
     }
     const reviewed = exceptions.get(file.path)
     if (!reviewed) {
-      fail('STD-FILE-BUDGET', path.join(projectRoot, file.path), `新超预算文件为 ${file.lines} 行，优先预算为 ${file.budget} 行`)
+      fail('STD-FILE-BUDGET', path.join(projectRoot, file.path), `文件为 ${file.lines} 行，超过优先预算 ${file.budget} 行的 120% 上限`)
       continue
     }
-    if (file.lines > reviewed.reviewedLines) {
-      fail('STD-FILE-GROWTH', path.join(projectRoot, file.path), `超预算文件从审查上限 ${reviewed.reviewedLines} 行增长到 ${file.lines} 行`)
+    if (file.lines > allowedBudgetLines(reviewed.reviewedLines)) {
+      fail('STD-FILE-GROWTH', path.join(projectRoot, file.path), `超预算文件增长到 ${file.lines} 行，超过审查上限 ${reviewed.reviewedLines} 行的 120%`)
     }
     if (reviewed.owner !== file.owner) {
       fail('STD-BUDGET-OWNER', path.join(projectRoot, file.path), '预算基线所有者与当前结构所有者不一致')

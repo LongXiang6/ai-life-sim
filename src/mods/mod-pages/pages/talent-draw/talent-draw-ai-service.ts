@@ -11,19 +11,14 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import type { AIModelConfig } from '@/foundation'
+import type { AICallLogContext } from '@/core/logger/ai-call-log'
 
 export function buildDestinyPatternContext() {
   return {
     worldConfig: useWorldStore.getState().worldConfig,
-    calibration: undefined,
-    worldTags: undefined,
     character: {
-      name: useCharacterStore.getState().name,
       race: useCharacterStore.getState().race,
-      gender: useCharacterStore.getState().gender,
       background: useCharacterStore.getState().background,
-      startingAge: useCharacterStore.getState().characterBase?.startingAge ?? 0,
-      attributes: useCharacterStore.getState().characterBase?.base as unknown as Record<string, number>,
     },
     existingNames: [],
   }
@@ -43,6 +38,7 @@ export function configureDestinyPatternAIService(): void {
       signal?: AbortSignal
       storySeed?: number
       outputSchema?: Parameters<typeof callAI>[2]['outputSchema']
+      logContext?: AICallLogContext
     }
     const useStream = opts?.stream === true
     const {
@@ -61,7 +57,7 @@ export function configureDestinyPatternAIService(): void {
     }
     const callOptions = {
       config,
-      pool: (opts?.pool ?? 'fate') as 'narrative' | 'summary' | 'worldInit' | 'fate' | 'lowFrequency',
+      pool: (opts?.pool ?? 'fate') as 'narrative' | 'worldInit' | 'fate' | 'lowFrequency',
       sessionId: opts?.sessionId,
       userSegments: opts?.userSegments,
       jsonMode: opts?.jsonMode,
@@ -74,10 +70,11 @@ export function configureDestinyPatternAIService(): void {
       reasoningEffort: talentThinkingIntensity,
       storySeed: opts?.storySeed,
       outputSchema: opts?.outputSchema,
-      strictSchema: !useStream && Boolean(opts?.outputSchema),
       logCategory: 'talent-generate' as const,
       logContext: {
-        callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
+        ...opts?.logContext,
+        callKind: opts?.logContext?.callKind
+          ?? (useStream ? 'talent-generate-stream' : 'talent-generate-batch'),
         pool: 'fate',
         model,
         sessionId: opts?.sessionId,

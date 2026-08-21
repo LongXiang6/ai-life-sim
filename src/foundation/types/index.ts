@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose the stable Foundation type surface.
+ * Owner: foundation:types
+ * Responsibility: Type exports only; definitions remain in their owning modules.
+ *
  * @module index.ts
  * @description Foundation 类型统一导出
  * @mod foundation
@@ -75,12 +79,14 @@ export type {
 } from './api.types'
 
 export type {
-  ScoringEvidenceKind,
-  ScoringCurveId,
-  WorldScoringDimension,
-  WorldScoringProfile,
+  LifeScoringEvidenceKind,
+  LifeScoringEvidence,
+  LifeScoringDimension,
+  LifeScoringIntegrityResult,
+  LifeScoringResult,
   NarrativeTransitionAuditSnapshot,
   LifeScoringAuditSnapshot,
+  StoredLifeScoringResult,
 } from './scoring.types'
 
 export type {
@@ -88,7 +94,8 @@ export type {
   PromptContext,
   WorldSetting,
   CharacterState,
-  SummaryLevel,
+  NarrativeTalentPromptView,
+  NarrativeDetailedStoryPromptView,
   CompressedMemoryEvent,
   CompressedSummaryItem,
   CompressedSummaries,

@@ -1,3 +1,5 @@
+/** Purpose: Render character creation navigation actions. Owner: mod-pages. Responsibility: Page action presentation and event forwarding only. */
+
 import type { UseCharacterCreateLogicReturn } from './useCharacterCreateLogic'
 
 import { BottomActionBar } from '@/mods/mod-ui'
@@ -8,6 +10,8 @@ export function CharacterCreateBottomBar({ logic }: { logic: UseCharacterCreateL
   return <BottomActionBar
     onBack={logic.handleBack}
     backTitle={logic.LABELS.backTitleMobile}
+    backText="返回"
+    backDescription="回到世界配置"
     onConfirm={logic.handleNext}
     confirmNumber="04"
     confirmText="确认角色"

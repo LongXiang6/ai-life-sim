@@ -1,3 +1,5 @@
+/** Purpose: Render welcome-page save selection and deletion confirmation. Owner: mod-pages. Responsibility: Save-sheet presentation and event forwarding only. */
+
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -205,24 +207,18 @@ export default function WelcomeSaveSheet({
       <button
         ref={triggerRef}
         type="button"
-        className={`${styles.routeAction} ${styles.savedAction}`}
+        className={styles.routeAction}
         aria-expanded={open}
         aria-controls="welcome-save-sheet"
         onClick={openSheet}
         title="展开存档栏位，选择一段人生继续"
       >
-        <span className={styles.routeIndex}>02</span>
-        <span className={styles.routeCopy}>
-          <strong>继续人生</strong>
-          <small>
-            {latestSave
-              ? `${saveItems.length} 个存档 · 最近：${getItemLabel(latestSave)}`
-              : '暂无存档 · 可从故事页手动保存'}
-          </small>
-        </span>
-        <span className={styles.routeArrow} aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></svg>
-        </span>
+        <strong>📖 继续人生</strong>
+        <small>
+          {latestSave
+            ? `${saveItems.length} 个存档 · 最近：${getItemLabel(latestSave)}`
+            : '暂无存档 · 可从故事页手动保存'}
+        </small>
       </button>
 
       <section
@@ -236,7 +232,7 @@ export default function WelcomeSaveSheet({
       >
         <div className={styles.saveSheetHead}>
           <div>
-            <strong id="welcome-save-sheet-title">选择存档</strong>
+            <strong id="welcome-save-sheet-title">🗂️ 选择存档</strong>
             <small>继续一段尚未写完的人生</small>
           </div>
           <button
@@ -256,21 +252,32 @@ export default function WelcomeSaveSheet({
             {saveItems.map((save) => {
               const active = selectedSave?.id === save.id
               return (
-                <button
-                  key={save.id}
-                  type="button"
-                  className={styles.saveItem}
-                  aria-pressed={active}
-                  tabIndex={open ? 0 : -1}
-                  disabled={isContinuing}
-                  onClick={() => onSelectSave(save.id)}
-                >
-                  <span>
-                    <strong>{getItemLabel(save)}</strong>
-                    <small>{getItemDetail(save)}</small>
-                  </span>
-                  <span className={styles.saveCheck} aria-hidden="true" />
-                </button>
+                <div key={save.id} className={styles.saveItem} data-active={active}>
+                  <button
+                    type="button"
+                    className={styles.saveItemSelect}
+                    aria-pressed={active}
+                    tabIndex={open ? 0 : -1}
+                    disabled={isContinuing}
+                    onClick={() => onSelectSave(save.id)}
+                  >
+                    <span>
+                      <strong>{getItemLabel(save)}</strong>
+                      <small>{getItemDetail(save)}</small>
+                    </span>
+                    <span className={styles.saveCheck} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.saveItemDelete}
+                    aria-label={`删除${getItemLabel(save)}`}
+                    tabIndex={open ? 0 : -1}
+                    disabled={isContinuing || isDeleting}
+                    onClick={() => setDeleteTarget(save)}
+                  >
+                    ×
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -278,18 +285,6 @@ export default function WelcomeSaveSheet({
           <p className={styles.saveEmpty}>尚无可继续的存档。进入故事后，可在“当前信息 → 更多”中手动保存。</p>
         )}
 
-        <p className={styles.saveSheetStatus} role="status" aria-live="polite">
-          {selectedSave ? `已选择：${getItemLabel(selectedSave)}` : '尚未选择存档'}
-        </p>
-        <button
-          type="button"
-          className={styles.deleteSelected}
-          disabled={!selectedSave || isContinuing || isDeleting}
-          tabIndex={open ? 0 : -1}
-          onClick={() => selectedSave && setDeleteTarget(selectedSave)}
-        >
-          删除已选择的存档
-        </button>
         <button
           type="button"
           className={styles.continueSave}
@@ -297,11 +292,8 @@ export default function WelcomeSaveSheet({
           tabIndex={open ? 0 : -1}
           onClick={() => void handleContinue()}
         >
-          <span>
-            <strong>{isContinuing ? '正在读取人生……' : '继续此人生'}</strong>
-            <small>{selectedSave ? getItemLabel(selectedSave) : '暂无可用存档'}</small>
-          </span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <strong>{isContinuing ? '正在读取人生……' : '▶ 继续此人生'}</strong>
+          <small>{selectedSave ? getItemLabel(selectedSave) : '暂无可用存档'}</small>
         </button>
 
         {deleteTarget && (

@@ -75,7 +75,7 @@ export interface WorldInitKvCallExtras {
   kvSubPool?: WorldInitKVSubPool
 }
 
-/** 填充模板后应用 KV 键序 + S2 分段（重试提示请通过 extraUserMessages 追加，勿拼进 JSON） */
+/** 填充模板后应用 KV 键序与 S2 分段。 */
 export function prepareWorldInitUserPrompt(
   filledUserPrompt: string,
   subPool: WorldInitKVSubPool,
@@ -102,7 +102,7 @@ export function configForWorldInitSubPool(aiConfig: AIModelConfig, subPool: Worl
   return { ...aiConfig, responseFormat: undefined }
 }
 
-/** 解析 tags-fallback / world-build 标签响应（兼容 JSON 对象 envelope 与裸数组） */
+/** 解析世界构建标签响应（兼容 JSON 对象 envelope 与裸数组）。 */
 export function parseWorldTagsResponse(raw: string): string[] {
   const parsed = parseAIJSON<{ tags?: unknown } | string[]>(raw)
   if (!parsed) throw new Error('标签 JSON 解析失败')

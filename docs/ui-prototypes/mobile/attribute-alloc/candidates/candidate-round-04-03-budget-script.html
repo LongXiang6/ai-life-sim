@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>属性分配 · 第四轮候选 03 · 预算铭文</title>
+  <style>
+    /* Purpose: Static interactive prototype: attribute-alloc page (06) round-04 candidate 03: ritual-script structure kept, budget explanation rewritten as a destiny-book inscription wrapped in ornament symbols (most ritualized), and attribute tier semantics fixed to exactly mirror runtime getAttrSemantic (VISIBLE_ATTR_VALUE_DESCRIPTIONS for effective >= 0, ATTR_TIER_DESCRIPTIONS fallback below, formatSigned suffix). Warm paper/ink language matching the settled talent-draw / talent-select pages; runtime AttributeAlloc.module.css has no animations, so none are added. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page::-webkit-scrollbar {
+      display: none;
+    }
+
+    .paper {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      align-content: start;
+      padding: 20px 20px 96px;
+    }
+
+    .runningHead {
+      display: flex;
+      height: 16px;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a0907a;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+    .runningHead .deco { color: #d8c9a8; margin: 0 3px; }
+
+    .titleCopy {
+      text-align: center;
+      padding: 4px 0 0;
+    }
+    .titleCopy h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .titleCopy h1 .semantic-emoji {
+      margin-right: 7px;
+      font-size: 17px;
+      vertical-align: -0.08em;
+    }
+    .titleCopy p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+    }
+    .titleCopy p .deco { color: #d8c9a8; margin: 0 3px; }
+
+    /* 铭文分隔线：标题下的仪式分界 */
+    .scriptRule {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .scriptRule::before,
+    .scriptRule::after { content: ''; height: 1px; background: linear-gradient(90deg, transparent, #d8c9a8, transparent); }
+    .scriptRule i { color: #96783f; font-style: normal; font-size: 12px; line-height: 1; }
+
+    .section {
+      padding: 14px 16px 13px;
+      border: 1px solid #e5e1d6;
+      border-radius: 18px;
+      background: #fffdf8;
+    }
+
+    .sectionHead {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed #eadfce;
+    }
+    .sectionHead strong { color: #241f18; font-size: 13px; font-weight: 700; }
+    .sectionHead strong .deco { color: #96783f; font-weight: 600; margin: 0 5px; }
+    .sectionHead small { color: #a0907a; font-size: 10px; font-weight: 500; text-align: right; }
+
+    .budget {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .budgetScore {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border: 1px solid #d8c9a8;
+      border-radius: 50%;
+      background: #faf4e8;
+      text-align: center;
+    }
+    .budgetScore b { color: #6b4d1d; font-size: 15px; line-height: 1; }
+    .budgetScore span { color: #a0907a; font-size: 9px; line-height: 1.2; }
+
+    .budgetCopy { min-width: 0; }
+    .budgetCopy strong { color: #241f18; font-size: 12px; font-weight: 650; }
+    .budgetCopy strong span { color: #96783f; }
+    .budgetCopy p { margin: 3px 0 0; color: #8a7f6e; font-size: 10px; line-height: 1.5; }
+    .budgetCopy p .deco { color: #d8c9a8; margin: 0 3px; }
+
+    .meter {
+      display: grid;
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      gap: 2px;
+      margin-top: 7px;
+    }
+    .meter i {
+      display: block;
+      height: 4px;
+      border-radius: 999px;
+      background: #e5dfd1;
+    }
+    .meter i.isOn { background: #96783f; }
+
+    .attributeList {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .attribute {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 8px;
+      padding: 10px 0;
+      border-top: 1px solid #eadfce;
+    }
+    .attribute:first-child { border-top: 0; padding-top: 0; }
+    .attribute:last-child { padding-bottom: 0; }
+
+    .attributeName { min-width: 0; }
+    .attributeName strong {
+      display: block;
+      color: #241f18;
+      font-size: 13px;
+      font-weight: 680;
+    }
+    .attributeName strong .semantic-emoji { margin-right: 5px; font-size: 12px; }
+
+    .attributeName span {
+      display: block;
+      margin-top: 4px;
+      color: #8a6a2f;
+      font-size: 10.5px;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+    }
+    .attributeName span .deco { color: #d8c9a8; font-weight: 600; margin-right: 6px; }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: 30px 40px 30px;
+      gap: 4px;
+      align-items: center;
+    }
+    .stepper button {
+      display: grid;
+      width: 30px;
+      height: 32px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #e5e1d6;
+      border-radius: 9px;
+      background: #fff;
+      color: #7a7160;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .stepper button:disabled { cursor: not-allowed; opacity: 0.36; }
+    .stepper b {
+      min-width: 40px;
+      color: #6b4d1d;
+      font-size: 16px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .attributeMeta {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 3px;
+      padding-top: 4px;
+      border-top: 1px dashed #eadfce;
+      color: #b5ab96;
+      font-size: 10px;
+      line-height: 1.3;
+    }
+    .attributeMeta b { color: #96783f; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .attributeMeta .deco { color: #d8c9a8; margin: 0 4px; }
+
+    .axis {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      gap: 2px;
+      margin-top: 3px;
+    }
+    .axis i {
+      height: 4px;
+      align-self: center;
+      border-radius: 999px;
+      background: #e5dfd1;
+    }
+    .axis i.isMid { height: 3px; opacity: 0.65; }
+    .axis i.isFar { height: 2px; opacity: 0.35; }
+    .axis i.isOn { background: #96783f; opacity: 1; }
+
+    .tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .secondaryButton {
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 12px;
+      background: #fff;
+      color: #7a7160;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .secondaryButton .deco { color: #d8c9a8; margin-right: 5px; }
+
+    /* 双文字等宽纯白同底按钮（与角色塑造定版一致） */
+    .bottomBar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .confirmButton {
+      border: 1px solid #d8c9a8;
+      background: #fff;
+    }
+
+    .confirmButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small { display: block; }
+
+    .backButton strong,
+    .confirmButton strong { font-size: 14px; font-weight: 650; }
+    .backButton small,
+    .confirmButton small { margin-top: 2px; color: #8a7f6e; font-size: 11px; font-weight: 500; }
+    .confirmButton small .deco { color: #d8c9a8; margin: 0 3px; }
+
+    /* 未使用点数对话框（照抄运行时 dialog 结构） */
+    .dialogBackdrop {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      display: grid;
+      align-items: end;
+      padding: 18px;
+      background: rgba(46 41 34 / 28%);
+    }
+    .dialog {
+      width: 100%;
+      max-width: 30rem;
+      margin: 0 auto;
+      padding: 16px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+    }
+    .dialog h3 { margin: 0; color: #241f18; font-size: 14px; font-weight: 700; }
+    .dialog p { margin: 8px 0 14px; color: #8a7f6e; font-size: 12px; line-height: 1.55; }
+    .dialog p strong { color: #6b4d1d; }
+    .dialogActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dialogActions .isPrimary { border-color: #96783f; background: #96783f; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <main class="paper">
+          <div class="runningHead" aria-hidden="true"><span>❖ AI LIFE SIM · 命书 ❖</span><span>06 / 08</span></div>
+
+          <header class="titleCopy">
+            <h1><span class="semantic-emoji" aria-hidden="true">📜</span>属性分配</h1>
+            <p><span class="deco" aria-hidden="true">❖</span>命格既显，根基待你一一铭定<span class="deco" aria-hidden="true">❖</span></p>
+          </header>
+
+          <div class="scriptRule" aria-hidden="true"><i>✦</i></div>
+
+          <section class="section" aria-labelledby="attribute-budget-title">
+            <div class="sectionHead">
+              <strong id="attribute-budget-title"><span class="deco" aria-hidden="true">✦</span>基础点数<span class="deco" aria-hidden="true">✦</span></strong>
+              <small>命格加成不占预算</small>
+            </div>
+            <div class="budget">
+              <div class="budgetScore" aria-hidden="true">
+                <b id="usedPoints">0</b>
+                <span>/ 15</span>
+              </div>
+              <div class="budgetCopy">
+                <strong>剩余 <span id="remainingPoints">15</span> 点</strong>
+                <p><span class="deco" aria-hidden="true">❖</span>命书所载：凡胎以零为基、以十为巅，逾十则入超凡之境；命格所赠，另铭于外。<span class="deco" aria-hidden="true">❖</span></p>
+                <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0" aria-label="已使用属性点" id="meter"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="attribute-list-title">
+            <div class="sectionHead">
+              <strong id="attribute-list-title"><span class="deco" aria-hidden="true">✦</span>四项基础属性<span class="deco" aria-hidden="true">✦</span></strong>
+              <small>数值越高，倾向越明显</small>
+            </div>
+            <ol class="attributeList" id="attributeList"></ol>
+            <div class="tools">
+              <button type="button" class="secondaryButton" id="resetButton"><span class="deco" aria-hidden="true">✧</span>重置</button>
+              <button type="button" class="secondaryButton" id="averageButton"><span class="deco" aria-hidden="true">✧</span>平均分配</button>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <div class="bottomBar">
+        <a class="backButton" href="../talent-select/candidates/candidate-round-04-01-pill-clean.html" title="返回命格选择">
+          <strong>返回</strong>
+          <small>返回命格选择</small>
+        </a>
+        <button type="button" class="confirmButton" id="confirmButton" title="确认属性">
+          <strong>确认属性</strong>
+          <small id="confirmHint">尚余 15 点 <span class="deco" aria-hidden="true">·</span> 下一步核对命运</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var TOTAL_POINTS = 15
+      /* 凡人语义表：照抄运行时 attr-tiers.ts VISIBLE_ATTR_VALUE_DESCRIPTIONS（有效值 ≥ 0 时使用） */
+      var visibleSemantics = {
+        physique: [
+          '平平无奇',
+          '体能略胜普通人，能稳定完成日常体力活动',
+          '身体健康结实，力量与耐力有一定优势',
+          '体魄明显出众，能承担持续高强度活动',
+          '力量、耐力与恢复能力都达到优秀水平',
+          '经过长期训练才能达到的强健体魄',
+          '在专业体能领域中属于少数顶尖者',
+          '多项体能指标接近人类精英纪录',
+          '身体素质极其罕见，足以竞争多项人类纪录',
+          '几乎触及人类生理结构允许的综合极限',
+          '人类物种巅峰：不借助超凡力量时，力量、耐力、速度与恢复达到人类可实现的综合极限'
+        ],
+        mind: [
+          '平平无奇',
+          '思路较清楚，学习与判断略胜普通人',
+          '理解、记忆和推理能力都有稳定优势',
+          '能够迅速掌握复杂知识并作出可靠判断',
+          '分析与规划能力达到专业优秀水平',
+          '具备少数杰出学者或战略人才的思维能力',
+          '能长期处理高度复杂的信息与多重目标',
+          '洞察、推理与创造性思考均接近时代顶尖',
+          '在多个心智能力维度上都极其罕见',
+          '几乎触及人类大脑可训练与可发挥的综合极限',
+          '人类物种巅峰：不借助超凡力量时，理解、记忆、推理、创造与决策达到人类可实现的综合极限'
+        ],
+        talentAptitude: [
+          '平平无奇',
+          '学习新事物时较容易抓住要点',
+          '能较快理解规则并稳定迁移已有经验',
+          '面对复杂技能时具有明显的领悟优势',
+          '常能举一反三，在专业训练中进步迅速',
+          '属于少数高天赋学习者，能自行修正方法',
+          '对陌生体系也能快速发现核心规律',
+          '在多个领域都表现出罕见的领悟与迁移能力',
+          '能从极少信息中建立接近正确的完整理解',
+          '几乎触及人类学习、领悟与创新能力的综合极限',
+          '人类物种巅峰：不借助超凡力量时，学习、领悟、迁移与创新达到人类可实现的综合极限'
+        ],
+        charisma: [
+          '平平无奇',
+          '仪表与表达略有亲和力，容易留下尚可印象',
+          '外貌、气质或谈吐中有稳定的吸引力',
+          '在人群中较为醒目，社交表达自然有说服力',
+          '形象与感染力达到专业优秀水平',
+          '具备少数公众人物才有的综合吸引力',
+          '能在多数社交场景中形成强烈而自然的存在感',
+          '外貌、气质、表达与领导感染力均接近顶尖',
+          '综合魅力极其罕见，常能成为群体注意中心',
+          '几乎触及人类审美表现与社会感染力的综合极限',
+          '人类物种巅峰：不借助超凡力量时，外貌表现、气质、表达与社会感染力达到人类可实现的综合极限'
+        ]
+      }
+      /* 档位回退表：照抄运行时 attr-tiers.ts ATTR_TIER_DESCRIPTIONS（仅负值回退使用） */
+      var tierSemantics = {
+        physique: [
+          '瘫痪在床，命悬一线，随时可能死去',
+          '极度虚弱，常年抱病，风一吹就倒',
+          '体弱多病，弱不禁风，走几步就喘',
+          '体质偏弱，精力不足，容易疲惫',
+          '有点虚，容易疲劳，干不了重活',
+          '平平无奇',
+          '身体匀称，健康活力，精力充沛',
+          '强壮有力，耐力出众，以一当十',
+          '筋骨强健，远胜常人，肉身如铁',
+          '天赋异禀，万人难敌，肉身成圣之姿',
+          '超凡脱俗，宛如神明，肉身不朽不灭'
+        ],
+        mind: [
+          '神志不清，浑浑噩噩，如同行尸走肉',
+          '智力低下，难以沟通，基本认知障碍',
+          '思维迟钝，学习困难，理解能力极差',
+          '不太聪明，反应稍慢，脑子转不过弯',
+          '脑袋不太灵光，容易被人忽悠',
+          '平平无奇',
+          '头脑灵活，思路清晰，反应机敏',
+          '聪明过人，善于谋略，洞察人心',
+          '智慧超群，算无遗策，运筹帷幄',
+          '天资聪颖，举一反三，智计百出',
+          '算尽天机，智近乎妖，未卜先知'
+        ],
+        talentAptitude: [
+          '朽木不可雕，扶不上墙的烂泥',
+          '不开窍，学什么都很慢，教都教不会',
+          '悟性较差，需加倍努力才能勉强跟上',
+          '资质平庸，中规中矩，没有亮点',
+          '学东西比较慢，需要比别人多花时间',
+          '平平无奇',
+          '有点悟性，一点就通，学东西很快',
+          '悟性不错，举一反三，触类旁通',
+          '悟性极佳，人中龙凤，天生吃这碗饭',
+          '百年一遇的奇才，妖孽般的学习能力',
+          '万中无一的绝世悟性，闻一知十，无师自通'
+        ],
+        charisma: [
+          '面目可憎，令人作呕，靠近就让人不适',
+          '其貌不扬，毫无存在感，被人无视',
+          '长相普通，不引人注目，过目就忘',
+          '不太起眼，丢进人群就找不到',
+          '有点不起眼，没什么存在感',
+          '平平无奇',
+          '五官端正，看着舒服，第一印象不错',
+          '相貌出众，颇有魅力，容易获得好感',
+          '俊朗不凡，引人注目，走到哪都是焦点',
+          '倾国倾城，一见难忘，让人心甘情愿追随',
+          '绝世容颜，颠倒众生，一颦一笑牵动人心'
+        ]
+      }
+      var attributes = [
+        { key: 'physique', name: '体魄', icon: '💪', bonus: 2 },
+        { key: 'mind', name: '心智', icon: '🧠', bonus: 1 },
+        { key: 'talentAptitude', name: '悟性', icon: '✨', bonus: 1 },
+        { key: 'charisma', name: '魅力', icon: '💫', bonus: 0 }
+      ]
+      var values = { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+      var confirmed = false
+
+      var listEl = document.getElementById('attributeList')
+      var meterEl = document.getElementById('meter')
+      var usedEl = document.getElementById('usedPoints')
+      var remainingEl = document.getElementById('remainingPoints')
+      var confirmButton = document.getElementById('confirmButton')
+      var confirmHint = document.getElementById('confirmHint')
+
+      var items = attributes.map(function (attribute) {
+        var li = document.createElement('li')
+        li.className = 'attribute'
+        li.innerHTML =
+          '<div class="attributeName">' +
+            '<strong><span class="semantic-emoji" aria-hidden="true">' + attribute.icon + '</span>' + attribute.name + '</strong>' +
+            '<span><span class="deco" aria-hidden="true">✦</span><em id="semantic-' + attribute.key + '"></em></span>' +
+          '</div>' +
+          '<div class="stepper">' +
+            '<button type="button" data-delta="-1" aria-label="降低' + attribute.name + '">−</button>' +
+            '<b id="value-' + attribute.key + '">0</b>' +
+            '<button type="button" data-delta="1" aria-label="提高' + attribute.name + '">＋</button>' +
+          '</div>' +
+          '<div class="attributeMeta" aria-hidden="false"><span><span class="deco" aria-hidden="true">❖</span><em id="base-' + attribute.key + '"></em></span></div>' +
+          '<div class="axis" aria-hidden="true"></div>'
+        listEl.appendChild(li)
+        return li
+      })
+
+      function axisEls(li) {
+        var axis = li.querySelector('.axis')
+        while (axis.firstChild) axis.removeChild(axis.firstChild)
+        for (var i = 0; i < 15; i++) {
+          var cell = document.createElement('i')
+          axis.appendChild(cell)
+        }
+        return axis.children
+      }
+
+      function used() {
+        return attributes.reduce(function (total, attribute) { return total + values[attribute.key] }, 0)
+      }
+
+      function effective(attribute) {
+        return values[attribute.key] + attribute.bonus
+      }
+
+      /* getAttrTierIndex：照抄运行时（钳制 [-10, 10] 的 11 档划分） */
+      function getAttrTierIndex(value) {
+        var clamped = Math.max(-10, Math.min(10, Math.round(value)))
+        if (clamped >= 9) return 10
+        if (clamped >= 7) return 9
+        if (clamped >= 5) return 8
+        if (clamped >= 3) return 7
+        if (clamped >= 1) return 6
+        if (clamped === 0) return 5
+        if (clamped >= -1) return 4
+        if (clamped >= -3) return 3
+        if (clamped >= -5) return 2
+        if (clamped >= -7) return 1
+        return 0
+      }
+
+      /* getAttrSemantic：照抄运行时（可见属性有效值 ≥ 0 用凡人语义表） */
+      function semantic(attribute, effectiveValue) {
+        var visibleScale = visibleSemantics[attribute.key]
+        if (visibleScale && effectiveValue >= 0) {
+          return visibleScale[Math.max(0, Math.min(10, Math.round(effectiveValue)))]
+        }
+        return tierSemantics[attribute.key][getAttrTierIndex(effectiveValue)]
+      }
+
+      function formatSigned(value) {
+        return value > 0 ? '+' + value : String(value)
+      }
+
+      function tierPosition(effectiveValue) {
+        return Math.round(getAttrTierIndex(effectiveValue) / 10 * 14)
+      }
+
+      function render() {
+        var usedPoints = used()
+        var remaining = Math.max(0, TOTAL_POINTS - usedPoints)
+        usedEl.textContent = usedPoints
+        remainingEl.textContent = remaining
+        meterEl.setAttribute('aria-valuenow', String(usedPoints))
+        while (meterEl.firstChild) meterEl.removeChild(meterEl.firstChild)
+        for (var m = 0; m < TOTAL_POINTS; m++) {
+          var seg = document.createElement('i')
+          if (m < usedPoints) seg.className = 'isOn'
+          meterEl.appendChild(seg)
+        }
+
+        items.forEach(function (li, index) {
+          var attribute = attributes[index]
+          var value = values[attribute.key]
+          var eff = effective(attribute)
+          li.querySelector('#semantic-' + attribute.key).textContent = semantic(attribute, eff) + (attribute.bonus ? ' · 命格 ' + formatSigned(attribute.bonus) : '')
+          li.querySelector('#base-' + attribute.key).innerHTML = '基础值 ' + value + ' · 有效值 <b>' + eff + '</b>'
+          li.querySelector('#value-' + attribute.key).textContent = eff
+          li.querySelectorAll('.stepper button').forEach(function (button) {
+            if (button.getAttribute('data-delta') === '1') button.disabled = remaining <= 0
+          })
+          var cells = axisEls(li)
+          var pos = tierPosition(eff)
+          for (var a = 0; a < 15; a++) {
+            var distance = Math.abs(a - pos)
+            if (a === pos) cells[a].className = 'isOn'
+            else if (distance > 5) cells[a].className = 'isFar'
+            else if (distance > 2) cells[a].className = 'isMid'
+          }
+        })
+
+        if (confirmed) {
+          confirmHint.textContent = '已确认 · 进入命运预览'
+          confirmButton.disabled = true
+        } else {
+          confirmHint.textContent = (remaining > 0 ? '尚余 ' + remaining + ' 点 · ' : '预算已分配 · ') + '下一步核对命运'
+          confirmButton.disabled = false
+        }
+      }
+
+      attributes.forEach(function (attribute, index) {
+        var li = items[index]
+        li.querySelectorAll('.stepper button').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var delta = Number(button.getAttribute('data-delta'))
+            var nextValue = values[attribute.key] + delta
+            var nextUsed = attributes.reduce(function (total, item) {
+              return total + (item.key === attribute.key ? nextValue : values[item.key])
+            }, 0)
+            if (delta > 0 && nextUsed > TOTAL_POINTS) return
+            values[attribute.key] = nextValue
+            render()
+          })
+        })
+      })
+
+      document.getElementById('resetButton').addEventListener('click', function () {
+        values = { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+        render()
+      })
+
+      document.getElementById('averageButton').addEventListener('click', function () {
+        values = { physique: 4, mind: 4, talentAptitude: 4, charisma: 3 }
+        render()
+      })
+
+      var backdrop = null
+      function openDialog() {
+        var remaining = Math.max(0, TOTAL_POINTS - used())
+        backdrop = document.createElement('div')
+        backdrop.className = 'dialogBackdrop'
+        backdrop.setAttribute('role', 'presentation')
+        backdrop.innerHTML =
+          '<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="unused-points-title">' +
+            '<h3 id="unused-points-title">仍有属性点未使用</h3>' +
+            '<p>剩余 <strong>' + remaining + '</strong> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p>' +
+            '<div class="dialogActions">' +
+              '<button type="button" class="secondaryButton" id="dialogContinue">继续分配</button>' +
+              '<button type="button" class="secondaryButton isPrimary" id="dialogConfirm">确认并继续</button>' +
+            '</div>' +
+          '</div>'
+        backdrop.addEventListener('click', function () { closeDialog() })
+        backdrop.querySelector('.dialog').addEventListener('click', function (event) { event.stopPropagation() })
+        backdrop.querySelector('#dialogContinue').addEventListener('click', function () { closeDialog() })
+        backdrop.querySelector('#dialogConfirm').addEventListener('click', function () { confirmed = true; closeDialog(); render() })
+        document.querySelector('.viewport').appendChild(backdrop)
+        backdrop.querySelector('button').focus()
+      }
+      function closeDialog() {
+        if (backdrop) { backdrop.remove(); backdrop = null }
+      }
+
+      confirmButton.addEventListener('click', function () {
+        if (confirmed) return
+        if (Math.max(0, TOTAL_POINTS - used()) > 0) openDialog()
+        else { confirmed = true; render() }
+      })
+
+      render()
+    })()
+  </script>
+</body>
+</html>

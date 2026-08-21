@@ -1,4 +1,12 @@
+/**
+ * Purpose: Render and select the five AI-generated settlement dimensions.
+ * Owner: mod-pages/game-over
+ * Responsibility: Radar geometry and interaction only.
+ */
+
 'use client'
+
+import type { CSSProperties } from 'react'
 
 import type { RadarDimension } from '@/mods/mod-ui'
 
@@ -17,6 +25,8 @@ const CENTER_X = 126
 const CENTER_Y = 90
 const HORIZONTAL_RADIUS = 58
 const VERTICAL_RADIUS = 60
+const LABEL_HORIZONTAL_RADIUS = 102
+const LABEL_VERTICAL_RADIUS = 76
 const GRID_LEVELS = [100, 75, 50]
 
 export const GAME_OVER_DIMENSION_ICONS: Record<string, string> = {
@@ -26,20 +36,22 @@ export const GAME_OVER_DIMENSION_ICONS: Record<string, string> = {
   魅力: '💫',
 }
 
-const METRIC_POSITION_CLASSES = [
-  styles.metricTop,
-  styles.metricRight,
-  styles.metricBottom,
-  styles.metricLeft,
-]
-
 function pointAt(axisIndex: number, axisCount: number, value: number) {
   const angle = -Math.PI / 2 + axisIndex * ((2 * Math.PI) / axisCount)
   const ratio = value / 100
-
   return {
     x: CENTER_X + Math.cos(angle) * HORIZONTAL_RADIUS * ratio,
     y: CENTER_Y + Math.sin(angle) * VERTICAL_RADIUS * ratio,
+  }
+}
+
+function labelStyle(axisIndex: number, axisCount: number): CSSProperties {
+  const angle = -Math.PI / 2 + axisIndex * ((2 * Math.PI) / axisCount)
+  const x = CENTER_X + Math.cos(angle) * LABEL_HORIZONTAL_RADIUS
+  const y = CENTER_Y + Math.sin(angle) * LABEL_VERTICAL_RADIUS
+  return {
+    left: `${x / WIDTH * 100}%`,
+    top: `${y / HEIGHT * 100}%`,
   }
 }
 
@@ -53,7 +65,7 @@ export function GameOverRadar({
   const axisPoints = dimensions.map((_, index) => pointAt(index, axisCount, 100))
   const dataPoints = dimensions.map((dimension, index) => pointAt(index, axisCount, dimension.value))
   const dataPolygon = dataPoints.map((point) => `${point.x},${point.y}`).join(' ')
-  const chartLabel = `真实四维：${dimensions.map((dimension) => `${dimension.label}${dimension.value}`).join('、')}，人生评分${overallScore}`
+  const chartLabel = `AI 五维评鉴：${dimensions.map((dimension) => `${dimension.label}${dimension.value}`).join('、')}，人生评分${overallScore}`
 
   return (
     <div className={styles.radarGraph}>
@@ -73,7 +85,6 @@ export function GameOverRadar({
               .join(' ')}
           />
         ))}
-
         {axisPoints.map((point, index) => (
           <line
             key={dimensions[index]?.label ?? index}
@@ -84,9 +95,7 @@ export function GameOverRadar({
             y2={point.y}
           />
         ))}
-
         <polygon className={styles.radarArea} points={dataPolygon} />
-
         {dataPoints.map((point, index) => (
           <circle
             key={dimensions[index]?.label ?? index}
@@ -96,20 +105,16 @@ export function GameOverRadar({
             r={activeIndex === index ? 4.4 : 3}
           />
         ))}
-
-        <text className={styles.radarScoreText} x={CENTER_X} y={CENTER_Y - 2}>
-          {overallScore}
-        </text>
-        <text className={styles.radarScoreLabel} x={CENTER_X} y={CENTER_Y + 9}>
-          人生评分
-        </text>
+        <text className={styles.radarScoreText} x={CENTER_X} y={CENTER_Y - 2}>{overallScore}</text>
+        <text className={styles.radarScoreLabel} x={CENTER_X} y={CENTER_Y + 9}>人生评分</text>
       </svg>
 
       {dimensions.map((dimension, index) => (
         <button
           key={dimension.label}
           type="button"
-          className={`${styles.metricButton} ${METRIC_POSITION_CLASSES[index] ?? ''} ${activeIndex === index ? styles.metricButtonActive : ''}`}
+          className={`${styles.metricButton} ${activeIndex === index ? styles.metricButtonActive : ''}`}
+          style={labelStyle(index, axisCount)}
           aria-pressed={activeIndex === index}
           aria-label={`${dimension.label} ${dimension.value}，${dimension.comment ?? '查看评语'}`}
           onClick={() => onSelect(index)}

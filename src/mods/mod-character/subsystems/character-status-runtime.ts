@@ -11,7 +11,6 @@ import {
   type CharacterConditionState,
   type CharacterFortuneLevel,
   type CharacterLifeStageDefinition,
-  type CharacterMoralityLevel,
   type CharacterNarrativeStatus,
 } from '@/foundation'
 import type { LifespanDraftState } from '../types'
@@ -48,29 +47,6 @@ function fortuneGuidance(level: CharacterFortuneLevel): string {
     ordinary: '角色当前气运普通，事件按既有因果自然发展',
     lucky: '角色当前较为走运，合理机会更容易出现',
     'very-lucky': '角色当前气运极佳，重大机会有较高概率以合理方式出现',
-  }
-  return guidance[level]
-}
-
-function moralityLevel(value: number): CharacterMoralityLevel {
-  if (value >= 80) return 'supremeGood'
-  if (value >= 50) return 'greatGood'
-  if (value >= 20) return 'good'
-  if (value > -20) return 'balanced'
-  if (value > -50) return 'evilLeaning'
-  if (value > -80) return 'greatEvil'
-  return 'supremeEvil'
-}
-
-function moralityGuidance(level: CharacterMoralityLevel): string {
-  const guidance: Record<CharacterMoralityLevel, string> = {
-    supremeGood: '角色道德立场极其坚定，通常会主动保护他人并承担代价',
-    greatGood: '角色行事明显偏善，通常重视承诺、公平与他人处境',
-    good: '角色整体偏善，但仍会结合现实利益作出选择',
-    balanced: '角色道德倾向中性，行为主要由处境、关系与目标决定',
-    evilLeaning: '角色行事偏狠辣自利，更愿意牺牲他人利益达成目标',
-    greatEvil: '角色道德水平很低，常以控制、伤害或背叛解决问题',
-    supremeEvil: '角色几乎不受道德约束，行为会优先追求自身意志与结果',
   }
   return guidance[level]
 }
@@ -136,7 +112,7 @@ export function refreshCharacterGuidance(status: CharacterNarrativeStatus): Char
   return {
     ...status,
     currentStageId: stage?.stageId,
-    guidance: [stage?.guidance, healthGuidance, status.fortune.guidance, status.morality.guidance, riskGuidance]
+    guidance: [stage?.guidance, healthGuidance, status.fortune.guidance, riskGuidance]
       .filter((item): item is string => Boolean(item)),
   }
 }
@@ -150,7 +126,6 @@ export function createCharacterNarrativeStatus(input: {
 }): CharacterNarrativeStatus {
   const maximumLifespanDays = Math.max(1, Math.round(input.lifespanDraft.maximumLifespanYears * CHARACTER_DAYS_PER_YEAR))
   const fortune = { value: 0, level: 'ordinary' as const, guidance: fortuneGuidance('ordinary') }
-  const morality = { value: 0, level: 'balanced' as const, roundDelta: 0, guidance: moralityGuidance('balanced') }
   const status: CharacterNarrativeStatus = {
     ...(input.entityId ? { entityId: input.entityId } : {}),
     raceId: input.lifespanDraft.raceId,
@@ -171,7 +146,6 @@ export function createCharacterNarrativeStatus(input: {
       updatedAtTotalDays: input.totalDays,
     },
     fortune,
-    morality,
     guidance: [],
     lastAnalyzedAtTotalDays: input.totalDays,
   }
@@ -187,7 +161,6 @@ export function advanceCharacterNarrativeStatus(
   const next = structuredClone(status)
   next.ageDays = resolveCharacterAgeDays(startingAgeYears, totalDays, next.ageAnchorTotalDays)
   next.endRisk = endRisk(next)
-  next.morality.roundDelta = 0
   return refreshCharacterGuidance(next)
 }
 
@@ -195,14 +168,6 @@ export function updateFortune(status: CharacterNarrativeStatus, delta: number): 
   status.fortune.value = clampInteger(status.fortune.value + delta, -100, 100)
   status.fortune.level = fortuneLevel(status.fortune.value)
   status.fortune.guidance = fortuneGuidance(status.fortune.level)
-}
-
-export function updateMorality(status: CharacterNarrativeStatus, delta: number): void {
-  const rounded = clampInteger(delta, -20, 20)
-  status.morality.value = clampInteger(status.morality.value + rounded, -100, 100)
-  status.morality.roundDelta += rounded
-  status.morality.level = moralityLevel(status.morality.value)
-  status.morality.guidance = moralityGuidance(status.morality.level)
 }
 
 export function upsertCondition(

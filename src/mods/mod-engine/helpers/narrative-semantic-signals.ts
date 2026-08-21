@@ -138,19 +138,16 @@ const NarrativeNonBlankStringSchema = z.string().refine(
   '文本不能为空白',
 )
 
-/**
- * 主叙事摘要是可选的轻量索引；其余结构化数据按需出现。
- * 语义核心与命运分支分别作为不可拆散的条件契约。
- */
+/** 事件识别元数据；完整语义核心为记忆、历史与情节系统的共同输入。 */
 export const NarrativeRoundMetadataSchema = z.object({
   notableEvents: z.array(z.string().min(1)).optional(),
   creations: z.array(NarrativeCreationSchema).optional(),
   foreshadowing: z.array(NarrativeForeshadowingMarkSchema).optional(),
-  importance: z.enum(['HIGH', 'NORMAL', 'LOW']).optional(),
+  importance: z.enum(['HIGH', 'NORMAL', 'LOW']),
   digest: z.string().min(1).optional(),
   keyEvents: z.array(NarrativeKeyEventSchema).optional(),
-  arcStatus: z.enum(['start', 'ongoing', 'end']).optional(),
-  semanticSignals: NarrativeSemanticSignalsSchema.optional(),
+  arcStatus: z.enum(['start', 'ongoing', 'end']),
+  semanticSignals: NarrativeSemanticSignalsSchema,
   branch: z.boolean().optional(),
   branchTitle: NarrativeNonBlankStringSchema.optional(),
   branchOptions: z.array(NarrativeNonBlankStringSchema).min(2).max(4).optional(),
@@ -160,15 +157,6 @@ export const NarrativeRoundMetadataSchema = z.object({
     NarrativeHistoricalEventCandidateDispositionSchema,
   ).optional(),
 }).strict().superRefine((metadata, context) => {
-  const semanticCore = [metadata.importance, metadata.arcStatus, metadata.semanticSignals]
-  const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
-  if (semanticCoreCount > 0 && semanticCoreCount < semanticCore.length) {
-    context.addIssue({
-      code: 'custom',
-      message: '重要程度、情节状态与语义信号必须同时提交或同时省略',
-    })
-  }
-
   const branchFields = [metadata.branch, metadata.branchTitle, metadata.branchOptions]
   const branchFieldCount = branchFields.filter((value) => value !== undefined).length
   if (branchFieldCount > 0 && branchFieldCount < branchFields.length) {
@@ -182,12 +170,6 @@ export const NarrativeRoundMetadataSchema = z.object({
       code: 'custom',
       path: ['branch'],
       message: '没有命运分支时应省略字段，不输出 false',
-    })
-  }
-  if (metadata.branch && semanticCoreCount !== semanticCore.length) {
-    context.addIssue({
-      code: 'custom',
-      message: '命运分支必须同时提交完整语义核心',
     })
   }
   if (metadata.branch) {
@@ -217,23 +199,6 @@ export type NarrativeHistoricalEventCandidateDisposition = z.infer<
   typeof NarrativeHistoricalEventCandidateDispositionSchema
 >
 export type NarrativeRoundMetadata = z.infer<typeof NarrativeRoundMetadataSchema>
-
-/** 无有效 AI 语义时的可识别、中立降级；不得由正文扫描补全。 */
-export function createNeutralNarrativeSemanticSignals(): NarrativeSemanticSignals {
-  return {
-    eventType: 'other',
-    conflictIntensity: 0,
-    tensionDelta: 0,
-    actionScale: 'medium',
-    irreversible: false,
-    impactScope: 'personal',
-    narrativeRegister: 'life',
-    registerReason: '结构化语义缺失，使用生活层中立降级',
-    arcType: 'none',
-    relationshipUpdates: [],
-    resolvedForeshadowingIds: [],
-  }
-}
 
 export const NARRATIVE_SEMANTIC_SIGNALS_JSON_SCHEMA = {
   type: 'object',

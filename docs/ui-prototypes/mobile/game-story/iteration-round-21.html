@@ -1,0 +1,141 @@
+<!-- Purpose: Record the twenty-first UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第二十一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-21</p>
+      <h1>游戏故事 · 第二十一轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-20 定版候选 B（月白暖白）为基线，方向「small 加大 · 分叉面板现代化」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：顶栏 identity small「沧澜历 · 18 年 · 春」文字再放大（10px → 11px，金棕 #6b4d1d 500 不变）；branchPending 命运分叉点选择分支面板视觉现代化——摆脱「十几年前老旧设计」观感（圆角、留白、层次、按钮、间距等整体视觉更新；业务契约、单选/输入联动、按钮文字与禁用态、auto-grow、动效照抄运行时清单、候选不含持久化均不变）。分向为现代化呈现方式三档：候选 A 柔和卡片（大圆角 16px + 柔和投影 + 选项圆角块 + 金棕实心胶囊主按钮）、候选 B 层次分区（标题条分区 + 细线分隔 + 等宽双按钮 + 中圆角）、候选 C 极简留白（无边框大圆角白卡 + 大留白 + 全宽金棕主按钮）。其余共同基线全部继承：branchResolved 命运分叉回声块月白暖白 #fffdf8 + 1px 边框 #eadfce（亮色淡色、不比页面深）、右栏 strong 两行等权 serif 大字 + 行尾表情（🪪 证件 / ⏳ 沙漏）、前世武骨独立第二行左对齐（紧凑胶囊行）、chip 纯白 #fff + 1px 细灰边框 #e5e1d6、墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、单选与输入联动、🎲 装饰标题居中、输入框 auto-grow、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（顶栏：身份信息 + 推进步长下拉 + 命运分叉按钮 + 当前信息按钮；barTop grid minmax(0,1fr) auto 40px）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行，barVitals grid minmax(0,1fr) auto 两行）、章节头单行化结构、长篇时间线五轮 + 暮年 70 岁待抉择编辑器、advanceDock 流末推进、信息面板。命运分叉编辑器业务契约（branchPending 白卡 + 🎲 命运分叉点标题 + 单选选项 + 「写下自己的做法」切换按钮 + textarea + 「清空 / 请先选择」按钮；点切换按钮单选自动取消、选单选输入框自动收起内容保留）全部不变，仅面板视觉样式现代化。branchResolved 回声内容与月白暖白底色不变。前世武骨流光动画参数照抄运行时（bar-rebirth-flow 13s ease-in-out infinite，延迟 -3.1s，reduced-motion 停）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。面板现代化仅静态视觉（圆角/投影/留白/配色/按钮形态），不新增任何动画。</dd></div>
+        <div><dt>比较维度</dt><dd>分叉面板是否摆脱老旧观感（圆角弧度、留白节奏、层次分隔、按钮形态）、三个现代化方向的差异度与辨识度、现代化后与暖纸墨金棕体系（页面底 #fdf9f1 / 白卡 #fff / 金棕 #6b4d1d / 细线 #eadfce）的协调性、是否引入突兀的现代元素破坏命书口吻、小字 11px 后顶栏层次（13px 姓名 strong 与 11px 时间 small 的层级）、选项行可点击区域与墨黑单选保留、单选/输入联动与按钮文字不变、textarea 圆角与金棕聚焦、主按钮禁用/可用态、branchResolved 月白暖白不变、右栏 🪪/⏳ 行尾保留、窄屏下右栏与面板协调、chip 纯白细线与白板的协调、菱形分隔两端对齐、entryMeta 岁数精简节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>柔和卡片</strong></header>
+          <p>面板大圆角 16px + 柔和投影 + 内边距放宽；选项行各成圆角块、悬浮/选中抬亮；主按钮金棕实心胶囊、次按钮幽灵文字。</p>
+          <a class="candidate-open" href="candidates/candidate-round-21-01-soft-card.html" target="_blank" rel="noopener">
+            游戏故事 21 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>层次分区</strong></header>
+          <p>面板顶部标题条分区（hairline 分隔）+ 选项细线分隔 + 操作区等宽双按钮；中圆角 14px、层次清晰。</p>
+          <a class="candidate-open" href="candidates/candidate-round-21-02-layered-sections.html" target="_blank" rel="noopener">
+            游戏故事 21 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>极简留白</strong></header>
+          <p>面板无边框大圆角 18px 白卡 + 大留白 + 全宽金棕主按钮；选项行无边框大点击区、最清爽现代。</p>
+          <a class="candidate-open" href="candidates/candidate-round-21-03-minimal-white.html" target="_blank" rel="noopener">
+            游戏故事 21 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 柔和卡片</span><span role="columnheader">B 层次分区</span><span role="columnheader">C 极简留白</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">面板容器</strong><span role="cell">圆角 16px + 柔和投影 + 细边框</span><span role="cell">圆角 14px + 标题条分区 + 细边框</span><span role="cell">圆角 18px 无边框 + 大留白投影</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">选项行</strong><span role="cell">独立圆角块、悬浮/选中抬亮</span><span role="cell">细线分隔、无独立块</span><span role="cell">无边框大点击区、留白充足</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">主按钮</strong><span role="cell">金棕实心胶囊（禁用灰）</span><span role="cell">等宽双按钮、金棕实心圆角</span><span role="cell">全宽金棕胶囊（禁用灰）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏 small</strong><span role="cell">11px 金棕 #6b4d1d 500（再放大）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchResolved 底色</strong><span role="cell">月白暖白 #fffdf8 + #eadfce 边框</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">右栏行尾表情</strong><span role="cell">🪪 林晚 · 女 / 18 岁 ⏳</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨行</strong><span role="cell">独立第二行左对齐（紧凑胶囊行）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选样式</strong><span role="cell">墨黑 #241f18 描边 + 中心原点</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">chip 属性变化</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数、不新增</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A · 柔和卡片：面板大圆角 16px + 柔和投影 + 内边距放宽 + 选项行独立圆角块（悬浮/选中抬亮）+ 金棕实心胶囊主按钮（禁用灰态）——现代化观感最舒适，柔和卡片语言与暖纸墨的纸质感亲和，不显生硬。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B · 层次分区（标题横条 + 细线分隔 + 等宽双按钮）：分区层级偏「表单化」，与叙事流纸质感仍有距离；候选 C · 极简留白（无边框 18px 大圆角白卡 + 全宽按钮）：最现代但与页面暖纸色差距最大、悬浮弹窗感最强。</dd></div>
+        <div><dt>下一轮继承</dt><dd>按用户纠偏方向进入 ROUND-22：顶栏 small 时间行继续加大（至少要比分叉面板内的文字都大）；branchPending 面板整体风格需更融入页面（当前白卡 + 阴影仍显「格格不入」），纯 CSS 融入、业务契约与联动不变。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

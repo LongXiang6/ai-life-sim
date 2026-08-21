@@ -22,7 +22,6 @@ interface StoryProgressStep {
 }
 
 interface GameStoryBookProps {
-  autoRetryPending: boolean
   displayRoundCount: number
   endingDescription: string
   endingTitle: string
@@ -49,7 +48,6 @@ interface GameStoryBookProps {
 }
 
 export function GameStoryBook({
-  autoRetryPending,
   displayRoundCount,
   endingDescription,
   endingTitle,
@@ -74,79 +72,81 @@ export function GameStoryBook({
   onCloseSaveDialog,
   onGoToGameOver,
 }: GameStoryBookProps) {
+  const storyPublishedWithAnalysisFailure = narrativeError?.startsWith(
+    '正文已发布，附加分析未完成',
+  ) === true
   return (
     <div className="final-flow-frame final-flow-frame--core-simulation">
       <div className="flow-responsive-viewport">
         <div className="flow-responsive-layout">
-          <div className={styles.root}>
+          <div className={styles.page}>
             <ToastContainer {...toastProps} />
             <SaveDialog open={saveDialogOpen} onClose={onCloseSaveDialog} {...saveDialogProps} />
-            <section className={styles.bookShell} aria-label="故事进行中">
-              <div className={styles.stickyShell}>
-                <GameStoryReaderBar
-                  {...readerBarProps}
-                  stepButtonRef={stepButtonRef}
-                  stepMenuRef={stepMenuRef}
-                />
-                <div className={styles.readerDivider} aria-hidden="true"><span /></div>
-                {informationPanelProps ? <GameStoryInformationPanel {...informationPanelProps} /> : null}
-              </div>
+            <div className={styles.stickyBar}>
+              <GameStoryReaderBar
+                {...readerBarProps}
+                stepButtonRef={stepButtonRef}
+                stepMenuRef={stepMenuRef}
+              />
+              {informationPanelProps ? <GameStoryInformationPanel {...informationPanelProps} /> : null}
+            </div>
+            <div className={styles.readerDivider} aria-hidden="true"><span /></div>
 
-              <div ref={narrativeEndRef} className={styles.reading} role="main">
-                <header className={styles.chapterHead}>
+            <main ref={narrativeEndRef} className={styles.reading}>
+              <header className={styles.chapterHeadLine}>
+                <div className={styles.chapterHeadTop}>
                   <small>第 {Math.max(displayRoundCount, 1)} 回 · 故事进程</small>
                   <h1>故事进行中</h1>
                   <div className={styles.chapterRule}><span>{storyProgressLabel}</span></div>
-                  <div className={styles.progressSteps} aria-label="故事进程阶段">
-                    {storyProgressSteps.map((step, index) => {
-                      const isDone = index < storyProgressActiveIndex
-                      const isActive = index === storyProgressActiveIndex
-                      return (
-                        <span
-                          key={step.key}
-                          className={`${styles.progressStep} ${isDone ? styles.progressStepDone : ''} ${isActive ? styles.progressStepActive : ''}`}
-                          aria-current={isActive ? 'step' : undefined}
-                        >
-                          <i>{String(index + 1).padStart(2, '0')}</i>
-                          {step.label}
-                        </span>
-                      )
-                    })}
-                  </div>
-                </header>
+                </div>
+                <div className={styles.progressStepsInline} aria-label="故事进程阶段">
+                  {storyProgressSteps.map((step, index) => {
+                    const isDone = index < storyProgressActiveIndex
+                    const isActive = index === storyProgressActiveIndex
+                    return (
+                      <span
+                        key={step.key}
+                        className={`${styles.progressStep} ${isDone ? styles.progressStepDone : ''} ${isActive ? styles.progressStepActive : ''}`}
+                        aria-current={isActive ? 'step' : undefined}
+                      >
+                        <i>{String(index + 1).padStart(2, '0')}</i>
+                        {step.label}
+                      </span>
+                    )
+                  })}
+                </div>
+                <div className={styles.chapterFoot} aria-hidden="true" />
+              </header>
 
-                {runtimeIncomplete ? (
-                  <div className={styles.errorNotice} role="alert">
-                    <strong>核心系统未完整加载</strong>
-                    <span>请刷新页面后再继续；当前进度不会被推进或覆盖。</span>
-                  </div>
-                ) : null}
+              {runtimeIncomplete ? (
+                <div className={styles.errorNotice} role="alert">
+                  <strong>核心系统未完整加载</strong>
+                  <span>请刷新页面后再继续；当前进度不会被推进或覆盖。</span>
+                </div>
+              ) : null}
 
-                {narrativeError ? (
-                  <div className={styles.errorNotice} role="alert">
-                    <strong>{pendingNarrativeStatus === 'failed'
-                      ? '正文已生成，但本轮未完成结算'
-                      : '这一段未能写完'}</strong>
-                    <span>{autoRetryPending
-                      ? `${narrativeError} 正在自动重新尝试；也可在页面底部立即再试。`
-                      : hasUnresolvedBranch
-                        ? `${narrativeError} 请先完成当前分支后继续。`
-                        : isDead || isComplete
-                          ? narrativeError
-                          : `${narrativeError} 自动重试未恢复，可在页面底部再次尝试。`}</span>
-                  </div>
-                ) : null}
+              {narrativeError ? (
+                <div className={styles.errorNotice} role="alert">
+                  <strong>{storyPublishedWithAnalysisFailure ? '附加分析未完成' : '这一段未能写完'}</strong>
+                  <span>{storyPublishedWithAnalysisFailure
+                    ? narrativeError
+                    : hasUnresolvedBranch
+                      ? `${narrativeError} 请先完成当前分支后继续。`
+                      : isDead || isComplete
+                        ? narrativeError
+                        : `${narrativeError} 请在页面底部手动再次尝试。`}</span>
+                </div>
+              ) : null}
 
-                <NarrativeTimeline scrollContainerRef={narrativeEndRef} {...timelineProps} />
-                {isDead || isComplete ? (
-                  <section className={styles.statusBanner}>
-                    <h2>{endingTitle}</h2>
-                    <p>{endingDescription}</p>
-                    <button type="button" onClick={onGoToGameOver}>前往人生结算</button>
-                  </section>
-                ) : null}
-              </div>
-            </section>
+              <NarrativeTimeline scrollContainerRef={narrativeEndRef} {...timelineProps} />
+              {isDead || isComplete ? (
+                <section className={styles.statusBanner}>
+                  <h2>{endingTitle}</h2>
+                  <p>{endingDescription}</p>
+                  <button type="button" onClick={onGoToGameOver}>前往人生结算</button>
+                </section>
+              ) : null}
+            </main>
           </div>
         </div>
       </div>

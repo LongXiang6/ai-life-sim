@@ -1,4 +1,4 @@
 interface:
   display_name: "AI 人生模拟器界面"
-  short_description: "严格实现用户指定的界面、交互、原型与响应式运行目标"
+  short_description: "实现用户指定的界面、交互、原型与响应式运行目标"
   default_prompt: "使用 $ai-life-sim-ui，准确实现我提供的界面目标和浏览器批注。"

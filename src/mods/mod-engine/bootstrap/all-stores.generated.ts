@@ -6,7 +6,7 @@
  */
 
 export { useCharacterStore } from '@/mods/mod-character/store'
-export { useMythicLibraryStore } from '@/mods/mod-character/store'
+export { useReincarnationLibraryStore } from '@/mods/mod-character/store'
 export { useDifficultyStore } from '@/mods/mod-difficulty/store'
 export { useEngineStore } from '@/mods/mod-engine/store'
 export { useHistoryDynamicsStore } from '@/mods/mod-history-dynamics/store'

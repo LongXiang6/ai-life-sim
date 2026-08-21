@@ -1,20 +1,22 @@
+/* Purpose: Render finalized model call settings. Owner: mod-settings. Responsibility: Model-tab presentation only. */
+
 .modelSettings {
   width: 100%;
-  color: #28324b;
+  color: var(--flow-ink);
   font-size: calc(10 * var(--final-flow-density-px));
 }
 
 .panelIntro {
-  margin: calc(8 * var(--final-flow-density-px)) 0 calc(10 * var(--final-flow-density-px));
-  color: #707b92;
-  font-size: calc(7 * var(--final-flow-density-px));
-  line-height: 1.5;
-}
+      margin: 0 calc(3.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      line-height: 1.5;
+    }
 
 .settingsSection {
   margin: 0;
   padding: calc(9 * var(--final-flow-density-px)) 0;
-  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-top: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
 }
 
 .settingsSection:first-of-type {
@@ -31,30 +33,26 @@
 }
 
 .sectionLabel {
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-  margin: 0 0 calc(4 * var(--final-flow-density-px));
-  padding-inline: calc(3 * var(--final-flow-density-px));
-  color: #28324b;
-  font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: calc(10 * var(--final-flow-density-px));
-  font-weight: 600;
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      margin: 0 calc(3.333 * var(--final-flow-density-px)) calc(5 * var(--final-flow-density-px));
+    }
 
 .sectionMeta {
-  color: #929bb0;
+  color: var(--flow-faint);
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
   font-size: calc(5.5 * var(--final-flow-density-px));
   font-weight: 400;
 }
 
 .sectionCard {
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
+      padding: calc(3.333 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(16.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+    }
 
 .sectionRow {
   display: flex;
@@ -70,7 +68,7 @@
 }
 
 .controlTitle {
-  color: #28324b;
+  color: var(--flow-ink);
   font-size: calc(8 * var(--final-flow-density-px));
   font-weight: 650;
 }
@@ -79,7 +77,7 @@
 .descParagraph,
 .paramDescription,
 .paramFooter {
-  color: #929bb0;
+  color: var(--flow-faint);
   font-size: calc(5.8 * var(--final-flow-density-px));
   line-height: 1.5;
 }
@@ -89,23 +87,25 @@
 }
 
 .descParagraph {
-  margin: 0 0 calc(7 * var(--final-flow-density-px));
-}
+      margin: calc(5 * var(--final-flow-density-px)) 0;
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+      line-height: 1.5;
+    }
 
 .toggleLabel {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: calc(5 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      gap: calc(6.667 * var(--final-flow-density-px));
+    }
 
 .toggleStatus {
-  color: #929bb0;
-  font-size: calc(6.5 * var(--final-flow-density-px));
-}
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .toggleLabel:has(.toggleTrack[aria-checked="true"]) .toggleStatus {
-  color: #52639c;
+  color: var(--flow-muted);
   font-weight: 650;
 }
 
@@ -115,16 +115,16 @@
   width: calc(34 * var(--final-flow-density-px));
   height: calc(20 * var(--final-flow-density-px));
   padding: 0;
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: calc(999 * var(--final-flow-density-px));
-  background: #f1f3fa;
+  background: var(--color-bg-secondary);
   cursor: pointer;
 }
 
 .toggleTrack[aria-checked="true"],
 .toggleSwitch[aria-checked="true"] {
-  border-color: #d1dbe5;
-  background: #e7ebf6;
+  border-color: var(--flow-line-strong);
+  background: var(--flow-accent-soft);
 }
 
 .toggleThumb,
@@ -135,14 +135,14 @@
   width: calc(12 * var(--final-flow-density-px));
   height: calc(12 * var(--final-flow-density-px));
   border-radius: 50%;
-  background: #929bb0;
+  background: var(--flow-faint);
   transition: left 140ms ease, background 140ms ease;
 }
 
 .toggleTrack[aria-checked="true"] .toggleThumb,
 .toggleSwitch[aria-checked="true"] .toggleSwitchThumb {
   left: calc(17 * var(--final-flow-density-px));
-  background: #7382bb;
+  background: var(--color-primary);
 }
 
 .flexRow,
@@ -158,43 +158,43 @@
 }
 
 .dropdownWrapper {
-  display: flex;
-  min-width: 0;
-  flex: 1 1 calc(120 * var(--final-flow-density-px));
-  flex-direction: column;
-  gap: calc(3 * var(--final-flow-density-px));
-}
+      position: relative;
+      min-width: 0;
+    }
 
 .dropdownLabel {
-  color: #929bb0;
-  font-size: calc(6.5 * var(--final-flow-density-px));
-}
+      display: block;
+      margin-bottom: calc(3.333 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .dropdownBtn {
-  display: flex;
-  min-width: calc(52 * var(--final-flow-density-px));
-  min-height: calc(29 * var(--final-flow-density-px));
-  align-items: center;
-  padding: calc(4 * var(--final-flow-density-px)) calc(8 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  border-radius: calc(8 * var(--final-flow-density-px));
-  background: #fff;
-  color: #46515c;
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(7 * var(--final-flow-density-px));
-}
+      display: flex;
+      width: 100%;
+      min-height: calc(31.667 * var(--final-flow-density-px));
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(5 * var(--final-flow-density-px));
+      padding: 0 calc(10 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(11.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(10 * var(--final-flow-density-px));
+    }
 
 .dropdownBtn:hover,
 .dropdownBtn:focus-visible {
-  border-color: #b6c2d0;
+  border-color: var(--flow-line-strong);
 }
 
 .dropdownArrow {
-  margin-left: auto;
-  color: #929bb0;
-  font-size: calc(5.8 * var(--final-flow-density-px));
-}
+      color: var(--flow-faint);
+      font-size: calc(7.5 * var(--final-flow-density-px));
+    }
 
 .dropdownPortal {
   position: fixed;
@@ -203,14 +203,17 @@
 }
 
 .dropdownMenu {
-  max-height: calc(250 * var(--final-flow-density-px));
-  overflow-y: auto;
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  border-radius: calc(8 * var(--final-flow-density-px));
-  background: #fff;
-  box-shadow: 0 calc(14 * var(--final-flow-density-px)) calc(28 * var(--final-flow-density-px)) rgb(40 50 75 / 14%);
-  scrollbar-width: none;
-}
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + calc(5 * var(--final-flow-density-px)));
+      right: 0;
+      left: 0;
+      padding: calc(5 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(13.333 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      box-shadow: 0 calc(6.667 * var(--final-flow-density-px)) calc(20 * var(--final-flow-density-px)) rgba(46, 41, 34, 0.12);
+    }
 
 .dropdownMenu::-webkit-scrollbar {
   display: none;
@@ -221,9 +224,9 @@
   width: 100%;
   padding: calc(6 * var(--final-flow-density-px)) calc(8 * var(--final-flow-density-px));
   border: 0;
-  border-bottom: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
-  background: #fff !important;
-  color: #46515c !important;
+  border-bottom: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  background: var(--flow-paper) !important;
+  color: var(--flow-muted) !important;
   cursor: pointer;
   font: inherit;
   font-size: calc(7 * var(--final-flow-density-px));
@@ -236,34 +239,33 @@
 
 .dropdownItem:hover,
 .dropdownItem[aria-selected="true"] {
-  background: #e7ebf6 !important;
+  background: var(--flow-accent-soft) !important;
 }
 
 .dropdownDescription {
   margin-top: calc(2 * var(--final-flow-density-px));
-  color: #929bb0;
+  color: var(--flow-faint);
   font-size: calc(5.8 * var(--final-flow-density-px));
   line-height: 1.35;
 }
 
 .optionBtn {
-  min-height: calc(28 * var(--final-flow-density-px));
-  padding: calc(4 * var(--final-flow-density-px)) calc(6 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  border-radius: calc(7 * var(--final-flow-density-px));
-  background: #fff;
-  color: #707b92;
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(6.5 * var(--final-flow-density-px));
-}
+      min-height: calc(31.667 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(11.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(10 * var(--final-flow-density-px));
+    }
 
 .optionBtn[aria-pressed="true"] {
-  border-color: #d8deea;
-  background: #e7ebf6;
-  color: #52639c;
-  font-weight: 650;
-}
+      border-color: var(--color-border-focus);
+      background: var(--flow-accent-soft);
+      color: var(--flow-ink);
+      font-weight: 700;
+    }
 
 .advancedGrid {
   display: grid;
@@ -272,58 +274,57 @@
 
 .paramCard {
   padding: calc(9 * var(--final-flow-density-px)) 0;
-  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-top: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
 }
 
 .paramHeader {
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      padding-top: calc(6.667 * var(--final-flow-density-px));
+    }
 
 .paramTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(3 * var(--final-flow-density-px));
-  color: #28324b;
-  font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: calc(10 * var(--final-flow-density-px));
-  font-weight: 600;
-}
+      color: var(--flow-ink);
+      font-size: calc(10 * var(--final-flow-density-px));
+      font-weight: 650;
+    }
 
 .paramState {
   gap: calc(5 * var(--final-flow-density-px));
 }
 
 .paramStatus {
-  color: #929bb0;
+  color: var(--flow-faint);
   font-size: calc(6.5 * var(--final-flow-density-px));
 }
 
 .paramStatus[data-enabled="true"] {
-  color: #52639c;
+  color: var(--flow-muted);
   font-weight: 650;
 }
 
 .recommendationRow {
   gap: calc(5 * var(--final-flow-density-px));
   margin-top: calc(5 * var(--final-flow-density-px));
-  color: #929bb0;
+  color: var(--flow-faint);
   font-size: calc(6 * var(--final-flow-density-px));
 }
 
 .recommendationBadge {
   padding: calc(2 * var(--final-flow-density-px)) calc(5 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #cbd8cf;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: calc(5 * var(--final-flow-density-px));
-  background: #f0f5f1;
+  background: var(--color-success-bg);
   color: #5f7767;
   font-size: calc(6 * var(--final-flow-density-px));
   font-weight: 650;
 }
 
 .recommendationBadge[data-recommended="false"] {
-  border-color: #dfcfbd;
-  background: #faf5ef;
+  border-color: var(--flow-line);
+  background: var(--color-bg-secondary);
   color: #8a6a48;
 }
 
@@ -342,12 +343,12 @@
 .rangeInput {
   min-width: 0;
   flex: 1 1 auto;
-  accent-color: #7382bb;
+  accent-color: var(--color-primary);
 }
 
 .paramValue {
   min-width: calc(34 * var(--final-flow-density-px));
-  color: #46515c;
+  color: var(--flow-muted);
   font-size: calc(8 * var(--final-flow-density-px));
   font-weight: 650;
   text-align: right;
@@ -358,15 +359,17 @@
 }
 
 .paramFooter {
-  margin: calc(4 * var(--final-flow-density-px)) 0 0;
-}
+      margin: calc(1.667 * var(--final-flow-density-px)) 0 0;
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .toggleTrack:focus-visible,
 .toggleSwitch:focus-visible,
 .dropdownBtn:focus-visible,
 .optionBtn:focus-visible,
 .rangeInput:focus-visible {
-  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 48%, transparent);
   outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
@@ -378,3 +381,94 @@
     transition-duration: 1ms;
   }
 }
+
+.sectionLabel h3 {
+      margin: 0;
+      color: var(--flow-ink);
+      font-size: calc(10.833 * var(--final-flow-density-px));
+      font-weight: 700;
+    }
+
+.sectionLabel span {
+      color: var(--flow-faint);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
+
+.sectionCard[data-adjusted="true"] {
+      border-color: var(--color-border-focus);
+      box-shadow: 0 calc(3.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px)) rgba(151, 112, 38, 0.1);
+    }
+
+.flexRow {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: calc(8.333 * var(--final-flow-density-px));
+      padding: calc(3.333 * var(--final-flow-density-px)) 0 calc(1.667 * var(--final-flow-density-px));
+    }
+
+.dropdownMenu[hidden] {
+      display: none;
+    }
+
+.dropdownMenu button {
+      display: block;
+      width: 100%;
+      padding: calc(6.667 * var(--final-flow-density-px)) calc(8.333 * var(--final-flow-density-px));
+      border: 0;
+      border-radius: calc(10 * var(--final-flow-density-px));
+      background: transparent;
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      text-align: left;
+    }
+
+.dropdownMenu button:hover {
+      background: var(--flow-accent-soft);
+    }
+
+.dropdownMenu button.selected {
+      color: var(--flow-ink);
+      font-weight: 700;
+    }
+
+.dropdownMenu button small {
+      display: block;
+      margin-top: calc(1.667 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+      font-weight: 500;
+    }
+
+.paramTitle small {
+      margin-left: calc(5 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+      font-weight: 500;
+    }
+
+.sectionCard progress {
+      display: block;
+      width: 100%;
+      height: calc(6.667 * var(--final-flow-density-px));
+      margin-bottom: calc(6.667 * var(--final-flow-density-px));
+      border: 0;
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      overflow: hidden;
+    }
+
+.sectionCard progress::-webkit-progress-bar {
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      background: var(--color-bg-tertiary);
+    }
+
+.sectionCard progress::-webkit-progress-value {
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      background: var(--flow-muted);
+    }
+
+.sectionCard progress::-moz-progress-bar {
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      background: var(--flow-muted);
+    }

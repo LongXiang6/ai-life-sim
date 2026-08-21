@@ -1,7 +1,7 @@
 /**
- * Purpose: Record successful, failed, and local-fallback AI calls with stable cache and validation metadata.
+ * Purpose: Record successful and failed AI calls with stable cache and validation metadata.
  * Owner: core:ai-service
- * Responsibility: AI call audit records only; retry decisions and network transport remain separate.
+ * Responsibility: AI call audit records only; network transport remains separate.
  */
 
 import { recordAICallLog } from '../../logger/ai-call-log'
@@ -15,7 +15,6 @@ import type { AICallOptions, AiMessage } from './types'
 
 const POOL_TO_CATEGORY: Record<CachePoolType, DebugLogCategory> = {
   narrative: 'narrative-rounds',
-  summary: 'background-events',
   worldInit: 'world-init',
   fate: 'talent-generate',
   lowFrequency: 'background-events',
@@ -102,27 +101,5 @@ export async function logFailedAICall(
       ...options.logMeta,
       ...extraMeta,
     },
-  })
-}
-
-export function logFallbackAICall(
-  messages: AiMessage[],
-  fallbackText: string,
-  options: AICallOptions,
-  pool: CachePoolType,
-  reason: string,
-): void {
-  const cachePool = resolveInternalCachePool(pool, options.logContext?.callKind)
-  recordAICallLog({
-    category: resolveLogCategory(pool, options.logCategory),
-    messages,
-    response: fallbackText,
-    logContext: {
-      ...options.logContext,
-      pool: cachePool,
-      callKind: options.logContext?.callKind ?? 'fallback-local',
-    },
-    extraMeta: { fallbackReason: reason },
-    isFallback: true,
   })
 }

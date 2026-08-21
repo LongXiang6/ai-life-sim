@@ -103,28 +103,10 @@ foreach ($modDir in $modDirs) {
         Fail "C2-DESC" $relPath "" "       'readonly description = '...' as const'"
       }
 
-      # C3: writable runtime members keep strict validation. Read-only runtime
-      # members only need the public signature because the round field registry
-      # rejects external writes before dispatch.
+      # C3: runtime subsystems retain the local public applyChanges signature.
+      # AI-owned subsystem write membership and its field registry no longer exist.
       if ($content -match 'applyChanges\(changes:\s*SubSystemChanges') {
-        $subsystemId = Get-SubsystemIdFromContent $content
-        if ($subsystemId -and $Script:NarrativeWritableSubsystemIds.Contains($subsystemId)) {
-          $checksOk = 0
-          $checksFail = ""
-          if ($content -match 'if \(!changes \|\| typeof changes !== .object.\)') { $checksOk++ } else { $checksFail += " Line1(top) " }
-          if ($content -match 'changes\.id !== this\.id') { $checksOk++ } else { $checksFail += " Line2(id) " }
-          if ($content -match '!changes\.changes \|\| typeof changes\.changes !== .object. \|\| Array\.isArray') { $checksOk++ } else { $checksFail += " Line3(plain) " }
-          if ($content -match '!changes\.description \|\| changes\.description\.trim') { $checksOk++ } else { $checksFail += " Line4(desc) " }
-          if ($content -match "const \w+ = changes\.changes") { $checksOk++ } else { $checksFail += " Line5(read) " }
-
-          if ($checksOk -ge 5) {
-            Pass "C3-APPLY-FIVE" $relPath "writable applyChanges validation ($checksOk/5)"
-          } else {
-            Fail "C3-APPLY-FIVE" $relPath "" "writable applyChanges validation ($checksOk/5) $checksFail"
-          }
-        } else {
-          Pass 'C3-APPLY-SIG' $relPath 'read-only runtime subsystem exposes the required applyChanges signature'
-        }
+        Pass 'C3-APPLY-SIG' $relPath 'runtime subsystem exposes the required local applyChanges signature'
       } else {
         Fail "C3-APPLY-SIG" $relPath "" "       applyChanges(changes: SubSystemChanges, ...)       "
       }

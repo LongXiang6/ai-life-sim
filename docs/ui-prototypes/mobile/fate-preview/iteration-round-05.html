@@ -1,0 +1,132 @@
+<!-- Purpose: Record the fifth UI iteration round for the fate-preview page (07). Owner: Interface system. Responsibility: Compare confirmed preview-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命运预览 · 第五轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">FATE-PREVIEW / ROUND-05</p>
+      <h1>命运预览 · 第五轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-04 定版候选 B（全页描述沉浸：最终值直显 + 全页 ❖✦ 命书口吻）为基线，第五轮方向经用户纠偏修正为「标题描述沉浸」——上一轮三候选聚焦正文内容描述改写，用户指正优化对象应为标题描述（各 section 区头 sectionHead 的功能化小字），把出戏的都改掉：四个区头小字统一命书化——「最终核对」→「命书所载 · 此界此身」、「基础值 + 独立修正」→「根基既定 · 命格相赠」、「留空则每次随机」→「同因同果 · 命途自循」、「4 / 4 完成」→「世界已备 · 序幕将启」，三候选统一修正；正文内容描述保留各自分向——候选 A 命书叙事（所有描述第二人称你-voice 叙事）、候选 B 仪轨装饰（✦❖ 围合与分隔强化）、候选 C 数值互文（命格描述印证最终属性值：灵根淬体→体魄四、慧心通明→心智四、笑靥如花→魅力五）。结构与数值口径照抄运行时 fate-preview 页面。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（07 / 08）、标题「核对命书」+ 副句「确认所有起点，然后开启人生。」、世界与角色（已确认世界 · 描述原文、世界名与描述、姓名 · 性别 · 种族、起始年龄、预期寿命 ⏳ / 力量体系 ⚡ / 世界空间 🗺️ 三格）、属性与命格（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫 四格最终值直显 4 / 4 / 5 / 5、命格行名称 + 稀有度 · 极性 + 描述、轮回天赋行；不含角色天赋 pill——运行时 setTalents 无调用点、talents 恒为空数组、该区块永不渲染）、模拟种子（最多 8 位数字输入 + 随机按钮 + 提示）、世界初始化（4 步：校准 / 标签 / 参数 / 区域，完成 ✓ / 调用中 spinner / 等待 / 失败 ×，进度 X / 4 完成、底部说明与门禁提示）、底部返回（返回确认属性 / 返回确认角色）与确认（开始人生，确认号 08）。属性值显示保持最终值直显（第四轮唯一契约呈现变化），✦ 装饰分隔不拆卡保持。运行时 FatePreview.module.css 仅世界初始化 spinner（loading149Spin 0.8s linear infinite，reduced-motion 2s）一处动画，候选照抄该参数，不加其他动画。候选不含 localStorage/sessionStorage/fetch（种子输入为纯 DOM 状态，不持久化）。</dd></div>
+        <div><dt>比较维度</dt><dd>标题描述沉浸（区头小字命书化后是否仍清晰传达各区语义、是否与正文描述同一种命运叙述声音）、描述沉浸机制（叙事 / 装饰 / 互文三种深化路径的效果与代价）、数值可读性（互文后数值与描述的互证清晰度、最终值直显保持）、分区强度（保持不拆卡）、精简协调性（与抽取 / 选取 / 属性分配定版语言的连贯统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>命书叙事</strong></header>
+          <p>标题描述统一命书化（命书所载 · 此界此身 / 根基既定 · 命格相赠 / 同因同果 · 命途自循 / 世界已备 · 序幕将启）；正文描述第二人称你-voice 叙事，世界 → 命格 → 种子 → 初始化连成一段连续命运叙述；数值仍最终值直显。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-01-narrative.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>仪轨装饰</strong></header>
+          <p>标题描述统一命书化；正文描述保持第四轮定稿不动；深化仪式装饰——sectionHead 标题两侧 ✦、世界名 ✦ 框饰、描述 ❖…❖ 围合、分隔升级为 ✦ ❖ ✦。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-02-ritual-ornament.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>数值互文</strong></header>
+          <p>标题描述统一命书化；命格描述印证最终属性值（灵根淬体→体魄四、慧心通明→心智四、笑靥如花→魅力五），初始化说明将进度化为「四步皆成」；数值与描述互为凭证。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-03-value-fusion.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 命书叙事</span><span role="columnheader">B 仪轨装饰</span><span role="columnheader">C 数值互文</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">标题描述</strong><span role="cell">区头小字命书化</span><span role="cell">区头小字命书化</span><span role="cell">区头小字命书化</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">描述沉浸机制</strong><span role="cell">第二人称叙事口吻</span><span role="cell">✦❖ 仪式装饰围合</span><span role="cell">数值与描述互文印证</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">命书口吻一致性</strong><span role="cell">全书你-voice 连贯</span><span role="cell">文案不动，装饰统一</span><span role="cell">描述保持，仅数值互证</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值可读性</strong><span role="cell">最终值直显</span><span role="cell">最终值直显</span><span role="cell">最终值直显 + 描述印证</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">分区强度</strong><span role="cell">✦ 装饰分隔不拆卡</span><span role="cell">✦ ❖ ✦ 分隔不拆卡</span><span role="cell">✦ 装饰分隔不拆卡</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">spinner 0.8s 照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">呼应属性分配 ✦基础点数✦</span><span role="cell">与抽取/选取/属性定版统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A（命书叙事）。用户确认「A」。要点：标题描述统一命书化（命书所载 · 此界此身 / 根基既定 · 命格相赠 / 同因同果 · 命途自循 / 世界已备 · 序幕将启），正文描述全部第二人称你-voice 命书叙事口吻，世界 → 命格 → 种子 → 初始化连成一段连续命运叙述；最终值直显（体魄 4 / 心智 4 / 悟性 5 / 魅力 5），✦ 装饰分隔不拆卡。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B（仪轨装饰）：正文描述保持第四轮定稿不动，仅装饰强化，叙事声音未再深化，先不采纳；候选 C（数值互文）：数值在正文描述中再述一遍，与区头直显略有重复，先不采纳。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 A（命书叙事）为基线开始第六轮迭代，方向「区头标题去出戏」——用户指正 sectionHead 的 strong 功能化区名（世界与角色 / 属性与命格 / 模拟种子 / 世界初始化）出戏，去掉改为 small 命书化；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

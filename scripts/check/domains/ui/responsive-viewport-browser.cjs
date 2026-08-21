@@ -1,4 +1,8 @@
 /**
+ * Purpose: Verify runtime pages use the real browser viewport without page scaling.
+ * Owner: quality:ui
+ * Responsibility: Responsive viewport browser assertions and evidence capture only.
+ *
  * @module responsive-viewport-browser.cjs
  * @description Verifies that runtime pages use the real browser viewport without page scaling.
  */
@@ -18,7 +22,10 @@ const viewports = [
   { name: 'phone-393x727', width: 393, height: 727 },
   { name: 'phone-430x740', width: 430, height: 740 },
   { name: 'tablet-768x1024', width: 768, height: 1024 },
+  { name: 'desktop-1024x768', width: 1024, height: 768 },
   { name: 'desktop-1440x900', width: 1440, height: 900 },
+  { name: 'desktop-1611x1272', width: 1611, height: 1272 },
+  { name: 'desktop-1920x1080', width: 1920, height: 1080 },
 ]
 
 const coreRoutes = [
@@ -116,7 +123,9 @@ async function inspectRoute(page, viewport, route) {
     assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.left, 0) && approximately(metrics.responsiveViewport.right, width), 'mobile content leaves horizontal gutters', failures)
     assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.top, 0) && approximately(metrics.responsiveViewport.bottom, height), 'mobile content does not use the visible height', failures)
   } else {
-    assertCheck(metrics.responsiveViewport && metrics.responsiveViewport.width <= 480.5, 'desktop reading width exceeds the responsive maximum', failures)
+    const expectedDesktopWidth = Math.min(width, Math.max(672, width * 0.58))
+    assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.width, expectedDesktopWidth), 'desktop content does not use the shared max(42rem, 58vw) width', failures)
+    assertCheck(metrics.responsiveViewport && metrics.responsiveViewport.width >= width / 2, 'desktop content occupies less than half of the viewport', failures)
     assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.left + metrics.responsiveViewport.right, width), 'desktop content is not centered', failures)
   }
 
@@ -190,7 +199,7 @@ async function main() {
       }
     }
 
-    if (viewport.width === 390) {
+    if (viewport.width === 390 || viewport.width >= 768) {
       for (const route of auxiliaryRoutes) {
         const result = await inspectRoute(page, viewport, route)
         if (result.failures.length > 0) {

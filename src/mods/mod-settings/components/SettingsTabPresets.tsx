@@ -1,9 +1,9 @@
 'use client'
 
 /**
- * @module SettingsTabPresets.tsx
- * @description "模型调用" Tab —— 玩家自有 API 与 DeepSeek 预设填充
- * @mod mod-settings
+ * Purpose: Render player-owned API settings, presets, and connection status.
+ * Owner: mod-settings
+ * Responsibility: Provider-settings presentation and connection testing only.
  */
 
 import { useCallback, useState } from 'react'
@@ -17,6 +17,7 @@ import {
 } from '@/core/ai-service'
 
 import { useSettingsStore } from '../store'
+import { SettingsCustomProfiles } from './SettingsCustomProfiles'
 import { SettingsHelpTooltip } from './SettingsHelpTooltip'
 
 import styles from './SettingsTabPresets.module.css'
@@ -228,7 +229,7 @@ export function SettingsTabPresets() {
           <div className={styles.cardBody}>
             <div className={styles.presetRow}>
               <p className={styles.supportingText}>
-                填写自己的 Key、API 网址和模型名称。受保护主叙事当前支持 DeepSeek 官方接口。
+                填写自己的 Key、兼容 OpenAI 协议的 API 网址和模型名称，命格抽取与核心模拟会共用这组配置。
               </p>
               <button type="button" className={styles.secondaryButton} onClick={handleApplyDeepSeekPreset}>
                 填入 DeepSeek 预设
@@ -282,8 +283,15 @@ export function SettingsTabPresets() {
             <p className={styles.providerGuide}>
               DeepSeek API Key 可在
               {' '}<a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a>{' '}
-              创建。预设按钮不会覆盖已经输入的 Key。
+              创建。预设按钮不会覆盖已经输入的 Key。请求是否可用取决于服务端能否访问该网址；手机 VPN 只影响手机到游戏服务的连接。
             </p>
+
+            <SettingsCustomProfiles
+              customKey={customKey}
+              customUrl={customUrl}
+              customModel={customModel}
+              markConnectionUntested={markConnectionUntested}
+            />
 
             <div className={styles.connectionRow} aria-live="polite">
               <div className={styles.configSummary}>

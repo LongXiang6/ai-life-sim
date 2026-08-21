@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界配置 · 第三轮候选 03 · 沉浸极简</title>
+  <style>
+    /* Purpose: Static interactive prototype: immersive minimal layout — quote-led title stage, borderless sections, only functional controls remain, read-only difficulty badge, lowest information pressure. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page::-webkit-scrollbar {
+      display: none;
+    }
+
+    .paper {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      gap: 16px;
+      padding: 20px 20px 96px;
+    }
+
+    .runningHead {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a0907a;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    /* 引语主导的世界舞台：无卡片、无横幅，只留沉浸节奏 */
+    .worldStage {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      padding: 22px 6px 10px;
+      text-align: center;
+    }
+
+    .stageQuote {
+      display: block;
+      color: #6b4d1d;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 17px;
+      line-height: 1.75;
+      letter-spacing: 0.06em;
+    }
+
+    .stageQuote::before {
+      content: '「';
+    }
+
+    .stageQuote::after {
+      content: '」';
+    }
+
+    .stageMeta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .stageMeta .worldIcon {
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .stageMeta .worldName {
+      color: #241f18;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .stageMeta .worldEra {
+      color: #a0907a;
+      font-size: 11px;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+    }
+
+    /* 只读难度徽标：右上角微型，不可切换 */
+    .summaryDifficulty {
+      position: absolute;
+      top: 14px;
+      right: 0;
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      gap: 1px;
+      padding: 0;
+      border: 1px solid #d8c9a8;
+      border-radius: 50%;
+      background: #fdf9f1;
+      cursor: default;
+      color: inherit;
+      font: inherit;
+      user-select: none;
+    }
+
+    .summaryDifficultyIcon {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .summaryDifficulty small {
+      display: block;
+      color: #6b4d1d;
+      font-size: 7.5px;
+      font-weight: 650;
+      line-height: 1;
+    }
+
+    .header h1 {
+      margin: 2px 0 0;
+      color: #241f18;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      text-align: center;
+    }
+
+    /* 无边框 section：只保留内容本身 */
+    .paperSection {
+      padding: 0 2px;
+    }
+
+    .sectionHeading {
+      margin-bottom: 10px;
+    }
+
+    .sectionHeading strong,
+    .sectionHeading label {
+      color: #241f18;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .rulePreviewGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .rulePreviewItem {
+      display: grid;
+      min-width: 0;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: baseline;
+      gap: 7px;
+    }
+
+    .rulePreviewIcon {
+      color: #977026;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .rulePreviewCopy strong,
+    .rulePreviewCopy small {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .rulePreviewCopy strong {
+      color: #8a7f6e;
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .rulePreviewCopy small {
+      margin-top: 2px;
+      color: #2e2922;
+      font-size: 11.5px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .festivalControl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .festivalControl button {
+      min-width: 0;
+      min-height: 38px;
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      background: transparent;
+      color: #8a7f6e;
+      font: inherit;
+      font-size: 11px;
+      line-height: 1.35;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+
+    .festivalControl button[data-active="true"] {
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .dimensionList {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .dimensionCard {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      background: transparent;
+      transition: background 0.15s ease;
+    }
+
+    .dimensionCard[data-focus="true"] {
+      background: #faf4e8;
+    }
+
+    .dimensionCard + .dimensionCard {
+      margin-top: 4px;
+    }
+
+    .dimensionCopy h3 {
+      margin: 0;
+      color: #241f18;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .dimensionCopy h3 .semantic-emoji {
+      margin-right: 4px;
+      font-size: 12px;
+    }
+
+    .modeControl {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .modeControl button {
+      min-height: 28px;
+      padding: 0 11px;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      background: transparent;
+      color: #8a7f6e;
+      font: inherit;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+
+    .modeControl button[data-active="true"] {
+      border-color: #d8c9a8;
+      background: #fffdf8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .currentValue {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .fieldInput {
+      width: 100%;
+      min-height: 32px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: #fffdf8;
+      color: #a0907a;
+      font: inherit;
+      font-size: 10.5px;
+    }
+
+    .selectTrigger {
+      position: relative;
+      display: flex;
+      width: 100%;
+      min-height: 32px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 24px 0 10px;
+      border: 1px solid #e5e1d6;
+      border-radius: 13px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 10.5px;
+      text-align: left;
+    }
+
+    .selectTrigger .chevron {
+      position: absolute;
+      top: 11px;
+      right: 9px;
+      width: 8px;
+      height: 8px;
+      border-right: 1px solid #a0907a;
+      border-bottom: 1px solid #a0907a;
+      transform: rotate(45deg);
+    }
+
+    .customInput {
+      width: 100%;
+      min-height: 46px;
+      padding: 7px 10px;
+      border: 1px solid #e5e1d6;
+      border-radius: 13px;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 10.5px;
+      line-height: 1.45;
+      resize: none;
+    }
+
+    .choiceSheet {
+      margin-top: 4px;
+      padding: 4px;
+      border: 1px solid #e5e1d6;
+      border-radius: 14px;
+      background: #fffdf8;
+      box-shadow: 0 8px 20px rgba(62, 70, 100, 0.1);
+    }
+
+    .choiceSheet button {
+      display: block;
+      width: 100%;
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 10.5px;
+      text-align: left;
+    }
+
+    .choiceSheet button[data-selected="true"] {
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .bottomBar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .confirmButton {
+      border: 1px solid #d8c9a8;
+      background: #fff;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <main class="paper">
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>02 / 08</span></div>
+          <div class="worldStage" role="group" aria-label="当前世界">
+            <span class="stageQuote" id="worldQuote">星海无涯，此身终抵。</span>
+            <div class="stageMeta">
+              <span class="worldIcon" aria-hidden="true">🌌</span>
+              <span class="worldName" id="worldName">星际纪元</span>
+              <span class="worldEra" id="worldEra">公元 2200 年</span>
+            </div>
+            <span class="summaryDifficulty" role="img" aria-label="人生难度：普通">
+              <span class="summaryDifficultyIcon" id="difficultyIcon" aria-hidden="true">⚖️</span>
+              <small id="difficultyLabel">普通</small>
+            </span>
+          </div>
+          <header class="header">
+            <h1>世界创作工坊</h1>
+          </header>
+
+          <section class="paperSection" aria-labelledby="preview-title">
+            <div class="sectionHeading">
+              <strong id="preview-title">世界规则预览</strong>
+            </div>
+            <div class="rulePreviewGrid" id="rulePreview"></div>
+          </section>
+
+          <section class="paperSection" aria-labelledby="festival-title">
+            <div class="sectionHeading">
+              <strong id="festival-title">节日范围</strong>
+            </div>
+            <div class="festivalControl" role="group" aria-label="节日范围">
+              <button type="button" data-active="true" data-scope="china">仅中国节日</button>
+              <button type="button" data-active="false" data-scope="china-and-international">中国及国际节日</button>
+            </div>
+          </section>
+
+          <section class="paperSection" aria-labelledby="rules-title">
+            <div class="sectionHeading">
+              <strong id="rules-title">世界规则</strong>
+            </div>
+            <ol class="dimensionList" id="dimensionList"></ol>
+          </section>
+        </main>
+      </div>
+      <div class="bottomBar">
+        <button type="button" class="backButton" title="返回世界选择">
+          <strong>返回世界选择</strong>
+          <small>退出世界配置</small>
+        </button>
+        <button type="button" class="confirmButton" title="确认世界">
+          <strong>确认世界</strong>
+          <small>星际纪元 · 下一步塑造角色</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var focusIndex = 0
+      var dimensions = [
+        { icon: '🗺️', label: '世界空间形态', options: ['九州大地', '天圆地方', '星海浮岛'] },
+        { icon: '🌐', label: '世界观本质', options: ['灵气复苏', '天道规则', '科技至衡'] },
+        { icon: '⚡', label: '力量体系', options: ['武学内力', '修真灵力', '异能觉醒'] },
+        { icon: '🏔️', label: '力量框架', options: ['有限体系', '开放进阶'] }
+      ]
+      var previewValues = ['九州大地', '灵气复苏', '修真灵力', '有限体系']
+
+      var rulePreview = document.getElementById('rulePreview')
+      dimensions.forEach(function (dim, index) {
+        var item = document.createElement('div')
+        item.className = 'rulePreviewItem'
+        item.innerHTML = '<span class="rulePreviewIcon">' + dim.icon + '</span><span class="rulePreviewCopy"><strong>' + dim.label + '</strong><small>' + previewValues[index] + '</small></span>'
+        rulePreview.appendChild(item)
+      })
+
+      document.querySelectorAll('.festivalControl button').forEach(function (button) {
+        button.addEventListener('click', function () {
+          document.querySelectorAll('.festivalControl button').forEach(function (el) { el.dataset.active = 'false' })
+          button.dataset.active = 'true'
+        })
+      })
+
+      var dimensionList = document.getElementById('dimensionList')
+      dimensions.forEach(function (dim, index) {
+        var li = document.createElement('li')
+        li.className = 'dimensionCard'
+        li.dataset.focus = index === focusIndex ? 'true' : 'false'
+        var modes = ['AI', '选择', '自定']
+        var modeKeys = ['ai', 'adaptive', 'custom']
+        var activeMode = index === 0 ? 'adaptive' : 'ai'
+        var selectedOption = previewValues[index]
+
+        li.innerHTML = '<div class="dimensionCopy"><h3><span class="semantic-emoji">' + dim.icon + '</span>' + dim.label + '</h3></div>' +
+          '<div class="modeControl" role="group" aria-label="' + dim.label + '设定方式">' +
+          modes.map(function (label, i) {
+            return '<button type="button" data-mode="' + modeKeys[i] + '" data-active="' + (modeKeys[i] === activeMode ? 'true' : 'false') + '">' + label + '</button>'
+          }).join('') +
+          '</div><div class="currentValue"></div>'
+
+        var currentValue = li.querySelector('.currentValue')
+
+        function renderValue() {
+          currentValue.innerHTML = ''
+          if (activeMode === 'ai') {
+            currentValue.innerHTML = '<input class="fieldInput" value="由 AI 判断" disabled />'
+          } else if (activeMode === 'adaptive') {
+            var wrapper = document.createElement('div')
+            wrapper.className = 'selectTrigger'
+            wrapper.setAttribute('role', 'button')
+            wrapper.tabIndex = 0
+            wrapper.innerHTML = '<span>' + selectedOption + '</span><span class="chevron"></span>'
+            var open = false
+            var sheet = null
+            function closeSheet() { if (sheet) { sheet.remove(); sheet = null; open = false } }
+            wrapper.addEventListener('click', function () {
+              if (open) { closeSheet(); return }
+              sheet = document.createElement('div')
+              sheet.className = 'choiceSheet'
+              dim.options.forEach(function (option) {
+                var button = document.createElement('button')
+                button.type = 'button'
+                button.dataset.selected = option === selectedOption ? 'true' : 'false'
+                button.innerHTML = option
+                button.addEventListener('click', function () {
+                  selectedOption = option
+                  previewValues[index] = option
+                  renderValue()
+                })
+                sheet.appendChild(button)
+              })
+              currentValue.appendChild(sheet)
+              open = true
+            })
+            currentValue.appendChild(wrapper)
+          } else {
+            var textarea = document.createElement('textarea')
+            textarea.className = 'customInput'
+            textarea.rows = 2
+            textarea.placeholder = '输入自定义内容...'
+            textarea.value = selectedOption === '由 AI 判断' ? '' : selectedOption
+            textarea.addEventListener('input', function () {
+              selectedOption = textarea.value.trim() || '由 AI 判断'
+              previewValues[index] = selectedOption
+            })
+            currentValue.appendChild(textarea)
+          }
+          updatePreviewCopy(index)
+        }
+
+        function setFocus() {
+          document.querySelectorAll('.dimensionCard').forEach(function (el) { el.dataset.focus = 'false' })
+          li.dataset.focus = 'true'
+          focusIndex = index
+        }
+
+        li.querySelectorAll('.modeControl button').forEach(function (button) {
+          button.addEventListener('click', function () {
+            setFocus()
+            activeMode = button.dataset.mode
+            li.querySelectorAll('.modeControl button').forEach(function (el) { el.dataset.active = 'false' })
+            button.dataset.active = 'true'
+            renderValue()
+          })
+        })
+
+        li.querySelector('.dimensionCopy').addEventListener('click', setFocus)
+
+        renderValue()
+        dimensionList.appendChild(li)
+      })
+
+      function updatePreviewCopy(index) {
+        var items = rulePreview.querySelectorAll('.rulePreviewItem')
+        var small = items[index] && items[index].querySelector('small')
+        if (small) small.textContent = previewValues[index]
+      }
+    })()
+  </script>
+</body>
+</html>

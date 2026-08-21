@@ -1,59 +1,55 @@
+/* Purpose: Render finalized narrative settings. Owner: mod-settings. Responsibility: Narrative-tab presentation only. */
+
 .tabRoot {
   padding-top: calc(10 * var(--final-flow-density-px));
 }
 
 .section {
-  margin-bottom: calc(13 * var(--final-flow-density-px));
-}
+      margin: 0 0 calc(11.667 * var(--final-flow-density-px));
+    }
 
 .sectionLabel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-  margin-bottom: calc(5 * var(--final-flow-density-px));
-  color: #707b92;
-  font-size: calc(7 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      margin: 0 calc(3.333 * var(--final-flow-density-px)) calc(5 * var(--final-flow-density-px));
+    }
 
 .sectionLabel h3 {
-  margin: 0;
-  color: #28324b;
-  font-size: calc(9 * var(--final-flow-density-px));
-  font-weight: 700;
-}
+      margin: 0;
+      color: var(--flow-ink);
+      font-size: calc(10.833 * var(--final-flow-density-px));
+      font-weight: 700;
+    }
 
 .sectionBody,
 .wordCountBody {
   padding: calc(10 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: calc(8 * var(--final-flow-density-px));
-  background: #fff;
+  background: var(--flow-paper);
 }
 
 .styleInput {
-  display: block;
-  width: 100%;
-  min-height: calc(126 * var(--final-flow-density-px));
-  resize: vertical;
-  box-sizing: border-box;
-  padding: calc(9 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  border-radius: calc(6 * var(--final-flow-density-px));
-  outline: none;
-  background: #fafbff;
-  color: #28324b;
-  font: inherit;
-  font-size: calc(8 * var(--final-flow-density-px));
-  line-height: 1.7;
-}
+      width: 100%;
+      padding: calc(10 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(13.333 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-ink);
+      font: inherit;
+      font-size: calc(10 * var(--final-flow-density-px));
+      line-height: 1.6;
+      resize: none;
+    }
 
 .styleInput::placeholder {
-  color: #929bb0;
-}
+      color: var(--flow-faint);
+    }
 
 .styleInput:focus {
-  border-color: #7382bb;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 calc(2 * var(--final-flow-density-px)) rgb(115 130 187 / 14%);
 }
 
@@ -65,17 +61,21 @@
 }
 
 .styleMeta {
-  justify-content: space-between;
-  margin-top: calc(5 * var(--final-flow-density-px));
-  color: #929bb0;
-  font-size: calc(6.5 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      padding: calc(6.667 * var(--final-flow-density-px)) calc(1.667 * var(--final-flow-density-px)) 0;
+      color: var(--flow-faint);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .actions {
-  justify-content: flex-end;
-  gap: calc(7 * var(--final-flow-density-px));
-  margin-top: calc(9 * var(--final-flow-density-px));
-}
+      display: flex;
+      justify-content: flex-end;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      padding: calc(8.333 * var(--final-flow-density-px)) 0 calc(3.333 * var(--final-flow-density-px));
+    }
 
 .actions button {
   min-height: calc(28 * var(--final-flow-density-px));
@@ -93,38 +93,73 @@
 }
 
 .secondaryButton {
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  background: #fff;
-  color: #707b92;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+  background: var(--flow-paper);
+  color: var(--flow-muted);
 }
 
 .primaryButton {
-  border: calc(1 * var(--final-flow-density-px)) solid #7382bb;
-  background: #7382bb;
-  color: #fff;
-}
+      border-color: var(--color-border-focus);
+      background: var(--flow-accent);
+      color: #fff;
+      font-weight: 650;
+    }
 
 .wordCountControl {
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-  color: #707b92;
-  font-size: calc(8 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(8.333 * var(--final-flow-density-px));
+      padding: calc(8.333 * var(--final-flow-density-px)) 0 calc(5 * var(--final-flow-density-px));
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+    }
 
 .wordCountControl select {
   width: calc(104 * var(--final-flow-density-px));
   min-height: calc(30 * var(--final-flow-density-px));
   margin-left: auto;
   padding: 0 calc(7 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: calc(6 * var(--final-flow-density-px));
   outline: none;
-  background: #fafbff;
-  color: #28324b;
+  background: var(--flow-canvas);
+  color: var(--flow-ink);
   font: inherit;
   font-size: calc(9 * var(--final-flow-density-px));
 }
 
 .wordCountControl select:focus {
-  border-color: #7382bb;
+  border-color: var(--color-primary);
 }
+
+.sectionLabel span {
+      color: var(--flow-faint);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
+
+.secondaryButton,
+    .dangerButton,
+    .primaryButton {
+      min-height: calc(33.333 * var(--final-flow-density-px));
+      padding: 0 calc(5 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(16.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      text-align: center;
+    }
+
+.actions .secondaryButton,
+    .actions .primaryButton {
+      min-height: calc(30 * var(--final-flow-density-px));
+      padding: 0 calc(13.333 * var(--final-flow-density-px));
+    }
+
+.presetRow .secondaryButton {
+      min-height: calc(30 * var(--final-flow-density-px));
+      padding: 0 calc(10 * var(--final-flow-density-px));
+    }

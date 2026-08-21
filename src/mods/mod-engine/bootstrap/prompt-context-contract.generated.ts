@@ -20,6 +20,8 @@ export const PROMPT_CONTEXT_FIELDS = [
   "worldTagsText",
   "worldRules",
   "timelineMemory",
+  "recentDetailedStories",
+  "currentRegion",
   "narrativeStyle",
   "narrativeToneHint",
   "modWorldRules",
@@ -29,6 +31,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "calibrationSummary",
   "causalChainHint",
   "currentTime",
+  "currentDueEvents",
   "talents",
   "timeGuideText",
   "powerFramework"

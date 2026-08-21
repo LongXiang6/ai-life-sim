@@ -2,9 +2,12 @@
  * @module index.ts
  * @description AI 服务统一导出
  * @mod core
+ * Purpose: Expose the AI client and parser public contracts.
+ * Owner: core:ai-service
+ * Responsibility: Export wiring only; request and parsing behavior stays in its modules.
  */
 
-export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError, isAiResponseTruncatedError } from './ai-client'
+export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError, isAiResponseTruncatedError } from './ai-client'
 export type { AICallOptions, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
 export { INTERNAL_CACHE_POOLS, resolveInternalCachePool } from './cache-pool'
 export type { CachePoolType, InternalCachePool } from './cache-pool'
@@ -18,12 +21,11 @@ export { callAIWithPromptTemplate } from './ai-call-wrapper'
 export type { UnifiedCallOptions, PromptTemplateLike } from './ai-call-wrapper'
 export { applyKvPromptOrder } from './kv-prompt-order'
 export type { KvPromptOrderResult } from './kv-prompt-order'
-export { parseAIJSON } from './parse-ai-json'
+export { parseAIJSON, parseAIJSONCandidates } from './parse-ai-json'
 export { handleStream } from './stream-handler'
 export { buildSegmentedPrompt, buildNarrativeUserJson } from './prompt-builder'
 export type { PromptSegments, PromptSegmentStrategy } from './prompt-builder'
 export {
-  USE_AI_SUMMARY_COMPRESSION,
   OMIT_EMPTY_PROMPT_FIELDS,
   BRIDGE_SUMMARY_MIN_TICKS,
   EXPERIMENTAL_TIME_STEPS_UI,

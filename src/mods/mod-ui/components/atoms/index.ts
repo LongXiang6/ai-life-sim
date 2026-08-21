@@ -1,8 +1,4 @@
-/**
- * @module index.ts
- * @description 原子组件 barrel export
- * @mod mod-ui
- */
+/** Purpose: Export public atom components. Owner: mod-ui. Responsibility: Atom barrel exports only. */
 
 export { Button } from './Button'
 export type { ButtonProps } from './Button'
@@ -23,3 +19,6 @@ export type { SpinnerProps } from './Spinner'
 
 export { ProgressBar } from './ProgressBar'
 export type { ProgressBarProps } from './ProgressBar'
+
+export { FlowRunningHead } from './FlowRunningHead'
+export type { FlowRunningHeadProps } from './FlowRunningHead'

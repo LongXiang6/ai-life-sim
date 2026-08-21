@@ -51,8 +51,6 @@ export interface CharacterDeathOutcome {
   occurredAtTotalDays: number
   finalAgeDays: number
   historicalEventId: string
-  epilogueStatus: 'pending' | 'ready'
-  epilogueText?: string
 }
 
 export interface PendingCharacterDeath {
@@ -83,22 +81,6 @@ export interface CharacterFortuneState {
   guidance: string
 }
 
-export type CharacterMoralityLevel =
-  | 'supremeGood'
-  | 'greatGood'
-  | 'good'
-  | 'balanced'
-  | 'evilLeaning'
-  | 'greatEvil'
-  | 'supremeEvil'
-
-export interface CharacterMoralityState {
-  value: number
-  level: CharacterMoralityLevel
-  roundDelta: number
-  guidance: string
-}
-
 export interface CharacterNarrativeStatus {
   entityId?: string
   raceId: string
@@ -112,7 +94,6 @@ export interface CharacterNarrativeStatus {
   endRisk: number
   health: CharacterHealthState
   fortune: CharacterFortuneState
-  morality: CharacterMoralityState
   guidance: string[]
   lastAnalyzedAtTotalDays: number
 }
@@ -129,7 +110,6 @@ export const CHARACTER_BASE_OPERATION_FIELDS = {
     'conditionSummary',
     'conditionStatus',
     'fortuneDelta',
-    'moralityDelta',
     'deathCauseKind',
     'deathCauseLabel',
   ],

@@ -144,8 +144,18 @@ export interface ISubSystem {
 
   /** 收集当前状态快照（供 Prompt 组装） */
   collectState(context: RoundContext): SubSystemState,
+  /** 在正式写入前校验完整变更包；实现必须无副作用。 */
+  preflightChanges?(
+    changes: SubSystemChanges,
+    context: RoundContext,
+    packageChanges?: readonly SubSystemChanges[],
+  ): void,
   /** 应用回合变更（解析 AI 响应后） */
   applyChanges(changes: SubSystemChanges, context: RoundContext): void,
+  /** 捕获 owning system 的事务状态；只用于同一回合失败恢复，不进入存档。 */
+  captureTransactionState?(): unknown,
+  /** 恢复由 owning system 自己捕获的同轮事务状态。 */
+  restoreTransactionState?(snapshot: unknown): void,
   /** 重置为初始状态 */
   reset(): void,
 }

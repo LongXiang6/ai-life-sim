@@ -62,7 +62,7 @@ export function MailboxMessageList({
                 {message.talent ? (
                   <div className={styles.talentAttachment}>
                     <div><small>轮回天赋</small><strong>{message.talent.talent.name}</strong></div>
-                    <p>{message.talent.talent.concept}</p>
+                    <p>{message.talent.talent.description}</p>
                     <p>{message.talent.talent.effect}</p>
                     {folder === 'inbox' && message.talent.status === 'pending' ? (
                       <button type="button" onClick={() => onAcceptTalent(message.id)}>接受天赋</button>

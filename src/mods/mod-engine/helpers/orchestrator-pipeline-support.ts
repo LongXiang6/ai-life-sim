@@ -1,4 +1,8 @@
 /**
+ * Purpose: Aggregate local orchestrator pipeline dependencies behind one internal import surface.
+ * Owner: mod-engine
+ * Responsibility: Re-export existing helpers for orchestrator-system without adding state or behavior.
+ *
  * @module orchestrator-pipeline-support.ts
  * @description orchestrator 管线本地依赖聚合（非公共 API，仅供 orchestrator-system 使用）
  * @mod mod-engine
@@ -7,7 +11,6 @@
 export { getWorldRules } from '../prompts/narrative-prompt'
 export {
   DEFAULT_ENGINE_CONFIG,
-  USE_AI_SUMMARY_COMPRESSION,
 } from '../constants'
 export {
   buildWordCountInstruction,
@@ -35,15 +38,12 @@ export {
   collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
-  getSystemInstructionBlockReason,
   isPromptNoiseSummary,
   isSubsystemOpenForPrompt,
 } from './subsystem-prompt-gate'
 export {
-  isMvpSystemInstructionSubsystem,
   isMvpPromptSubsystem,
   isMvpRuntimeSubsystem,
-  shouldApplyMvpCommit,
 } from './mvp-runtime-policy'
 export { resolveTimeStep } from '../utils/time-step-resolver'
 export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'

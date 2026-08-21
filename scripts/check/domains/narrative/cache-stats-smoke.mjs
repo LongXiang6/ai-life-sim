@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Regress AI cache and usage statistics in an isolated browser-like storage fixture.
+ * Owner: quality:narrative
+ * Responsibility: Cache-stat accounting assertions only.
+ */
 
 class MemoryStorage {
   #values = new Map()
@@ -30,17 +35,10 @@ function assertOk(condition, message) {
 }
 
 assertOk(resolveInternalCachePool('narrative', 'narrative-main') === 'narrative-main', 'main narrative must have its own internal cache pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-format-repair') === 'narrative-repair', 'first-call format repair must use the narrative repair pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-data-analysis') === 'narrative-data-analysis', 'data analysis must have its own internal cache pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-data-analysis-format-repair') === 'narrative-data-analysis-repair', 'data-analysis repair must not pollute normal data-analysis statistics')
-assertOk(resolveInternalCachePool('narrative', 'narrative-basic-attribute-analysis') === 'narrative-basic-attribute-analysis', 'basic-attribute analysis must have its own internal cache pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-basic-attribute-analysis-format-repair') === 'narrative-basic-attribute-analysis-repair', 'basic-attribute repair must not pollute normal attribute-analysis statistics')
-assertOk(resolveInternalCachePool('narrative', 'narrative-event-recognition') === 'narrative-event-recognition', 'event recognition must have its own internal cache pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-event-recognition-format-repair') === 'narrative-event-recognition-repair', 'event-recognition repair must not pollute normal recognition statistics')
-assertOk(resolveInternalCachePool('summary', 'summary-compress-L1') === 'summary-L1', 'L1 summaries must remain separate')
-assertOk(resolveInternalCachePool('summary', 'summary-compress-L2') === 'summary-L2', 'L2 summaries must remain separate')
-assertOk(resolveInternalCachePool('summary', 'summary-compress-L3') === 'summary-L3', 'L3 summaries must remain separate')
-assertOk(resolveInternalCachePool('worldInit', 'world-scoring-profile') === 'world-init', 'world initialization calls must remain separate from narrative calls')
+assertOk(resolveInternalCachePool('narrative', 'narrative-story-continuity') === 'narrative-story-continuity', 'story continuity must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-talent-growth') === 'narrative-talent-growth', 'talent growth must have its own internal cache pool')
+assertOk(resolveInternalCachePool('lowFrequency', 'life-settlement-score') === 'low-frequency', 'life settlement scoring must use the low-frequency pool')
+assertOk(resolveInternalCachePool('lowFrequency', 'ending-review') === 'low-frequency', 'ending review must use the low-frequency pool')
 
 const deepseekMain = {
   providerId: 'deepseek',
@@ -48,7 +46,8 @@ const deepseekMain = {
   pool: 'narrative',
   callKind: 'narrative-main',
 }
-const deepseekRepair = { ...deepseekMain, callKind: 'narrative-format-repair' }
+const deepseekContinuity = { ...deepseekMain, callKind: 'narrative-story-continuity' }
+const deepseekTalent = { ...deepseekMain, callKind: 'narrative-talent-growth' }
 const managedMain = {
   providerId: 'managed',
   model: 'LongCat-2.0',
@@ -119,21 +118,24 @@ assertOk(
 )
 
 recordCacheUsage({ hitTokens: 100, missTokens: 100 }, deepseekMain)
-recordCacheUsage({ hitTokens: 900, missTokens: 100 }, deepseekRepair)
+recordCacheUsage({ hitTokens: 900, missTokens: 100 }, deepseekContinuity)
+recordCacheUsage({ hitTokens: 600, missTokens: 400 }, deepseekTalent)
 recordCacheUsage({ hitTokens: 500, missTokens: 0 }, managedMain)
 recordCacheUsage({ hitTokens: 0, missTokens: 0 }, deepseekMain)
 
 const mainStats = getCacheStats(deepseekMain)
 assertOk(
   mainStats.hitTokens === 100 && mainStats.missTokens === 100 && mainStats.hitRate === 50,
-  'main narrative statistics must exclude format-repair calls',
+  'main narrative statistics must exclude other narrative call types',
 )
-assertOk(getCacheStats(deepseekRepair).hitRate === 90, 'format-repair statistics must remain independently queryable')
+assertOk(getCacheStats(deepseekContinuity).hitRate === 90, '02 statistics must remain independently queryable')
+assertOk(getCacheStats(deepseekTalent).hitRate === 60, '03 statistics must remain independently queryable')
 assertOk(getCacheStats(managedMain).hitRate === 100, 'provider switching must select a separate statistics bucket')
 
 resetCacheStats(deepseekMain)
 assertOk(getCacheStats(deepseekMain).hitRate === 0, 'scoped reset must clear only the selected model and call type')
-assertOk(getCacheStats(deepseekRepair).hitRate === 90, 'scoped reset must preserve other call types')
+assertOk(getCacheStats(deepseekContinuity).hitRate === 90, 'scoped reset must preserve 02 statistics')
+assertOk(getCacheStats(deepseekTalent).hitRate === 60, 'scoped reset must preserve 03 statistics')
 assertOk(getCacheStats(managedMain).hitRate === 100, 'scoped reset must preserve other providers')
 
 resetCacheStats()

@@ -1,0 +1,105 @@
+<!-- Purpose: Record the third UI iteration round for the game-over life-settlement interface (09). Owner: Interface system. Responsibility: Compare confirmed settlement-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>人生结算 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-OVER / ROUND-03</p>
+      <h1>人生结算 · 第三轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A · 卷轴分段</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-02 定版候选 B（命书卷式）为唯一基线，本轮方向「整页卷轴质感」——书眉装饰、区块分隔、命书卷轴的统一质感与节奏。三候选分向：候选 A 卷轴分段（区块间 ✦ 仪式分隔线，卷轴展开分段）、候选 B 横批题记（卷首横批带 + 两侧细线，题记仪式感）、候选 C 印章落款（卷首「终」印 + 卷末命书落款签）。装饰元素全部为纯文本流内的轻量呈现（字符 / 伪元素 / 细线），不引入结构包裹容器；业务契约、动效、宽度与字级口径照抄 ROUND-02 定版候选 B。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约（同 ROUND-02 定版）：顶部 runningHead + titleCopy（「AI LIFE SIM · 命书」+「09 / 09」+ 一生回望标题行）、世界维度雷达（💪 体魄 62 / 🧠 心智 81 / ✨ 悟性 74 / 💫 魅力 68 + 人生评分 88，metricComment 实时切换评语）、此生评语（总结句 + summaryMeta + 故事重复观测）、轮回天赋（三项候选选择 + 焦点卡 + 封存至轮回天赋库）、底部 bottomBar（返回首页 / 开始新人生，未封存前禁用）；纯文本流无 div / article / section 结构包裹（交互组件除外）；宽度跟随 viewport 30rem、字级与前面界面一致。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：flow-shift 9s ease-in-out infinite（轮回天赋焦点卡与封存按钮流光背景，prefers-reduced-motion 停）；radarDot transition r 120ms ease, fill 120ms ease（雷达活动点切换）。</dd></div>
+        <div><dt>比较维度</dt><dd>卷轴质感的呈现方式（分隔线 / 横批 / 印签）、装饰元素与纯文本流的协调度、装饰的克制与不抢内容、卷首卷末的呼应、与创建流程已定版页面（fate-preview 仪式分隔）的统一性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>卷轴分段 · 仪式分隔线</strong></header>
+          <p>ROUND-02 定版基础上，在卷首（titleCopy 之后）与各区块之间插入 ✦ 仪式分隔线（细线渐变 + 居中 ✦，照抄 fate-preview 定版 ritualDivider），全页如展开的命书卷轴分段；区头、正文、底部均不变。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-scroll-divider.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>横批题记 · 卷首横批</strong></header>
+          <p>titleCopy 升级为横批题记：h1「一生回望」上下加细线横批带（两端留白、✦ 收边），副标题保留；其余区块、底部与定版一致——卷首更有一幅题记的仪式感。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-scroll-banner.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>印章落款 · 卷首印卷末签</strong></header>
+          <p>卷首 titleCopy 副标题旁加一枚小「终」印（方形印章式小标）；轮回天赋区之后加卷末命书落款行（「命书 · 沧澜历 78 年终」+ ✦ 收尾）——卷首印、卷末签的完整卷轴身份。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-scroll-seal.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 卷轴分段</span><span role="columnheader">B 横批题记</span><span role="columnheader">C 印章落款</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">卷轴质感</strong><span role="cell">区块间 ✦ 仪式分隔线，展开分段节奏</span><span role="cell">卷首横批带题记，纵向节奏不变</span><span role="cell">卷首「终」印 + 卷末命书落款，首尾呼应</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">与纯文本流协调</strong><span role="cell">分隔线为伪元素，不增结构</span><span role="cell">横批为 titleCopy 内装饰，不增结构</span><span role="cell">印与落款为文本行 / 字符，不增结构</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">装饰克制</strong><span role="cell">每区块一处分隔，节奏感</span><span role="cell">仅卷首一处，最克制</span><span role="cell">卷首 + 卷末两处，仪式最完整</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前面界面呼应</strong><span role="cell">呼应 fate-preview 定版 ritualDivider 仪式分隔</span><span role="cell">呼应 titleCopy 居中标题语言</span><span role="cell">呼应 ROUND-01 候选 02「终」印概念</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">业务 / 动效 / 宽度</strong><span role="cell">照抄定版</span><span role="cell">照抄定版</span><span role="cell">照抄定版</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A · 卷轴分段</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A（卷轴分段）：用户「定版A」确认。定版要点：在 ROUND-02 定版候选 B 基础上，卷首（titleCopy 之后）与各区块之间插入 ✦ 仪式分隔线——居中 ✦ 文本行 + 两侧渐变细线（伪元素绘制，不增结构包裹），照抄 fate-preview 定版 ritualDivider 语言，全页如展开的命书卷轴分段；区头、正文、轮回天赋、底部 bottomBar 双按钮均与 ROUND-02 定版一致，业务契约、动效（flow-shift 9s / radarDot 120ms）、宽度（viewport 30rem）、字级全部照抄。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B（横批题记）：仅卷首一处横批带，纵向节奏不参与全页卷轴质感，装饰收束于题头、全页分段感不足；候选 C（印章落款）：卷首「终」印 + 卷末命书落款签首尾呼应完整，但红棕色「终」印为页面引入定版调色板外的额外色彩点，克制性弱于分隔线的单一金棕语言。</dd></div>
+        <div><dt>下一轮继承</dt><dd>待后续轮次指令。当前定版为：ROUND-02 定版内容（顶部 runningHead + titleCopy、世界维度雷达 + metricComment 实时评语、此生评语 + 重复观测、轮回天赋选择 + 焦点卡 + 封存、底部 bottomBar 双按钮）追加 ✦ 卷轴分段仪式分隔线（titleCopy 之后 + 世界维度/此生评语/轮回天赋两两之间，纯文本流伪元素，aria-hidden 装饰）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

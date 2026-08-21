@@ -1,4 +1,8 @@
 /**
+ * Purpose: Validate runtime subsystem values and recursively sanitize serializable state.
+ * Owner: mod-engine
+ * Responsibility: Runtime data-safety helpers only.
+ *
  * @module system-safety.ts
  * @description 系统安全防护层 —— NaN/Infinity 检测修复、数值钳制、死循环检测、递归深度保护
  * @mod mod-engine
@@ -28,7 +32,7 @@ export interface SafetyReport {
 // 数值范围配置
 // ============================================================
 
-// 业务状态允许数组嵌套对象（例如 worldConfig.scoringProfile.dimensions[].evidenceKinds[]）。
+// 业务状态允许数组嵌套对象（例如世界区域与角色阶段定义）。
 // 5 层会把合法的世界初始化评分配置误判为危险深度；保留明确上限并单独拦截循环引用。
 const MAX_RECURSION_DEPTH = 12
 

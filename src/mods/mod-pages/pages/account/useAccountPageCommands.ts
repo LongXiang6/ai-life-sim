@@ -26,7 +26,7 @@ import {
   removeCloudManualSave,
 } from '@/core/player-content/player-content-client'
 import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
-import { useLifeRecordStore, useMythicLibraryStore } from '@/mods/mod-character'
+import { useLifeRecordStore, useReincarnationLibraryStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
 
 import {
@@ -55,8 +55,8 @@ export function useAccountPageCommands() {
   const syncStatus = useAccountClientStore((state) => state.syncStatus)
   const syncError = useAccountClientStore((state) => state.syncError)
   const saveApiKey = useAccountClientStore((state) => state.saveApiKey)
-  const mythicTalents = useMythicLibraryStore((state) => state.patterns)
-  const removeMythicTalent = useMythicLibraryStore((state) => state.removePattern)
+  const reincarnationTalents = useReincarnationLibraryStore((state) => state.talents)
+  const removeReincarnationTalent = useReincarnationLibraryStore((state) => state.removeReincarnationTalent)
   const gameRecords = useLifeRecordStore((state) => state.records)
   const removeGameRecord = useLifeRecordStore((state) => state.removeRecord)
   const customKey = useSettingsStore((state) => state.customKey)
@@ -254,7 +254,7 @@ export function useAccountPageCommands() {
     handleUnlinkQq,
     message,
     mode,
-    mythicTalents,
+    reincarnationTalents,
     password,
     qq,
     qqLinkBusy,
@@ -262,7 +262,7 @@ export function useAccountPageCommands() {
     qqLinkExpiresAt,
     registerSaveKey,
     removeGameRecord,
-    removeMythicTalent,
+    removeReincarnationTalent,
     router,
     saveApiKey,
     setActiveTab,

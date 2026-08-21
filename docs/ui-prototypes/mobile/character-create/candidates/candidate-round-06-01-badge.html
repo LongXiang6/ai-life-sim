@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第六轮候选 01 · 徽标式</title>
+  <style>
+    /* Purpose: Static interactive prototype: character-create round-06 candidate 01 — race caption p removed, redetect button removed (lifespan auto-detects on input, noted in comments), profile summary facts decorated with semantic emoji badges (⏳ 寿命 / 🌅 起始 / 🌌 世界), avatar stays as text. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page::-webkit-scrollbar {
+      display: none;
+    }
+
+    .paper {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      align-content: start;
+      padding: 20px 20px 96px;
+    }
+
+    .runningHead {
+      display: flex;
+      height: 16px;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a0907a;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    /* 角色摘要卡：浅米底、20px 圆角，facts 带语义表情徽标 */
+    .profileSummary {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid #eadfce;
+      border-radius: 20px;
+      background: #faf4e8;
+    }
+
+    .profileAvatar {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border-radius: 50%;
+      background: #fffdf8;
+      color: #6b4d1d;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .profileCopy {
+      min-width: 0;
+    }
+
+    .profileCopy strong {
+      display: block;
+      color: #241f18;
+      font-size: 15px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .profileCopy span {
+      display: block;
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .profileFacts {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .profileFacts div {
+      display: grid;
+      gap: 2px;
+      padding: 8px;
+      border-radius: 12px;
+      background: #fffdf8;
+    }
+
+    .profileFacts span {
+      color: #a0907a;
+      font-size: 9px;
+    }
+
+    .profileFacts strong {
+      color: #241f18;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .section {
+      padding: 14px 16px 10px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+    }
+
+    .sectionHeading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .sectionHeading h2 {
+      margin: 0;
+      color: #241f18;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .sectionHeading h2 .semantic-emoji {
+      margin-right: 4px;
+      font-size: 13px;
+    }
+
+    .sectionHeading span {
+      color: #a0907a;
+      font-size: 10px;
+    }
+
+    .softGroup {
+      margin-bottom: 12px;
+    }
+
+    .softGroup:last-child {
+      margin-bottom: 0;
+    }
+
+    .groupHeading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .groupHeading label,
+    .groupHeading span {
+      color: #241f18;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .groupHeading > span {
+      color: #a0907a;
+      font-size: 9.5px;
+      font-weight: 400;
+    }
+
+    .groupHeading .moreLink {
+      display: inline;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #6b4d1d;
+      font: inherit;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .nameRow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .nameRow input,
+    .inlineInputRow input {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 11px;
+      border: 1px solid #e5e1d6;
+      border-radius: 13px;
+      background: #fff;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .nameRow button {
+      min-width: 56px;
+      border: 1px solid #d8c9a8;
+      border-radius: 13px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .chipRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chipRow button,
+    .removableChip button {
+      min-height: 30px;
+      padding: 0 13px;
+      border: 1px solid #e5e1d6;
+      border-radius: 15px;
+      background: #fff;
+      color: #8a7f6e;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .chipRow button.chipActive {
+      border-color: #977026;
+      background: #fffdf8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .inlinePanel {
+      margin-top: 8px;
+      padding: 10px;
+      border: 1px solid #eadfce;
+      border-radius: 14px;
+      background: #faf4e8;
+    }
+
+    .inlineInputRow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .inlineInputRow button {
+      min-width: 52px;
+      border: 1px solid #d8c9a8;
+      border-radius: 12px;
+      background: #fffdf8;
+      color: #6b4d1d;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    /* 寿命区：单行句不换行；重新检测按钮已移除，改为随输入自动检测 */
+    .lifespanFields {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .lifeSentence {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      white-space: nowrap;
+      color: #241f18;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .lifeSentence input {
+      flex: 0 0 auto;
+      width: 42px;
+      min-height: 28px;
+      padding: 0 4px;
+      border: 1px solid #e5e1d6;
+      border-radius: 9px;
+      background: #fff;
+      color: #2e2922;
+      font: inherit;
+      font-size: 11.5px;
+      text-align: center;
+    }
+
+    .lifespanResult {
+      margin: 8px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .lifespanResult strong {
+      color: #241f18;
+      font-weight: 700;
+    }
+
+    .backgroundTextarea {
+      width: 100%;
+      min-height: 88px;
+      padding: 10px 11px;
+      border: 1px solid #e5e1d6;
+      border-radius: 13px;
+      background: #fff;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: none;
+      overflow: hidden;
+    }
+
+    .backgroundPresets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .backgroundPresetWrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .backgroundPresetWrap button:first-child {
+      min-height: 28px;
+      padding: 0 11px;
+      border: 1px solid #e5e1d6;
+      border-radius: 14px;
+      background: #fff;
+      color: #8a7f6e;
+      font: inherit;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+
+    .backgroundPresetWrap button.backgroundPresetActive {
+      border-color: #977026;
+      background: #fffdf8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .backgroundPresetWrap .removePreset {
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #a0907a;
+      font-size: 12px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .backgroundFooter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .backgroundFooter > span {
+      color: #a0907a;
+      font-size: 9.5px;
+    }
+
+    .backgroundFooter > button {
+      padding: 4px 10px;
+      border: 1px solid #d8c9a8;
+      border-radius: 12px;
+      background: transparent;
+      color: #6b4d1d;
+      font: inherit;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+
+    .presetSaveForm {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 6px;
+    }
+
+    .presetSaveForm input {
+      width: 100%;
+      min-height: 32px;
+      padding: 0 8px;
+      border: 1px solid #e5e1d6;
+      border-radius: 11px;
+      background: #fff;
+      color: #2e2922;
+      font: inherit;
+      font-size: 10.5px;
+    }
+
+    .presetSaveForm button {
+      padding: 0 10px;
+      border: 1px solid #d8c9a8;
+      border-radius: 11px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font: inherit;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+
+    /* 双文字等宽纯白同底按钮 */
+    .bottomBar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .confirmButton {
+      border: 1px solid #d8c9a8;
+      background: #fff;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <main class="paper">
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>03 / 08</span></div>
+
+          <section class="profileSummary" aria-live="polite">
+            <span class="profileAvatar" aria-hidden="true">人</span>
+            <div class="profileCopy">
+              <strong id="profileName">未命名角色</strong>
+              <span id="profileMeta">男性 · 人类 · 尚未填写背景</span>
+            </div>
+            <div class="profileFacts">
+              <div><span>⏳ 寿命</span><strong id="factLifespan">自动</strong></div>
+              <div><span>🌅 起始</span><strong id="factStart">出生</strong></div>
+              <div><span>🌌 世界</span><strong>星际纪元</strong></div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="identity-title">
+            <div class="sectionHeading">
+              <h2 id="identity-title"><span class="semantic-emoji" aria-hidden="true">👤</span>核心身份</h2>
+            </div>
+
+            <div class="softGroup">
+              <div class="groupHeading"><label for="character-name">角色姓名</label><span>必填 · 可随机</span></div>
+              <div class="nameRow">
+                <input id="character-name" placeholder="输入角色姓名...">
+                <button type="button" id="diceButton">随机</button>
+              </div>
+            </div>
+
+            <div class="softGroup">
+              <div class="groupHeading"><span>性别</span><div class="moreLink" id="moreGender" role="button" tabindex="0">更多选择⌄</div></div>
+              <div class="chipRow" id="genderRow">
+                <button type="button" class="chipActive" data-gender="男">男</button>
+                <button type="button" data-gender="女">女</button>
+              </div>
+              <div class="inlinePanel" id="genderPanel" hidden>
+                <div class="inlineInputRow">
+                  <input id="customGenderInput" placeholder="输入性别名称...">
+                  <button type="button" id="addGender">添加</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="softGroup">
+              <div class="groupHeading"><span>种族</span><div class="moreLink" id="moreRace" role="button" tabindex="0">种族目录⌄</div></div>
+              <div class="chipRow">
+                <button type="button" class="chipActive" data-race="人类">人类</button>
+                <button type="button" id="customRaceChip">自定义种族</button>
+              </div>
+              <div class="inlinePanel" id="racePanel" hidden>
+                <div class="inlineInputRow">
+                  <input id="customRaceInput" placeholder="输入种族名称...">
+                  <button type="button" id="addRace">添加</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lifespan-title">
+            <div class="sectionHeading">
+              <h2 id="lifespan-title"><span class="semantic-emoji" aria-hidden="true">⏳</span>寿命与起始</h2>
+            </div>
+            <div class="lifespanFields">
+              <span class="lifeSentence">于 <input id="startAgeInput" inputmode="numeric" placeholder="0"> 岁开始人生，预计寿命 <input id="lifespanInput" inputmode="numeric" placeholder="78"> 岁</span>
+            </div>
+            <p class="lifespanResult" role="status" id="lifespanResult">于 <strong>出生</strong> 开始人生，预计寿命 <strong>78 岁</strong></p>
+          </section>
+
+          <section class="section" aria-labelledby="background-title">
+            <div class="sectionHeading">
+              <h2 id="background-title"><span class="semantic-emoji" aria-hidden="true">📜</span>人生背景</h2>
+              <span><span id="bgCount">0</span> 字</span>
+            </div>
+            <div class="backgroundPresets" id="bgPresets">
+              <span class="backgroundPresetWrap"><button type="button" data-bg="贵族">贵族</button></span>
+              <span class="backgroundPresetWrap"><button type="button" data-bg="平民">平民</button></span>
+              <span class="backgroundPresetWrap"><button type="button" data-bg="科学家">科学家</button></span>
+              <span class="backgroundPresetWrap"><button type="button" data-bg="武士">武士</button></span>
+            </div>
+            <textarea class="backgroundTextarea" id="bgTextarea" placeholder="告诉命运编织者更多关于你的角色的事..."></textarea>
+            <div class="backgroundFooter">
+              <span>留空也可以继续</span>
+              <button type="button" id="savePreset">+ 保存为预设</button>
+            </div>
+          </section>
+        </main>
+      </div>
+      <div class="bottomBar">
+        <button type="button" class="backButton" title="返回世界配置">
+          <strong>返回</strong>
+          <small>回到世界配置</small>
+        </button>
+        <button type="button" class="confirmButton" title="确认角色">
+          <strong>确认角色</strong>
+          <small id="confirmHint">未命名角色 · 进入命格抽取</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var names = ['林晚星', '沈墨', '苏念', '顾长风', '楚云舒', '陆沉舟', '姜月', '白泽']
+      var races = {
+        '人类': { lifespan: 78 },
+        '妖族': { lifespan: 300 },
+        '魔族': { lifespan: 500 },
+        '精灵': { lifespan: 1000 },
+        '龙裔': { lifespan: 800 }
+      }
+      var bgContents = {
+        '贵族': '出身显赫世家，自幼接受精英教育。',
+        '平民': '平凡人家的孩子，靠双手谋生。',
+        '科学家': '沉迷于解开世界底层规律的学者。',
+        '武士': '以剑为伴，守护心中道义。'
+      }
+
+      var state = {
+        name: '',
+        gender: 'male',
+        race: '人类',
+        lifespan: 78,
+        startAge: 0
+      }
+
+      var profileName = document.getElementById('profileName')
+      var profileMeta = document.getElementById('profileMeta')
+      var factLifespan = document.getElementById('factLifespan')
+      var factStart = document.getElementById('factStart')
+      var nameInput = document.getElementById('character-name')
+      var confirmHint = document.getElementById('confirmHint')
+
+      function refreshProfile() {
+        var name = nameInput.value.trim()
+        state.name = name
+        profileName.textContent = name || '未命名角色'
+        var genderText = state.gender === 'male' ? '男性' : '女性'
+        var bgText = document.getElementById('bgTextarea').value.trim() ? '已填写背景' : '尚未填写背景'
+        profileMeta.textContent = genderText + ' · ' + state.race + ' · ' + bgText
+        confirmHint.textContent = (name || '未命名角色') + ' · 进入命格抽取'
+      }
+
+      document.getElementById('diceButton').addEventListener('click', function () {
+        nameInput.value = names[Math.floor(Math.random() * names.length)]
+        refreshProfile()
+      })
+      nameInput.addEventListener('input', refreshProfile)
+
+      document.querySelectorAll('#genderRow button').forEach(function (button) {
+        button.addEventListener('click', function () {
+          document.querySelectorAll('#genderRow button').forEach(function (el) { el.classList.remove('chipActive') })
+          button.classList.add('chipActive')
+          state.gender = button.dataset.gender === '男' ? 'male' : 'female'
+          refreshProfile()
+        })
+      })
+
+      document.getElementById('moreGender').addEventListener('click', function () {
+        var panel = document.getElementById('genderPanel')
+        panel.hidden = !panel.hidden
+      })
+
+      document.getElementById('addGender').addEventListener('click', function () {
+        var input = document.getElementById('customGenderInput')
+        var value = input.value.trim()
+        if (!value) return
+        var chip = document.createElement('button')
+        chip.type = 'button'
+        chip.dataset.gender = value
+        chip.textContent = value
+        document.querySelectorAll('#genderRow button').forEach(function (el) { el.classList.remove('chipActive') })
+        chip.classList.add('chipActive')
+        document.getElementById('genderRow').appendChild(chip)
+        state.gender = value
+        input.value = ''
+        refreshProfile()
+        chip.addEventListener('click', function () {
+          document.querySelectorAll('#genderRow button').forEach(function (el) { el.classList.remove('chipActive') })
+          chip.classList.add('chipActive')
+          state.gender = value
+          refreshProfile()
+        })
+      })
+
+      function selectRace(name) {
+        state.race = name
+        document.querySelectorAll('.chipRow button[data-race]').forEach(function (el) {
+          el.classList.toggle('chipActive', el.dataset.race === name)
+        })
+        var info = races[name]
+        if (info) {
+          state.lifespan = info.lifespan
+          refreshLifespan()
+        }
+        refreshProfile()
+      }
+
+      document.querySelectorAll('.chipRow button[data-race]').forEach(function (button) {
+        button.addEventListener('click', function () { selectRace(button.dataset.race) })
+      })
+
+      document.getElementById('moreRace').addEventListener('click', function () {
+        document.getElementById('racePanel').hidden = !document.getElementById('racePanel').hidden
+      })
+
+      document.getElementById('customRaceChip').addEventListener('click', function () {
+        document.getElementById('racePanel').hidden = false
+      })
+
+      document.getElementById('addRace').addEventListener('click', function () {
+        var input = document.getElementById('customRaceInput')
+        var value = input.value.trim()
+        if (!value) return
+        races[value] = { lifespan: 120 }
+        selectRace(value)
+        input.value = ''
+        document.getElementById('racePanel').hidden = true
+      })
+
+      // 寿命检测：重新检测按钮已移除，改为随输入自动检测（input 事件实时刷新）
+      function refreshLifespan() {
+        var manual = document.getElementById('lifespanInput').value.trim()
+        var startManual = document.getElementById('startAgeInput').value.trim()
+        var lifespan = manual ? Number.parseInt(manual, 10) : state.lifespan
+        var start = startManual ? Number.parseInt(startManual, 10) : 0
+        if (!manual) document.getElementById('lifespanInput').value = ''
+        var result = document.getElementById('lifespanResult')
+        result.innerHTML = '于 <strong>' + (start === 0 ? '出生' : start + ' 岁') + '</strong> 开始人生，预计寿命 <strong>' + lifespan + ' 岁</strong>'
+        factLifespan.textContent = manual ? (lifespan + ' 年') : '自动'
+        factStart.textContent = startManual ? (start + ' 岁') : '出生'
+      }
+
+      document.getElementById('lifespanInput').addEventListener('input', refreshLifespan)
+      document.getElementById('startAgeInput').addEventListener('input', refreshLifespan)
+
+      var bgTextarea = document.getElementById('bgTextarea')
+      var bgCount = document.getElementById('bgCount')
+
+      function autoResize() {
+        bgTextarea.style.height = 'auto'
+        bgTextarea.style.height = bgTextarea.scrollHeight + 'px'
+      }
+
+      bgTextarea.addEventListener('input', function () {
+        bgCount.textContent = bgTextarea.value.length
+        refreshProfile()
+        autoResize()
+      })
+
+      document.querySelectorAll('#bgPresets button[data-bg]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          bgTextarea.value = bgContents[button.dataset.bg]
+          bgCount.textContent = bgTextarea.value.length
+          refreshProfile()
+          autoResize()
+        })
+      })
+
+      document.getElementById('savePreset').addEventListener('click', function () {
+        var content = bgTextarea.value.trim()
+        if (!content) return
+        var wrap = document.createElement('span')
+        wrap.className = 'backgroundPresetWrap'
+        var btn = document.createElement('button')
+        btn.type = 'button'
+        btn.textContent = '自定义'
+        btn.addEventListener('click', function () {
+          bgTextarea.value = content
+          bgCount.textContent = content.length
+          refreshProfile()
+          autoResize()
+        })
+        wrap.appendChild(btn)
+        document.getElementById('bgPresets').appendChild(wrap)
+      })
+
+      refreshProfile()
+      refreshLifespan()
+      autoResize()
+    })()
+  </script>
+</body>
+</html>

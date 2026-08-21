@@ -1,12 +1,12 @@
 /**
  * @module use-race-origin.ts
- * @description 种族由来生成 Hook —— 非人类种族时自动调用 AI 生成物种来源说明
+ * @description 种族由来生成 Hook —— 仅在玩家显式操作时调用 AI
  * @mod mod-character
  */
 
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 
 import { useCharacterStore } from '../store'
 
@@ -36,6 +36,7 @@ const DEFAULT_CONFIG: AIModelConfig = {
 export function useRaceOrigin(worldDescription: string): {
   raceOrigin: string
   isGenerating: boolean
+  error: string | null
   regenerate: () => void
 } {
   const race = useCharacterStore((s: { race: string }) => s.race)
@@ -44,12 +45,13 @@ export function useRaceOrigin(worldDescription: string): {
   const setRaceOrigin = useCharacterStore((s: { setRaceOrigin: (origin: string) => void }) => s.setRaceOrigin)
 
   const [isGenerating, setIsGenerating] = useState(false)
-  const [hasAttempted, setHasAttempted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const generateOrigin = useCallback(async () => {
     // 人类种族不需要生成由来
     if (race === 'human') {
       setRaceOrigin('')
+      setError(null)
       return
     }
 
@@ -57,7 +59,7 @@ export function useRaceOrigin(worldDescription: string): {
     if (!worldDescription) return
 
     setIsGenerating(true)
-    setHasAttempted(true)
+    setError(null)
 
     try {
       const userPrompt = stringifyPrompt({
@@ -66,7 +68,7 @@ export function useRaceOrigin(worldDescription: string): {
         characterBackground: background,
       })
 
-      // 延迟加载设置 MOD，避免角色 Prompt Hook 与引擎入口形成运行时循环依赖。
+      // 延迟加载设置 MOD，使角色 Prompt Hook 与引擎入口保持单向运行依赖。
       const { useSettingsStore } = await import('@/mods/mod-settings')
       const { useWorldStore } = await import('@/mods/mod-world')
       const { customKey, customUrl, provider, customModel } = useSettingsStore.getState()
@@ -91,31 +93,21 @@ export function useRaceOrigin(worldDescription: string): {
       if (result && result.trim() !== '' && result.trim() !== '无') {
         setRaceOrigin(result.trim())
       } else {
-        // AI 返回空内容，使用默认描述
-        setRaceOrigin(`作为${race}，你在这个世界中有着独特的存在意义。`)
+        setRaceOrigin('')
+        setError('种族由来生成返回空内容，请重新生成。')
       }
-    } catch {
-      // AI 调用失败，使用默认描述（不阻塞角色创建流程）
-      setRaceOrigin(`作为${race}，你在这个世界中有着独特的存在意义。`)
+    } catch (generationError) {
+      setRaceOrigin('')
+      setError(generationError instanceof Error ? generationError.message : '种族由来生成失败，请重新生成。')
     } finally {
       setIsGenerating(false)
     }
   }, [race, background, worldDescription, setRaceOrigin])
 
-  // 种族或世界描述变化时自动重新生成（数据获取 effect，在回调中异步调用 AI）
-  useEffect(() => {
-    if (!hasAttempted && race !== 'human' && worldDescription) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void generateOrigin()
-    }
-  }, [race, worldDescription, hasAttempted, generateOrigin])
-
   return {
     raceOrigin,
     isGenerating,
-    regenerate: () => {
-      setHasAttempted(false)
-      void generateOrigin()
-    },
+    error,
+    regenerate: () => void generateOrigin(),
   }
 }

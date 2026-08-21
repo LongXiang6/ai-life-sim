@@ -1,29 +1,20 @@
 /**
- * Purpose: Project player-created facts and relationship continuity into the unified memory timeline.
+ * Purpose: Project player-created facts into the unified memory timeline.
  * Owner: mod-engine / memory-lifecycle
- * Responsibility: Pure timeline projection only; record ownership and persistence stay in MemoryLifecycleSystem.
+ * Responsibility: Pure creation-fact projection only.
  */
 
-import type { CharacterCreation } from '../../types'
-import { AI_CREATION_CATEGORIES } from '../../helpers/narrative-ai-protocol'
-import {
-  isNarrativeRecordVisible,
-  type NarrativeScopeView,
-} from '../../helpers/narrative-context-scope'
 import type { NarrativeTimelineEntry } from '../../helpers/timeline-memory'
-import type {
-  MemoryRoundTime,
-  RelationshipMemoryRecord,
-} from './contracts'
+import type { CharacterCreation } from '../../types'
+import type { MemoryRoundTime } from './contracts'
 
-const RELATIONSHIP_LABELS: Record<RelationshipMemoryRecord['type'], string> = {
-  first_meeting: '初次相识',
-  conflict: '发生冲突',
-  alliance: '结成同盟',
-  betrayal: '遭遇背叛',
-  marriage: '建立婚姻',
-  death: '见证离世',
-  other: '发生重要互动',
+const CREATION_CATEGORY_LABELS: Readonly<Record<CharacterCreation['category'], string>> = {
+  power_system: '力量体系',
+  technique: '技法',
+  ability: '能力',
+  rule: '规则',
+  object: '物品',
+  other: '其他',
 }
 
 export function buildCreationTimelineEntries(
@@ -37,7 +28,7 @@ export function buildCreationTimelineEntries(
       time?.displayTimeLabel ?? roundLabel,
       time?.displayAge === undefined ? undefined : `角色${time.displayAge}岁`,
     ].filter((part): part is string => Boolean(part))
-    const category = AI_CREATION_CATEGORIES.internalToAI[creation.category] ?? '其他'
+    const category = CREATION_CATEGORY_LABELS[creation.category] ?? '其他'
     return {
       timeSpan: time?.displayTimeLabel ?? roundLabel,
       occurrenceTime: occurrenceParts.join(' · '),
@@ -45,33 +36,5 @@ export function buildCreationTimelineEntries(
       sortRound: creation.confirmedRound,
       sortTotalDays: time?.totalDays,
     }
-  })
-}
-
-export function buildRelationshipTimelineEntries(
-  records: readonly RelationshipMemoryRecord[],
-  view: NarrativeScopeView,
-  currentEntities: ReadonlySet<string>,
-  currentRound: number,
-  resolveRoundTime?: (round: number) => MemoryRoundTime | undefined,
-): NarrativeTimelineEntry[] {
-  return records.flatMap((record) => {
-    if (!isNarrativeRecordVisible(record, view)) return []
-    const immediatelyRelevant = record.round >= Math.max(1, currentRound - 1)
-    if (record.importance !== 'HIGH' && !currentEntities.has(record.personName) && !immediatelyRelevant) return []
-    const time = resolveRoundTime?.(record.round)
-    const roundLabel = `第${record.round}轮`
-    const timeLabel = time?.displayTimeLabel ?? roundLabel
-    const contextLabel = record.contextId ? `【发生区域：${record.contextId}】\n` : ''
-    return [{
-      timeSpan: timeLabel,
-      occurrenceTime: [
-        timeLabel,
-        time?.displayAge === undefined ? undefined : `角色${time.displayAge}岁`,
-      ].filter((part): part is string => Boolean(part)).join(' · '),
-      text: `${contextLabel}人物连续性：你与${record.personName}${RELATIONSHIP_LABELS[record.type]}，${record.summary}`,
-      sortRound: record.round,
-      sortTotalDays: time?.totalDays,
-    }]
   })
 }

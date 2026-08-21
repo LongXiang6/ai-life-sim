@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized preset-world grid. Owner: mod-pages. Responsibility: Preset selection presentation and event forwarding only. */
+
 import { resolvePresetWorldCode } from '@/mods/mod-world'
 
 import type { WorldSelectLogic } from './world-select.types'
@@ -19,11 +21,11 @@ export function WorldSelectMainGrid({ logic }: { logic: WorldSelectLogic }) {
               onClick={() => logic.handleSelectPreset(world)}
               className={`${styles.worldCard} ${hasCache ? styles.worldCardWithCache : ''} ${selected ? styles.worldCardSelected : ''}`}
               aria-pressed={selected}
+              data-selected={selected}
               disabled={logic.isConfirming}
             >
               <span className={styles.worldIcon} data-semantic-emoji aria-hidden="true">{world.icon}</span>
               <span className={styles.worldName}>{world.name}</span>
-              {selected && <span className={styles.selectedMark} aria-hidden="true">✓</span>}
             </button>
             {hasCache && (
               <button

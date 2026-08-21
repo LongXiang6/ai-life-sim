@@ -1,7 +1,7 @@
 /**
- * Purpose: Build provider proxy bodies, cache usage context, validation-repair instructions, and shared deadlines.
+ * Purpose: Build provider proxy bodies, cache usage context, and shared deadlines.
  * Owner: core:ai-service
- * Responsibility: Deterministic request assembly only; network transport and retries are separate components.
+ * Responsibility: Deterministic request assembly only; network transport is handled by the single-attempt client.
  */
 
 import type { AIModelConfig, ReasoningEffort } from '@/foundation'
@@ -36,7 +36,7 @@ function buildRequestBody(
   config: AIModelConfig,
   messages: AiMessage[],
   stream: boolean,
-  options?: Pick<AICallOptions, 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort'>,
+  options?: Pick<AICallOptions, 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'tools' | 'toolChoice'>,
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: config.model,
@@ -47,6 +47,8 @@ function buildRequestBody(
   if (options?.overrideTopP !== undefined) body.top_p = options.overrideTopP
   if (options?.jsonMode) body.response_format = { type: 'json_object' }
   else if (options?.jsonMode !== false && config.responseFormat) body.response_format = config.responseFormat
+  if (options?.tools?.length) body.tools = options.tools
+  if (options?.toolChoice) body.tool_choice = options.toolChoice
 
   const normalizedSeed = normalizeStorySeed(options?.storySeed)
   if (normalizedSeed !== undefined) body.seed = normalizedSeed
@@ -59,7 +61,7 @@ export function buildProxyBody(
   stream: boolean,
   pool: CachePoolType,
   sessionId?: string,
-  options?: Pick<AICallOptions, 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId' | 'logContext'>,
+  options?: Pick<AICallOptions, 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'tools' | 'toolChoice' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId' | 'logContext'>,
 ): Record<string, unknown> {
   const aiBody = buildRequestBody(config, messages, stream, options)
   const proxyMessages = options?.serverPromptAssetId
@@ -74,6 +76,8 @@ export function buildProxyBody(
   }
   if (aiBody.top_p !== undefined) proxyBody.top_p = aiBody.top_p
   if (aiBody.response_format !== undefined) proxyBody.response_format = aiBody.response_format
+  if (aiBody.tools !== undefined) proxyBody.tools = aiBody.tools
+  if (aiBody.tool_choice !== undefined) proxyBody.tool_choice = aiBody.tool_choice
   if (aiBody.seed !== undefined) proxyBody.seed = aiBody.seed
   if (options?.serverPromptAssetId) proxyBody.prompt_asset = options.serverPromptAssetId
 
@@ -135,37 +139,6 @@ export function resolveCacheUsageContext(options: AICallOptions, pool: CachePool
     executionKind: options.logContext?.executionKind,
     targetWordCount: options.logContext?.targetWordCount,
   }
-}
-
-export function buildJsonValidationRetryOptions(
-  options: Omit<AICallOptions, 'outputSchema'>,
-  instruction: string,
-): Omit<AICallOptions, 'outputSchema'> {
-  const callKind = options.logContext?.callKind?.trim()
-  return {
-    ...options,
-    extraUserMessages: [...(options.extraUserMessages ?? []), instruction],
-    ...(options.logContext
-      ? {
-          logContext: {
-            ...options.logContext,
-            callKind: callKind?.endsWith('-format-repair')
-              ? callKind
-              : `${callKind || 'json'}-format-repair`,
-          },
-        }
-      : {}),
-  }
-}
-
-export function buildJsonValidationRetryInstruction(originalResponse: string, validationReason: string): string {
-  return [
-    `前次输出不是合格的纯 JSON 对象。校验问题：${validationReason}。`,
-    '【上一版纯 JSON 响应全文开始】',
-    originalResponse,
-    '【上一版纯 JSON 响应全文结束】',
-    '请严格按照系统提示词中的 JSON Schema 重新输出，禁止 markdown、标签、标题或解释。',
-  ].join('\n')
 }
 
 export function resolveProxyBodyDeadlineMs(proxyBody: Record<string, unknown>): number {

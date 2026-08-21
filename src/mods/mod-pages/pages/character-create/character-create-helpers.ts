@@ -1,11 +1,11 @@
 /**
  * Purpose: Calculate normalized character-creation values before preview or commit.
  * Owner: mod-pages/character-create
- * Responsibility: Pure lifespan, attribute, and primitive-world calculations only.
+ * Responsibility: Pure lifespan and primitive-world calculations only.
  */
 
 import { RACE_LIFESPAN } from '@/mods/mod-character'
-import type { BaseAttributes, RaceLifespanConfig } from '@/mods/mod-character'
+import type { RaceLifespanConfig } from '@/mods/mod-character'
 
 export function computeMaxAge(race: string, manualOverride?: number): number {
   if (manualOverride && manualOverride > 0) {
@@ -23,15 +23,6 @@ export function buildConfirmedRaceLifespan(race: string, maxAge: number): RaceLi
     ...RACE_LIFESPAN.human!,
     name: race.trim() || '自定义种族',
     baseLifespanYears: maxAge,
-  }
-}
-
-export function toBaseAttributes(attributes: Record<string, number>): BaseAttributes {
-  return {
-    physique: attributes.physique ?? 0,
-    mind: attributes.mind ?? 0,
-    talentAptitude: attributes.talentAptitude ?? 0,
-    charisma: attributes.charisma ?? 0,
   }
 }
 

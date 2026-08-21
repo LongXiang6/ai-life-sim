@@ -1,21 +1,17 @@
 /**
- * @module server-prompt-assets.ts
- * @description mod-engine 服务端 Prompt 资产公开入口；不得从客户端模块导入。
- * @mod mod-engine
+ * Purpose: Resolve protected mod-engine Prompt assets at the server boundary.
+ * Owner: mod-engine
+ * Responsibility: Server-only asset registration and lookup only.
  */
 
 import 'server-only'
 
-import { NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-basic-attribute-prompt'
-import { NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-data-analysis-prompt'
-import { NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-event-recognition-prompt'
-import { NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-macro-impact-prompt'
 import { NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
-import { COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT } from './server/narrative-basic-attribute-system-prompt'
-import { COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT } from './server/narrative-data-analysis-system-prompt'
-import { COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT } from './server/narrative-event-recognition-system-prompt'
-import { COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT } from './server/narrative-macro-impact-system-prompt'
+import { NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-story-continuity-prompt'
+import { NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-talent-growth-prompt'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './server/narrative-system-prompt'
+import { COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT } from './server/narrative-story-continuity-system-prompt'
+import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from './server/narrative-talent-growth-system-prompt'
 
 export interface ServerPromptAsset {
   id: string
@@ -23,25 +19,17 @@ export interface ServerPromptAsset {
 }
 
 const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
-  [NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID]: {
-    id: NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT,
-  },
-  [NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID]: {
-    id: NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT,
-  },
-  [NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID]: {
-    id: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT,
-  },
-  [NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID]: {
-    id: NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT,
-  },
   [NARRATIVE_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_SERVER_PROMPT_ASSET_ID,
     systemPrompt: COMPILED_NARRATIVE_SYSTEM_PROMPT,
+  },
+  [NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT,
+  },
+  [NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT,
   },
 }
 

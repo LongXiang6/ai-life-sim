@@ -1,3 +1,5 @@
+/* Purpose: Define shared runtime viewport, density, theme, and accessibility styles. Owner: app:globals.css. Responsibility: Cross-page presentation primitives only. */
+
 @import 'tailwindcss';
 @source not "../../.agents";
 @source not "../../docs";
@@ -60,6 +62,8 @@ body {
  * visible height. No page-level transform or design-canvas scaling is used.
  */
 .final-flow-frame {
+  --final-flow-content-max-width: 30rem;
+  --final-flow-content-gutter: calc(16.667 * var(--final-flow-density-px));
   position: relative;
   isolation: isolate;
   display: grid;
@@ -72,9 +76,7 @@ body {
   margin: 0;
   overflow: hidden;
   place-items: stretch;
-  background:
-    linear-gradient(135deg, rgba(255, 215, 95, 0.07), rgba(255, 215, 95, 0) 32%),
-    linear-gradient(#fafbff, #f3f5f9);
+  background: #fffdf7;
   color-scheme: light;
 }
 
@@ -92,9 +94,11 @@ body {
 .flow-responsive-layout {
   position: relative;
   width: 100%;
+  max-width: var(--final-flow-content-max-width);
   height: 100%;
   min-width: 0;
   min-height: 0;
+  margin: 0 auto;
   overflow: hidden;
   --final-flow-inline-unit: clamp(3.84px, 1.2vw, 5.16px);
   --final-flow-block-unit: clamp(7.68px, 1.2vh, 11.184px);
@@ -105,6 +109,7 @@ body {
 .final-flow-frame--core-simulation {
   --final-flow-density-px: 1px;
   --final-flow-density-rem: 1rem;
+  --final-flow-content-gutter: 20px;
 }
 
 .final-flow-frame--core-simulation .flow-responsive-layout {
@@ -130,7 +135,11 @@ body {
 
 .final-flow-frame [data-flow-bottom-bar] {
   position: absolute !important;
-  z-index: 100;
+  z-index: 4;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  padding-bottom: max(calc(13.333 * var(--final-flow-density-px)), env(safe-area-inset-bottom, 0px));
 }
 
 /*
@@ -139,6 +148,7 @@ body {
  * opts into this shared reset while inner cards keep their own borders.
  */
 .final-flow-frame .final-flow-page-surface {
+  background-color: var(--color-bg) !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -152,19 +162,13 @@ body {
  * Shared bottom actions are anchored to the real mobile viewport. Each page
  * owns only its content scrolling and keeps enough bottom padding for the bar.
  */
-@media (max-width: 47.99rem) {
-  .final-flow-frame [data-flow-bottom-bar] {
-    position: fixed !important;
-    bottom: max(calc(12 * var(--final-flow-density-px)), env(safe-area-inset-bottom, 0px));
-    left: max(calc(16 * var(--final-flow-density-px)), env(safe-area-inset-left, 0px));
-    right: max(calc(16 * var(--final-flow-density-px)), env(safe-area-inset-right, 0px));
-    z-index: 100;
-  }
-}
-
 @media (min-width: 48rem) {
+  .final-flow-frame {
+    --final-flow-content-max-width: max(42rem, 58vw);
+  }
+
   .flow-responsive-viewport {
-    width: min(100%, 30rem);
+    width: min(100%, var(--final-flow-content-max-width));
   }
 }
 

@@ -4,7 +4,7 @@
  * Responsibility: Mailbox identity and address resolution only; message operations remain separate.
  */
 
-import { CloudMythicTalentSchema, type CloudMythicTalent } from '@/core/account/account-contract'
+import { ReincarnationTalentSchema, type CloudReincarnationTalent } from '@/core/account/account-contract'
 import { getAccountDatabase, getAccountDatabasePath } from '@/core/account/account-database'
 import { normalizeDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code'
 import { normalizeDeviceProvenanceId } from '@/core/logger/device-provenance'
@@ -137,9 +137,9 @@ export function resolveRecipient(recipient: PlayerMailRecipient): { key: string;
   return { key: diagnosticKey(diagnosticCode), label: diagnosticCode }
 }
 
-export function parseTalent(raw: string): CloudMythicTalent {
+export function parseTalent(raw: string): CloudReincarnationTalent {
   try {
-    return CloudMythicTalentSchema.parse(JSON.parse(raw))
+    return ReincarnationTalentSchema.parse(JSON.parse(raw))
   } catch {
     throw new PlayerContentServiceError('邮件中的轮回天赋无法读取', 500, 'mail_talent_corrupt')
   }

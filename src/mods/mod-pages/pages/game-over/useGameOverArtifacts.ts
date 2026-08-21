@@ -1,28 +1,52 @@
 /**
- * Purpose: Build mythic, share-card, and persisted life-record projections from the final score.
+ * Purpose: Build reincarnation-promotion, share-card, and persisted record projections from one AI settlement result.
  * Owner: mod-pages/game-over
- * Responsibility: Read-only post-score artifact assembly and active mythic selection only.
+ * Responsibility: Read-only artifact assembly and active promotion selection only.
  */
 
 import { useMemo, useState } from 'react'
 
+import { ENGINE_VERSION } from '@/core/version'
+import type { LifeScoringResult } from '@/foundation'
 import {
   useCharacterStore,
-  useMythicLibraryStore,
+  type AttributeModifiers,
+  type DestinyPatternCategory,
+  type DestinyPatternRarity,
+  type ReincarnationTalent,
 } from '@/mods/mod-character'
-import { ENGINE_VERSION } from '@/core/version'
 
 import { buildGameOverShareFacts } from './game-over-share-card'
 import type { EndingReview } from './game-over-review'
-import type { useGameOverScore } from './useGameOverScore'
+import { getReincarnationStrengthTier } from './game-over-scoring'
+import type { useGameOverSnapshot } from './useGameOverSnapshot'
 
-type GameOverScore = ReturnType<typeof useGameOverScore>
+type GameOverSnapshot = ReturnType<typeof useGameOverSnapshot>
 
-export function useGameOverArtifacts(score: GameOverScore, effectiveEndingReview: EndingReview) {
-  const mythicCandidates = useCharacterStore((state) => state.mythicCandidates)
-  const sealedMythicPatternId = useCharacterStore((state) => state.sealedMythicPatternId)
-  const mythicLibrary = useMythicLibraryStore((state) => state.patterns)
-  const [activeMythicIndex, setActiveMythicIndex] = useState(0)
+export interface PromotionCandidate {
+  id: string
+  kind: 'pattern' | 'talent'
+  lineageId: string
+  version: number
+  name: string
+  description: string
+  effect: string
+  category: DestinyPatternCategory
+  rarity: DestinyPatternRarity
+  attrBonus: Partial<AttributeModifiers>
+  /** 普通命格为 0；已入库轮回天赋为其当前强化等级。 */
+  strengthenLevel: number
+}
+
+export function useGameOverArtifacts(
+  snapshot: GameOverSnapshot,
+  scoreResult: LifeScoringResult | null,
+  endingReview: EndingReview | null,
+  completedAt: number | null,
+) {
+  const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
+  const [activePromotionIndex, setActivePromotionIndex] = useState(0)
+  const [promotedTalent, setPromotedTalent] = useState<ReincarnationTalent | null>(null)
   const {
     achievements,
     ageLabel,
@@ -31,34 +55,61 @@ export function useGameOverArtifacts(score: GameOverScore, effectiveEndingReview
     characterAge,
     characterName,
     compressedSummaries,
-    dimensions,
     featuredAchievement,
     isDead,
     lifeRunId,
-    morality,
-    moralityLabel,
     narrativeHistory,
-    overallScore,
     regularPatterns,
-    scoreResult,
     scoringAudit,
-    scoringProfile,
     worldName,
-  } = score
+  } = snapshot
+  const overallScore = scoreResult?.score ?? 0
+  const dimensions = useMemo(() => scoreResult?.dimensions.map((dimension) => ({
+    label: dimension.label,
+    value: dimension.value,
+    comment: dimension.comment,
+  })) ?? [], [scoreResult])
+  const reincarnationStrength = useMemo(
+    () => getReincarnationStrengthTier(overallScore),
+    [overallScore],
+  )
 
-  const sealedMythicPattern = mythicLibrary.find((pattern) => pattern.id === sealedMythicPatternId) ?? null
-  const sealedCandidateIndex = sealedMythicPattern
-    ? mythicCandidates.findIndex((candidate) => (
-        candidate.name === sealedMythicPattern.name
-        && candidate.concept === sealedMythicPattern.concept
-        && candidate.effect === sealedMythicPattern.effect
-      ))
-    : -1
-  const effectiveMythicIndex = sealedCandidateIndex >= 0 ? sealedCandidateIndex : activeMythicIndex
-  const activeMythicCandidate = sealedMythicPattern
-    ?? mythicCandidates[effectiveMythicIndex]
-    ?? mythicCandidates[0]
-  const sealedOutsideCurrentCandidates = Boolean(sealedMythicPattern && sealedCandidateIndex < 0)
+  const promotionCandidates = useMemo<PromotionCandidate[]>(() => {
+    const patterns = regularPatterns
+      .map((pattern): PromotionCandidate => ({
+        id: pattern.id,
+        kind: 'pattern',
+        lineageId: pattern.lineageId,
+        version: pattern.version,
+        name: pattern.name,
+        description: pattern.description,
+        effect: pattern.effect,
+        category: pattern.category,
+        rarity: pattern.rarity,
+        attrBonus: pattern.attrBonus,
+        strengthenLevel: 0,
+      }))
+    const talents = equippedReincarnationTalents
+      .map((talent): PromotionCandidate => ({
+        id: talent.id,
+        kind: 'talent',
+        lineageId: talent.lineageId,
+        version: talent.version,
+        name: talent.name,
+        description: talent.description,
+        effect: talent.effect,
+        category: talent.category,
+        rarity: talent.rarity,
+        attrBonus: talent.attrBonus,
+        strengthenLevel: talent.strengthenLevel,
+      }))
+    return [...patterns, ...talents]
+  }, [equippedReincarnationTalents, regularPatterns])
+
+  const effectivePromotionIndex = promotionCandidates.length > 0
+    ? Math.min(activePromotionIndex, promotionCandidates.length - 1)
+    : 0
+  const activePromotionCandidate = promotionCandidates[effectivePromotionIndex] ?? null
 
   const shareCardData = useMemo(() => ({
     lifeRunId,
@@ -66,7 +117,6 @@ export function useGameOverArtifacts(score: GameOverScore, effectiveEndingReview
     worldName,
     ageLabel,
     rounds: allNarratives.length,
-    moralityLabel,
     overallScore,
     attributes,
     achievementCount: achievements.length,
@@ -74,16 +124,15 @@ export function useGameOverArtifacts(score: GameOverScore, effectiveEndingReview
       ? { title: featuredAchievement.title, detail: featuredAchievement.detail }
       : null,
     dimensions,
-    mythic: activeMythicCandidate
+    reincarnation: promotedTalent
       ? {
-          name: activeMythicCandidate.name,
-          concept: activeMythicCandidate.concept,
-          effect: activeMythicCandidate.effect,
+          name: promotedTalent.name,
+          description: promotedTalent.description,
+          effect: promotedTalent.effect,
         }
       : null,
   }), [
     achievements.length,
-    activeMythicCandidate,
     ageLabel,
     allNarratives.length,
     attributes,
@@ -91,21 +140,21 @@ export function useGameOverArtifacts(score: GameOverScore, effectiveEndingReview
     dimensions,
     featuredAchievement,
     lifeRunId,
-    moralityLabel,
     overallScore,
+    promotedTalent,
     worldName,
   ])
   const shareFacts = useMemo(() => buildGameOverShareFacts(shareCardData), [shareCardData])
-  const cloudLifeRecord = useMemo(() => ({
+  const cloudLifeRecord = useMemo(() => scoreResult && endingReview && completedAt !== null ? ({
     recordId: lifeRunId,
-    completedAt: narrativeHistory[narrativeHistory.length - 1]?.timestamp ?? 0,
+    completedAt,
     characterName: characterName || '无名之辈',
     worldName,
     finalAge: characterAge,
     rounds: narrativeHistory.length,
     died: isDead,
-    moralityLabel,
-    overallScore,
+    overallScore: scoreResult.score,
+    attributes,
     achievements: achievements.map(({ id, kind, title, detail, timeLabel }) => ({
       id,
       kind,
@@ -113,95 +162,53 @@ export function useGameOverArtifacts(score: GameOverScore, effectiveEndingReview
       detail,
       timeLabel,
     })),
-    dimensions: scoreResult.dimensions.map((dimension) => ({
-      id: dimension.id,
-      label: dimension.label,
-      description: dimension.description,
-      weight: dimension.weight,
-      value: dimension.value,
-      comment: dimension.comment,
-    })),
+    dimensions: scoreResult.dimensions,
     scoring: {
-      version: scoreResult.version,
-      profile: scoringProfile,
-      rawScore: scoreResult.rawScore,
-      validCompletedLife: scoreResult.validCompletedLife,
-      evidence: scoreResult.evidence,
-      integrity: scoreResult.integrity,
+      ...scoreResult,
       audit: scoringAudit,
     },
-    endingReview: effectiveEndingReview,
+    endingReview,
     destinyNames: regularPatterns.map((pattern) => pattern.name),
-    ...(sealedMythicPattern ? { mythicName: sealedMythicPattern.name } : {}),
+    ...(promotedTalent ? { reincarnationName: promotedTalent.name } : {}),
     gameVersion: ENGINE_VERSION,
-  }), [
+  }) : null, [
     achievements,
+    attributes,
     characterAge,
     characterName,
-    effectiveEndingReview,
+    completedAt,
+    endingReview,
     isDead,
     lifeRunId,
-    moralityLabel,
     narrativeHistory,
-    overallScore,
+    promotedTalent,
     regularPatterns,
     scoreResult,
     scoringAudit,
-    scoringProfile,
-    sealedMythicPattern,
     worldName,
   ])
-  const mythicLifeDigests = useMemo(() => (
+  const promotionLifeDigests = useMemo(() => (
     compressedSummaries.summaries
       .slice()
-      .sort((left, right) => left.startRound - right.startRound)
-      .map((item) => ({ startRound: item.startRound, endRound: item.endRound, summary: item.content }))
+      .sort((left, right) => left.sourceRound - right.sourceRound)
+      .map((item) => ({ sourceRound: item.sourceRound, summary: item.content }))
   ), [compressedSummaries.summaries])
-  const mythicLifeRecords = useMemo(() => narrativeHistory.map((entry, index) => (
+  const promotionLifeRecords = useMemo(() => narrativeHistory.map((entry, index) => (
     `${entry.displayTimeLabel ?? `第${index + 1}轮`}：${entry.text}`
   )), [narrativeHistory])
-  const mythicFinalState = useMemo(() => ({
-    outcome: {
-      finalAge: characterAge,
-      rounds: narrativeHistory.length,
-      died: isDead,
-    },
-    attributes,
-    morality: {
-      value: morality.value,
-      level: morality.level,
-      label: moralityLabel,
-    },
-    endingScore: scoreResult,
-    achievements,
-    regularPatterns: regularPatterns.map((pattern) => ({ name: pattern.name, effect: pattern.effect })),
-  }), [
-    achievements,
-    attributes,
-    characterAge,
-    isDead,
-    morality.level,
-    morality.value,
-    moralityLabel,
-    narrativeHistory.length,
-    regularPatterns,
-    scoreResult,
-  ])
 
   return {
-    activeMythicCandidate,
-    activeMythicIndex,
+    activePromotionCandidate,
+    activePromotionIndex,
     cloudLifeRecord,
-    effectiveMythicIndex,
-    mythicCandidates,
-    mythicFinalState,
-    mythicLibrary,
-    mythicLifeDigests,
-    mythicLifeRecords,
-    sealedMythicPattern,
-    sealedMythicPatternId,
-    sealedOutsideCurrentCandidates,
-    setActiveMythicIndex,
+    effectivePromotionIndex,
+    promotionCandidates,
+    promotionLifeDigests,
+    promotionLifeRecords,
+    promotedTalent,
+    reincarnationStrength,
+    setActivePromotionIndex,
+    setPromotedTalent,
     shareCardData,
     shareFacts,
   }

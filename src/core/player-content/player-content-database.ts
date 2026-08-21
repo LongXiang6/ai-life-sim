@@ -15,7 +15,7 @@ declare global {
   var __aiLifePlayerContentDatabase: Database.Database | undefined
 }
 
-const PLAYER_CONTENT_SCHEMA_VERSION = 5
+const PLAYER_CONTENT_SCHEMA_VERSION = 6
 
 export const PLAYER_MAIL_RETENTION_MS = 3 * 24 * 60 * 60 * 1000
 
@@ -59,18 +59,68 @@ function createPortraitMailJobsTable(database: Database.Database): void {
 function createLeaderboardBestRunsTable(database: Database.Database): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS leaderboard_best_runs (
-      account_id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
       record_id TEXT NOT NULL,
-      score INTEGER NOT NULL CHECK (score BETWEEN 98 AND 100),
+      score INTEGER NOT NULL CHECK (score BETWEEN 0 AND 100),
       rounds INTEGER NOT NULL CHECK (rounds >= 0),
       completed_at INTEGER NOT NULL,
       record_json TEXT NOT NULL,
       portrait_asset_id TEXT,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (account_id, record_id)
     );
     CREATE INDEX IF NOT EXISTS leaderboard_best_runs_order_idx
-      ON leaderboard_best_runs(score DESC, rounds DESC, completed_at ASC, record_id ASC);
+      ON leaderboard_best_runs(score DESC, rounds DESC, completed_at ASC, record_id ASC, account_id ASC);
   `)
+}
+
+function removeLeaderboardRowsWithoutReviewVerse(database: Database.Database): void {
+  const rows = database.prepare(`
+    SELECT account_id, record_id, record_json FROM leaderboard_best_runs
+  `).all() as Array<{ account_id: string; record_id: string; record_json: string }>
+  const remove = database.prepare(`
+    DELETE FROM leaderboard_best_runs WHERE account_id = ? AND record_id = ?
+  `)
+  for (const row of rows) {
+    try {
+      const record = JSON.parse(row.record_json) as {
+        endingReview?: { review?: unknown; verse?: unknown }
+      }
+      const review = typeof record.endingReview?.review === 'string'
+        ? record.endingReview.review.trim()
+        : ''
+      const verse = typeof record.endingReview?.verse === 'string'
+        ? record.endingReview.verse.trim()
+        : ''
+      if (review && verse) continue
+    } catch {
+      // Invalid historical projections cannot satisfy the current leaderboard contract.
+    }
+    remove.run(row.account_id, row.record_id)
+  }
+}
+
+function removeLegacyScoringLeaderboardRows(database: Database.Database): void {
+  const rows = database.prepare(`
+    SELECT account_id, record_id, record_json FROM leaderboard_best_runs
+  `).all() as Array<{ account_id: string; record_id: string; record_json: string }>
+  const remove = database.prepare(`
+    DELETE FROM leaderboard_best_runs WHERE account_id = ? AND record_id = ?
+  `)
+  for (const row of rows) {
+    try {
+      const record = JSON.parse(row.record_json) as {
+        dimensions?: unknown[]
+        scoring?: { version?: unknown; source?: unknown }
+      }
+      if (record.scoring?.version === 2
+        && record.scoring.source === 'ai'
+        && record.dimensions?.length === 5) continue
+    } catch {
+      // Historical projections stay in account storage; malformed rows leave the active leaderboard.
+    }
+    remove.run(row.account_id, row.record_id)
+  }
 }
 
 function createMailboxTables(database: Database.Database): void {
@@ -230,6 +280,28 @@ function migrateSchema(database: Database.Database, version: number): void {
       `)
     }
   }
+  if (version < 6) {
+    const hasLeaderboard = database.prepare(`
+      SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'leaderboard_best_runs'
+    `).get()
+    if (hasLeaderboard) {
+      database.exec(`
+        DROP INDEX IF EXISTS leaderboard_best_runs_order_idx;
+        ALTER TABLE leaderboard_best_runs RENAME TO leaderboard_best_runs_v5;
+      `)
+      createLeaderboardBestRunsTable(database)
+      database.exec(`
+        INSERT INTO leaderboard_best_runs(
+          account_id, record_id, score, rounds, completed_at,
+          record_json, portrait_asset_id, updated_at
+        )
+        SELECT account_id, record_id, score, rounds, completed_at,
+          record_json, portrait_asset_id, updated_at
+        FROM leaderboard_best_runs_v5;
+        DROP TABLE leaderboard_best_runs_v5;
+      `)
+    }
+  }
 }
 
 function initializeSchema(database: Database.Database): void {
@@ -310,6 +382,16 @@ function initializeSchema(database: Database.Database): void {
   migrateSchema(database, currentVersion)
   createPortraitMailJobsTable(database)
   migrateMailboxSchema(database, currentVersion)
+  removeLeaderboardRowsWithoutReviewVerse(database)
+  removeLegacyScoringLeaderboardRows(database)
+  database.exec(`
+    DELETE FROM leaderboard_best_runs
+    WHERE rowid IN (
+      SELECT rowid FROM leaderboard_best_runs
+      ORDER BY score DESC, rounds DESC, completed_at ASC, record_id ASC, account_id ASC
+      LIMIT -1 OFFSET 50
+    );
+  `)
 
   database.prepare(`
     INSERT INTO player_content_meta(key, value) VALUES ('schema_version', ?)

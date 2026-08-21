@@ -1,7 +1,7 @@
 /**
  * Purpose: Preserve the public AI client API while routing each responsibility to its owned component.
  * Owner: core:ai-service
- * Responsibility: Public exports only; request, retry, stream, logging, metrics, and validation logic live below ai-client/.
+ * Responsibility: Public exports only; request, stream, logging, metrics, and validation logic live below ai-client/.
  */
 
 export { getCacheStats, resetCacheStats } from './cache-stats'
@@ -15,7 +15,6 @@ export {
 } from './ai-client/errors'
 export { buildProxyBody } from './ai-client/request-body'
 export { callAI, callAIConversation, callAIStream, callAIStreamConversation } from './ai-client/calls'
-export { callAIDegraded, callAIStreamDegraded } from './ai-client/degraded-calls'
 export { handleStreamResponse } from './ai-client/stream-response'
 export type {
   AICallLogContext,

@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Purpose: Remove expired inactive accounts and their owned player-content records.
+ * Owner: operations
+ * Responsibility: One retention cleanup CLI, including backup, deletion, and result reporting.
+ */
+
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -109,18 +115,18 @@ function returnExpiredMail(database, now) {
           SELECT 1 FROM account_store.accounts WHERE id = ?
         `).get(accountId)
         const talentExists = database.prepare(`
-          SELECT 1 FROM account_store.account_mythic_talents
+          SELECT 1 FROM account_store.account_reincarnation_talents
           WHERE account_id = ? AND talent_id = ?
         `).get(accountId, attachment.talent_id)
         if (accountExists && !talentExists) {
           const slots = new Set(database.prepare(`
-            SELECT slot FROM account_store.account_mythic_talents WHERE account_id = ?
+            SELECT slot FROM account_store.account_reincarnation_talents WHERE account_id = ?
           `).all(accountId).map((row) => row.slot))
           let slot = 1
-          while (slots.has(slot) && slot <= 10) slot += 1
-          if (slot <= 10) {
+          while (slots.has(slot) && slot <= 36) slot += 1
+          if (slot <= 36) {
             database.prepare(`
-              INSERT INTO account_store.account_mythic_talents(
+              INSERT INTO account_store.account_reincarnation_talents(
                 account_id, slot, talent_id, data_json, updated_at
               ) VALUES (?, ?, ?, ?, ?)
             `).run(accountId, slot, attachment.talent_id, attachment.talent_json, now)
@@ -175,7 +181,7 @@ const now = Date.now()
 const accountDatabase = openDatabase(options.database)
 let playerContentDatabase
 try {
-  assertSchema(accountDatabase, 'account_meta', '5')
+  assertSchema(accountDatabase, 'account_meta', '6')
   const staleAccountIds = accountDatabase.prepare(`
     SELECT id FROM accounts WHERE last_active_at < ? ORDER BY id
   `).all(now - RETENTION_MS).map((row) => row.id)
@@ -192,7 +198,7 @@ try {
   let contentCleanup = { deletedContentAccounts: 0, deletedAssetFiles: 0, deletedOrphanAssetFiles: 0 }
   if (fs.existsSync(options.playerContentDatabase)) {
     playerContentDatabase = openDatabase(options.playerContentDatabase)
-    assertSchema(playerContentDatabase, 'player_content_meta', '5')
+    assertSchema(playerContentDatabase, 'player_content_meta', '6')
     Object.assign(contentCleanup, returnExpiredMail(playerContentDatabase, now))
     const liveAccountIds = new Set(accountDatabase.prepare('SELECT id FROM accounts').all().map((row) => row.id))
     const contentAccountIds = playerContentDatabase.prepare(`

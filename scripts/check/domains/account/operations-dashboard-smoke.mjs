@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress operations-dashboard account and player-content aggregates against isolated databases.
+ * Owner: quality:account
+ * Responsibility: One temporary dashboard fixture, command invocation, and output assertion lifecycle only.
+ */
+
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -17,6 +23,7 @@ process.env.AI_LOG_DB_PATH = logDatabasePath
 const accountDatabaseModule = await import('../../../../src/core/account/account-database.ts')
 const playerContentDatabaseModule = await import('../../../../src/core/player-content/player-content-database.ts')
 const playerContentService = await import('../../../../src/core/player-content/player-content-service.ts')
+const scoring = await import('../../../../src/core/scoring/life-scoring.ts')
 const logStore = await import('../../../../src/core/logger/server-log-store.ts')
 const dashboard = await import('../../../ops/operations-dashboard.mjs')
 const dashboardService = await fs.readFile(new URL('../../../ops/systemd/ai-life-sim-operations-dashboard.service', import.meta.url), 'utf8')
@@ -54,6 +61,52 @@ try {
     },
     payload: { engine: {}, character: {}, world: {} },
   }, now)
+  const narrativeIds = Array.from({ length: 120 }, (_, index) => `dashboard-narrative-${index + 1}`)
+  const transitionAudits = narrativeIds.map((narrativeId, index) => ({
+    schemaVersion: 1,
+    round: index + 1,
+    narrativeId,
+    validatedWritePath: true,
+    interceptorPassed: true,
+    intentValidationPassed: true,
+    historicalCommitPassed: true,
+    structuredDataPresent: true,
+    structuredDataAccepted: true,
+    requestedChangeCount: 0,
+    committedChangeCount: 0,
+    rejectedChangeCount: 0,
+    trusted: true,
+    validationClean: true,
+    reasons: [],
+  }))
+  const scoringAudit = {
+    schemaVersion: 1,
+    lifeRunId: 'life-dashboard-record',
+    committedRounds: 120,
+    narrativeIds,
+    resolvedChoiceCount: 1,
+    achievementIds: ['event-a'],
+    completed: true,
+    terminalCommitted: true,
+    stateTransitionsTrusted: true,
+    hasValidationFailure: false,
+    transitionAudits,
+  }
+  const evidenceIds = narrativeIds.map((id) => `narrative:${id}`)
+  const scoreResult = scoring.createLifeScoringResult({
+    response: {
+      dimensions: Array.from({ length: 5 }, (_, index) => ({
+        id: `dashboard-dimension-${index + 1}`,
+        label: `维度${index + 1}`,
+        description: `测试世界维度${index + 1}`,
+        value: 98,
+        comment: `你在维度${index + 1}留下了完整记录。`,
+        evidenceIds: [evidenceIds[index]],
+      })),
+    },
+    allowedEvidenceIds: evidenceIds,
+    audit: scoringAudit,
+  })
   playerContentService.projectLeaderboardRecord('account-a', {
     recordId: 'record-a',
     completedAt: now,
@@ -62,42 +115,24 @@ try {
     finalAge: 100,
     rounds: 120,
     died: false,
-    moralityLabel: '至善',
     overallScore: 98,
     attributes: { physique: 12, mind: 12, talentAptitude: 12, charisma: 12 },
-    dimensions: [
-      { id: 'growth', label: '成长', description: '角色成长', weight: 34, value: 98, comment: '你持续完成了成长。' },
-      { id: 'agency', label: '抉择', description: '关键选择', weight: 33, value: 98, comment: '你承担了关键选择。' },
-      { id: 'impact', label: '影响', description: '世界影响', weight: 33, value: 98, comment: '你留下了清晰影响。' },
-    ],
+    dimensions: scoreResult.dimensions,
     destinyNames: [],
     achievements: [{ id: 'event-a', kind: 'choice', title: '完成测试', detail: '保留了完整记录', timeLabel: '第 120 轮' }],
     scoring: {
-      version: 1,
-      profile: {
-        profileVersion: 1,
-        worldId: 'test-world',
-        dimensions: [
-          { id: 'growth', label: '成长', description: '角色成长', weight: 34, evidenceKinds: ['attributes'], curveId: 'growth' },
-          { id: 'agency', label: '抉择', description: '关键选择', weight: 33, evidenceKinds: ['choices'], curveId: 'agency' },
-          { id: 'impact', label: '影响', description: '世界影响', weight: 33, evidenceKinds: ['achievements'], curveId: 'impact' },
-        ],
-      },
-      rawScore: 98,
-      validCompletedLife: true,
-      evidence: { attributes: 98, journey: 100, choices: 100, achievements: 100, completion: 100 },
-      integrity: { passed: true, perfectGatePassed: false, checks: { terminalCommitted: true }, reasons: [] },
+      ...scoreResult,
+      audit: scoringAudit,
     },
-    endingReview: { perspective: 'macro', review: '你完成了这一段可验证的人生。', evidenceIds: ['event-a'], source: 'local' },
+    endingReview: {
+      perspective: 'macro',
+      review: '你完成了这一段可验证的人生。',
+      verse: '长路回声入旧城\n灯前故纸照归程\n一生取舍留青简\n此夜星河伴远行',
+      evidenceIds: ['event-a'],
+      source: 'ai',
+    },
     gameVersion: '5.2.9',
   }, now)
-  // 本测试只验证运营聚合读取；排行榜资格不在此处重复构造评分审计。
-  playerContentDatabaseModule.getPlayerContentDatabase().prepare(`
-    INSERT OR IGNORE INTO leaderboard_best_runs(
-      account_id, record_id, score, rounds, completed_at, record_json,
-      portrait_asset_id, updated_at
-    ) VALUES ('account-a', 'dashboard-record', 98, 120, ?, '{}', NULL, ?)
-  `).run(now, now)
   playerContentDatabaseModule.closePlayerContentDatabaseForTests()
 
   const source = {
@@ -170,7 +205,7 @@ try {
   assert.equal(snapshot.accounts.registered, 1)
   assert.equal(snapshot.accounts.registeredToday, 1)
   assert.equal(snapshot.content.cloudSaves, 1)
-  assert.equal(snapshot.content.leaderboardAccounts, 1)
+  assert.equal(snapshot.content.leaderboardRecords, 1)
   assert.equal(snapshot.traffic.storyRepetition.observedGames, 1)
   assert.equal(snapshot.traffic.storyRepetition.observedRounds, 1)
   assert.equal(snapshot.traffic.storyRepetition.comparedRounds, 1)

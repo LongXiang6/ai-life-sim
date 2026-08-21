@@ -1,19 +1,10 @@
 /**
  * Purpose: Assemble the three dynamic user messages for the main narrative call.
  * Owner: core:ai-service
- * Responsibility: Serialize global facts, memory, and round guidance without owning fixed Prompt rules.
- *
- * @module prompt-builder.ts
- * @description 主叙事三段动态消息组装器
- * @mod core
- *
- * 固定顺序：全局信息 | 记忆 | 本轮引导。
+ * Responsibility: Serialize only the approved 01 story-AI fields in sample order.
  */
 
 import type { PromptContext, PromptTemplate } from '@/foundation'
-
-import { compileNarrativeGuidance } from './narrative-guidance-compiler'
-import { OMIT_EMPTY_PROMPT_FIELDS } from './prompt-flags'
 
 export type PromptSegmentStrategy = 'S4'
 
@@ -29,113 +20,135 @@ export interface PromptSegments {
   totalChars: number
 }
 
-export const NARRATIVE_GLOBAL_JSON_KEYS = [
-  '世界设定',
-  '世界规则',
-  '模组世界规则',
-  '世界标签',
-  '世界校准',
-  '力量体系',
-  '命格天赋',
-  '角色档案',
-  '叙事风格',
-  '叙事基调',
-] as const
+const DEFAULT_PLAYER_ACTION = '在当前条件下顺其自然，处理本轮生活中实际发生的事情。'
+const DEFAULT_NARRATIVE_STYLE = '保留古典用词质感，但使用略微白话、直接易读的句式；以具体动作、工具、材料、身体限制、关系反应和可追踪因果推进，不堆砌典故、意象、倒装或晦涩表达；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，不要机械用日期或年龄句开头。'
 
-export const NARRATIVE_ROUND_JSON_KEYS = [
-  '当前时间',
-  '角色现状',
-  '当前状态',
-  '最近变化',
-  '当前情节阶段',
-  '本轮可回收伏笔',
-  '本轮触发事项',
-  '时间跨度摘要',
-  '已触发因果',
-  '系统引导',
-  '本轮玩家行动',
-  '字数要求',
-] as const
-
-type NarrativeJsonKey =
-  | (typeof NARRATIVE_GLOBAL_JSON_KEYS)[number]
-  | (typeof NARRATIVE_ROUND_JSON_KEYS)[number]
-
-function isEmptyPromptValue(value: unknown): boolean {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string') return value.trim() === ''
-  if (Array.isArray(value)) return value.length === 0
-  if (typeof value === 'object') {
-    const prototype = Object.getPrototypeOf(value)
-    if (prototype === Object.prototype || prototype === null) {
-      return Object.keys(value).length === 0
-    }
-  }
-  return false
+function nonEmpty(value: unknown): string | undefined {
+  return typeof value === 'string' ? value.trim() || undefined : undefined
 }
 
-function pickJsonKeys(
-  object: Record<string, unknown>,
-  keys: readonly string[],
-): Record<string, unknown> {
-  const selected: Record<string, unknown> = {}
-  for (const key of keys) {
-    const value = object[key]
-    if (OMIT_EMPTY_PROMPT_FIELDS && isEmptyPromptValue(value)) continue
-    selected[key] = value
-  }
-  return selected
+function buildCurrentTimeInstruction(value: string | undefined): string {
+  const time = nonEmpty(value) ?? '当前时间'
+  const scope = /日$/u.test(time)
+    ? '本日'
+    : /月$/u.test(time)
+      ? '本月'
+      : /季|春|夏|秋|冬/u.test(time)
+        ? '本季度'
+        : '本年'
+  return `${time}，请合理模拟${scope}发生的事情。`
 }
 
-/** PromptContext 转为固定键序的三层叙事输入。 */
+function buildPlayerActionInstruction(intent: Record<string, unknown> | undefined): string {
+  const action = nonEmpty(intent?.本轮明确行动) ?? DEFAULT_PLAYER_ACTION
+  return `玩家行动：${action}`
+}
+
+function buildAgeCapabilityInstruction(value: unknown): string {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  const age = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0
+  if (age === 0) {
+    return '年龄边界：角色当前0岁，只能表现新生儿的睡眠、进食、哭闹、抓握、感官反应和被照料过程；不能独立移动、学习技能、使用工具、工作或作出决定，本轮行动与选择由照料者和环境承载。'
+  }
+  if (age === 1) {
+    return '年龄边界：角色当前1岁，只能在照料下感知、哭闹、抓握、爬行或扶物蹒跚；不能稳稳独立行走、学习或执行技能、使用工具、工作、持械、帮助完成成人任务或作出成人式决定，本轮事件与选择由照料者、监护人和环境承载。'
+  }
+  if (age === 2) {
+    return '年龄边界：角色当前2岁，只能进行幼儿能够成立的简单言语、游戏、模仿和依赖性活动；不能从事工作、接受正式技能训练、独立使用危险工具或作出成人式决定，关键行动由照料者和环境承载。'
+  }
+  if (age <= 5) {
+    return `年龄边界：角色当前${age}岁，只能进行幼儿能够成立的游戏、简单学习、模仿和有限自理；不能承担工作、危险工具、持械任务或成人责任，关键决定由照料者、监护人或环境承载。`
+  }
+  if (age <= 11) {
+    return `年龄边界：角色当前${age}岁，可以学习、探索和做安全的简单帮忙，但不能直接拥有成人职业熟练度、独立承担危险劳动、持械任务或重大社会责任。`
+  }
+  if (age <= 15) {
+    return `年龄边界：角色当前${age}岁，可以在指导下训练、学习和承担逐步增加的责任，但不能因背景、天赋或玩家指令直接具备未经长期积累的成人专业能力。`
+  }
+  return `年龄边界：角色当前${age}岁，行动仍须符合已经成立的身体、知识、身份、长期积累和处境；背景、天赋或玩家指令不能把尚未获得的能力直接写成既成事实。`
+}
+
+function buildNarrativeStyleInstruction(value: string | undefined): string {
+  const style = nonEmpty(value)
+  const normalized = style?.replace(/^【[^】]+】/u, '').trim()
+  const usesLegacyDefault = !normalized
+    || normalized.includes('根据世界事实、人生阶段和时间跨度选择合理剧情材料')
+  return `叙述风格：${usesLegacyDefault ? DEFAULT_NARRATIVE_STYLE : `${normalized}；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，不要机械用日期或年龄句开头。`}`
+}
+
+function buildWordCountInstruction(value: string | undefined): string {
+  const match = nonEmpty(value)?.match(/正文约\s*(\d+)\s*字/u)
+  return `字数要求：正文约${match?.[1] ?? '300'}字。`
+}
+
+function buildWorldRules(context: PromptContext): string[] {
+  return [context.worldRules, context.modWorldRules]
+    .flatMap((value) => nonEmpty(value)?.split(/\r?\n/u) ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+/** PromptContext 转为固定键序且字段白名单化的 01 输入。 */
 export function buildNarrativeUserJson(context: PromptContext): Record<string, unknown> {
-  const guidance = compileNarrativeGuidance({
-    roundSystemGuidanceText: context.roundSystemGuidanceText,
-    timeGuideText: context.timeGuideText,
-    narrativeGuidanceText: context.narrativeGuidanceText,
-    playerBranchIntent: context.playerBranchIntent,
-  })
-  const raw: Record<NarrativeJsonKey, unknown> = {
-    世界规则: context.worldRules,
-    模组世界规则: context.modWorldRules,
-    世界标签: context.worldTagsText,
-    世界校准: context.calibrationSummary,
-    世界设定: context.worldNarrativeView,
-    力量体系: context.powerFramework,
-    叙事风格: context.narrativeStyle,
-    叙事基调: context.narrativeToneHint,
-    角色档案: context.characterProfileView,
-    命格天赋: context.talents,
-    当前时间: context.currentTime,
-    角色现状: context.characterStatusView,
-    当前状态: context.subsystemSummaries,
-    最近变化: context.systemChangeSummary,
-    当前情节阶段: context.plotStructureText,
-    本轮可回收伏笔: context.foreshadowingText,
-    本轮触发事项: context.eventInjectionText,
-    时间跨度摘要: context.timeBridgeSummary,
-    已触发因果: context.causalChainHint,
-    系统引导: guidance.systemGuidance,
-    本轮玩家行动: guidance.playerBranchIntent,
-    字数要求: context.wordCountInstruction,
+  const rawWorld = context.worldNarrativeView
+  const rules = buildWorldRules(context)
+  const world = {
+    名称: nonEmpty(rawWorld.名称) ?? '',
+    描述: nonEmpty(rawWorld.描述) ?? '',
+    ...(nonEmpty(rawWorld.空间形态) ? { 空间形态: nonEmpty(rawWorld.空间形态) } : {}),
+    ...(nonEmpty(rawWorld.世界观本质) ? { 世界观本质: nonEmpty(rawWorld.世界观本质) } : {}),
+    ...(context.powerFramework ? { 力量体系: context.powerFramework } : {}),
+    ...(rules.length > 0 ? { 成立规则: rules } : {}),
   }
+  const rawCharacter = context.characterProfileView
+  const currentAge = context.characterStatusView.年龄
+  const character = {
+    姓名: nonEmpty(rawCharacter.姓名) ?? '',
+    性别: nonEmpty(rawCharacter.性别) ?? '未设定',
+    种族: nonEmpty(rawCharacter.种族) ?? '未设定',
+    背景: nonEmpty(rawCharacter.背景) ?? '',
+    ...(typeof currentAge === 'number' ? { 当前年龄: currentAge } : {}),
+    基础属性: rawCharacter.基础属性 ?? {},
+    天赋: context.talents ?? [],
+  }
+  const roundGuidance = [
+    buildCurrentTimeInstruction(context.currentTime),
+    buildPlayerActionInstruction(context.playerBranchIntent),
+    `${buildAgeCapabilityInstruction(currentAge)} 故事保持合理挑战，合理接受玩家行动；若决策不合理、忽视风险或与故事逻辑相悖，则行动很可能失败，并引发可预见的负面连锁反应。剧情走向由决策的合理性决定。`,
+    buildNarrativeStyleInstruction(context.narrativeStyle),
+    buildWordCountInstruction(context.wordCountInstruction),
+  ]
 
   return {
-    全局信息: pickJsonKeys(raw, NARRATIVE_GLOBAL_JSON_KEYS),
-    记忆: context.timelineMemory,
-    本轮引导: pickJsonKeys(raw, NARRATIVE_ROUND_JSON_KEYS),
+    世界: world,
+    历史剧情: context.timelineMemory ?? [],
+    最近两轮详细剧情: context.recentDetailedStories ?? [],
+    角色: character,
+    本轮引导: roundGuidance,
+    ...(Array.isArray(context.currentDueEvents) && context.currentDueEvents.length > 0
+      ? { 当前到期事件: context.currentDueEvents.filter((event): event is string => typeof event === 'string' && event.trim().length > 0) }
+      : {}),
   }
 }
 
-/** 输出三条独立 user 消息；稳定全局段始终排在最前。 */
+/** 输出三条独立 user 消息；顺序严格为世界、历史与角色、本轮引导。 */
 export function buildSegmentedPrompt(
   _template: PromptTemplate,
   context: PromptContext,
 ): PromptSegments {
   const input = buildNarrativeUserJson(context)
-  const globalSegment = `⟦全局信息⟧${JSON.stringify(input.全局信息 ?? {})}`
-  const memorySegment = `⟦记忆⟧${typeof input.记忆 === 'string' ? input.记忆 : ''}`
-  const roundSegment = `⟦本轮引导⟧${JSON.stringify(input.本轮引导 ?? {})}`
+  const globalSegment = JSON.stringify({ 世界: input.世界 ?? {} })
+  const memorySegment = JSON.stringify({
+    历史剧情: input.历史剧情 ?? [],
+    最近两轮详细剧情: input.最近两轮详细剧情 ?? [],
+    角色: input.角色 ?? {},
+  })
+  const roundSegment = JSON.stringify({
+    本轮引导: input.本轮引导 ?? [],
+    ...(Array.isArray(input.当前到期事件) && input.当前到期事件.length > 0
+      ? { 当前到期事件: input.当前到期事件 }
+      : {}),
+  })
 
   return {
     stablePrefixChars: globalSegment.length,

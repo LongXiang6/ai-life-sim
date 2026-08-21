@@ -55,7 +55,6 @@ const promptContextRuntimeSrc = readRel('src/mods/mod-engine/subsystems/orchestr
 const constantsSrc = readRel('src/mods/mod-engine/constants.ts')
 const mapperSrc = readRel('src/mods/mod-engine/helpers/detection-state-mapper.ts')
 const campaignSrc = readRel('src/mods/mod-engine/campaigns/default/index.ts')
-const preGenSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
 const saveRestoreSrc = readRel('src/mods/mod-engine/helpers/save-restore.ts')
 
@@ -64,7 +63,6 @@ const orchestratorCode = stripComments(orchestratorSrc)
 const promptContextRuntimeCode = stripComments(promptContextRuntimeSrc)
 const constantsCode = stripComments(constantsSrc)
 const campaignCode = stripComments(campaignSrc)
-const preGenCode = stripComments(preGenSrc)
 const hooksCode = stripComments(hooksSrc)
 const saveRestoreCode = stripComments(saveRestoreSrc)
 
@@ -236,7 +234,7 @@ assertOk(
 
 const orchestratorAdvanceBody = extractBlock(orchestratorSrc, 'advanceTimeForCurrentStep(): RoundInfo')
 assertOk(
-  /timeSystem\.importRound\(this\.state\.round\)/.test(orchestratorAdvanceBody),
+  /this\.runtime\.time\.importRound\(this\.state\.round\)/.test(orchestratorAdvanceBody),
   'orchestrator must sync TimeSystem from the authoritative round before advancing',
 )
 assertOk(
@@ -248,16 +246,14 @@ assertOk(
   'orchestrator must preserve the player-selected coarse-to-fine transition until the next round',
 )
 assertOk(
-  /this\.pendingTimeStepAlignmentFromUnit\s*=\s*undefined[\s\S]*timeSystem\.alignToNextPeriod\(\s*alignmentFromUnit[\s\S]*alignmentFromValue/.test(orchestratorAdvanceBody),
+  /this\.pendingTimeStepAlignmentFromUnit\s*=\s*undefined[\s\S]*this\.runtime\.time\.alignToNextPeriod\(\s*alignmentFromUnit[\s\S]*alignmentFromValue/.test(orchestratorAdvanceBody),
   'orchestrator must align the next round instead of re-entering the already narrated period',
 )
 assertOk(
-  /previousNarrativeRound/.test(promptContextRuntimeCode)
-    && promptContextRuntimeCode.includes('previousNode: {')
-    && promptContextRuntimeCode.includes("orchestrator['previousNarrativeRound']")
-    && promptContextRuntimeCode.includes('daysPassed: timeSystem.getDaysPassed()')
-    && orchestratorCode.includes('timeSystem.getDaysPassed()'),
-  'narrative Prompt must receive the real previous node and elapsed-day window instead of inferring it from the new granularity',
+  !promptContextRuntimeCode.includes('previousNode: {')
+    && !promptContextRuntimeCode.includes('daysPassed:')
+    && promptContextRuntimeCode.includes('currentTime: narrativeTime.timeLabel'),
+  '01 must receive only the sample-approved current-time field, not previous-node or elapsed-day projections',
 )
 assertOk(
   !/totalRounds\s*===\s*0/.test(orchestratorCode),
@@ -332,7 +328,7 @@ assertSame(specNarrativeAge(yearBoundary.totalDays), 1, 'age must increment exac
 
 const contextBody = extractBlock(orchestratorSrc, 'buildRoundContext(): RoundContext')
 assertOk(
-  /daysPassed:\s*timeSystem\.getDaysPassed\(\)/.test(contextBody),
+  /daysPassed:\s*this\.runtime\.time\.getDaysPassed\(\)/.test(contextBody),
   'orchestrator RoundContext must inject daysPassed from TimeSystem',
 )
 assertOk(
@@ -367,17 +363,15 @@ assertOk(
 )
 
 assertOk(
-  preGenCode.includes('运行时预览已移除')
-    && !preGenCode.includes('runPreviewRound')
-    && !orchestratorCode.includes('isPreviewExecution')
+  !orchestratorCode.includes('isPreviewExecution')
     && !orchestratorCode.includes('previewExecutionDepth'),
   'time-step changes must not reintroduce speculative preview execution',
 )
 assertOk(
   !campaignCode.includes('orchestrator.isPreviewExecution()')
     && campaignCode.includes('orchestrator.advanceAllSubsystems()')
-    && campaignCode.includes('orchestrator.acceptNarrativeResponse')
-    && campaignCode.includes('orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)'),
+    && campaignCode.includes('orchestrator.commitNarrativeResponse')
+    && !campaignCode.includes('orchestrator.checkAndTriggerEpilogue'),
   'campaign time advancement must use one real side-effect path',
 )
 assertOk(

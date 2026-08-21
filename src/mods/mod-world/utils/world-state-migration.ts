@@ -167,7 +167,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
         eraStartYear: current.eraStartYear,
         eraName: current.eraName,
         calibration: structuredClone(current.calibration),
-        destinyPatternModifiers: { ...current.destinyPatternModifiers },
         worldInitAIStatus: structuredClone(current.worldInitAIStatus),
       } : {}),
     }
@@ -213,10 +212,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
   })
   instance.currentYear = typeof record.currentYear === 'number' ? record.currentYear : 0
   instance.initialized = record.initialized === true
-  instance.destinyPatternModifiers = isRecord(record.destinyPatternModifiers)
-    ? record.destinyPatternModifiers as WorldContextInstance['destinyPatternModifiers']
-    : {}
-
   return {
     ...record,
     contexts: { [contextId]: instance },
@@ -231,7 +226,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     eraStartYear: instance.eraStartYear,
     eraName: instance.eraName,
     calibration: structuredClone(instance.calibration),
-    destinyPatternModifiers: { ...instance.destinyPatternModifiers },
     worldInitAIStatus: structuredClone(instance.worldInitAIStatus),
   }
 }

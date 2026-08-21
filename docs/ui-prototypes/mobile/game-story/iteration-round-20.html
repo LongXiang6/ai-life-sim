@@ -1,0 +1,140 @@
+<!-- Purpose: Record the twentieth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第二十轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-20</p>
+      <h1>游戏故事 · 第二十轮</h1>
+    </div>
+    <span class="status status-selected">已选择 B · 月白暖白</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-19 定版候选 B（亮杏 · 证件）为基线，方向「底色淡亮 · 不比页面深」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：branchResolved 命运分叉回声块底色为淡色亮色、亮度不低于页面底 #fdf9f1（不用比页面深的颜色；候选分向全在浅色/白色范围且不比页面深）；右栏姓名性别行尾 🪪 证件保留（行尾位置、年龄行尾 ⏳ 保留）。分向为底色三档：候选 A 纯白 #fff、候选 B 月白暖白 #fffdf8、候选 C 极浅鹅黄白 #fffef2。其余共同基线全部继承：顶栏 small「沧澜历 · 18 年 · 春」加大金棕（10px #6b4d1d 500）、右栏 strong 两行等权 serif 大字 + 行尾表情、前世武骨独立第二行左对齐（紧凑胶囊行）、chip 纯白 #fff + 1px 细灰边框 #e5e1d6、墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、单选与输入联动、branchPending 纯白 #fff + 1px 金棕描边、🎲 装饰标题居中、输入框 auto-grow、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（顶栏：身份信息 + 推进步长下拉 + 命运分叉按钮 + 当前信息按钮；barTop grid minmax(0,1fr) auto 40px）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行，barVitals grid minmax(0,1fr) auto 两行）、章节头单行化结构、长篇时间线五轮 + 暮年 70 岁待抉择编辑器、advanceDock 流末推进、信息面板。身份信息口径（姓名性别「林晚 · 女」、年龄「18 岁」、纪元名「沧澜历」、年代「18 年」、季节「春」）全部保留；右栏姓名性别行尾 🪪 证件保留；branchResolved 回声内容（标题「命运分叉 · 你的抉择」+ 选择回显）不变，仅底色调整为淡色亮色且不比页面深。前世武骨流光动画参数照抄运行时（bar-rebirth-flow 13s ease-in-out infinite，延迟 -3.1s，reduced-motion 停）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>底色是否淡色亮色且不比页面底 #fdf9f1 深（亮度门槛）、底色与页面底 #fdf9f1 的差异度（够显眼但极浅）、与金棕描边 #eadfce 及文字层级 #b5ab96/#8a7f6e/#6b4d1d 的可读性、纯白与 branchPending 纯白白板的呼应、极浅鹅黄调是否带出淡色亮彩、🪪 证件与 ⏳ 沙漏的调性协调、行尾表情位置与右对齐收尾、右栏两行与左侧四维/命格及前世武骨第二行的高度协调、窄屏下右栏是否挤压左侧命格胶囊、chip 纯白细线与白板的协调、墨黑中心原点与白板金棕描边的搭配、菱形分隔两端对齐、entryMeta 岁数精简节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>纯白</strong></header>
+          <p>branchResolved 底色换纯白 #fff（最亮最净、比页面 #fdf9f1 亮、与 branchPending 白板呼应、边界最清晰）。</p>
+          <a class="candidate-open" href="candidates/candidate-round-20-01-pure-white.html" target="_blank" rel="noopener">
+            游戏故事 20 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>月白暖白</strong></header>
+          <p>branchResolved 底色换月白暖白 #fffdf8（微暖白、比页面略亮、柔和舒适）。</p>
+          <a class="candidate-open" href="candidates/candidate-round-20-02-moon-white.html" target="_blank" rel="noopener">
+            游戏故事 20 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>极浅鹅黄白</strong></header>
+          <p>branchResolved 底色换极浅鹅黄白 #fffef2（带极浅鹅黄调、比页面亮且带淡色亮彩）。</p>
+          <a class="candidate-open" href="candidates/candidate-round-20-03-pale-warm-white.html" target="_blank" rel="noopener">
+            游戏故事 20 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 纯白</span><span role="columnheader">B 月白暖白</span><span role="columnheader">C 极浅鹅黄白</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchResolved 底色</strong><span role="cell">#fff 纯白（最亮、比页面 #fdf9f1 亮）</span><span role="cell">#fffdf8 月白暖白（比页面略亮、微暖）</span><span role="cell">#fffef2 极浅鹅黄白（比页面亮、带淡色亮彩）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">姓名行表情</strong><span role="cell">🪪 证件 林晚 · 女 行尾</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">年龄行表情</strong><span role="cell">18 岁 ⏳ 行尾</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏 small</strong><span role="cell">沧澜历 · 18 年 · 春（加大金棕）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨行</strong><span role="cell">独立第二行左对齐（紧凑胶囊行）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">chip 属性变化</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选样式</strong><span role="cell">墨黑 #241f18 描边 + 中心原点</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 背景</strong><span role="cell">纯白 #fff + 金棕描边</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-draft">待比较</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>待定。本轮为游戏故事（08）第二十轮，三个候选分向（branchResolved 淡色亮色底色、全部不比页面 #fdf9f1 深：纯白 / 月白暖白 / 极浅鹅黄白）待用户比较后选择。</dd></div>
+        <div><dt>淘汰</dt><dd>待定。</dd></div>
+        <div><dt>下一轮继承</dt><dd>待定。按用户所选方向进入下一轮；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

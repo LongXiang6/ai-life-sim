@@ -1,0 +1,127 @@
+<!-- Purpose: Record the first UI iteration round for the world-select sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界选择 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WORLD-SELECT / ROUND-01</p>
+      <h1>世界选择 · 第一轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>为世界选择子界面建立第一轮候选：在还原当前运行基线的基础上，用定版语言生成精简单列统一与聚焦式两个方向，供用户比较与选择。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（AI LIFE SIM · 命书 / 01 / 08）、标题「选择世界」、世界聚焦 Stage（人生难度、来源、世界名、年代、规则摘要、规则网格）、三来源 tabs（已保存/自定义/预设世界）、预设世界网格与更多入口、底部返回与确认世界（02）。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（聚焦区与列表的层级）、操作效率（选择世界与切换难度的路径）、精简协调性（呈现手段是否同一定版语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前运行基线</strong></header>
+          <p>还原运行时 B1 蓝白：世界聚焦 Stage + 三来源 tabs + 预设世界网格 + 圆形返回与渐变确认。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>精简单列统一</strong></header>
+          <p>暖纸墨全页、stage 与世界卡卡片化 20px 圆角、tabs 金色下划线、按钮按定版规格、底部双文字等宽纯白同底按钮。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>聚焦式</strong></header>
+          <p>同暖纸墨结构，标题与来源 tabs 居中，stage 聚焦当前世界，世界名更突出。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focused.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 当前基线</span><span role="columnheader">02 精简单列</span><span role="columnheader">03 聚焦式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">蓝白多层分区</span><span role="cell">卡片化同级分层</span><span role="cell">聚焦当前世界</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">难度浮钮 + tabs</span><span role="cell">同契约路径不变</span><span role="cell">同契约路径不变</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">B1 蓝白语言</span><span role="cell">与定版基线一致</span><span role="cell">定版基线 + 居中聚焦</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（聚焦式）。用户确认：标题与来源 tabs 居中、stage 聚焦当前世界的方向被接受；同时提出两条要求：候选界面要能正常串联（tabs 切换、选中联动 stage、难度切换），各子选项卡（已保存/自定义/预设世界）要完善；下一轮方向为尽可能精简信息，并用装饰表情加强视觉效果。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前运行基线）：蓝白语言与定版基线不一致，且信息较多。候选 02（精简单列统一）：结构正确但未入选。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 03 的聚焦式结构（居中标题与 tabs、聚焦 stage、暖纸墨、卡片化、定版按钮规格、双文字等宽底栏），并为候选补齐完整交互串联与子选项卡。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -7,7 +7,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { parseSubsystemFieldContracts } from '../subsystem-field-contract-parser.mjs'
 import { CHECK_ONLY, GENERATED_BANNER, MODS_DIR, ROOT } from './context.mjs'
 import { readFile } from './source-analysis.mjs'
 
@@ -68,39 +67,6 @@ export function parseNarrativePromptVars() {
   const match = content.match(/variables:\s*\[([\s\S]*?)\]/)
   if (!match) return []
   return [...match[1].matchAll(/'(\w+)'/g)].map((m) => m[1])
-}
-
-/**
- * @param {string} content
- * @returns {{ mapKeys: string[], zodSchemas: Record<string, string[]> }}
- */
-export function parseSubsystemFieldRegistry(content) {
-  let zodSchemas
-  try {
-    zodSchemas = parseSubsystemFieldContracts(content)
-  } catch (error) {
-    console.error(`[generate-mod-wiring] SUBSYSTEM_FIELD_CONTRACTS 解析失败: ${error instanceof Error ? error.message : String(error)}`)
-    if (CHECK_ONLY) process.exit(1)
-    throw error
-  }
-  const mapKeys = Object.keys(zodSchemas)
-  if (mapKeys.length === 0) {
-    console.error('[generate-mod-wiring] 未解析到 SUBSYSTEM_FIELD_CONTRACTS')
-    if (CHECK_ONLY) process.exit(1)
-  }
-
-  const requiredDerivations = [
-    'buildSubsystemFieldMap(SUBSYSTEM_FIELD_CONTRACTS)',
-    'buildSubsystemChangeSchemas(SUBSYSTEM_FIELD_CONTRACTS)',
-  ]
-  for (const marker of requiredDerivations) {
-    if (!content.includes(marker)) {
-      console.error(`[generate-mod-wiring] subsystem-field-registry.ts 缺少派生调用: ${marker}`)
-      if (CHECK_ONLY) process.exit(1)
-    }
-  }
-
-  return { mapKeys, zodSchemas }
 }
 
 /**
@@ -211,22 +177,6 @@ export const PROMPT_CONTEXT_FIELDS = ${JSON.stringify(ctxFields, null, 2)} as co
 
 /** narrative-prompt 模板 variables[] */
 export const NARRATIVE_PROMPT_VARIABLES = ${JSON.stringify(narrativeVars, null, 2)} as const
-`
-}
-
-/**
- * @param {string[]} mapKeys
- * @param {Record<string, string[]>} zodSchemas
- * @returns {string}
- */
-export function generateSubsystemFieldKeys(mapKeys, zodSchemas) {
-  return `${GENERATED_BANNER}
-
-/** SUBSYSTEM_FIELD_CONTRACTS 注册的子系统 id 列表 */
-export const SUBSYSTEM_FIELD_REGISTRY_KEYS = ${JSON.stringify(mapKeys, null, 2)} as const
-
-/** SUBSYSTEM_FIELD_CONTRACTS 各子系统字段（codegen 自动推导） */
-export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = ${JSON.stringify(zodSchemas, null, 2)} as const
 `
 }
 

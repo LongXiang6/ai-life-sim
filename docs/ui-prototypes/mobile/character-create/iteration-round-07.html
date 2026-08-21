@@ -1,0 +1,127 @@
+<!-- Purpose: Record the seventh UI iteration round for the character-create sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第七轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CHARACTER-CREATE / ROUND-07</p>
+      <h1>角色塑造 · 第七轮</h1>
+    </div>
+    <span class="status status-selected">已选择 01</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 01（徽标式）基础上按用户指示：① 摘要卡头像区（`span.profileAvatar`）由「人」字形改为其他图标（不要头像，改为人形之外的符号/物件装饰）；② 沉浸式寿命句描述优化（保持「起始 + 寿命」两个输入框嵌入句子的形式，优化措辞增强命书沉浸感）；③ meta 行去掉「尚未填写背景 / 已填写背景」状态文字，只保留性别 · 种族。三个候选围绕头像区图标与句子文案的组合差异。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（03 / 08）固定 16px、内容定高无空白、去 header 后角色摘要（facts ⏳ 寿命 / 🌅 起始 / 🌌 世界 + 性别·种族 meta）、核心身份（姓名·随机、性别、种族，无 caption）、寿命与起始（单行句 + 结果行排序一致 + 自动检测）、人生背景（背景输入/预设/保存预设、textarea 自适应增高）、底部双文字等宽返回与确认角色（04，下一页面为命格抽取）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>头像区图标（非人形符号、与金色强调协调）、句子文案（命书沉浸感、简洁度、输入框嵌入自然）、meta 精简（去背景状态后是否清爽）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>卷轴式</strong></header>
+          <p>头像区换为命书卷轴「📜」；句子改为「<input> 岁蒙光降世，天命寿数 <input> 岁」；meta 只留性别 · 种族。</p>
+          <a class="candidate-open" href="candidates/candidate-round-07-01-scroll.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>月令式</strong></header>
+          <p>头像区换为金色月牙「☾」；句子改为「<input> 岁落子入世，此命长约 <input> 岁」；meta 只留性别 · 种族。</p>
+          <a class="candidate-open" href="candidates/candidate-round-07-02-moon.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>命签式</strong></header>
+          <p>头像区换为羽毛「🪶」；句子改为「<input> 岁启程入世，寿数约为 <input> 岁」；meta 只留性别 · 种族。</p>
+          <a class="candidate-open" href="candidates/candidate-round-07-03-feather.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 卷轴式</span><span role="columnheader">02 月令式</span><span role="columnheader">03 命签式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">头像区图标</strong><span role="cell">📜 命书卷轴</span><span role="cell">☾ 月牙</span><span role="cell">🪶 羽毛</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">句子文案</strong><span role="cell">蒙光降世 · 天命寿数</span><span role="cell">落子入世 · 此命长约</span><span role="cell">启程入世 · 寿数约为</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">meta</strong><span role="cell">性别 · 种族</span><span role="cell">性别 · 种族</span><span role="cell">性别 · 种族</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（卷轴式）。用户确认：头像区为命书卷轴「📜」（非头像物件装饰，紧扣命书主题）、沉浸式寿命句「`<input>` 岁蒙光降世，天命寿数 `<input>` 岁」（结果行与自动检测一致）、meta 只留性别 · 种族，为角色塑造第七轮定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（月令式）：☾ 月牙与「落子入世 · 此命长约」意象偏婉约，命书主题契合度弱于卷轴式。候选 03（命签式）：🪶 羽毛与「启程入世 · 寿数约为」较平直，沉浸感不及卷轴式。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留卷轴式（📜 头像区、蒙光降世·天命寿数句子、meta 性别·种族）与既有结构事实（runningHead 03/08、facts ⏳🌅🌌、自动检测、textarea 自适应、双文字底栏）；待用户指示进入第八轮。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

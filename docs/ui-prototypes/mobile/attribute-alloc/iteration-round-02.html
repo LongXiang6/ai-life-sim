@@ -1,0 +1,130 @@
+<!-- Purpose: Record the second UI iteration round for the attribute-alloc page (06). Owner: Interface system. Responsibility: Compare confirmed allocation-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>属性分配 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">ATTRIBUTE-ALLOC / ROUND-02</p>
+      <h1>属性分配 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以第一轮候选 C（运行时结构：基础点数 → 四项基础属性 → 重置/平均分配）为基线继续迭代属性分配（06）：候选 01 预算常驻（三段保持，基础点数卡片吸顶，滚动中剩余点数始终可见）；候选 02 数值优先（属性行内重排，语义与操作分层，有效值加大突出，基础/有效值行下沉）；候选 03 完全重新设计（预算、四属性与工具压缩进单屏，倾向轴改紧凑刻度，减少滚动完成分配）。结构与数值口径照抄运行时 attribute-alloc 页面，仅在上层布局分向。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（06 / 08）、标题「属性分配」+ 副句「塑造这段人生的先天起点。」、基础点数（15 点预算，命格加成不占预算，0 是普通人基准）、四项基础属性（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫，步进器与 15 格倾向轴）、重置与平均分配、底部返回（返回命格选择）与确认（07 确认属性 / 尚余 X 点 · 下一步核对命运）、未使用点数对话框（继续分配 / 确认并继续）。运行时 AttributeAlloc.module.css 无动画，候选不加动画。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>布局直觉（运行时三段基线的保持程度、预算与属性的主次关系）、操作效率（分配 15 点最短路径、滚动是否可避免）、数值可读性（基础值 / 有效值 / 命格加成的层级）、精简协调性（与命格抽取 / 命格选取定版语言的连贯统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>预算常驻</strong></header>
+          <p>运行时三段保持，基础点数卡片吸顶常驻，滚动分配时剩余点数始终可见，其余结构原样。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-budget-sticky.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>数值优先</strong></header>
+          <p>运行时三段保持，属性行内重排：语义与操作分层，有效值加大突出，基础/有效值行下沉为行尾副行。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-value-first.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>一屏分配（重新设计）</strong></header>
+          <p>完全重新设计：预算、四属性与工具压缩进单屏，倾向轴改紧凑刻度，减少滚动即可完成分配。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-one-screen.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 预算常驻</span><span role="columnheader">02 数值优先</span><span role="columnheader">03 一屏分配</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯属性分配界面</span><span role="cell">纯属性分配界面</span><span role="cell">纯属性分配界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">布局直觉</strong><span role="cell">运行时三段 + 预算吸顶</span><span role="cell">运行时三段 + 行内重排</span><span role="cell">单屏紧凑总览</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">滚动中不丢剩余点数</span><span role="cell">数值就近可读</span><span role="cell">一屏完成，最少滚动</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值可读性</strong><span role="cell">预算与属性分层</span><span role="cell">有效值主读，基础值副读</span><span role="cell">行高压缩，刻度紧凑</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">运行时无动画，照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取 / 选取定版语言统一</span><span role="cell">与抽取 / 选取定版语言统一</span><span role="cell">与抽取 / 选取定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（数值优先）。用户确认「02」。要点：运行时三段保持 + 属性行内重排（语义与操作分层，有效值 16px 金棕突出，基础/有效值行下沉为行尾副行）。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（预算常驻）：基础点数卡片吸顶后与底部确认区的固定反馈重复，先不采纳；候选 03（一屏分配）：行高压缩后档位语义只能单行截断，沉浸叙述被切断，先不采纳。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 02（数值优先）为基线开始第三轮迭代；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

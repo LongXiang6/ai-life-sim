@@ -1,5 +1,11 @@
 'use client'
 
+/**
+ * Purpose: Synchronize account-owned settings, records, drafts, and reincarnation talents.
+ * Owner: mod-pages
+ * Responsibility: Client synchronization orchestration only; each store retains data ownership.
+ */
+
 import {
   fetchAccountSession,
   pushCloudAccount,
@@ -8,13 +14,14 @@ import {
 import {
   CloudSettingsSchema,
   ACCOUNT_MAX_SLOTS,
+  REINCARNATION_LIBRARY_MAX_SLOTS,
   type AccountSessionPayload,
   type CloudGameRecord,
-  type CloudMythicTalent,
+  type CloudReincarnationTalent,
   type CloudSettings,
 } from '@/core/account/account-contract'
 import { useAccountClientStore } from '@/core/account/account-client-store'
-import { useLifeRecordStore, useMythicLibraryStore } from '@/mods/mod-character'
+import { useLifeRecordStore, useReincarnationLibraryStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
 
 import {
@@ -59,25 +66,21 @@ function mergeGameRecords(
   return result
 }
 
-function mythicName(value: string): string {
-  return value.normalize('NFKC').trim().replace(/\s+/gu, '').toLocaleLowerCase()
-}
-
-function mergeMythicTalents(
-  localTalents: readonly CloudMythicTalent[],
-  cloudTalents: readonly CloudMythicTalent[],
-): CloudMythicTalent[] {
-  const result = [...cloudTalents]
+function mergeReincarnationTalents(
+  localTalents: readonly CloudReincarnationTalent[],
+  cloudTalents: readonly CloudReincarnationTalent[],
+): CloudReincarnationTalent[] {
+  const merged = new Map<string, CloudReincarnationTalent>()
+  for (const talent of cloudTalents) merged.set(talent.lineageId, talent)
   for (const talent of localTalents) {
-    const duplicate = result.some((existing) => (
-      existing.id === talent.id
-      || mythicName(existing.name) === mythicName(talent.name)
-      || Boolean(talent.source.runId && existing.source.runId === talent.source.runId)
-    ))
-    if (!duplicate) result.push(talent)
+    const existing = merged.get(talent.lineageId)
+    if (!existing || talent.version > existing.version) merged.set(talent.lineageId, talent)
   }
-  if (result.length > ACCOUNT_MAX_SLOTS) {
-    throw new Error(`本地与云端轮回天赋合并后超过 ${ACCOUNT_MAX_SLOTS} 项，请先整理天赋库。`)
+  const result = [...merged.values()].sort((left, right) => (
+    right.acquiredAt - left.acquiredAt || left.lineageId.localeCompare(right.lineageId)
+  ))
+  if (result.length > REINCARNATION_LIBRARY_MAX_SLOTS) {
+    throw new Error(`本地与云端轮回天赋合并后超过 ${REINCARNATION_LIBRARY_MAX_SLOTS} 项，请先整理天赋库。`)
   }
   return result
 }
@@ -94,7 +97,6 @@ function localSettings(): CloudSettings {
     talentThinkingIntensity: state.talentThinkingIntensity,
     aiTalentGeneration: state.aiTalentGeneration,
     preGenerateRounds: state.preGenerateRounds,
-    storySeed: state.storySeed,
     narrativeStyle: state.narrativeStyle,
     narrativeStyleText: state.narrativeStyleText,
     narrativeStyleVersion: state.narrativeStyleVersion,
@@ -113,28 +115,30 @@ export function buildInitialCloudData(saveApiKey: boolean) {
     saveApiKey,
     apiKey: saveApiKey ? settings.customKey.trim() || null : null,
     characterDraft: getCharacterCreationDraftSnapshot(),
-    mythicTalents: useMythicLibraryStore.getState().patterns,
+    reincarnationTalents: useReincarnationLibraryStore.getState().talents,
     gameRecords: useLifeRecordStore.getState().records,
   }
 }
 
 export function applyAccountSession(payload: AccountSessionPayload): void {
   const localRecords = useLifeRecordStore.getState().records
-  const localTalents = useMythicLibraryStore.getState().patterns
+  const localTalents = useReincarnationLibraryStore.getState().talents
   const mergedRecords = mergeGameRecords(localRecords, payload.snapshot.gameRecords)
-  const mergedTalents = mergeMythicTalents(localTalents, payload.snapshot.mythicTalents)
+  const mergedTalents = mergeReincarnationTalents(localTalents, payload.snapshot.reincarnationTalents)
   const cloudRecordIds = new Set(payload.snapshot.gameRecords.map((record) => record.recordId))
-  const cloudTalentIds = new Set(payload.snapshot.mythicTalents.map((talent) => talent.id))
+  const cloudTalentIds = new Set(payload.snapshot.reincarnationTalents.map((talent) => talent.id))
   const hasLocalOnlyRecords = mergedRecords.some((record) => !cloudRecordIds.has(record.recordId))
   const hasLocalOnlyTalents = mergedTalents.some((talent) => !cloudTalentIds.has(talent.id))
   applyingCloud = true
   try {
+    const { storySeed: _storySeed, ...cloudSettings } = payload.snapshot.settings
     useSettingsStore.setState({
-      ...payload.snapshot.settings,
+      ...cloudSettings,
+      storySeed: '',
       customKey: payload.snapshot.apiKey ?? '',
     })
     useCharacterCreationDraftStore.getState().replaceDraft(payload.snapshot.characterDraft)
-    useMythicLibraryStore.getState().replacePatterns(mergedTalents)
+    useReincarnationLibraryStore.getState().replaceReincarnationTalents(mergedTalents)
     useLifeRecordStore.getState().replaceRecords(mergedRecords)
     useAccountClientStore.getState().acceptSession(payload)
   } finally {
@@ -162,7 +166,7 @@ async function performSync(): Promise<void> {
     })
     applyingCloud = true
     try {
-      useMythicLibraryStore.getState().replacePatterns(payload.snapshot.mythicTalents)
+      useReincarnationLibraryStore.getState().replaceReincarnationTalents(payload.snapshot.reincarnationTalents)
     } finally {
       applyingCloud = false
     }
@@ -236,7 +240,7 @@ export async function initializeAccountCloudSync(): Promise<void> {
   initialized = true
   useSettingsStore.subscribe(() => scheduleAccountSync())
   useCharacterCreationDraftStore.subscribe(() => scheduleAccountSync())
-  useMythicLibraryStore.subscribe(() => scheduleAccountSync())
+  useReincarnationLibraryStore.subscribe(() => scheduleAccountSync())
   useLifeRecordStore.subscribe(() => scheduleAccountSync())
   try {
     const payload = await fetchAccountSession()

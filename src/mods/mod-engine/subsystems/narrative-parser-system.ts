@@ -1,7 +1,9 @@
 /**
+ * Purpose: Convert a main-story response into the engine's published narrative and optional terminal choice.
+ * Owner: mod-engine
+ * Responsibility: Parse response output only; semantic state and round application stay with their owners.
+ *
  * @module narrative-parser-system.ts
- * @description 第一次叙事调用的完整正文与可选分支解析子系统
- * @mod mod-engine
  */
 
 import { BaseSubsystem } from '@/core/subsystem-base'
@@ -11,10 +13,14 @@ import {
   NarrativeRoundMetadataSchema,
   type NarrativeRoundMetadata,
 } from '../helpers/narrative-semantic-signals'
-import { parseNarrativeResponseEnvelope } from '../helpers/tagged-meta-envelope'
+import {
+  parseNarrativeResponseEnvelope,
+  type NarrativeResponseEnvelopeOptions,
+} from '../helpers/tagged-meta-envelope'
 
 export interface ParsedNarrative {
   narrative: string
+  endingTitle?: string
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
@@ -47,14 +53,15 @@ export class NarrativeParserSystem extends BaseSubsystem {
 
   private lastResult: ParsedNarrative | null = null
 
-  parse(content: string): ParsedNarrative {
-    const envelope = parseNarrativeResponseEnvelope(content)
+  parse(content: string, options?: NarrativeResponseEnvelopeOptions): ParsedNarrative {
+    const envelope = parseNarrativeResponseEnvelope(content, options)
     const result: ParsedNarrative = {
       narrative: envelope.narrative,
+      ...(envelope.ending ? { endingTitle: envelope.ending.四字评语 } : {}),
       ...(envelope.branch
         ? {
             branch: true,
-            branchTitle: envelope.branch.标题,
+            branchTitle: '由你决定下一步',
             branchOptions: [...envelope.branch.选项],
           }
         : {}),

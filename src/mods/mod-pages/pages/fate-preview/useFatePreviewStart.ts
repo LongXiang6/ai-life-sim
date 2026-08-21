@@ -19,11 +19,22 @@ import { resolveDisplayName } from './fate-preview-helpers'
 type CharacterState = ReturnType<typeof useCharacterStore.getState>
 type WorldConfig = ReturnType<typeof useWorldStore.getState>['worldConfig']
 
+const MAX_CREATION_COMMIT_ATTEMPTS = 3
+const CREATION_COMMIT_RETRY_DELAY_MS = 150
+
+function waitForCreationCommitRetry(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, CREATION_COMMIT_RETRY_DELAY_MS))
+}
+
+function isTransientCreationCommitReason(reason: string): boolean {
+  return /未注册|RuntimeRegistry|上下文|回合|未就绪|尚未初始化|尚未加载/iu.test(reason)
+}
+
 interface UseFatePreviewStartOptions {
-  aiComplete: boolean
+  worldReady: boolean
   characterBase: CharacterState['characterBase']
   characterConfirmed: boolean
-  destinyPatternsConfirmed: boolean
+  patternLoadoutConfirmed: boolean
   gender: string
   name: string
   selectedPatterns: DestinyPattern[]
@@ -33,10 +44,10 @@ interface UseFatePreviewStartOptions {
 }
 
 export function useFatePreviewStart({
-  aiComplete,
+  worldReady,
   characterBase,
   characterConfirmed,
-  destinyPatternsConfirmed,
+  patternLoadoutConfirmed,
   gender,
   name,
   selectedPatterns,
@@ -49,64 +60,76 @@ export function useFatePreviewStart({
   const allModsLoaded = useGlobalStore((state) => state.allModsLoaded)
   const setSettingsStorySeed = useSettingsStore((state) => state.setStorySeed)
   const [startError, setStartError] = useState<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
 
-  const handleStartLife = useCallback(() => {
-    if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return
-    if (!allModsLoaded) {
-      setStartError('核心模拟系统尚未加载完成，请稍候再试。')
-      return
-    }
-    if (!worldConfig) return
+  const handleStartLife = useCallback(async () => {
+    if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return
+    setIsStarting(true)
     setStartError(null)
 
-    const displayName = resolveDisplayName(name, gender)
-    if (displayName !== name.trim()) useCharacterStore.getState().setName(displayName)
-    const confirmedBase = { ...characterBase.base }
-    useCharacterStore.getState().setCharacterBase({
-      base: confirmedBase,
-      current: { ...confirmedBase },
-      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-      contextModifiers: {},
-      startingAge,
-      status: undefined,
-    })
+    try {
+      if (!worldConfig) return
+      const displayName = resolveDisplayName(name, gender)
+      if (displayName !== name.trim()) useCharacterStore.getState().setName(displayName)
+      const confirmedBase = { ...characterBase.base }
+      useCharacterStore.getState().setCharacterBase({
+        base: confirmedBase,
+        current: { ...confirmedBase },
+        modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+        contextModifiers: {},
+        startingAge,
+        status: undefined,
+      })
 
-    useCharacterStore.getState().ensureCharacterId()
-    useCharacterStore.setState({ age: startingAge })
-    if (!ensureOrchestratorContextFromStores()) {
-      setStartError('无法建立当前世界与角色的模拟上下文，请返回世界配置重新确认。')
-      return
-    }
-    if (!useWorldStore.getState().currentContextId) {
-      setStartError('当前世界缺少有效的模拟上下文，请返回世界配置重新确认。')
-      return
-    }
+      useCharacterStore.getState().ensureCharacterId()
+      useCharacterStore.setState({ age: startingAge })
 
-    const commitResult = orchestrator.applyRoundChanges([
-      {
-        id: 'destiny-pattern',
-        description: '角色创建完成，写入玩家确认的命格',
-        changes: { patterns: selectedPatterns },
-      },
-    ], 'manual')
-    if (commitResult.rejected.length > 0 || commitResult.committed.length !== 1) {
-      const rejectedReasons = commitResult.rejected
-        .map((item) => `${item.change.id || '未知系统'}：${item.reason}`)
-        .join('；')
+      let lastReason = '仅完成 0 / 1 项写入'
+      for (let attempt = 1; attempt <= MAX_CREATION_COMMIT_ATTEMPTS; attempt += 1) {
+        const runtimeState = useGlobalStore.getState()
+        const bindingsReady = orchestrator.getSubsystemBindings().some(({ id }) => id === 'destiny-pattern')
+        if (!runtimeState.allModsLoaded) {
+          lastReason = '核心模拟系统尚未加载完成'
+        } else if (!bindingsReady) {
+          lastReason = '命格系统尚未准备完成'
+        } else if (!ensureOrchestratorContextFromStores()) {
+          lastReason = '当前世界与角色的模拟上下文尚未准备完成'
+        } else if (!useWorldStore.getState().currentContextId) {
+          lastReason = '当前世界缺少有效的模拟上下文'
+        } else {
+          const commitResult = orchestrator.applyRoundChanges([
+            {
+              id: 'destiny-pattern',
+              description: '角色创建完成，写入玩家确认的命格',
+              changes: { patterns: selectedPatterns },
+            },
+          ], 'manual')
+          if (commitResult.rejected.length === 0 && commitResult.committed.length === 1) {
+            setSettingsStorySeed(storySeed)
+            setGamePhase('simulation')
+            router.push('/game-story')
+            return
+          }
+          const rejectedReasons = commitResult.rejected
+            .map((item) => `${item.change.id || '未知系统'}：${item.reason}`)
+            .join('；')
+          lastReason = rejectedReasons || `仅完成 ${commitResult.committed.length} / 1 项写入`
+          if (rejectedReasons && !commitResult.rejected.every((item) => isTransientCreationCommitReason(item.reason))) {
+            break
+          }
+        }
+        if (attempt < MAX_CREATION_COMMIT_ATTEMPTS) await waitForCreationCommitRetry()
+      }
       setStartError(
-        `角色创建状态未能完整提交：${rejectedReasons || `仅完成 ${commitResult.committed.length} / 1 项写入`}`,
+        `角色创建状态未能完整提交：${lastReason}。已自动重试 ${MAX_CREATION_COMMIT_ATTEMPTS - 1} 次，请稍后再试。`,
       )
-      return
+    } finally {
+      setIsStarting(false)
     }
-    setSettingsStorySeed(storySeed)
-    setGamePhase('simulation')
-    router.push('/game-story')
   }, [
-    aiComplete,
-    allModsLoaded,
     characterBase.base,
     characterConfirmed,
-    destinyPatternsConfirmed,
+    patternLoadoutConfirmed,
     gender,
     name,
     router,
@@ -116,7 +139,9 @@ export function useFatePreviewStart({
     startingAge,
     storySeed,
     worldConfig,
+    worldReady,
+    isStarting,
   ])
 
-  return { allModsLoaded, handleStartLife, startError }
+  return { allModsLoaded, handleStartLife, isStarting, startError }
 }

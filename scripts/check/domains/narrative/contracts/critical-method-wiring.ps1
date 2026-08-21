@@ -16,10 +16,9 @@ $pipelineContent = @(
   if (Test-Path $campaignEntry) { Get-FileContent $campaignEntry }
 ) -join "`n"
 $narrativeCriticalMethods = @(
-  'buildCreationTimelineEntries', 'buildForeshadowingText', 'detectForeshadowing', 'resolveForeshadowing',
-  'scoreImportance', 'setAISemanticAnalysis', 'recordNarrativeSignals', 'recordRelationshipUpdates',
-  'getRelevantStates', 'buildNarrativeTimelineProjection',
-  'buildPromptTimelineMemory', 'buildPhaseGuidance'
+  'assemblePromptContext', 'buildPromptTimelineMemory',
+  'prepareNarrativeStoryContinuity', 'prepareNarrativeStoryContinuityLedger',
+  'commitPreparedNarrativeStoryContinuity', 'commitPreparedNarrativeStoryContinuityLedger'
 )
 foreach ($m in $narrativeCriticalMethods) {
   if ($pipelineContent -notmatch "\b$([regex]::Escape($m))\s*\(") {

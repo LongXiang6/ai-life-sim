@@ -9,6 +9,7 @@ import { z } from 'zod'
 const JsonObjectSchema = z.record(z.string(), z.unknown())
 
 export const FeedbackCategorySchema = z.enum(['bug', 'suggestion', 'experience', 'other'])
+export const FeedbackStatusSchema = z.enum(['new', 'in_progress', 'resolved', 'rejected', 'duplicate', 'reopened'])
 
 export const PlayerFeedbackEnvelopeSchema = z.object({
   category: FeedbackCategorySchema,
@@ -26,4 +27,23 @@ export const PlayerFeedbackEnvelopeSchema = z.object({
 })
 
 export type FeedbackCategory = z.infer<typeof FeedbackCategorySchema>
+export type FeedbackStatus = z.infer<typeof FeedbackStatusSchema>
 export type PlayerFeedbackEnvelope = z.infer<typeof PlayerFeedbackEnvelopeSchema>
+
+export interface PlayerFeedbackListItem {
+  feedbackId: string
+  category: FeedbackCategory
+  subject: string
+  message: string
+  submittedAt: number
+  status: FeedbackStatus
+  statusUpdatedAt: number | null
+}
+
+export interface PlayerFeedbackListResponse {
+  items: PlayerFeedbackListItem[]
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
+}

@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>人生结算 · 第二轮候选 A · 命书题词卡</title>
+  <style>
+    /* Purpose: Static interactive prototype: game-over life-settlement page (09) round-02 candidate A (book inscription cards). Round-02 bases on round-01 candidate 01 (runtime structure) with the user's two corrections: ① the top adds the running-head + title block copied from the settled fate-preview (07) page so the top spans unify with the earlier create-flow pages (runningHead flex 16px #a0907a 11px 650 0.02em "AI LIFE SIM · 命书" / "09 / 09", titleCopy centered h1 20px 700 #241f18 with a #8a7f6e 11px subtitle "看清这一生留下的力量、选择与回声。"); ② the six selected divs are removed — the four sectionHeading divs (sectionIndex numbering + right-side hint) become the fate-preview settled sectionHead (centered ✦ inscription small, dashed bottom rule) and the recordList / achievementList container divs are dropped so the records and achievements sit directly in the card. Business content and contracts unchanged (identity overview, four-dimension radar with live metric comment, three records, life summary with story-repetition observation, three achievements, reincarnation-talent three-choice with seal-to-library, floating footer with new-life gating). Animations copied from runtime GameOver.module.css only (flow-shift 9s ease-in-out infinite, radarDot transition r 120ms ease fill 120ms ease, reduced-motion off). No localStorage/sessionStorage/fetch. Owner: Interface system. Responsibility: Candidate only. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport { width: min(100%, 30rem); }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+    }
+
+    .page::-webkit-scrollbar { display: none; }
+
+    .book {
+      --ink: #241f18;
+      --soft: #8a7f6e;
+      --faint: #a0907a;
+      --line: #e5e1d6;
+      --line-light: #eadfce;
+      --accent: #96783f;
+      --accent-deep: #6b4d1d;
+      --serif: "Songti SC", "STSong", "SimSun", serif;
+      --sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+
+      position: relative;
+      width: 100%;
+      max-width: 330px;
+      margin: 0 auto;
+      padding: 16px 12px 96px;
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--sans);
+      isolation: isolate;
+    }
+
+    /* 顶部书眉 + 标题行（照抄 fate-preview 定版 runningHead/titleCopy） */
+    .runningHead {
+      display: flex;
+      height: 16px;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    .titleCopy {
+      text-align: center;
+      padding: 4px 0 0;
+    }
+
+    .titleCopy h1 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .titleCopy p {
+      margin: 6px 0 0;
+      color: var(--soft);
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+    }
+
+    /* 身份概览 */
+    .identity {
+      text-align: center;
+      padding: 12px 0 8px;
+    }
+
+    .identityCopy { min-width: 0; }
+
+    .identityCopy h2 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 21px;
+      font-weight: 650;
+      line-height: 1.2;
+      color: var(--ink);
+    }
+
+    .identityCopy p {
+      margin: 3px 0 0;
+      color: var(--faint);
+      font-size: 9px;
+      line-height: 1.4;
+    }
+
+    /* 区块：fate-preview 定版卡式 + 居中 ✦ 题词区头 */
+    .section {
+      margin: 0 0 12px;
+      padding: 14px 16px 13px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fffdf8;
+    }
+
+    .sectionHead {
+      margin-bottom: 8px;
+      padding: 4px 0 10px;
+      border-bottom: 1px dashed var(--line-light);
+      text-align: center;
+    }
+
+    .sectionHead small {
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    .sectionHead small::before,
+    .sectionHead small::after {
+      margin: 0 5px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .sectionHead small::before { content: '✦'; }
+    .sectionHead small::after { content: '✦'; }
+
+    /* 世界维度 · 雷达图 */
+    .radarSection {
+      display: flex;
+      justify-content: center;
+      padding: 5px 0 0;
+    }
+
+    .radarGraph { position: relative; width: 226px; height: 174px; }
+
+    .radarChart {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .radarGrid { fill: none; stroke: var(--line); stroke-width: 0.8; }
+    .radarAxis { stroke: var(--line-light); stroke-width: 0.7; }
+
+    .radarArea {
+      fill: rgba(150, 122, 63, 0.12);
+      stroke: var(--accent);
+      stroke-width: 1.5;
+    }
+
+    .radarDot {
+      fill: var(--accent);
+      stroke: #fdf9f1;
+      stroke-width: 1.5;
+      transition: r 120ms ease, fill 120ms ease;
+    }
+
+    .radarDotActive { r: 4; fill: var(--accent-deep); }
+
+    .radarScoreText {
+      fill: var(--ink);
+      font-size: 18px;
+      font-weight: 750;
+      text-anchor: middle;
+    }
+
+    .radarScoreLabel {
+      fill: var(--faint);
+      font-size: 9px;
+      text-anchor: middle;
+    }
+
+    .metricButton {
+      position: absolute;
+      min-width: 42px;
+      padding: 3px;
+      border: 0;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+      text-align: center;
+      font-size: 9px;
+      line-height: 1.15;
+    }
+
+    .metricButton span { display: block; }
+
+    .metricButton strong {
+      display: block;
+      margin-top: 1px;
+      color: var(--soft);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .metricButton:hover { opacity: 0.8; }
+    .metricButtonActive,
+    .metricButtonActive strong { color: var(--accent-deep); }
+
+    .metricTop { top: 0; left: 92px; }
+    .metricRight { top: 46px; right: -5px; }
+    .metricBottom { right: 7px; bottom: 0; }
+    .metricLeft { bottom: 0; left: 7px; }
+
+    .metricComment {
+      display: flex;
+      min-height: 20px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin: -2px 0 0;
+      color: var(--faint);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .metricComment::before,
+    .metricComment::after {
+      width: 20px;
+      height: 1px;
+      background: var(--line);
+      content: "";
+    }
+
+    .metricComment strong { color: var(--accent-deep); font-weight: 600; }
+
+    /* 人生三记：记录直接序列（去 recordList 容器） */
+    .record {
+      position: relative;
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 8px;
+      padding: 7px 0 8px 13px;
+    }
+
+    .record::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 3px;
+      width: 1px;
+      background: var(--line);
+      content: "";
+    }
+
+    .record::after {
+      position: absolute;
+      top: 11px;
+      left: 0;
+      width: 7px;
+      height: 7px;
+      border: 2px solid #fdf9f1;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 1px var(--line);
+      content: "";
+    }
+
+    .record:last-of-type::after { background: var(--accent-deep); }
+
+    .recordMeta strong {
+      display: block;
+      color: var(--accent-deep);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .recordMeta span {
+      display: block;
+      margin-top: 2px;
+      color: var(--faint);
+      font-size: 9px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .record p {
+      margin: 3px 0 0;
+      color: var(--soft);
+      font-size: 9px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    /* 此生评语 */
+    .summaryBlock {
+      position: relative;
+      overflow: hidden;
+      margin-top: 5px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 253, 248, 0.9);
+      box-shadow: 0 8px 22px rgba(74, 62, 40, 0.05);
+    }
+
+    .summaryBlock::before {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), #d8c9a8);
+      content: "";
+    }
+
+    .summaryBlock > span { color: var(--faint); font-size: 9px; line-height: 1.3; }
+
+    .summaryBlock > p {
+      margin: 4px 0 0;
+      font-family: var(--serif);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .summaryMeta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 6px;
+      color: var(--faint);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .repetitionSummary {
+      display: grid;
+      gap: 3px;
+      margin-top: 9px;
+      padding-top: 7px;
+      border-top: 1px solid var(--line-light);
+      color: var(--faint);
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
+    .repetitionSummary strong { color: var(--accent-deep); font-weight: 650; }
+
+    /* 此生大事：成就直接序列（去 achievementList 容器） */
+    .achievement {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      gap: 10px;
+      padding: 8px 0;
+    }
+
+    .achievement + .achievement { border-top: 1px solid var(--line-light); }
+
+    .achievement > span {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 13px;
+    }
+
+    .achievement > div { min-width: 0; }
+
+    .achievementMeta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 4px 10px;
+      color: var(--faint);
+    }
+
+    .achievementMeta small { font-size: 8px; line-height: 1.3; }
+
+    .achievement h3 {
+      margin: 4px 0 0;
+      font-family: var(--serif);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .achievement p {
+      margin: 3px 0 0;
+      color: var(--soft);
+      font-size: 9px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    /* 轮回天赋（flow-shift 9s 照抄运行时） */
+    .mythicSection { padding-bottom: 12px; }
+
+    .mythicBadge {
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--faint);
+      font-size: 9px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .mythicIntro {
+      margin: 0 0 10px;
+      color: var(--soft);
+      font-size: 9px;
+      line-height: 1.6;
+    }
+
+    .mythicSelectors {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 253, 248, 0.86);
+    }
+
+    .mythicSelector {
+      display: flex;
+      min-width: 0;
+      min-height: 34px;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--faint);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .mythicSelector > span {
+      display: grid;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--soft);
+      font-family: var(--serif);
+      font-size: 9px;
+    }
+
+    .mythicSelector strong {
+      width: 100%;
+      overflow: hidden;
+      font-family: var(--serif);
+      font-size: 9px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mythicSelectorActive {
+      border-color: rgba(150, 122, 63, 0.3);
+      background: #faf4e8;
+    }
+
+    .mythicSelectorActive strong { color: var(--ink); }
+    .mythicSelector:disabled { cursor: not-allowed; opacity: 0.5; }
+
+    .mythicFocus {
+      position: relative;
+      display: grid;
+      grid-template-columns: 50px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      margin-top: 7px;
+      padding: 11px;
+      border: 1px solid rgba(150, 122, 63, 0.16);
+      border-radius: 11px;
+      background:
+        linear-gradient(110deg, rgba(236, 193, 140, 0.42), rgba(216, 201, 168, 0.38), rgba(167, 146, 224, 0.36), rgba(130, 207, 187, 0.4), rgba(227, 157, 189, 0.38), rgba(236, 193, 140, 0.42)),
+        rgba(255, 253, 248, 0.56);
+      background-size: 320% 320%, 100% 100%;
+      box-shadow: inset 0 0 0 1px rgba(255, 253, 248, 0.56);
+      animation: flow-shift 9s ease-in-out infinite;
+    }
+
+    .mythicGlyph {
+      display: grid;
+      width: 50px;
+      height: 50px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--soft);
+      font-family: var(--serif);
+      font-size: 15px;
+    }
+
+    .mythicFocus small {
+      display: block;
+      color: #81786e;
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .mythicFocus h3 {
+      margin: 3px 0 0;
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .mythicFocus p {
+      margin: 0;
+      color: var(--soft);
+      font-size: 9px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .mythicCurrent {
+      display: flex;
+      min-height: 28px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 2px;
+      padding: 5px 0;
+      color: var(--faint);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .mythicCurrent strong {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 10px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mythicStore {
+      display: flex;
+      width: 100%;
+      min-height: 38px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 7px;
+      padding: 0 9px;
+      border: 1px solid rgba(150, 122, 63, 0.16);
+      border-radius: 11px;
+      background:
+        linear-gradient(110deg, rgba(236, 193, 140, 0.42), rgba(216, 201, 168, 0.38), rgba(167, 146, 224, 0.36), rgba(130, 207, 187, 0.4), rgba(227, 157, 189, 0.38), rgba(236, 193, 140, 0.42)),
+        rgba(255, 253, 248, 0.58);
+      background-size: 320% 320%, 100% 100%;
+      color: #37332d;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.3;
+      animation: flow-shift 9s ease-in-out infinite;
+    }
+
+    .mythicStore span { display: block; }
+
+    .mythicStore small {
+      display: block;
+      color: #6d6655;
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .mythicStore:disabled { cursor: not-allowed; opacity: 0.5; animation: none; }
+
+    @keyframes flow-shift {
+      0%, 100% { background-position: 0% 50%, 0 0; }
+      50% { background-position: 100% 50%, 0 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mythicFocus,
+      .mythicStore { animation: none; }
+      .radarDot { transition-duration: 1ms; }
+    }
+
+    /* 底部悬浮栏 */
+    .footer {
+      position: fixed;
+      z-index: 8;
+      right: 14px;
+      bottom: 12px;
+      left: 14px;
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      padding: 2px 7px;
+      border: 1px solid rgba(229, 225, 214, 0.9);
+      border-radius: 18px;
+      background: rgba(255, 253, 248, 0.8);
+      box-shadow:
+        0 12px 30px rgba(74, 62, 40, 0.13),
+        0 2px 7px rgba(74, 62, 40, 0.06);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .footerBar {
+      display: flex;
+      width: 100%;
+      min-height: 48px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .barTool {
+      display: grid;
+      flex: 0 0 38px;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--soft);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .barTool svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .newLifeButton {
+      display: flex;
+      min-width: 0;
+      min-height: 48px;
+      flex: 1;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 1px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .newLifeButton:disabled { cursor: not-allowed; opacity: 0.6; }
+
+    .newLifeMark {
+      width: 19px;
+      flex: 0 0 19px;
+      color: var(--faint);
+      font-size: 7px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .newLifeCopy { min-width: 0; flex: 1; }
+    .newLifeCopy strong,
+    .newLifeCopy small { display: block; }
+
+    .newLifeCopy strong {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .newLifeCopy small {
+      margin-top: 2px;
+      overflow: hidden;
+      color: var(--faint);
+      font-size: 7px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .newLifeArrow {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      flex: 0 0 25px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <article class="book">
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>09 / 09</span></div>
+
+          <header class="titleCopy">
+            <h1>一生回望</h1>
+            <p>看清这一生留下的力量、选择与回声。</p>
+          </header>
+
+          <section class="identity" aria-label="角色人生概览">
+            <div class="identityCopy">
+              <h2>林晚</h2>
+              <p>沧澜界 · 3—78 岁 · 96 轮世事</p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="dimensions-title">
+            <div class="sectionHead"><small id="dimensions-title">世界维度</small></div>
+            <div class="radarSection">
+              <div class="radarGraph">
+                <svg class="radarChart" viewBox="0 0 252 183" role="img" aria-label="真实四维：体魄62、心智81、悟性74、魅力68，人生评分88">
+                  <polygon class="radarGrid" points="126,30 184,72 166,132 86,132 68,72" />
+                  <polygon class="radarGrid" points="126,45 169.5,76.5 156,121.5 96,121.5 82.5,76.5" />
+                  <polygon class="radarGrid" points="126,60 155,81 146,111 106,111 97,81" />
+                  <line class="radarAxis" x1="126" y1="90" x2="126" y2="30" />
+                  <line class="radarAxis" x1="126" y1="90" x2="184" y2="72" />
+                  <line class="radarAxis" x1="126" y1="90" x2="166" y2="132" />
+                  <line class="radarAxis" x1="126" y1="90" x2="86" y2="132" />
+                  <line class="radarAxis" x1="126" y1="90" x2="68" y2="72" />
+                  <polygon class="radarArea" points="162,49.9 173,99.4 147.2,123.3 104.8,123.3 80.4,95.4" />
+                  <circle class="radarDot radarDotActive" cx="162" cy="49.9" r="4" />
+                  <circle class="radarDot" cx="173" cy="99.4" r="3" />
+                  <circle class="radarDot" cx="147.2" cy="123.3" r="3" />
+                  <circle class="radarDot" cx="104.8" cy="123.3" r="3" />
+                  <text class="radarScoreText" x="126" y="88">88</text>
+                  <text class="radarScoreLabel" x="126" y="99">人生评分</text>
+                </svg>
+                <button type="button" class="metricButton metricTop metricButtonActive" aria-pressed="true" aria-label="心智 81，点击查看评语">
+                  <span><span class="semantic-emoji" aria-hidden="true">🧠</span>心智</span>
+                  <strong>81</strong>
+                </button>
+                <button type="button" class="metricButton metricRight" aria-pressed="false" aria-label="体魄 62，点击查看评语">
+                  <span><span class="semantic-emoji" aria-hidden="true">💪</span>体魄</span>
+                  <strong>62</strong>
+                </button>
+                <button type="button" class="metricButton metricBottom" aria-pressed="false" aria-label="魅力 68，点击查看评语">
+                  <span><span class="semantic-emoji" aria-hidden="true">💫</span>魅力</span>
+                  <strong>68</strong>
+                </button>
+                <button type="button" class="metricButton metricLeft" aria-pressed="false" aria-label="悟性 74，点击查看评语">
+                  <span><span class="semantic-emoji" aria-hidden="true">✨</span>悟性</span>
+                  <strong>74</strong>
+                </button>
+              </div>
+            </div>
+            <p class="metricComment" aria-live="polite" id="metricComment">
+              <span><span class="semantic-emoji" aria-hidden="true">🧠</span>心智</span>
+              <strong>书卷与人心在你手中都成了路标，识局者常破局。</strong>
+            </p>
+          </section>
+
+          <section class="section" aria-labelledby="records-title">
+            <div class="sectionHead"><small id="records-title">人生三记</small></div>
+            <article class="record">
+              <div class="recordMeta"><strong>早期记录</strong><span>沧澜历 3 年 · 3 岁</span></div>
+              <p>春寒未尽，坊市外的田野刚冒出新绿。你被母亲抱在怀中，听着远处道观的钟声一下下敲进风里。尚不懂事的年纪，却已隐约觉得：这座宗门林立的沧澜界，迟早会与你有关。</p>
+            </article>
+            <article class="record">
+              <div class="recordMeta"><strong>中期记录</strong><span>沧澜历 42 年 · 42 岁</span></div>
+              <p>山门外的雨下了整夜。你立在廊下，看灯火一格格亮起，想起当年在命盘前写下那三字抉择——原来所谓命运，不过是每一次转身时，你选择信了什么。</p>
+            </article>
+            <article class="record">
+              <div class="recordMeta"><strong>最终记录</strong><span>沧澜历 78 年 · 78 岁</span></div>
+              <p>鹤发之年，你再度回到初生的村落。石阶上的青苔还在，道观钟声依旧。这一生看过山川与人心，最终在门前那棵老槐下，含笑合眼。</p>
+            </article>
+            <div class="summaryBlock">
+              <span>此生评语</span>
+              <p>这一生以智识开路、以悟性破局，在多次命运抉择中守住本心。力量来自选择，回声留在沧澜界的山水之间。</p>
+              <div class="summaryMeta">
+                <span>中庸</span><span>96 轮世事</span><span>3—78 岁</span><span>世界编号 7</span>
+              </div>
+              <div class="repetitionSummary" aria-label="故事重复率统计">
+                <span>故事重复观测</span>
+                <strong>近五轮均值 42%</strong>
+                <span>整局峰值 55%</span>
+                <span>高重复 3 轮 · 近期平稳</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="achievements-title">
+            <div class="sectionHead"><small id="achievements-title">此生大事</small></div>
+            <article class="achievement">
+              <span aria-hidden="true">择</span>
+              <div>
+                <div class="achievementMeta"><small>15 岁</small><small>命运抉择</small></div>
+                <h3>山道呼救</h3>
+                <p>选择了「避开人群，沿山道绕行」</p>
+              </div>
+            </article>
+            <article class="achievement">
+              <span aria-hidden="true">择</span>
+              <div>
+                <div class="achievementMeta"><small>42 岁</small><small>命运抉择</small></div>
+                <h3>宗门论道</h3>
+                <p>选择了「以本心对答，不随门户」</p>
+              </div>
+            </article>
+            <article class="achievement">
+              <span aria-hidden="true">择</span>
+              <div>
+                <div class="achievementMeta"><small>65 岁</small><small>命运抉择</small></div>
+                <h3>秘境取舍</h3>
+                <p>选择了「取药草赠村中孤寡」</p>
+              </div>
+            </article>
+          </section>
+
+          <section class="section mythicSection" aria-labelledby="mythic-title">
+            <div class="sectionHead"><small id="mythic-title">轮回天赋</small></div>
+            <p class="mythicIntro">系统先按完整人生评分，再由 AI 凝结三项匹配强度的跨世界概念规则。选择一项封存，供后来的人生携带。</p>
+            <div class="mythicSelectors" role="list" aria-label="轮回天赋候选">
+              <button type="button" class="mythicSelector mythicSelectorActive" aria-pressed="true" data-mythic="0">
+                <span aria-hidden="true">心</span><strong>心如明镜</strong>
+              </button>
+              <button type="button" class="mythicSelector" aria-pressed="false" data-mythic="1">
+                <span aria-hidden="true">山</span><strong>山门余荫</strong>
+              </button>
+              <button type="button" class="mythicSelector" aria-pressed="false" data-mythic="2">
+                <span aria-hidden="true">槐</span><strong>老槐之忆</strong>
+              </button>
+            </div>
+            <div class="mythicFocus" aria-live="polite">
+              <span class="mythicGlyph" aria-hidden="true">心</span>
+              <div><small>顿悟 · 纯概念</small><h3>心如明镜</h3><p>关键抉择时，可优先看到两种走向的因果提示，但代价是每次使用都会让心智短暂沉寂。</p></div>
+            </div>
+            <div class="mythicCurrent"><span>当前选择</span><strong>心如明镜</strong></div>
+            <button type="button" class="mythicStore" id="mythicStore">
+              <span>封存至轮回天赋库</span>
+              <small>封存后不可在本局改选</small>
+            </button>
+          </section>
+        </article>
+      </div>
+    </div>
+
+    <footer class="footer" aria-live="polite" data-flow-bottom-bar>
+      <div class="footerBar">
+        <button type="button" class="barTool" aria-label="返回首页" title="返回首页">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7" /><path d="M6 10v10h12V10M10 20v-6h4v6" /></svg>
+        </button>
+        <button type="button" class="barTool" aria-label="查看模拟数据" title="查看模拟数据">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" /><path d="M3 20h18" /></svg>
+        </button>
+        <button type="button" class="newLifeButton" disabled aria-describedby="new-life-copy">
+          <span class="newLifeMark">新</span>
+          <span class="newLifeCopy">
+            <strong>开始新人生</strong>
+            <small id="new-life-copy">先封存一项轮回天赋</small>
+          </span>
+          <span class="newLifeArrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      /* 纯 DOM 交互：雷达维度切换 + 轮回天赋选择/封存，不持久化、不含 localStorage/sessionStorage/fetch */
+      var dimensionData = [
+        { emoji: '🧠', label: '心智', value: '81', comment: '书卷与人心在你手中都成了路标，识局者常破局。' },
+        { emoji: '💪', label: '体魄', value: '62', comment: '以肉身承担起世事的重量，山路与冬雪都未让你停下。' },
+        { emoji: '💫', label: '魅力', value: '68', comment: '言语温柔却有力，众生愿意追随你的方向。' },
+        { emoji: '✨', label: '悟性', value: '74', comment: '你常在一瞬之间看穿事物的走向，道心由此生根。' },
+      ]
+      var buttons = Array.prototype.slice.call(document.querySelectorAll('.metricButton'))
+      var dots = Array.prototype.slice.call(document.querySelectorAll('.radarDot'))
+      var comment = document.getElementById('metricComment')
+
+      buttons.forEach(function (button, index) {
+        button.addEventListener('click', function () {
+          buttons.forEach(function (other, i) {
+            other.classList.toggle('metricButtonActive', i === index)
+            other.setAttribute('aria-pressed', String(i === index))
+          })
+          dots.forEach(function (dot, i) {
+            dot.classList.toggle('radarDotActive', i === index)
+            dot.setAttribute('r', i === index ? 4 : 3)
+          })
+          var data = dimensionData[index]
+          comment.innerHTML = '<span><span class="semantic-emoji" aria-hidden="true">' + data.emoji + '</span>' + data.label + '</span><strong>' + data.comment + '</strong>'
+        })
+      })
+
+      var mythicData = [
+        { glyph: '心', concept: '顿悟', name: '心如明镜', effect: '关键抉择时，可优先看到两种走向的因果提示，但代价是每次使用都会让心智短暂沉寂。' },
+        { glyph: '山', concept: '庇护', name: '山门余荫', effect: '在陌生世界前三年获得宗门庇护的隐性地位，危险临头时有一次脱身机会，此后失效。' },
+        { glyph: '槐', concept: '回声', name: '老槐之忆', effect: '每局可回溯一次已发生的命运分叉重新抉择，重写后将覆盖后续记录。' },
+      ]
+      var selectors = Array.prototype.slice.call(document.querySelectorAll('.mythicSelector'))
+      var focus = document.querySelector('.mythicFocus')
+      var current = document.querySelector('.mythicCurrent strong')
+      var store = document.getElementById('mythicStore')
+      var storeLabel = store.querySelector('span')
+      var storeHint = store.querySelector('small')
+      var newLife = document.querySelector('.newLifeButton')
+      var newLifeHint = document.getElementById('new-life-copy')
+      var sealed = false
+
+      selectors.forEach(function (selector, index) {
+        selector.addEventListener('click', function () {
+          if (sealed) return
+          selectors.forEach(function (other, i) {
+            other.classList.toggle('mythicSelectorActive', i === index)
+            other.setAttribute('aria-pressed', String(i === index))
+          })
+          var data = mythicData[index]
+          focus.querySelector('.mythicGlyph').textContent = data.glyph
+          focus.querySelector('small').textContent = data.concept + ' · 纯概念'
+          focus.querySelector('h3').textContent = data.name
+          focus.querySelector('p').textContent = data.effect
+          current.textContent = data.name
+        })
+      })
+
+      store.addEventListener('click', function () {
+        if (sealed) return
+        sealed = true
+        storeLabel.textContent = '已封存至轮回天赋库'
+        storeHint.textContent = '下一局可在独立轮回槽携带'
+        store.disabled = true
+        selectors.forEach(function (selector) { selector.disabled = true })
+        newLife.disabled = false
+        newLifeHint.textContent = '完成回望 · 重新选择世界'
+      })
+    })()
+  </script>
+</body>
+</html>

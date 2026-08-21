@@ -109,7 +109,7 @@ export function SettingsTabStats() {
           <div className={styles.metricGrid}>
             <div><span>已推进轮次</span><strong>{run?.latestRound ?? 0}</strong><small>{run?.latestRound ? `第 ${run.latestRound} 轮` : '尚未开始'}</small></div>
             <div><span>平均生成等待</span><strong>{formatTokenCount(averageLatency(run?.total))} ms</strong><small>完整响应平均耗时</small></div>
-            <div><span>叙事压缩</span><strong>{compressionStats.lastAt > 0 ? `第 ${compressionStats.lastAt} 轮` : '尚未压缩'}</strong><small>自动整理长故事</small></div>
+            <div><span>叙事压缩</span><strong>{compressionStats.lastSourceRound !== null ? `第 ${compressionStats.lastSourceRound} 轮` : '尚未压缩'}</strong><small>最近离开详细窗口的回合</small></div>
             <div><span>缓存命中</span><strong>{cache.hitRate}%</strong><small>减少重复输入费用</small></div>
           </div>
           <div className={styles.feedbackRow}>
@@ -156,13 +156,13 @@ export function SettingsTabStats() {
       </section>
 
       <section className={styles.section} aria-labelledby="settings-compression-heading">
-        <div className={styles.sectionLabel}><h3 id="settings-compression-heading">叙事压缩</h3><span>{compressionStats.lastAt > 0 ? `最近第 ${compressionStats.lastAt} 轮` : '尚未压缩'}</span></div>
+        <div className={styles.sectionLabel}><h3 id="settings-compression-heading">叙事压缩</h3><span>{compressionStats.lastSourceRound !== null ? `最近第 ${compressionStats.lastSourceRound} 轮` : '尚未压缩'}</span></div>
         <div className={styles.sectionCard}>
           <div className={styles.metricGrid}>
-            <div><span>L1</span><strong>{formatTokenCount(compressionStats.l1Count)}</strong><small>每 4 轮完整叙事</small></div>
-            <div><span>L2</span><strong>{formatTokenCount(compressionStats.l2Count)}</strong><small>每 4 个 L1</small></div>
-            <div><span>L3</span><strong>{formatTokenCount(compressionStats.l3Count)}</strong><small>每 4 个 L2</small></div>
-            <div><span>层级跨度</span><strong>4 · 16 · 64</strong><small>L1 / L2 / L3 对应轮次</small></div>
+            <div><span>已压缩回合</span><strong>{formatTokenCount(compressionStats.compressedRoundCount)}</strong><small>逐轮处理离开三轮窗口的故事</small></div>
+            <div><span>最近来源回合</span><strong>{compressionStats.lastSourceRound ?? '-'}</strong><small>完整正文仍保留在故事历史</small></div>
+            <div><span>详细窗口</span><strong>3 轮</strong><small>主故事读取最近三轮完整正文</small></div>
+            <div><span>最近完成</span><strong>{compressionStats.lastCompletedAt > 0 ? new Date(compressionStats.lastCompletedAt).toLocaleTimeString('zh-CN') : '-'}</strong><small>逐轮压缩提交时间</small></div>
           </div>
         </div>
       </section>

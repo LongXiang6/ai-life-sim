@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界选择 · 第三轮候选 02 · 叙事化精简</title>
+  <style>
+    /* Purpose: Static interactive prototype of the narrative-trimmed world-select candidate. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 28px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      padding: 18px 4px 10px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    /* Stage：叙事化，无规则标签行 */
+    .stage {
+      position: relative;
+      margin-top: 4px;
+      padding: 18px 16px 14px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+      text-align: center;
+    }
+
+    .stageIcon {
+      display: inline-grid;
+      width: 64px;
+      height: 64px;
+      place-items: center;
+      border: 1px solid #eadfce;
+      border-radius: 50%;
+      background: #faf4e8;
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .stageTitle {
+      margin: 12px 0 0;
+      overflow: hidden;
+      color: #241f18;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stageEra {
+      margin-top: 4px;
+      overflow: hidden;
+      color: #8a7f6e;
+      font-size: 12px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* 人生基调：柔和切换行（难度语义化） */
+    .toneRow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #faf4e8;
+      color: #9a8a6c;
+      font-size: 11px;
+    }
+
+    .toneRow button {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .toneEmoji {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .sourceTabs {
+      display: flex;
+      flex: 0 0 auto;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 14px;
+      padding: 0 4px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .sourceTabs button {
+      min-width: 88px;
+      min-height: 44px;
+      padding: 0 8px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.15;
+      text-align: center;
+    }
+
+    .sourceTabs button[data-active="true"] {
+      border-bottom-color: #977026;
+      color: #241f18;
+      font-weight: 700;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 14px 0 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .content::-webkit-scrollbar {
+      display: none;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel[data-active="true"] {
+      display: block;
+    }
+
+    .mainGrid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .worldCard {
+      display: grid;
+      width: 100%;
+      min-width: 0;
+      min-height: 76px;
+      place-items: center;
+      gap: 2px;
+      padding: 10px 4px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .worldCard[data-selected="true"] {
+      border-color: #d8c9a8;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .worldIcon {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .worldName {
+      display: block;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .moreGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .moreWorldCard {
+      display: flex;
+      width: 100%;
+      min-width: 0;
+      min-height: 52px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 14px;
+      background: #fffdf8;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      text-align: left;
+    }
+
+    .moreWorldCard[data-selected="true"] {
+      border-color: #d8c9a8;
+      background: #faf4e8;
+      font-weight: 700;
+    }
+
+    .moreWorldCard .worldIcon {
+      font-size: 22px;
+    }
+
+    .savedToolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .savedSearch input {
+      width: 100%;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      outline: 0;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .newWorldButton {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid #d8c9a8;
+      border-radius: 24px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .savedCount {
+      margin: 0 0 8px;
+      color: #a0907a;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .savedList {
+      display: grid;
+      gap: 8px;
+    }
+
+    .savedWorldCard {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      min-height: 56px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .savedWorldCard[data-selected="true"] {
+      border-color: #d8c9a8;
+      background: #faf4e8;
+    }
+
+    .savedWorldCard .worldIcon {
+      font-size: 24px;
+    }
+
+    .savedMain {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .savedMain strong {
+      display: block;
+      overflow: hidden;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .savedMain small {
+      display: block;
+      overflow: hidden;
+      color: #a0907a;
+      font-size: 10px;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .savedStatus {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      border: 1px solid #d8c9a8;
+      border-radius: 50%;
+      background: #fffdf8;
+    }
+
+    .savedWorldCard[data-selected="true"] .savedStatus {
+      position: relative;
+      background: #977026;
+      border-color: #977026;
+    }
+
+    .savedWorldCard[data-selected="true"] .savedStatus::after {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 6px;
+      height: 3px;
+      border-bottom: 1.5px solid #fff;
+      border-left: 1.5px solid #fff;
+      content: "";
+      transform: rotate(-45deg);
+    }
+
+    .customForm {
+      display: grid;
+      gap: 10px;
+    }
+
+    .formField {
+      display: block;
+      min-width: 0;
+      padding: 12px 14px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+    }
+
+    .formField > span {
+      display: block;
+      color: #a0907a;
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .formField input,
+    .formField textarea {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 24px;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #2e2922;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .formField textarea {
+      min-height: 56px;
+      line-height: 1.45;
+      resize: none;
+    }
+
+    .formActions {
+      display: grid;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .formActions .primary,
+    .formActions .secondary {
+      min-height: 44px;
+      padding: 0 16px;
+      border: 1px solid #cfd7ee;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(62, 70, 100, 0.06);
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .bottomBar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>01 / 08</span></div>
+          <header class="header">
+            <h1>选择世界</h1>
+          </header>
+
+          <section class="stage" aria-label="当前世界">
+            <span class="stageIcon" id="stageIcon">🌌</span>
+            <h2 class="stageTitle" id="stageName">星际纪元</h2>
+            <p class="stageEra" id="stageEra">公元 2200 年</p>
+            <p class="toneRow">
+              <span>这一生的基调</span>
+              <button type="button" id="toneButton" aria-label="切换人生基调">
+                <span class="toneEmoji" id="toneEmoji">⚖️</span>
+                <span id="toneLabel">均衡</span>
+              </button>
+            </p>
+          </section>
+
+          <nav class="sourceTabs" role="tablist" aria-label="世界来源">
+            <button type="button" role="tab" data-source="preset" data-active="true">预设世界</button>
+            <button type="button" role="tab" data-source="saved" data-active="false">已保存</button>
+            <button type="button" role="tab" data-source="custom" data-active="false">自定义</button>
+          </nav>
+
+          <section class="content">
+            <div class="panel" data-panel="preset" data-active="true">
+              <div class="mainGrid" id="presetGrid"></div>
+              <div class="moreGrid" id="presetMore"></div>
+            </div>
+
+            <div class="panel" data-panel="saved" data-active="false">
+              <div class="savedToolbar">
+                <label class="savedSearch"><input type="search" placeholder="搜索已保存世界" id="savedSearch" /></label>
+                <button type="button" class="newWorldButton" id="newWorldButton">新建世界</button>
+              </div>
+              <p class="savedCount">已保存 2 个世界 · 覆盖当前设备</p>
+              <div class="savedList" id="savedList"></div>
+            </div>
+
+            <div class="panel" data-panel="custom" data-active="false">
+              <form class="customForm" id="customForm">
+                <label class="formField"><span>世界名称</span><input id="customName" placeholder="例如：山海新篇" maxlength="18" /></label>
+                <label class="formField"><span>世界简介</span><textarea id="customSummary" placeholder="一句话描述这方世界" maxlength="60"></textarea></label>
+                <label class="formField"><span>起始年代</span><input id="customEra" placeholder="例如：公元 1188 年" maxlength="18" /></label>
+                <div class="formActions">
+                  <button type="submit" class="primary">写下这方世界</button>
+                  <button type="button" class="secondary" id="customReset">清空重写</button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+        <div class="bottomBar">
+          <button type="button" class="backButton" title="返回上一页">
+            <strong>返回上一页</strong>
+            <small>退出世界选择</small>
+          </button>
+          <button type="button" class="confirmButton" title="确认世界">
+            <strong>确认世界</strong>
+            <small>下一步世界配置</small>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var presetWorlds = [
+        { icon: '🌌', name: '星际纪元', era: '公元 2200 年', summary: '人类踏入深空，文明在星海间重新书写秩序与命运。' },
+        { icon: '🏔️', name: '灵山古境', era: '大周 1200 年', summary: '灵气复苏，宗门林立，凡人亦可问道长生。' },
+        { icon: '🏙️', name: '霓虹都市', era: '公元 2088 年', summary: '赛博都市霓虹之下，义体与记忆成为新的货币。' },
+        { icon: '⚔️', name: '乱世风云', era: '东汉末年', summary: '群雄逐鹿，乱世英雄各凭本事改写命运。' },
+        { icon: '🌊', name: '沧海遗珠', era: '大航海 1600 年', summary: '巨舰扬帆，新大陆与旧王国的命运在此交汇。' }
+      ]
+      var savedWorlds = [
+        { icon: '🏔️', name: '灵山古境', note: '第 07 局 · 已存档' },
+        { icon: '🏙️', name: '霓虹都市', note: '第 06 局 · 已存档' }
+      ]
+      var difficulties = [
+        { label: '均衡', emoji: '⚖️' },
+        { label: '艰难', emoji: '🔥' },
+        { label: '传奇', emoji: '👑' }
+      ]
+      var difficultyIndex = 0
+      var selectedPreset = 0
+
+      var stageIcon = document.getElementById('stageIcon')
+      var stageName = document.getElementById('stageName')
+      var stageEra = document.getElementById('stageEra')
+      var toneLabel = document.getElementById('toneLabel')
+      var toneEmoji = document.getElementById('toneEmoji')
+
+      function selectWorld(world) {
+        stageIcon.textContent = world.icon
+        stageName.textContent = world.name
+        stageEra.textContent = world.era
+      }
+
+      document.getElementById('toneButton').addEventListener('click', function () {
+        difficultyIndex = (difficultyIndex + 1) % difficulties.length
+        toneLabel.textContent = difficulties[difficultyIndex].label
+        toneEmoji.textContent = difficulties[difficultyIndex].emoji
+      })
+
+      var presetGrid = document.getElementById('presetGrid')
+      var presetMore = document.getElementById('presetMore')
+      presetWorlds.forEach(function (world, index) {
+        var card = document.createElement('button')
+        card.type = 'button'
+        card.className = index < 3 ? 'worldCard' : 'moreWorldCard'
+        card.dataset.selected = index === selectedPreset ? 'true' : 'false'
+        card.innerHTML = '<span class="worldIcon">' + world.icon + '</span><span class="worldName">' + world.name + '</span>'
+        card.addEventListener('click', function () {
+          selectedPreset = index
+          document.querySelectorAll('.worldCard, .moreWorldCard').forEach(function (el) { el.dataset.selected = 'false' })
+          card.dataset.selected = 'true'
+          selectWorld(world)
+        })
+        if (index < 3) { presetGrid.appendChild(card) } else { presetMore.appendChild(card) }
+      })
+
+      var savedList = document.getElementById('savedList')
+      savedWorlds.forEach(function (world, index) {
+        var card = document.createElement('button')
+        card.type = 'button'
+        card.className = 'savedWorldCard'
+        card.dataset.selected = 'false'
+        card.innerHTML = '<span class="worldIcon">' + world.icon + '</span><div class="savedMain"><strong>' + world.name + '</strong><small>' + world.note + '</small></div><span class="savedStatus"></span>'
+        card.addEventListener('click', function () {
+          document.querySelectorAll('.savedWorldCard').forEach(function (el) { el.dataset.selected = 'false' })
+          card.dataset.selected = 'true'
+          selectWorld({ icon: world.icon, name: world.name, era: '已保存世界 · 可继续这段人生' })
+        })
+        savedList.appendChild(card)
+      })
+
+      document.querySelectorAll('.sourceTabs button').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          document.querySelectorAll('.sourceTabs button').forEach(function (el) { el.dataset.active = 'false' })
+          tab.dataset.active = 'true'
+          document.querySelectorAll('.panel').forEach(function (panel) {
+            panel.dataset.active = panel.dataset.panel === tab.dataset.source ? 'true' : 'false'
+          })
+        })
+      })
+
+      document.getElementById('newWorldButton').addEventListener('click', function () {
+        document.querySelectorAll('.sourceTabs button').forEach(function (el) {
+          el.dataset.active = el.dataset.source === 'custom' ? 'true' : 'false'
+        })
+        document.querySelectorAll('.panel').forEach(function (panel) {
+          panel.dataset.active = panel.dataset.panel === 'custom' ? 'true' : 'false'
+        })
+      })
+
+      document.getElementById('customForm').addEventListener('submit', function (event) {
+        event.preventDefault()
+        var name = document.getElementById('customName').value.trim()
+        var summary = document.getElementById('customSummary').value.trim()
+        var era = document.getElementById('customEra').value.trim()
+        if (!name) return
+        selectWorld({ icon: '✍️', name: name, era: era || '年代待定' })
+      })
+
+      document.getElementById('customReset').addEventListener('click', function () {
+        document.getElementById('customForm').reset()
+      })
+
+      document.getElementById('savedSearch').addEventListener('input', function (event) {
+        var keyword = event.target.value.trim()
+        savedList.querySelectorAll('.savedWorldCard').forEach(function (card, index) {
+          card.style.display = keyword && savedWorlds[index].name.indexOf(keyword) === -1 ? 'none' : ''
+        })
+      })
+    })()
+  </script>
+</body>
+</html>

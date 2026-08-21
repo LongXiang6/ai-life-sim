@@ -1,18 +1,15 @@
 'use client'
 
 /**
- * @module DisclaimerModal.tsx
- * @description 免责声明弹窗 —— 首次使用时展示，从 /disclaimer.txt 加载内容
- * @mod mod-ui
- *
- * 参照废弃项目 DisclaimerModal 重写：
- *   从 /disclaimer.txt 动态加载、CSS Module、
- *   "我已知晓" + "退出" 双按钮
+ * Purpose: Render the first-use disclaimer sheet, loading content from /disclaimer.txt.
+ * Owner: mod-ui.
+ * Responsibility: Disclaimer visibility, content loading, and keyboard focus only.
  */
 
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
+import { FlowRunningHead } from '@/mods/mod-ui/components/atoms/FlowRunningHead'
 import styles from './DisclaimerModal.module.css'
 
 const DISCLAIMER_ACCEPTED_KEY = 'ai-life-sim:disclaimer-accepted'
@@ -126,7 +123,7 @@ export function DisclaimerModal({ visible, onAccept, onClose }: DisclaimerModalP
           >
         <span className={styles.spine} aria-hidden="true" />
         <header className={styles.header}>
-          <div className={styles.metaRow} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 须知</span></div>
+          <FlowRunningHead stepLabel="附 · 须知" />
           <h2 id="disclaimer-title" className={styles.title}>开始之前</h2>
           <p>请阅读并确认以下使用说明。</p>
         </header>

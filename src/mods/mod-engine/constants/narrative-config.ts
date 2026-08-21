@@ -1,10 +1,7 @@
 /**
- * @module narrative-config.ts
- * @description 叙事偏好配置常量 —— 叙事风格指令、字数范围、压缩参数
- * @mod mod-engine
- *
- * 来源：废弃项目 lib/config/ai/narrative-config.ts
- * 移植原则：用新项目 MOD 架构重新实现，常量归入 mod-engine/constants
+ * Purpose: Define player-selectable narrative style and length guidance.
+ * Owner: mod-engine
+ * Responsibility: Narrative preference constants only; Prompt assembly owns their placement.
  */
 
 import {
@@ -43,7 +40,6 @@ export const COMPACT_JSON_KEY_MAP: Record<string, string> = {
   w: 'world',
   r: 'round',
   t: 'tags',
-  m: 'morality',
   l: 'luck',
 }
 
@@ -89,15 +85,8 @@ const NARRATIVE_DENSITY_INSTRUCTIONS: Record<NarrativeWordCountTarget, string> =
  * 根据大致字数生成 Prompt 字数约束文本
  */
 export function buildWordCountInstruction(target: NarrativeWordCountTarget): string {
-  const {
-    target: normalizedTarget,
-    preferredMin,
-    preferredMax,
-  } = resolveNarrativeWordCountRange(target)
-  return [
-    NARRATIVE_DENSITY_INSTRUCTIONS[normalizedTarget],
-    `正文全部段落合计写成${preferredMin}-${preferredMax}字，中心约${normalizedTarget}字。`,
-  ].join('\n')
+  const normalizedTarget = resolveNarrativeWordCountTarget(target)
+  return `正文约${normalizedTarget}字。${NARRATIVE_DENSITY_INSTRUCTIONS[normalizedTarget]}`
 }
 
 export { DEFAULT_WORD_COUNT_TARGET }

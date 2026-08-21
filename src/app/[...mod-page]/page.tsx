@@ -21,10 +21,10 @@ function NotFoundView({ path }: { path: string }) {
         <h1 className="text-2xl font-semibold tracking-tight mb-2">
           页面未注册
         </h1>
-        <p className="text-sm leading-relaxed text-gray-500 mb-1">
-          路径 <code className="text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-xs">{path}</code> 未在任何 MOD 的 routes 中注册
+        <p className="text-sm leading-relaxed text-[var(--flow-muted)] mb-1">
+          路径 <code className="text-[var(--flow-ink)] bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded text-xs">{path}</code> 未在任何 MOD 的 routes 中注册
         </p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-[var(--flow-faint)]">
           请在 manifest.ts 的 routes 中添加此路径
         </p>
       </div>
@@ -40,11 +40,11 @@ function LoadErrorView({ path, modName, pagePath }: { path: string; modName: str
         <h1 className="text-2xl font-semibold tracking-tight mb-2">
           页面加载失败
         </h1>
-        <p className="text-sm leading-relaxed text-gray-500 mb-1">
-          路径 <code className="text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded text-xs">{path}</code>
+        <p className="text-sm leading-relaxed text-[var(--flow-muted)] mb-1">
+          路径 <code className="text-[var(--flow-ink)] bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded text-xs">{path}</code>
         </p>
-        <p className="text-xs text-gray-400">
-          MOD <span className="font-medium text-gray-500">&quot;{modName}&quot;</span> 的页面 <span className="font-medium text-gray-500">&quot;{pagePath}&quot;</span> 未能加载
+        <p className="text-xs text-[var(--flow-faint)]">
+          MOD <span className="font-medium text-[var(--flow-muted)]">&quot;{modName}&quot;</span> 的页面 <span className="font-medium text-[var(--flow-muted)]">&quot;{pagePath}&quot;</span> 未能加载
         </p>
       </div>
     </div>
@@ -54,7 +54,7 @@ function LoadErrorView({ path, modName, pagePath }: { path: string; modName: str
 function LoadingFallback() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="text-sm text-gray-400">加载中…</div>
+      <div className="text-sm text-[var(--flow-faint)]">加载中…</div>
     </div>
   )
 }

@@ -1,47 +1,50 @@
 /**
  * @file colors.css
- * @description Design Token —— 语义颜色变量（默认 = 极简白 minimal-white）
+ * @description Design Token —— 语义颜色变量（默认 = 淡黄色 minimal-white）
  * @mod foundation
  *
- * Apple HIG 极简白设计原则：
+ * Apple HIG 淡黄色设计原则：
  *   - Deference：UI 退居其次，大片留白
  *   - Clarity：高对比度文字，清晰的层次
  *   - Depth：极微阴影 + 半透明表面，营造空间感
  */
 
 /* Tailwind CSS v4 @theme 指令 — 注册自定义设计 Token
- * 对齐废弃项目 minimal-light：极简白使用中性灰色系，无蓝色杂色
+ * 与运行时 minimal-white 主题保持同一套淡黄色语义下限，不再保留旧的中性灰蓝基线。
  */
 @theme {
-  --color-primary: #555555;
-  --color-primary-hover: #444444;
-  --color-primary-light: #f5f5f5;
-  --color-secondary: #6b7280;
+  --color-primary: #9b8350;
+  --color-primary-hover: #806a3d;
+  --color-primary-light: #fffef8;
+  --color-secondary: #77736c;
   --color-text-on-primary: #ffffff;
   --color-success: #1d9b4d;
-  --color-warning: #c67a06;
+  --color-warning: #b6842f;
   --color-error: #dc2626;
-  --color-info: #333333;
-  --color-error-bg: #fef2f2;
+  --color-info: #8d7747;
+  --color-success-bg: #fbfdf8;
+  --color-warning-bg: #fffef8;
+  --color-error-bg: #fffaf9;
+  --color-info-bg: #fbfdfb;
 
   /* 背景层次（Apple HIG Depth） */
-  --color-bg: #f8f9fa;
-  --color-bg-primary: #f8f9fa;
-  --color-bg-secondary: #f0f1f3;
-  --color-bg-tertiary: #e5e7eb;
+  --color-bg: #fffdf7;
+  --color-bg-primary: #fffdf7;
+  --color-bg-secondary: #fffefa;
+  --color-bg-tertiary: #fffffd;
   --color-bg-card: #ffffff;
-  --color-surface: rgba(248, 249, 250, 0.8);
+  --color-surface: rgba(255, 255, 255, 0.94);
 
   /* 文字层次（WCAG AA+） */
   --color-text-primary: #1a1a2e;
-  --color-text-secondary: #4a4a6a;
-  --color-text-tertiary: #8a8aaa;
+  --color-text-secondary: #625f59;
+  --color-text-tertiary: #918d85;
   --text-on-accent: #ffffff;
 
   /* 边框（Apple HIG 极淡） */
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-border-focus: #555555;
-  --color-border-hover: rgba(0, 0, 0, 0.15);
+  --color-border: rgba(110, 100, 82, 0.1);
+  --color-border-focus: #c8bda8;
+  --color-border-hover: rgba(110, 100, 82, 0.16);
 
   /* 阴影 */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);

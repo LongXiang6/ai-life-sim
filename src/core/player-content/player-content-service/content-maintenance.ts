@@ -27,7 +27,7 @@ export function deletePlayerContentForAccount(accountId: string): void {
 
 export function getPlayerContentAggregateCounts(): {
   cloudSaves: number
-  eligibleLeaderboardAccounts: number
+  eligibleLeaderboardRecords: number
   queuedPortraitJobs: number
   readyPortraitMail: number
 } {
@@ -45,7 +45,7 @@ export function getPlayerContentAggregateCounts(): {
   ).get() as { count: number }
   return {
     cloudSaves: cloudSaves.count,
-    eligibleLeaderboardAccounts: leaderboard.count,
+    eligibleLeaderboardRecords: leaderboard.count,
     queuedPortraitJobs: portraitJobs.count,
     readyPortraitMail: mail.count,
   }

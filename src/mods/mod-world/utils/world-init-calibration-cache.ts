@@ -6,6 +6,7 @@
 
 import { saveStore } from '@/core'
 
+import type { WorldAIDetailedParameters } from '../prompts/world-config-prompt'
 import type { WorldCalibration, WorldConfig } from '../types'
 
 const CACHE_MOD = 'mod-world'
@@ -13,13 +14,15 @@ const CACHE_MOD = 'mod-world'
 interface CalibrationCacheEntry {
   fingerprint: string
   calibration: WorldCalibration
-  tags?: string[]
+  aiDetailedParameters: WorldAIDetailedParameters
+  tags: string[]
   cachedAt: number
 }
 
 export interface CachedWorldInitBundle {
   calibration: WorldCalibration
-  tags?: string[]
+  aiDetailedParameters: WorldAIDetailedParameters
+  tags: string[]
 }
 
 /** 世界描述 + 关键标签指纹（用于缓存键） */
@@ -47,20 +50,32 @@ export function loadCachedWorldInitBundle(
 ): CachedWorldInitBundle | null {
   if (!worldCode) return null
   const entry = saveStore.get<CalibrationCacheEntry>(CACHE_MOD, 0, `init-cal:${worldCode}`)
-  if (!entry || entry.fingerprint !== fingerprint) return null
-  return { calibration: entry.calibration, tags: entry.tags }
+  if (
+    !entry
+    || entry.fingerprint !== fingerprint
+    || !entry.aiDetailedParameters
+    || !Array.isArray(entry.tags)
+    || entry.tags.length === 0
+  ) return null
+  return {
+    calibration: entry.calibration,
+    aiDetailedParameters: entry.aiDetailedParameters,
+    tags: entry.tags,
+  }
 }
 
 export function saveCachedWorldCalibration(
   worldCode: number,
   fingerprint: string,
   calibration: WorldCalibration,
-  tags?: string[],
+  aiDetailedParameters: WorldAIDetailedParameters,
+  tags: string[],
 ): void {
   if (!worldCode) return
   saveStore.set<CalibrationCacheEntry>(CACHE_MOD, 0, `init-cal:${worldCode}`, {
     fingerprint,
     calibration,
+    aiDetailedParameters,
     tags,
     cachedAt: Date.now(),
   })

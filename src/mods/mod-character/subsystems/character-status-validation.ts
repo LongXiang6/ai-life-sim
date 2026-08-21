@@ -10,7 +10,6 @@ import type {
   CharacterDeathOutcome,
   CharacterFortuneLevel,
   CharacterLifeStageDefinition,
-  CharacterMoralityLevel,
   CharacterNarrativeStatus,
 } from '@/foundation'
 
@@ -19,10 +18,6 @@ const DEATH_CAUSES = new Set<CharacterDeathCauseKind>(['story', 'condition', 'tr
 const FORTUNE_LEVELS = new Set<CharacterFortuneLevel>([
   'very-unlucky', 'unlucky', 'ordinary', 'lucky', 'very-lucky',
 ])
-const MORALITY_LEVELS = new Set<CharacterMoralityLevel>([
-  'supremeGood', 'greatGood', 'good', 'balanced', 'evilLeaning', 'greatEvil', 'supremeEvil',
-])
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -92,14 +87,11 @@ function sanitizeDeath(value: unknown): CharacterDeathOutcome | undefined {
   const historicalEventId = nonEmptyString(value.historicalEventId)
   const occurredAtTotalDays = integer(value.occurredAtTotalDays, 0, Number.MAX_SAFE_INTEGER)
   const finalAgeDays = integer(value.finalAgeDays, 0, Number.MAX_SAFE_INTEGER)
-  const epilogueText = value.epilogueText === undefined ? undefined : nonEmptyString(value.epilogueText)
   if (
     !deathId || !entityId || !contextId || !causeLabel || !historicalEventId
     || occurredAtTotalDays === undefined || finalAgeDays === undefined
     || !DEATH_CAUSES.has(value.causeKind as CharacterDeathCauseKind)
-    || !['pending', 'ready'].includes(String(value.epilogueStatus))
   ) return undefined
-  if ((value.epilogueStatus === 'ready') !== Boolean(epilogueText)) return undefined
   return {
     deathId,
     entityId,
@@ -109,8 +101,6 @@ function sanitizeDeath(value: unknown): CharacterDeathOutcome | undefined {
     occurredAtTotalDays,
     finalAgeDays,
     historicalEventId,
-    epilogueStatus: value.epilogueStatus as CharacterDeathOutcome['epilogueStatus'],
-    ...(epilogueText ? { epilogueText } : {}),
   }
 }
 
@@ -132,7 +122,7 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
     || ageDays === undefined || maximumLifespanDays === undefined || endRisk === undefined
     || lastAnalyzedAtTotalDays === undefined || lifeStages.length === 0
     || lifeStages.some((stage) => !stage) || !guidance || !isRecord(value.health)
-    || !isRecord(value.fortune) || !isRecord(value.morality)
+    || !isRecord(value.fortune)
   ) return undefined
 
   const conditions = Array.isArray(value.health.conditions)
@@ -153,13 +143,9 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
 
   const fortuneValue = integer(value.fortune.value, -100, 100)
   const fortuneGuidance = nonEmptyString(value.fortune.guidance)
-  const moralityValue = integer(value.morality.value, -100, 100)
-  const moralityRoundDelta = integer(value.morality.roundDelta, -100, 100)
-  const moralityGuidance = nonEmptyString(value.morality.guidance)
   if (
     fortuneValue === undefined || !FORTUNE_LEVELS.has(value.fortune.level as CharacterFortuneLevel)
-    || !fortuneGuidance || moralityValue === undefined || moralityRoundDelta === undefined
-    || !MORALITY_LEVELS.has(value.morality.level as CharacterMoralityLevel) || !moralityGuidance
+    || !fortuneGuidance
   ) return undefined
 
   return {
@@ -189,12 +175,6 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
       value: fortuneValue,
       level: value.fortune.level as CharacterFortuneLevel,
       guidance: fortuneGuidance,
-    },
-    morality: {
-      value: moralityValue,
-      level: value.morality.level as CharacterMoralityLevel,
-      roundDelta: moralityRoundDelta,
-      guidance: moralityGuidance,
     },
     guidance,
     lastAnalyzedAtTotalDays,

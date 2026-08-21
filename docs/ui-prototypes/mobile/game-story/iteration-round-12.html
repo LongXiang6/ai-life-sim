@@ -1,0 +1,137 @@
+<!-- Purpose: Record the twelfth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第十二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-12</p>
+      <h1>游戏故事 · 第十二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-11 定版候选 A（墨黑原点）为基线，方向「单选联动 · 输入收起 · chip 纯白」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：①点击「写下自己的做法 / 选择命运分叉」按钮（branchCustomToggle）时，上方单选（branchOptionRadio）自动取消选择；②选择上方任一单选时，自定义输入框（branchCustomInput textarea）自动收起（隐藏）但已输入内容保留（不清空），按钮文字恢复「写下自己的做法」；③属性变化 span（attrChangeChip）背景色改为纯白 #fff，与 branchPending div 纯白一致。分向为 chip 纯白底的呈现（全为白底 #fff）：候选 A 细灰边框 #e5e1d6、候选 B 金棕描边 #d8c9a8、候选 C 无边框。其余共同基线全部继承：墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、branchPending 纯白 #fff + 1px 金棕描边、🎲 装饰标题居中、输入框 auto-grow、前世武骨独立第二行、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行）、章节头单行化结构（第 1 回 · 故事进程 / 故事进行中 / 等待你的选择 / 三步 01 生成正文 02 完成本轮 03 继续人生）、长篇时间线五轮 + 暮年 70 岁待抉择编辑器（圆形单选选项 + textarea「写下你的做法……」+ 清空 / 请先选择禁用）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>单选与自定义输入双模式互斥联动的顺畅度、收起时内容保留的可靠性、按钮文字状态切换的清晰度、chip 纯白底与分支白板的协调度（细灰边框 / 金棕描边 / 无边框）、墨黑中心原点与白板金棕描边的搭配、菱形分隔两端对齐、entryMeta 岁数精简节奏、长篇时间线滚动节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>白底细线</strong></header>
+          <p>属性变化 chip 纯白 #fff + 1px 细灰边框 #e5e1d6——最轻白底保留分隔；单选联动、输入收起内容保留、墨黑中心原点全部保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-12-01-chip-line.html" target="_blank" rel="noopener">
+            游戏故事 12 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>白底金描</strong></header>
+          <p>属性变化 chip 纯白 #fff + 1px 金棕描边 #d8c9a8——呼应分支白板描边；单选联动、输入收起内容保留、墨黑中心原点全部保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-12-02-chip-gold.html" target="_blank" rel="noopener">
+            游戏故事 12 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>白底无框</strong></header>
+          <p>属性变化 chip 纯白 #fff + 无边框——最净白底，与分支 div 纯白完全一致；单选联动、输入收起内容保留、墨黑中心原点全部保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-12-03-chip-plain.html" target="_blank" rel="noopener">
+            游戏故事 12 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 白底细线</span><span role="columnheader">B 白底金描</span><span role="columnheader">C 白底无框</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">网页底色</strong><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选样式</strong><span role="cell">墨黑 #241f18 描边 + 中心原点</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 背景</strong><span role="cell">纯白 #fff + 金棕描边</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性变化 chip</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">纯白 #fff + 金棕描边 #d8c9a8</span><span role="cell">纯白 #fff + 无边框</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨</strong><span role="cell">独立第二行（flex-basis 100%）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A 白底细线——chip 纯白 #fff + 1px 细灰边框 #e5e1d6，白底最轻且保留正文色块边界，与分支白板 #fff 协调又不至于在正文区消失。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B 白底金描——chip 金棕描边 #d8c9a8 与 branchPending 白板金棕描边重复呼应，正文区金棕色块过多；候选 C 白底无框——纯白无边框与分支白板同色，正文变化提示的色块边界最弱。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 指示「`span` 这种轮回天赋放到 `div` 第二行左对齐，为什么还在同一行？」——指出前世武骨（barTalentRebirth）未独立第二行，根因是 flex-basis 100% + max-width max-content 组合把假想主尺寸压回内容宽度、宽容器不触发换行。进入 ROUND-13（前世武骨 · 独立第二行左对齐），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

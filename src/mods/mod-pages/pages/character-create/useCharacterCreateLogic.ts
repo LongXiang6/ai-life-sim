@@ -15,7 +15,7 @@ import {
 } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
 
-import { useCharacterCreateForm, ATTRIBUTES } from './useCharacterCreateForm'
+import { useCharacterCreateForm } from './useCharacterCreateForm'
 import {
   ADDITIONAL_GENDERS,
   LABELS,
@@ -31,7 +31,6 @@ import {
   buildConfirmedRaceLifespan,
   computeMaxAge,
   isPrimitiveWorld,
-  toBaseAttributes,
 } from './character-create-helpers'
 import type { UseCharacterCreateLogicReturn } from './character-create.types'
 import { useCharacterCreateCustomOptions } from './useCharacterCreateCustomOptions'
@@ -61,20 +60,18 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   )
 
   const {
-    name, nameError, gender, race, background, attributes,
+    name, nameError, gender, race, background,
     customGenders: storedCustomGenders,
     customRaces: storedCustomRaces,
     backgroundPresets: bgPresets,
     manualLifespan: storedManualLifespan,
     manualStartingAge: storedManualStartingAge,
-    usedPoints, remainingPoints, maxPoints, attrMin, attrMax,
     setName: setFormName, setNameError, setGender: setFormGender, setRace, setBackground,
     setCustomGenders: setStoredCustomGenders,
     setCustomRaces: setStoredCustomRaces,
     setBackgroundPresets,
     setManualLifespan: setStoredManualLifespan,
     setManualStartingAge: setStoredManualStartingAge,
-    handleAttrChange,
   } = useCharacterCreateForm()
 
   const {
@@ -196,14 +193,7 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     setGender(gender)
     const { maxAge, startingAge } = resolveAgeSetup()
     setAge(startingAge)
-
-    const confirmedAttributes = toBaseAttributes(attributes)
-    setCharacterBase({
-      base: confirmedAttributes,
-      current: { ...confirmedAttributes },
-      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-      startingAge,
-    })
+    setCharacterBase({ startingAge })
 
     const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
     setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })
@@ -212,7 +202,7 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     store.getState().setBackground(background)
 
     router.push('/talent-draw')
-  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespanDraft, background, attributes, router, setNameError, store, resolveAgeSetup, ageSetupPreview.error])
+  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespanDraft, background, router, setNameError, store, resolveAgeSetup, ageSetupPreview.error])
 
   const handleBack = useCallback(() => {
     setGender(gender)
@@ -220,23 +210,16 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     setAge(startingAge)
     store.getState().setRace(race)
     store.getState().setBackground(background)
-    const confirmedAttributes = toBaseAttributes(attributes)
-    setCharacterBase({
-      base: confirmedAttributes,
-      current: { ...confirmedAttributes },
-      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-      startingAge,
-    })
+    setCharacterBase({ startingAge })
     const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
     setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })
     router.push('/new-game/world-customize')
-  }, [gender, race, attributes, background, router, setGender, setAge, setCharacterBase, setLifespanDraft, store, resolveAgeSetup])
+  }, [gender, race, background, router, setGender, setAge, setCharacterBase, setLifespanDraft, store, resolveAgeSetup])
 
   return {
     // 表单
-    name, nameError, gender, race, background, attributes,
-    usedPoints, remainingPoints, maxPoints, attrMin, attrMax,
-    setFormName, setNameError, setFormGender, setRace, setBackground, handleAttrChange,
+    name, nameError, gender, race, background,
+    setFormName, setNameError, setFormGender, setRace, setBackground,
 
     // 姓名
     handleDice,
@@ -285,7 +268,6 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
 
     // 常量
     LABELS,
-    ATTRIBUTES,
     RACE_LIFESPAN,
   }
 }

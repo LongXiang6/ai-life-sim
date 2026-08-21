@@ -1,0 +1,131 @@
+<!-- Purpose: Record the third UI iteration round for the attribute-alloc page (06). Owner: Interface system. Responsibility: Compare confirmed allocation-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>属性分配 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">ATTRIBUTE-ALLOC / ROUND-03</p>
+      <h1>属性分配 · 第三轮</h1>
+    </div>
+    <span class="status status-selected">已选择 03</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以第二轮候选 02（数值优先）为基线继续迭代属性分配（06）：三个候选统一优化描述文案以增强沉浸感（标题装饰符号 + 副句、分区头、预算说明、属性档位语义的叙事化与符号渲染），并统一引入装饰符号语言（标题 emoji、❖ / ✦ 分隔与点缀），与抽取页「🔮 命格抽取」、选取页「🗝️ 选择命格」的已定版装饰语言连贯；候选 01 标题仪式（标题 emoji + 副句沉浸 + 分区头装饰）、候选 02 语义渲染（属性档位语义加 ✦ 前缀与金棕强调，基础/有效值副行用 ❖ 分隔）、候选 03 仪式铭文（全页装饰符号最完整：runningHead 符号、标题 emoji、副句、分区分隔、语义点缀、工具与底部提示符号）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（06 / 08）、标题「属性分配」、基础点数（15 点预算，命格加成不占预算，0 是普通人基准 / 10 人类顶尖 / 超过 10 超凡）、四项基础属性（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫，步进器与 15 格倾向轴）、重置与平均分配、底部返回（返回命格选择）与确认（07 确认属性 / 尚余 X 点 · 下一步核对命运）、未使用点数对话框（继续分配 / 确认并继续）。属性档位语义口径照抄运行时 attr-tiers.ts，仅允许符号化渲染不改语义文案；数值口径不变。运行时 AttributeAlloc.module.css 无动画，候选不加动画。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>沉浸感（描述文案的叙事强度与命运语境契合）、装饰符号（与抽取 / 选取定版语言的连贯、符号是否喧宾夺主）、数值可读性（装饰后基础值 / 有效值 / 命格加成仍清晰）、布局直觉（数值优先结构保持）、精简协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>标题仪式</strong></header>
+          <p>数值优先结构保持：标题加装饰 emoji，副句沉浸化，预算与分区头加装饰符号，属性行语义符号化。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-title-ritual.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>语义渲染</strong></header>
+          <p>数值优先结构保持：属性档位语义用 ✦ 前缀与金棕强调渲染，基础/有效值副行用 ❖ 分隔符号，描述更叙事化。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-semantic-glow.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>仪式铭文</strong></header>
+          <p>完全重新设计装饰语言：全页装饰符号最完整（runningHead 符号、标题 emoji、副句、分区分隔、语义点缀、工具与底部提示符号），文案整体仪式化。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-ritual-script.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 标题仪式</span><span role="columnheader">02 语义渲染</span><span role="columnheader">03 仪式铭文</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯属性分配界面</span><span role="cell">纯属性分配界面</span><span role="cell">纯属性分配界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">布局直觉</strong><span role="cell">数值优先结构保持</span><span role="cell">数值优先结构保持</span><span role="cell">数值优先结构保持</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">沉浸感</strong><span role="cell">标题 + 副句 + 区头叙事</span><span role="cell">属性语义 ✦ 叙事渲染</span><span role="cell">全页铭文式仪式化</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">装饰符号</strong><span role="cell">标题 emoji + 区头符号</span><span role="cell">语义 ✦ + 副行 ❖</span><span role="cell">runningHead/分区/语义/底部全点缀</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值可读性</strong><span role="cell">装饰不遮数值</span><span role="cell">有效值 16px 金棕保持</span><span role="cell">数值与符号分层</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">运行时无动画，照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取 🔮 / 选取 🗝️ 连贯</span><span role="cell">与抽取 🔮 / 选取 🗝️ 连贯</span><span role="cell">与抽取 🔮 / 选取 🗝️ 连贯</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（仪式铭文）。用户确认「03」。要点：标题 📜 + 全页装饰语言最完整（runningHead ❖、铭文分隔线 ✦、分区头 ✦ 双向装饰、工具 ✧、底部提示符号），副句「命格既显，根基待你一一铭定」仪式化。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（标题仪式）：装饰集中在标题与区头，语义行符号较弱，整体仪式感低于候选 03；候选 02（语义渲染）：语义金棕叙事与候选 03 相近，但 runningHead 与工具区缺少装饰收束，页面仪式不完整。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 03（仪式铭文）为基线开始第四轮迭代；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

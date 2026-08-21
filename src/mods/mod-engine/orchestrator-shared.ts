@@ -1,4 +1,8 @@
 /**
+ * Purpose: Centralize internal module surfaces consumed by the core round orchestrator.
+ * Owner: mod-engine
+ * Responsibility: Re-export existing orchestrator dependencies without becoming a public state owner.
+ *
  * @module orchestrator-shared.ts
  * @description 编排器依赖重导出，集中由编排器消费的内部模块接口。
  * @mod mod-engine
@@ -9,6 +13,12 @@
 
 // bootstrap
 export {
+  CausalDelaySystem,
+  ForeshadowingSystem,
+  MemoryLifecycleSystem,
+  PlotStructureSystem,
+  SubsystemRelevanceSystem,
+  SummaryCompressorSystem,
   TimeSystem,
   timeSystem,
   summaryCompressor,
@@ -24,7 +34,6 @@ export { shouldAlignTimeStepTransition } from './subsystems/time-system'
 // helpers
 export {
   DEFAULT_ENGINE_CONFIG,
-  USE_AI_SUMMARY_COMPRESSION,
   getWorldRules,
   buildWordCountInstruction,
   buildStyleInstruction,
@@ -41,7 +50,6 @@ export {
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   isSubsystemOpenForPrompt,
-  isMvpSystemInstructionSubsystem,
   isMvpRuntimeSubsystem,
   resolveTimeStep,
   mapSubsystemStatesToDetectionStates,
@@ -58,16 +66,6 @@ export {
   type RoundCommitResult,
 } from './helpers/round-commit-bus'
 
-export { runCompressionGate } from './helpers/compression-gate'
-
-export {
-  NarrativeBackgroundResultInbox,
-  createNarrativeBackgroundInputHash,
-  type NarrativeBackgroundAnalysisIdentity,
-  type NarrativeBackgroundAnalysisKind,
-  type NarrativeBackgroundAnalysisRecord,
-} from './helpers/narrative-background-result-inbox'
-
 export {
   createNarrativeLifeRunId,
   calculateNarrativeRepetitionMetric,
@@ -78,13 +76,6 @@ export {
 } from './helpers/narrative-repetition-metrics'
 
 export type { NarrativePromptComponent } from './helpers/narrative-prompt-component-types'
-
-export {
-  digestLedger,
-  type DigestEntry,
-  type LedgerEvent,
-  type DigestLedgerSnapshot,
-} from './helpers/digest-ledger'
 
 export {
   buildNarrativeTimeContext,
@@ -107,7 +98,22 @@ export { simulationBridge } from './simulation/simulation-bridge'
 export { useEngineStore } from './store'
 
 // types
-export type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation, TimeStep } from './types'
+export type {
+  EngineState,
+  RoundInfo,
+  RoundResult,
+  NarrativeChunk,
+  NarrativeDestinyPatternGrowthProjection,
+  CharacterCreation,
+  TimeStep,
+} from './types'
+export type {
+  NarrativeAIStoryContinuityData,
+} from './helpers/narrative-ai-protocol'
+export type {
+  NarrativeStoryContinuityTransactionSnapshot,
+  PreparedNarrativeStoryContinuity,
+} from './subsystems/summary-compressor-system'
 export type {
   NarrativeEventCommitData,
   ParsedNarrative,

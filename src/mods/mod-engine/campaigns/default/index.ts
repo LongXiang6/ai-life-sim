@@ -1,66 +1,78 @@
 /**
- * Purpose: Declare the default narrative campaign stage graph and AI calls.
+ * Purpose: Declare the default narrative round as one main-story call plus active parallel specialist calls.
  * Owner: mod-engine
- * Responsibility: Stage ordering and result handoff only; subsystem business state stays with its owner.
+ * Responsibility: Stage ordering, frozen-input handoff, deterministic commit, and reverse recovery only.
  *
  * @module campaigns/default/index.ts
- * @description 默认叙事 Campaign：正文接纳后并行启动四类非阻塞后台分析
+ * @description 默认叙事 Campaign：主故事通过协议后立即发布，活动专项分析随后并行收束
  * @mod mod-engine
  */
 
 import type {
   AIModelConfig,
-  HistoricalEventCandidateInput,
   NarrativeStage,
   PromptTemplate,
   RoundContext,
-  SubSystemChanges,
 } from '@/foundation'
 import {
-  buildSegmentedPrompt,
   callAIWithPromptTemplate,
   eventBus,
   isAiResponseTruncatedError,
-  recordRoundCacheMetrics,
 } from '@/core'
 import { logger } from '@/core/logger/client-logger'
 import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
+import { useCharacterStore } from '@/mods/mod-character'
+import {
+  captureDestinyPatternGrowthTransaction,
+  commitPreparedDestinyPatternGrowthChoice,
+  createPendingDestinyPatternGrowth,
+  getDestinyPatternSystem,
+  prepareDestinyPatternGrowthChoice,
+  restoreDestinyPatternGrowthTransaction,
+  type DestinyPatternGrowthDirection,
+  type PreparedDestinyPatternGrowthChoice,
+} from '@/mods/mod-character/destiny-pattern-access'
 import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
-import { DEFAULT_WORD_COUNT_TARGET } from '../../constants/narrative-config'
 import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
-import { buildNarrativeBasicAttributePromptInput } from '../../helpers/narrative-basic-attribute-context'
-import { buildNarrativeDataAnalysisPromptInput } from '../../helpers/narrative-data-analysis-context'
-import { buildNarrativeEventRecognitionPromptInput } from '../../helpers/narrative-event-recognition-context'
-import { buildNarrativeMacroImpactPromptInput } from '../../helpers/narrative-macro-impact-context'
 import {
-  buildNarrativeRepairInstruction,
-  inspectNarrativeBasicAttributeAnalysisQuality,
-  inspectNarrativeDataAnalysisQuality,
-  inspectNarrativeEventRecognitionQuality,
-  inspectNarrativeMacroImpactQuality,
-  inspectNarrativeResponseQuality,
-  type NarrativeEventRecognitionQuality,
-  type NarrativeMacroImpactQuality,
-  type NarrativeResponseQuality,
-  type NarrativeSystemAnalysisQuality,
+  executeMainNarrativeRequest,
+  prepareMainNarrativeRequest,
+} from '../../helpers/main-narrative-call'
+import {
+  buildNarrativeStoryContinuityPromptInput,
+  type NarrativeStoryContinuityPromptInput,
+} from '../../helpers/narrative-story-continuity-context'
+import {
+  inspectNarrativeStoryContinuityQuality,
+  inspectNarrativeTalentGrowthQuality,
 } from '../../helpers/narrative-response-quality'
-import { buildRecentStoriesForRound, type RecentStoryProjection } from '../../helpers/recent-story-context'
-import type { NarrativeRoundMetadata } from '../../helpers/narrative-semantic-signals'
-import { narrativeBasicAttributePrompt } from '../../prompts/narrative-basic-attribute-prompt'
-import { narrativeDataAnalysisPrompt } from '../../prompts/narrative-data-analysis-prompt'
-import { narrativeEventRecognitionPrompt } from '../../prompts/narrative-event-recognition-prompt'
-import { narrativeMacroImpactPrompt } from '../../prompts/narrative-macro-impact-prompt'
+import {
+  buildRecentStoriesForRound,
+  type RecentStoryProjection,
+} from '../../helpers/recent-story-context'
+import {
+  buildNarrativeTalentGrowthPromptInput,
+  getDestinyPatternMinimumEvidenceWindows,
+  type NarrativeTalentGrowthPromptInput,
+} from '../../helpers/narrative-talent-growth-context'
+import { narrativeStoryContinuityPrompt } from '../../prompts/narrative-story-continuity-prompt'
+import { narrativeTalentGrowthPrompt } from '../../prompts/narrative-talent-growth-prompt'
+import { prepareNarrativeRoundPromptContext } from '../../helpers/narrative-round-prompt-preparation'
 import { useEngineStore } from '../../store'
 import type { ParsedNarrative } from '../../subsystems/narrative-parser-system'
-import { orchestrator } from '../../subsystems/orchestrator-system'
+import { orchestrator, type AcceptedNarrativeResult } from '../../subsystems/orchestrator-system'
+import type { NarrativeChunk } from '../../types'
 
-const MAX_NARRATIVE_REPAIR_ATTEMPTS = 2
 const STRUCTURED_ANALYSIS_REASONING_EFFORT = 'disabled' as const
 const STAGE_OWNER = 'mod-engine'
 const STAGE_FAILURE_TARGET = 'mod-engine'
+const SPECIALIST_PARALLEL_GROUP = 'narrative-specialists'
 
-/** 阶段运行时上下文：保存正文接纳与后台任务启动所需的本轮不可变值。 */
+type PreparedStoryContinuity = ReturnType<typeof orchestrator.prepareNarrativeStoryContinuity>
+type PreparedStoryContinuityLedger = ReturnType<typeof orchestrator.prepareNarrativeStoryContinuityLedger>
+
+/** One execution owns these values; parallel stages only write their dedicated result slot. */
 export interface StageRuntimeContext extends RoundContext {
   _promptContext?: ReturnType<typeof orchestrator.assemblePromptContext>
   _playerChoice?: string
@@ -68,118 +80,186 @@ export interface StageRuntimeContext extends RoundContext {
   _legendaryEncounterInjected?: boolean
   _narrativeResponse?: string
   _narrativeParsed?: ParsedNarrative
+  _preparedNarrative?: AcceptedNarrativeResult
+  _committedRoundResult?: AcceptedNarrativeResult
   _recentStories?: RecentStoryProjection[]
-  _dataChanges?: SubSystemChanges[]
-  _basicAttributeChanges?: SubSystemChanges[]
-  _eventMetadata?: NarrativeRoundMetadata
-  _recognizedEventCandidates?: HistoricalEventCandidateInput[]
-  _roundResult?: ReturnType<typeof orchestrator.acceptNarrativeResponse>
-  _isPreparedRoundRetry?: boolean
+  _frozenRoundContext?: RoundContext
+  _frozenNarrativeHistory?: NarrativeChunk[]
+  _talentInput?: NarrativeTalentGrowthPromptInput
+  _continuityInput?: NarrativeStoryContinuityPromptInput
+  _preparedTalentGrowth?: PreparedDestinyPatternGrowthChoice | null
+  _preparedStoryContinuity?: PreparedStoryContinuity
+  _preparedStoryContinuityLedger?: PreparedStoryContinuityLedger
+  _storyContinuityFailureReason?: string
+  _storyContinuityLedgerFailureReason?: string
+  _isPreparedRoundReattempt?: boolean
 }
 
-function buildLegendaryEncounterGuidance(
-  encounter: NonNullable<ReturnType<typeof useEngineStore.getState>['legendaryEncounter']>,
-): string {
-  const representative = encounter.achievements[0]
-  return [
-    '【低优先级异界传闻素材】',
-    `另一段人生曾发生于“${encounter.worldName}”，主角名为“${encounter.characterName}”。`,
-    `留下的结算评语：${encounter.endingReview}`,
-    ...(representative
-      ? [`可引用事件：${representative.timeLabel}，${representative.title}：${representative.detail}`]
-      : []),
-    '仅在不影响本轮主线、玩家意图、命运事件和连续性的前提下，把它改写成角色能够接触、并符合当前世界传播媒介与既有因果的一小段信息痕迹。',
-    '不得让传闻直接改变主角属性、强制选择或夺取主线；不适合出现时可以完全不用。',
-  ].join('\n')
-}
-
-function narrativeRejection(message: string): Error {
-  const error = new Error(message)
-  error.name = 'NarrativeGenerationRejectedError'
+function rejectedError(name: string, message: string, cause?: unknown): Error {
+  const error = new Error(message, cause === undefined ? undefined : { cause })
+  error.name = name
   return error
 }
 
-function backgroundAnalysisRejection(message: string): Error {
-  const error = new Error(message)
-  error.name = 'NarrativeBackgroundAnalysisRejectedError'
-  return error
+function narrativeRejection(message: string, cause?: unknown): Error {
+  return rejectedError('NarrativeGenerationRejectedError', message, cause)
 }
 
-function basicAttributeAnalysisRejection(message: string): Error {
-  const error = new Error(message)
-  error.name = 'NarrativeBasicAttributeAnalysisRejectedError'
-  return error
+function specialistRejection(kind: string, label: string, message: string, cause?: unknown): Error {
+  return rejectedError(`Narrative${kind}RejectedError`, `${label}${message}`, cause)
 }
 
-function dataAnalysisRejection(message: string): Error {
-  const error = new Error(message)
-  error.name = 'NarrativeDataAnalysisRejectedError'
-  return error
-}
-
-type NarrativeBackgroundStageKind =
-  | 'basic-attribute'
-  | 'data-analysis'
-  | 'event-recognition'
-  | 'macro-impact'
-
-function runNonBlockingBackgroundLaunch(
-  kind: NarrativeBackgroundStageKind,
-  narrativeId: string,
-  launch: () => void,
-): void {
+async function callStructuredSpecialist(input: {
+  label: string
+  errorKind: string
+  callKind: string
+  prompt: PromptTemplate
+  userSegments: readonly string[]
+  aiConfig: AIModelConfig
+  sessionId?: string
+}): Promise<string> {
+  const settings = useSettingsStore.getState()
+  const model = settings.customModel || input.aiConfig.model
+  const userPrompt = input.userSegments.join('\n\n')
   try {
-    launch()
-  } catch (error) {
-    orchestrator.recordNarrativeBackgroundLaunchFailure({ kind, narrativeId, error })
-  }
-}
-
-function eventRecognitionRejection(message: string): Error {
-  const error = new Error(message)
-  error.name = 'NarrativeEventRecognitionRejectedError'
-  return error
-}
-
-function macroImpactRejection(message: string): Error {
-  const error = new Error(message)
-  error.name = 'NarrativeMacroImpactRejectedError'
-  return error
-}
-
-async function callStructuredAnalysis(
-  label: string,
-  rejection: (message: string) => Error,
-  promptTemplate: PromptTemplate,
-  userPrompt: string,
-  options: Parameters<typeof callAIWithPromptTemplate>[2],
-): Promise<string> {
-  try {
-    return await callAIWithPromptTemplate(promptTemplate, userPrompt, options)
-  } catch (error) {
-    if (!isAiResponseTruncatedError(error)) throw error
-
-    const rejected = rejection(`${label}响应被 Provider 标记为不完整；该后台分析未提交，已生成正文和其他后台结果不受影响。`)
-    Object.assign(rejected, {
-      cause: error,
-      finishReason: error.finishReason,
-      requestId: error.requestId,
-      responseLength: error.responseLength,
+    return await callAIWithPromptTemplate(input.prompt, userPrompt, {
+      config: {
+        ...input.aiConfig,
+        model,
+        reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
+      },
+      pool: 'narrative',
+      sessionId: input.sessionId,
+      providerId: settings.provider,
+      customBaseUrl: settings.customUrl || undefined,
+      customModel: model,
+      apiKey: settings.customKey || undefined,
+      userSegments: [...input.userSegments],
+      overrideTemperature: 0,
+      reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
+      logContext: {
+        lifeRunId: orchestrator.getState().lifeRunId,
+        round: orchestrator.getState().totalRounds,
+        strategy: 'S4',
+        callKind: input.callKind,
+        pool: input.callKind,
+        model,
+        sessionId: input.sessionId,
+        executionKind: 'real',
+        promptVersion: input.prompt.version,
+      },
     })
-    throw rejected
+  } catch (error) {
+    if (!isAiResponseTruncatedError(error) || !error.content?.trim()) throw error
+    logger.info('narrative-quality', 'specialist-truncated-content-recovered', {
+      label: input.label,
+      responseLength: error.content.length,
+    })
+    return error.content
   }
 }
 
-/**
- * 加载默认 Campaign。预览只缓存第一次严格叙事响应；真实回合先接纳正文，
- * 再并行启动数据、基础属性、事件与宏观影响分析，后台结果跨轮独立提交。
- */
+function requirePreparedNarrative(ctx: StageRuntimeContext, label: string): AcceptedNarrativeResult {
+  if (!ctx._preparedNarrative) {
+    throw specialistRejection('SpecialistInput', label, '缺少已准备的主故事。')
+  }
+  return ctx._preparedNarrative
+}
+
+async function restoreCommittedSteps(
+  steps: Array<() => void | Promise<void>>,
+  originalError: unknown,
+): Promise<never> {
+  const restoreErrors: unknown[] = []
+  for (const restore of [...steps].reverse()) {
+    try {
+      await restore()
+    } catch (error) {
+      restoreErrors.push(error)
+    }
+  }
+  try {
+    orchestrator.refreshCommittedSubsystemStateSnapshot()
+  } catch (error) {
+    restoreErrors.push(error)
+  }
+  if (restoreErrors.length > 0) {
+    throw new AggregateError(
+      [originalError, ...restoreErrors],
+      '回合提交失败，且至少一个所属系统未能完整恢复事务快照。',
+    )
+  }
+  throw originalError
+}
+
+function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
+  if (!ctx._narrativeParsed || !ctx._preparedNarrative || !ctx._promptContext) {
+    throw narrativeRejection('专项调用输入缺少已经严格解析并准备的主故事。')
+  }
+  const roundContext = orchestrator.getRoundContextSnapshot()
+  const engineState = orchestrator.getState()
+  const narrativeHistory = structuredClone(engineState.narrativeHistory)
+  const recentStories = buildRecentStoriesForRound({
+    history: narrativeHistory,
+    currentRound: ctx._preparedNarrative.roundSequence,
+    currentStory: {
+      text: ctx._narrativeParsed.narrative,
+      totalDays: roundContext.totalDays,
+      timeLabel: ctx._promptContext.currentTime,
+      branchTitle: ctx._narrativeParsed.branchTitle,
+      branchOptions: ctx._narrativeParsed.branchOptions,
+    },
+  })
+  const currentNarrative: NarrativeChunk = {
+    text: ctx._narrativeParsed.narrative,
+    isComplete: true,
+    timestamp: Date.now(),
+    contextId: roundContext.contextId,
+    memoryScope: 'context',
+    totalDays: roundContext.totalDays,
+    displayTimeLabel: ctx._promptContext.currentTime,
+    branchTitle: ctx._narrativeParsed.branchTitle,
+    branchOptions: ctx._narrativeParsed.branchOptions,
+  }
+
+  ctx._frozenRoundContext = structuredClone(roundContext)
+  ctx._frozenNarrativeHistory = narrativeHistory
+  ctx._recentStories = recentStories
+  ctx._talentInput = buildNarrativeTalentGrowthPromptInput({
+    patterns: getDestinyPatternSystem().getPatterns(),
+    compressedSummaries: structuredClone(engineState.compressedSummaries),
+    recentStories,
+    currentRound: ctx._preparedNarrative.roundSequence,
+    totalDays: roundContext.totalDays,
+    currentAge: Number(ctx._promptContext.characterStatusView.年龄),
+    growthHistory: structuredClone(useCharacterStore.getState().destinyPatterns.growthHistory),
+    characterContext: {
+      ...structuredClone(ctx._promptContext.characterProfileView),
+      当前年龄: ctx._promptContext.characterStatusView.年龄,
+    },
+    worldContext: {
+      世界: structuredClone(ctx._promptContext.worldNarrativeView),
+      成立规则: ctx._promptContext.worldRules ?? [],
+      力量体系: ctx._promptContext.powerFramework ?? null,
+      当前时间: ctx._promptContext.currentTime,
+    },
+  })
+  ctx._continuityInput = buildNarrativeStoryContinuityPromptInput({
+    currentRound: ctx._preparedNarrative.roundSequence,
+    currentNarrative,
+    narrativeHistory,
+    compressedSummaries: structuredClone(engineState.compressedSummaries),
+    recentStories,
+  })
+}
+
+/** Load the only active round graph. */
 export function loadStages(
   aiConfig: AIModelConfig,
   promptTemplate: PromptTemplate,
   sessionId?: string,
 ): NarrativeStage[] {
-  const stages: NarrativeStage[] = [
+  return [
     {
       name: 'prepare-round',
       phase: 'prepare',
@@ -191,14 +271,13 @@ export function loadStages(
         const ctx = _ctx as StageRuntimeContext
         const pending = orchestrator.getPendingNarrativeRoundPreparation()
         if (pending) {
-          ctx._isPreparedRoundRetry = true
+          ctx._isPreparedRoundReattempt = true
           ctx._promptContext = pending.promptContext
           ctx._playerChoice = pending.playerChoice
           ctx._eventInjectionText = pending.eventInjectionText
           ctx._legendaryEncounterInjected = pending.legendaryEncounterInjected
           return
         }
-        orchestrator.consumeNarrativeBackgroundResults()
         const context = orchestrator.getRoundContextSnapshot()
         if (!context.contextId || !context.characterId) {
           throw new Error('回合上下文缺少 contextId 或 characterId')
@@ -225,7 +304,7 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (ctx._isPreparedRoundRetry) return
+        if (ctx._isPreparedRoundReattempt) return
         eventBus.emit('mod-engine:round-start', orchestrator.getRound())
         orchestrator.advanceTime()
       },
@@ -240,8 +319,7 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (ctx._isPreparedRoundRetry) return
-        await orchestrator.advanceAllSubsystems()
+        if (!ctx._isPreparedRoundReattempt) await orchestrator.advanceAllSubsystems()
       },
       maxRounds: 1,
     },
@@ -254,8 +332,7 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (ctx._isPreparedRoundRetry) return
-        await orchestrator.collectAllSubsystemStates()
+        if (!ctx._isPreparedRoundReattempt) await orchestrator.collectAllSubsystemStates()
       },
       maxRounds: 1,
     },
@@ -268,7 +345,7 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (ctx._isPreparedRoundRetry) return
+        if (ctx._isPreparedRoundReattempt) return
         const lifecycle = buildEventInjectionText(
           orchestrator.getDetectionStates(),
           orchestrator.getEventLifecycle(),
@@ -288,29 +365,12 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (ctx._isPreparedRoundRetry) return
-        await orchestrator.refreshNarrativeMemoryRecall()
+        if (ctx._isPreparedRoundReattempt) return
 
-        const engineState = useEngineStore.getState()
-        const encounter = engineState.legendaryEncounter
-        const lastNarrative = engineState.narrativeHistory.at(-1)
-        const canInjectLegend = encounter?.status === 'selected'
-          && engineState.totalRounds >= 2
-          && !ctx._eventInjectionText
-          && !engineState.forceBranchNext
-          && !lastNarrative?.resolvedChoice
-        ctx._playerChoice = orchestrator.getPendingPlayerChoice()
-        const promptContext = orchestrator.assemblePromptContext(ctx._eventInjectionText)
-        ctx._promptContext = canInjectLegend && encounter
-          ? {
-              ...promptContext,
-              narrativeGuidanceText: [
-                promptContext.narrativeGuidanceText,
-                buildLegendaryEncounterGuidance(encounter),
-              ].filter(Boolean).join('\n'),
-            }
-          : promptContext
-        ctx._legendaryEncounterInjected = canInjectLegend
+        const prepared = prepareNarrativeRoundPromptContext(orchestrator, ctx._eventInjectionText)
+        ctx._playerChoice = prepared.playerChoice
+        ctx._promptContext = prepared.promptContext
+        ctx._legendaryEncounterInjected = prepared.legendaryEncounterInjected
         orchestrator.setPendingNarrativeRoundPreparation({
           roundSequence: orchestrator.getState().totalRounds,
           promptContext: ctx._promptContext,
@@ -330,144 +390,52 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (!ctx._promptContext) throw narrativeRejection('第一次调用缺少叙事上下文')
+        if (!ctx._promptContext) throw narrativeRejection('主故事调用缺少叙事上下文。')
 
-        const settings = useSettingsStore.getState()
-        const wordCountTarget = settings.wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
-        const requestBranch = useEngineStore.getState().forceBranchNext
-        const activeStyle = orchestrator.getNarrativeStyleSnapshot()
         const state = orchestrator.getState()
-        const repetitionContext = {
-          round: state.totalRounds,
-          recentHistory: state.narrativeHistory.map((entry, index) => ({
-            round: Math.max(1, state.totalRounds - state.narrativeHistory.length + index),
-            text: entry.text,
-          })),
-        }
-        const cachedNarrative = ctx._isPreparedRoundRetry
-          ? null
-          : orchestrator.consumePrefetchedNarrative()
-        const prefetched = ctx._legendaryEncounterInjected ? null : cachedNarrative
-        let response: string | undefined
-        let quality: NarrativeResponseQuality | undefined
-        let source: 'live' | 'prefetched' = 'live'
-
-        if (prefetched) {
-          const prefetchedQuality = inspectNarrativeResponseQuality(
-            prefetched,
-            wordCountTarget,
-            repetitionContext,
-          )
-          if (prefetchedQuality.valid) {
-            response = prefetched
-            quality = prefetchedQuality
-            source = 'prefetched'
-          }
-        }
-
-        let repairAttempts = 0
-        const repairKinds: string[] = []
-        if (!response || !quality) {
-          const model = settings.customModel || aiConfig.model
-          const segments = buildSegmentedPrompt(promptTemplate, ctx._promptContext)
-          const routeOptions = {
-            providerId: settings.provider,
-            customBaseUrl: settings.customUrl || undefined,
-            customModel: model,
-            apiKey: settings.customKey || undefined,
-          }
-          const baseLogContext = {
-            lifeRunId: orchestrator.getState().lifeRunId,
-            round: orchestrator.getState().totalRounds,
-            age: Number(ctx._promptContext.characterStatusView.年龄) || undefined,
-            strategy: segments.strategy,
-            callKind: 'narrative-main',
-            pool: 'narrative',
-            model,
-            sessionId,
-            executionKind: 'real',
-            promptVersion: promptTemplate.version,
-            targetWordCount: wordCountTarget,
-            styleSource: activeStyle.source,
-            styleText: activeStyle.text,
-            styleVersion: activeStyle.version,
-          }
-          const callOptions = {
-            config: { ...aiConfig, model },
-            pool: 'narrative' as const,
-            strictSchema: true,
-            sessionId,
-            userSegments: segments.userSegments,
-            logContext: baseLogContext,
-            ...routeOptions,
-            ...(settings.storySeed.trim() ? { storySeed: settings.storySeed.trim() } : {}),
-          }
-
-          response = await callAIWithPromptTemplate(promptTemplate, segments.full, callOptions)
-          quality = inspectNarrativeResponseQuality(response, wordCountTarget, repetitionContext)
-          while (!quality.valid && repairAttempts < MAX_NARRATIVE_REPAIR_ATTEMPTS) {
-            repairAttempts += 1
-            const repairKind = quality.repetitionMetric?.qualityLevel === 'high'
-              ? 'narrative-repetition-repair'
-              : 'narrative-format-repair'
-            repairKinds.push(repairKind)
-            response = await callAIWithPromptTemplate(promptTemplate, segments.full, {
-              ...callOptions,
-              overrideTemperature: 0,
-              extraUserMessages: [
-                `${buildNarrativeRepairInstruction(quality, wordCountTarget, requestBranch)}\n\n⟦上一版叙事响应⟧${response}`,
-              ],
-              logContext: {
-                ...baseLogContext,
-                callKind: repairKind,
-              },
-              logMeta: { repairAttempt: repairAttempts },
-            })
-            quality = inspectNarrativeResponseQuality(response, wordCountTarget, repetitionContext)
-          }
-
-          recordRoundCacheMetrics({
-            strategy: 'S4',
-            stablePrefixChars: segments.stablePrefixChars,
-            userMessageCount: segments.userMessageCount ?? 3,
-          })
-        }
-
-        if (!quality.valid || !quality.parsed) {
+        const request = prepareMainNarrativeRequest({
+          owner: orchestrator,
+          promptTemplate,
+          promptContext: ctx._promptContext,
+          aiConfig,
+          sessionId,
+        })
+        let response: string
+        let quality
+        try {
+          const result = await executeMainNarrativeRequest(request, 'real')
+          response = result.response
+          quality = result.quality
+        } catch (error) {
           orchestrator.noteNarrativeQuality({
-            source,
+            source: 'live',
             finalValid: false,
             acceptedNarrativeBody: false,
-            finalReason: quality.reason,
-            repairAttempts,
-            repairKinds,
+            finalReason: error instanceof Error ? error.message : String(error),
           })
-          throw narrativeRejection(`叙事响应经过 ${repairAttempts} 次格式修复后仍无效：${quality.reason}`)
+          throw error
         }
 
         ctx._narrativeResponse = response
         ctx._narrativeParsed = quality.parsed
         orchestrator.setLastExecutedFullContent(response)
         orchestrator.noteNarrativeQuality({
-          source,
+          source: 'live',
           finalValid: true,
           acceptedNarrativeBody: true,
           narrativeChars: quality.narrativeChars,
           responseChars: response.length,
-          repairAttempts,
-          repairKinds,
         })
         logger.info('narrative-quality', 'narrative-response-accepted', {
-          round: orchestrator.getState().totalRounds,
-          source,
-          repairAttempts,
+          round: state.totalRounds,
+          source: 'live',
           narrativeChars: quality.narrativeChars,
         })
       },
       maxRounds: 1,
     },
     {
-      name: 'publish-narrative',
+      name: 'prepare-narrative',
       phase: 'execute',
       dependsOn: ['ai-narration'],
       order: 650,
@@ -476,486 +444,327 @@ export function loadStages(
       onEnter: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._narrativeParsed) {
-          throw narrativeRejection('正文发布缺少已经严格解析的第一次响应')
+          throw narrativeRejection('主故事准备缺少已经严格解析的响应。')
         }
-        const state = orchestrator.getState()
-        const roundContext = orchestrator.getRoundContextSnapshot()
-        const roundSequence = roundContext.roundSequence ?? state.totalRounds
-        const executionId = `narrative-round:${state.lifeRunId}:${roundSequence}:real`
-        ctx._recentStories = buildRecentStoriesForRound({
-          history: state.narrativeHistory,
-          currentRound: roundSequence,
-          currentStory: {
-            text: ctx._narrativeParsed.narrative,
-            totalDays: roundContext.totalDays,
-            timeLabel: ctx._promptContext?.currentTime,
-            branchTitle: ctx._narrativeParsed.branchTitle,
-            branchOptions: ctx._narrativeParsed.branchOptions,
-          },
-        })
+        ctx._preparedNarrative = orchestrator.prepareNarrativeResponse(
+          ctx._narrativeParsed,
+          ctx._playerChoice,
+        )
+        const prepared = ctx._preparedNarrative
+        const executionId = `narrative-round:${orchestrator.getState().lifeRunId}:${prepared.roundSequence}:real`
         useEngineStore.getState().setPendingNarrative({
           executionId,
-          roundSequence,
-          text: ctx._narrativeParsed.narrative,
-          timestamp: Date.now(),
+          roundSequence: prepared.roundSequence,
           status: 'pending',
-          statusCode: 'narrative-round:publish-narrative:running',
+          statusCode: 'narrative-round:prepare-narrative:running',
         })
-        try {
-          ctx._roundResult = orchestrator.acceptNarrativeResponse(
-            ctx._narrativeParsed,
-            ctx._playerChoice,
-          )
-        } catch (error) {
-          useEngineStore.getState().clearPendingNarrative(executionId)
-          throw error
-        }
-        const result = ctx._roundResult
-        if (ctx._legendaryEncounterInjected && result.narrative) {
+        buildFrozenSpecialistInputs(ctx)
+        ctx._committedRoundResult = orchestrator.commitNarrativeResponse(prepared.narrativeId)
+        useEngineStore.getState().updatePendingNarrative(
+          executionId,
+          'committing',
+          'narrative-round:post-story-analysis:running',
+        )
+
+        if (ctx._legendaryEncounterInjected && ctx._committedRoundResult.narrative) {
           const engineState = useEngineStore.getState()
           engineState.markLegendaryEncounterInjected(engineState.totalRounds)
           void notifyLegendaryEncounterInjected(engineState.lifeRunId, engineState.totalRounds)
             .catch(() => undefined)
         }
       },
-      onExit: () => {
-        const state = orchestrator.getState()
-        const roundSequence = orchestrator.getRoundContextSnapshot().roundSequence ?? state.totalRounds
-        const executionId = `narrative-round:${state.lifeRunId}:${roundSequence}:real`
-        useEngineStore.getState().updatePendingNarrative(
-          executionId,
-          'committing',
-          'narrative-round:publish-narrative:succeeded',
-        )
-      },
       maxRounds: 1,
     },
     {
-      name: 'ai-data-analysis',
+      name: 'ai-story-continuity',
       phase: 'execute',
-      dependsOn: ['publish-narrative'],
+      dependsOn: ['prepare-narrative'],
       order: 700,
-      parallelGroup: 'narrative-background-analysis',
+      parallelGroup: SPECIALIST_PARALLEL_GROUP,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onUpdate: (_ctx) => {
+      onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (!ctx._roundResult) throw dataAnalysisRejection('数据分析缺少已接纳正文')
-        const accepted = ctx._roundResult
-        runNonBlockingBackgroundLaunch('data-analysis', accepted.narrativeId, () => {
-          if (!ctx._narrativeParsed || !ctx._recentStories) {
-            throw dataAnalysisRejection('数据分析缺少已经严格解析的故事或最近故事上下文')
-          }
-
-          const analysisInput = buildNarrativeDataAnalysisPromptInput({
-            subsystemStates: orchestrator.getSubsystemStateSnapshot(),
-            roundContext: orchestrator.getRoundContextSnapshot(),
-            recentStories: ctx._recentStories,
-          })
-          const settings = useSettingsStore.getState()
-          const model = settings.customModel || aiConfig.model
-          const joinedInput = analysisInput.userSegments.join('\n\n')
-          const baseLogContext = {
-            lifeRunId: orchestrator.getState().lifeRunId,
-            round: orchestrator.getState().totalRounds,
-            strategy: 'S4',
-            callKind: 'narrative-data-analysis',
-            pool: 'narrative',
-            model,
-            sessionId,
-            executionKind: 'real',
-            promptVersion: narrativeDataAnalysisPrompt.version,
-          }
-          const callOptions = {
-            config: {
-              ...aiConfig,
-              model,
-              reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-            },
-            pool: 'narrative' as const,
-            strictSchema: true,
-            sessionId,
-            providerId: settings.provider,
-            customBaseUrl: settings.customUrl || undefined,
-            customModel: model,
-            apiKey: settings.customKey || undefined,
-            userSegments: analysisInput.userSegments,
-            overrideTemperature: 0,
-            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-            logContext: baseLogContext,
-          }
-
-          orchestrator.launchNarrativeBackgroundAnalysis({
-            kind: 'data-analysis',
-            narrativeId: accepted.narrativeId,
-            userSegments: analysisInput.userSegments,
-            work: async () => {
-              const response = await callStructuredAnalysis(
-                '数据分析',
-                dataAnalysisRejection,
-                narrativeDataAnalysisPrompt,
-                joinedInput,
-                callOptions,
-              )
-              const quality: NarrativeSystemAnalysisQuality = inspectNarrativeDataAnalysisQuality({
-                content: response,
-                allowedEvidenceEventIds: analysisInput.allowedEvidenceEventIds,
-                allowedSubsystemIds: analysisInput.activeSubsystemIds,
-                allowedOperationsBySubsystem: analysisInput.allowedOperationsBySubsystem,
-              })
-              if (!quality.valid || !quality.changes) {
-                throw dataAnalysisRejection(
-                  `数据分析响应未通过 JSON Schema 或业务契约：${quality.reason}`,
-                )
-              }
-              logger.info('narrative-quality', 'data-analysis-response-accepted', {
-                round: accepted.roundSequence,
-                validationOwner: 'ai-client-json-schema',
-                activeSubsystemCount: analysisInput.activeSubsystemIds.length,
-                changeCount: quality.changes.length,
-              })
-              return { changes: quality.changes }
-            },
-          })
-        })
-      },
-      maxRounds: 1,
-    },
-    {
-      name: 'ai-basic-attribute-analysis',
-      phase: 'execute',
-      dependsOn: ['publish-narrative'],
-      order: 700,
-      parallelGroup: 'narrative-background-analysis',
-      owner: STAGE_OWNER,
-      failureTarget: STAGE_FAILURE_TARGET,
-      onUpdate: (_ctx) => {
-        const ctx = _ctx as StageRuntimeContext
-        if (!ctx._roundResult) throw basicAttributeAnalysisRejection('基础属性分析缺少已接纳正文')
-        const accepted = ctx._roundResult
-        runNonBlockingBackgroundLaunch('basic-attribute', accepted.narrativeId, () => {
-          if (!ctx._recentStories) {
-            throw basicAttributeAnalysisRejection('基础属性分析缺少最近故事上下文')
-          }
-
-          const analysisInput = buildNarrativeBasicAttributePromptInput({
-            subsystemStates: orchestrator.getSubsystemStateSnapshot(),
-            character: orchestrator.getCharacterStateSnapshot(),
-            roundContext: orchestrator.getRoundContextSnapshot(),
-            recentStories: ctx._recentStories,
-          })
-          const settings = useSettingsStore.getState()
-          const model = settings.customModel || aiConfig.model
-          const joinedInput = analysisInput.userSegments.join('\n\n')
-          const baseLogContext = {
-            lifeRunId: orchestrator.getState().lifeRunId,
-            round: orchestrator.getState().totalRounds,
-            strategy: 'S4',
-            callKind: 'narrative-basic-attribute-analysis',
-            pool: 'narrative',
-            model,
-            sessionId,
-            executionKind: 'real',
-            promptVersion: narrativeBasicAttributePrompt.version,
-          }
-          const callOptions = {
-            config: {
-              ...aiConfig,
-              model,
-              reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-            },
-            pool: 'narrative' as const,
-            strictSchema: true,
-            sessionId,
-            providerId: settings.provider,
-            customBaseUrl: settings.customUrl || undefined,
-            customModel: model,
-            apiKey: settings.customKey || undefined,
-            userSegments: analysisInput.userSegments,
-            overrideTemperature: 0,
-            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-            logContext: baseLogContext,
-          }
-
-          orchestrator.launchNarrativeBackgroundAnalysis({
-            kind: 'basic-attribute',
-            narrativeId: accepted.narrativeId,
-            userSegments: analysisInput.userSegments,
-            work: async () => {
-              const response = await callStructuredAnalysis(
-                '基础属性分析',
-                basicAttributeAnalysisRejection,
-                narrativeBasicAttributePrompt,
-                joinedInput,
-                callOptions,
-              )
-              const quality: NarrativeSystemAnalysisQuality = inspectNarrativeBasicAttributeAnalysisQuality({
-                content: response,
-                allowedEvidenceEventIds: analysisInput.allowedEvidenceEventIds,
-                allowedSubsystemIds: analysisInput.activeSubsystemIds,
-                allowedOperationsBySubsystem: analysisInput.allowedOperationsBySubsystem,
-              })
-              if (!quality.valid || !quality.changes) {
-                throw basicAttributeAnalysisRejection(
-                  `基础属性分析响应未通过 JSON Schema 或业务契约：${quality.reason}`,
-                )
-              }
-              logger.info('narrative-quality', 'basic-attribute-analysis-response-accepted', {
-                round: accepted.roundSequence,
-                validationOwner: 'ai-client-json-schema',
-                changeCount: quality.changes.length,
-              })
-              return { changes: quality.changes }
-            },
-          })
-        })
-      },
-      maxRounds: 1,
-    },
-    {
-      name: 'ai-event-recognition',
-      phase: 'execute',
-      dependsOn: ['publish-narrative'],
-      order: 700,
-      parallelGroup: 'narrative-background-analysis',
-      owner: STAGE_OWNER,
-      failureTarget: STAGE_FAILURE_TARGET,
-      onUpdate: (_ctx) => {
-        const ctx = _ctx as StageRuntimeContext
-        if (!ctx._roundResult) throw eventRecognitionRejection('事件识别缺少已接纳正文')
-        const accepted = ctx._roundResult
-        runNonBlockingBackgroundLaunch('event-recognition', accepted.narrativeId, () => {
-          if (!ctx._narrativeParsed || !ctx._recentStories) {
-            throw eventRecognitionRejection('事件识别缺少已经严格解析的故事或最近故事上下文')
-          }
-
-        const roundContext = orchestrator.getRoundContextSnapshot()
-        const existingCandidates = orchestrator.getAvailableHistoricalEventCandidates()
-        const dueCandidates = existingCandidates.filter((audit) => accepted.deliveredHistoricalEventCandidateIds.includes(audit.candidateId))
-        const recognitionInput = buildNarrativeEventRecognitionPromptInput({
-          subsystemStates: orchestrator.getSubsystemStateSnapshot(),
-          roundContext,
-          existingCandidates,
-          dueCandidates,
-          recentStories: ctx._recentStories,
-          deliveredCausalEventIds: accepted.deliveredCausalEventIds,
-        })
-        const settings = useSettingsStore.getState()
-        const model = settings.customModel || aiConfig.model
-        const joinedInput = recognitionInput.userSegments.join('\n\n')
-        const baseLogContext = {
-          lifeRunId: orchestrator.getState().lifeRunId,
-          round: orchestrator.getState().totalRounds,
-          strategy: 'S4',
-          callKind: 'narrative-event-recognition',
-          pool: 'narrative',
-          model,
-          sessionId,
-          executionKind: 'real',
-          promptVersion: narrativeEventRecognitionPrompt.version,
+        const prepared = requirePreparedNarrative(ctx, '故事连续性')
+        if (!ctx._continuityInput) {
+          throw specialistRejection('StoryContinuity', '故事连续性', '缺少冻结输入。')
         }
-        const callOptions = {
-          config: {
-            ...aiConfig,
-            model,
-            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-          },
-          pool: 'narrative' as const,
-          strictSchema: true,
-          sessionId,
-          providerId: settings.provider,
-          customBaseUrl: settings.customUrl || undefined,
-          customModel: model,
-          apiKey: settings.customKey || undefined,
-          userSegments: recognitionInput.userSegments,
-          overrideTemperature: 0,
-          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-          logContext: baseLogContext,
-        }
-
-        orchestrator.launchNarrativeBackgroundAnalysis({
-          kind: 'event-recognition',
-          narrativeId: accepted.narrativeId,
-          userSegments: recognitionInput.userSegments,
-          work: async () => {
-            const response = await callStructuredAnalysis(
-              '事件识别',
-              eventRecognitionRejection,
-              narrativeEventRecognitionPrompt,
-              joinedInput,
-              callOptions,
+        try {
+          const response = await callStructuredSpecialist({
+            label: '故事连续性',
+            errorKind: 'StoryContinuity',
+            callKind: 'narrative-story-continuity',
+            prompt: narrativeStoryContinuityPrompt,
+            userSegments: ctx._continuityInput.userSegments,
+            aiConfig,
+            sessionId,
+          })
+          const quality = inspectNarrativeStoryContinuityQuality(
+            response,
+            ctx._continuityInput.sourceTime.label,
+          )
+          if (!quality.valid || !quality.result) {
+            throw specialistRejection(
+              'StoryContinuity',
+              '故事连续性',
+              `响应未通过连续记忆契约：${quality.reason}`,
             )
-            const quality: NarrativeEventRecognitionQuality = inspectNarrativeEventRecognitionQuality({
-              content: response,
-              narrative: ctx._narrativeParsed!,
-              currentContextId: roundContext.contextId,
-              currentTotalDays: roundContext.totalDays,
-              existingCandidates: recognitionInput.existingCandidates,
-              dueCandidates: recognitionInput.dueCandidates,
-              deliveredCausalEventIds: accepted.deliveredCausalEventIds,
-            })
-            if (!quality.valid || !quality.metadata || !quality.candidates) {
-              throw eventRecognitionRejection(
-                `事件识别响应未通过 JSON Schema 或业务契约：${quality.reason}`,
-              )
-            }
-            logger.info('narrative-quality', 'event-recognition-response-accepted', {
-              round: accepted.roundSequence,
-              validationOwner: 'ai-client-json-schema',
-              existingCandidateCount: recognitionInput.existingCandidates.length,
-              dueCandidateCount: recognitionInput.dueCandidates.length,
-              recognizedCandidateCount: quality.candidates.length,
-            })
-            return {
-              metadata: quality.metadata,
-              candidates: quality.candidates,
-            }
-          },
-        })
-        })
+          }
+          ctx._preparedStoryContinuity = orchestrator.prepareNarrativeStoryContinuity({
+            narrativeId: prepared.narrativeId,
+            sourceRound: ctx._continuityInput.sourceRound,
+            sourceNarrative: ctx._continuityInput.sourceNarrative,
+            result: quality.result,
+            rawResponse: response,
+          })
+          if (quality.futureEventReason) {
+            ctx._storyContinuityLedgerFailureReason = quality.futureEventReason
+          }
+          try {
+            ctx._preparedStoryContinuityLedger = orchestrator.prepareNarrativeStoryContinuityLedger(
+              prepared.narrativeId,
+              quality.result,
+              ctx._continuityInput.sourceTime,
+            )
+          } catch (error) {
+            ctx._storyContinuityLedgerFailureReason = error instanceof Error ? error.message : String(error)
+            ctx._preparedStoryContinuityLedger = orchestrator.prepareNarrativeStoryContinuityLedger(
+              prepared.narrativeId,
+              { 本轮记忆: [], 未来事件: [] },
+              ctx._continuityInput.sourceTime,
+            )
+          }
+          logger.info('narrative-quality', 'story-continuity-response-accepted', {
+            round: prepared.roundSequence,
+            sourceRound: ctx._continuityInput.sourceRound,
+            memoryCount: quality.result.本轮记忆.length,
+            futureEventCount: quality.result.未来事件.length,
+          })
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error)
+          ctx._storyContinuityFailureReason = reason
+          ctx._preparedStoryContinuity = orchestrator.prepareNarrativeStoryContinuity({
+            narrativeId: prepared.narrativeId,
+            sourceRound: ctx._continuityInput.sourceRound,
+            sourceNarrative: ctx._continuityInput.sourceNarrative,
+            result: null,
+            rawResponse: '',
+          })
+          ctx._preparedStoryContinuityLedger = orchestrator.prepareNarrativeStoryContinuityLedger(
+            prepared.narrativeId,
+            { 本轮记忆: [], 未来事件: [] },
+            ctx._continuityInput.sourceTime,
+          )
+          logger.info('narrative-quality', 'story-continuity-response-deferred', {
+            round: prepared.roundSequence,
+            sourceRound: ctx._continuityInput.sourceRound,
+            reason,
+          })
+        }
       },
       maxRounds: 1,
     },
     {
-      name: 'ai-macro-impact',
+      name: 'ai-talent-growth',
       phase: 'execute',
-      dependsOn: ['publish-narrative'],
+      dependsOn: ['prepare-narrative'],
       order: 700,
-      parallelGroup: 'narrative-background-analysis',
+      parallelGroup: SPECIALIST_PARALLEL_GROUP,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onUpdate: (_ctx) => {
+      onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (!ctx._roundResult) throw macroImpactRejection('宏观影响分析缺少已接纳正文')
-        const accepted = ctx._roundResult
-        runNonBlockingBackgroundLaunch('macro-impact', accepted.narrativeId, () => {
-          if (!ctx._narrativeParsed || !ctx._recentStories) {
-            throw macroImpactRejection('宏观影响分析缺少已经接纳的故事或最近故事上下文')
-          }
-
-        const roundContext = orchestrator.getRoundContextSnapshot()
-        const analysisInput = buildNarrativeMacroImpactPromptInput({
-          subsystemStates: orchestrator.getSubsystemStateSnapshot(),
-          roundContext,
-          recentStories: ctx._recentStories,
-        })
-        const settings = useSettingsStore.getState()
-        const model = settings.customModel || aiConfig.model
-        const joinedInput = analysisInput.userSegments.join('\n\n')
-        const callOptions = {
-          config: {
-            ...aiConfig,
-            model,
-            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-          },
-          pool: 'narrative' as const,
-          strictSchema: true,
-          sessionId,
-          providerId: settings.provider,
-          customBaseUrl: settings.customUrl || undefined,
-          customModel: model,
-          apiKey: settings.customKey || undefined,
-          userSegments: analysisInput.userSegments,
-          overrideTemperature: 0,
-          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-          logContext: {
-            lifeRunId: orchestrator.getState().lifeRunId,
-            round: accepted.roundSequence,
-            strategy: 'S4',
-            callKind: 'narrative-macro-impact',
-            pool: 'narrative',
-            model,
-            sessionId,
-            executionKind: 'real',
-            promptVersion: narrativeMacroImpactPrompt.version,
-          },
+        const prepared = requirePreparedNarrative(ctx, '天赋成长')
+        if (!ctx._talentInput) {
+          throw specialistRejection('TalentGrowth', '天赋成长', '缺少冻结输入。')
         }
-
-        orchestrator.launchNarrativeBackgroundAnalysis({
-          kind: 'macro-impact',
-          narrativeId: accepted.narrativeId,
-          userSegments: analysisInput.userSegments,
-          work: async () => {
-            const response = await callStructuredAnalysis(
-              '宏观影响分析',
-              macroImpactRejection,
-              narrativeMacroImpactPrompt,
-              joinedInput,
-              callOptions,
-            )
-            const quality: NarrativeMacroImpactQuality = inspectNarrativeMacroImpactQuality({
-              content: response,
-              activeSubsystemIds: analysisInput.activeSubsystemIds,
-              allowedEvidenceEventIds: analysisInput.allowedEvidenceEventIds,
-              currentContextId: roundContext.contextId,
-            })
-            if (!quality.valid || !quality.changes) {
-              throw macroImpactRejection(
-                `宏观影响响应未通过 DAG、字段或证据契约：${quality.reason}`,
-              )
-            }
-            logger.info('narrative-quality', 'macro-impact-response-accepted', {
-              round: accepted.roundSequence,
-              validationOwner: 'macro-impact-local-dag',
-              activeSubsystemCount: analysisInput.activeSubsystemIds.length,
-              impactNodeCount: quality.nodes?.length ?? 0,
-            })
-            return { changes: quality.changes }
+        if (ctx._talentInput.eligiblePatterns.length === 0) {
+          ctx._preparedTalentGrowth = null
+          logger.info('narrative-quality', 'talent-growth-call-skipped', {
+            round: prepared.roundSequence,
+            reason: '程序筛选后没有满足年龄、证据、冷却、次数或等级边界的天赋',
+          })
+          return
+        }
+        try {
+          const response = await callStructuredSpecialist({
+          label: '天赋成长',
+          errorKind: 'TalentGrowth',
+          callKind: 'narrative-talent-growth',
+          prompt: narrativeTalentGrowthPrompt,
+          userSegments: ctx._talentInput.userSegments,
+          aiConfig,
+          sessionId,
+        })
+        const quality = inspectNarrativeTalentGrowthQuality(response)
+        if (!quality.valid || !quality.result) {
+          throw specialistRejection(
+            'TalentGrowth',
+            '天赋成长',
+            `响应未通过天赋成长契约：${quality.reason}`,
+          )
+        }
+        const decision = quality.result.成长判定
+        if (!decision.需要成长) {
+          ctx._preparedTalentGrowth = null
+          return
+        }
+        const source = ctx._talentInput.eligiblePatterns.find((pattern) => (
+          pattern.lineageId === decision.命格血脉编号
+        ))
+        if (!source) {
+          throw specialistRejection(
+            'TalentGrowth',
+            '天赋成长',
+            `返回了不属于当前可成长天赋的血脉编号：${decision.命格血脉编号}`,
+          )
+        }
+        const availableEvidenceWindows = ctx._talentInput.evidenceWindowsByLineage[source.lineageId] ?? []
+        const allowedEvidenceWindowIds = new Set(availableEvidenceWindows.map((window) => window.id))
+        const evidenceWindowIds = decision.依据窗口编号
+        const targetRarity = source.rarity as 'common' | 'fine' | 'rare' | 'epic'
+        const minimumEvidenceWindows = getDestinyPatternMinimumEvidenceWindows(targetRarity)
+        if (
+          evidenceWindowIds.length < minimumEvidenceWindows
+          || new Set(evidenceWindowIds).size !== evidenceWindowIds.length
+          || evidenceWindowIds.some((windowId) => !allowedEvidenceWindowIds.has(windowId))
+        ) {
+          throw specialistRejection(
+            'TalentGrowth',
+            '天赋成长',
+            `成长结果引用了不足或无效的证据窗口：需要至少${minimumEvidenceWindows}个不重复且属于当前天赋的窗口。`,
+          )
+        }
+        const directions = decision.下一阶方向.map((direction): DestinyPatternGrowthDirection => ({
+          route: direction.路线,
+          name: direction.名称,
+          description: direction.详细介绍,
+          effect: direction.效果描述,
+          attrBonus: {
+            ...(direction.属性加成.体魄 === undefined ? {} : { physique: direction.属性加成.体魄 }),
+            ...(direction.属性加成.心智 === undefined ? {} : { mind: direction.属性加成.心智 }),
+            ...(direction.属性加成.悟性 === undefined ? {} : { talentAptitude: direction.属性加成.悟性 }),
+            ...(direction.属性加成.魅力 === undefined ? {} : { charisma: direction.属性加成.魅力 }),
+            ...(direction.属性加成.气运 === undefined ? {} : { luck: direction.属性加成.气运 }),
           },
+        }))
+        const pending = createPendingDestinyPatternGrowth({
+          narrativeId: prepared.narrativeId,
+          roundSequence: prepared.roundSequence,
+          source,
+          directions,
         })
-        })
+        ctx._preparedTalentGrowth = prepareDestinyPatternGrowthChoice(pending)
+          logger.info('narrative-quality', 'talent-growth-response-accepted', {
+            round: prepared.roundSequence,
+            lineageId: pending.lineageId,
+            targetRarity: pending.options[0].pattern.rarity,
+          })
+        } catch (error) {
+          ctx._preparedTalentGrowth = null
+          logger.info('narrative-quality', 'talent-growth-response-deferred', {
+            round: prepared.roundSequence,
+            reason: error instanceof Error ? error.message : String(error),
+          })
+        }
       },
       maxRounds: 1,
     },
     {
-      name: 'post-processing',
+      name: 'commit-round',
       phase: 'transition',
       dependsOn: [
-        'ai-basic-attribute-analysis',
-        'ai-data-analysis',
-        'ai-event-recognition',
-        'ai-macro-impact',
+        'ai-story-continuity',
+        'ai-talent-growth',
       ],
       order: 800,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: (_ctx) => {
+      onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (!ctx._roundResult) throw backgroundAnalysisRejection('回合收束缺少已接纳正文')
+        const prepared = requirePreparedNarrative(ctx, '回合提交')
+        if (
+          ctx._preparedTalentGrowth === undefined
+          || !ctx._preparedStoryContinuity
+          || !ctx._preparedStoryContinuityLedger
+        ) {
+          throw new Error('活动专项调用没有形成完整准备结果')
+        }
+
+        const restoreSteps: Array<() => void | Promise<void>> = []
+        try {
+          const continuitySnapshot = orchestrator.captureNarrativeStoryContinuityTransaction()
+          restoreSteps.push(() => orchestrator.restoreNarrativeStoryContinuityTransaction(
+            continuitySnapshot,
+            prepared.roundSequence,
+          ))
+          await orchestrator.commitPreparedNarrativeStoryContinuity(
+            prepared.narrativeId,
+            ctx._preparedStoryContinuity,
+          )
+          if (ctx._storyContinuityFailureReason) {
+            orchestrator.setCompressionDiagnostic({
+              status: 'failed',
+              sourceRound: ctx._preparedStoryContinuity.sourceRound,
+              didCompress: false,
+              reason: ctx._storyContinuityFailureReason,
+            })
+          }
+
+          const ledgerSnapshot = orchestrator.captureNarrativeStoryContinuityLedgerTransaction()
+          try {
+            orchestrator.commitPreparedNarrativeStoryContinuityLedger(
+              prepared.narrativeId,
+              ctx._preparedStoryContinuityLedger,
+            )
+            restoreSteps.push(() => orchestrator.restoreNarrativeStoryContinuityLedgerTransaction(
+              ledgerSnapshot,
+            ))
+          } catch (error) {
+            orchestrator.restoreNarrativeStoryContinuityLedgerTransaction(ledgerSnapshot)
+            ctx._storyContinuityLedgerFailureReason = error instanceof Error ? error.message : String(error)
+          }
+          if (ctx._storyContinuityLedgerFailureReason) {
+            logger.info('narrative-quality', 'story-continuity-ledger-deferred', {
+              round: prepared.roundSequence,
+              sourceRound: ctx._preparedStoryContinuity.sourceRound,
+              reason: ctx._storyContinuityLedgerFailureReason,
+            })
+          }
+
+          if (ctx._preparedTalentGrowth) {
+            const talentSnapshot = captureDestinyPatternGrowthTransaction(prepared.narrativeId)
+            restoreSteps.push(() => restoreDestinyPatternGrowthTransaction(talentSnapshot))
+            commitPreparedDestinyPatternGrowthChoice(ctx._preparedTalentGrowth)
+          }
+
+          orchestrator.updateNarrativeTransitionAudit(prepared.narrativeId, {
+            requestedChangeCount: 0,
+            committedChangeCount: 0,
+          })
+          orchestrator.finalizeNarrativeResponse(prepared.narrativeId)
+        } catch (error) {
+          await restoreCommittedSteps(restoreSteps, error)
+        }
       },
       maxRounds: 1,
     },
     {
-      name: 'epilogue-check',
-      phase: 'transition',
-      dependsOn: ['post-processing'],
-      order: 900,
-      owner: STAGE_OWNER,
-      failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: () => {
-        void orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)
-      },
-      maxRounds: 1,
-    },
-    {
-      name: 'compress-save',
+      name: 'finalize-round',
       phase: 'finalize',
-      dependsOn: ['epilogue-check'],
+      dependsOn: ['commit-round'],
       order: 1000,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: async (_ctx) => {
+      onEnter: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (!ctx._roundResult) {
-          throw backgroundAnalysisRejection('终态收束缺少已提交的回合结果')
+        if (!ctx._committedRoundResult) {
+          throw new Error('回合终态缺少已经完整提交的正文结果')
         }
-        await orchestrator.ensureCompressionGate()
       },
       maxRounds: 1,
     },
   ]
-
-  return stages
 }
 
 export { getWorldRules } from '../../prompts/narrative-prompt'

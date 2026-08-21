@@ -1,0 +1,127 @@
+<!-- Purpose: Record the second UI iteration round for the character-create sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CHARACTER-CREATE / ROUND-02</p>
+      <h1>角色塑造 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 02（定版语言）基础上按用户方向改造：去掉 header 板块（标题「塑造角色」与副句「写下这段人生的起点。」）；更多按钮（更多选择⌄ / 种族目录⌄）由 button 转为 div；收紧 section 与其内 p 底部边框的距离；section 改为沉浸式叙述（如「你于几岁降临世界，能活多久」）。三个候选围绕沉浸式标题的呈现方式差异。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（03 / 08）、角色摘要（头像/名字/性别·种族·背景/寿命·起始·世界）、核心身份（姓名·随机、性别、种族）、寿命与起始（寿命上限/起始年龄/重新检测）、人生背景（背景输入/预设/保存预设）、底部双文字等宽返回与确认角色（04，下一页面为命格抽取）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>沉浸式标题表达（叙述句直作标题 vs 功能名 + 叙述副句）、信息精简（说明文字去留）、整体沉浸（卡片/无卡分区、间距与信息压力）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>叙述标题式</strong></header>
+          <p>去 header；section 标题直接改为沉浸式叙述（「你以何身份降临此世」「你于几岁降临世界，能活多久」「你从何处来，带着怎样的过往」），删除副标题；保留种族寿命说明与预计寿命结果；更多按钮转 div。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-immersive-title.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>双行标题式</strong></header>
+          <p>去 header；section 功能名标题保留，右侧小字改为沉浸叙述副句（语义与沉浸平衡）；更多按钮转 div；间距收紧。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-immersive-slim.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>无卡沉浸式</strong></header>
+          <p>去 header；section 去卡片边框（浅米底分区），标题沉浸式叙述；删除说明性文字（种族寿命说明）；最沉浸、信息压力最小。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-immersive-plain.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 叙述标题式</span><span role="columnheader">02 双行标题式</span><span role="columnheader">03 无卡沉浸式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">沉浸式标题表达</strong><span role="cell">叙述句直作标题</span><span role="cell">功能名 + 叙述副句</span><span role="cell">叙述句直作标题</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息精简</strong><span role="cell">保留说明与结果</span><span role="cell">保留说明与结果</span><span role="cell">删除说明文字</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">整体沉浸</strong><span role="cell">卡片保留</span><span role="cell">卡片保留</span><span role="cell">无卡浅米分区</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（双行标题式）。用户确认：选择 02，进入第三轮沉浸式改造（寿命区输入框嵌入句子、去掉叙述旁注 span、寿命区高度紧凑消除下半空白）。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（叙述标题式）：叙述句直作标题未采用。候选 03（无卡沉浸式）：section 无卡平铺未采用。</dd></div>
+        <div><dt>下一轮继承</dt><dd>去 header、更多按钮转 div、间距收紧、功能名标题 + 定版语言；按用户指示：sectionHeading 右侧不添加叙述 span；沉浸式体现为「于 {输入框} 岁开始人生，预计寿命 {输入框} 岁」这类输入框嵌入句子的表达；lifespanFields 高度收紧、消除下半空白。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

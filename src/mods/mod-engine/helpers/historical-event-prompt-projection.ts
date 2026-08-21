@@ -1,4 +1,8 @@
 /**
+ * Purpose: Project current historical-ledger facts and due candidates into the main narrative Prompt.
+ * Owner: mod-engine
+ * Responsibility: Read-only contextual filtering and formatting only; the historical ledger owns facts and candidate state.
+ *
  * @module historical-event-prompt-projection.ts
  * @description 将历史事件账本的当前相关视图确定性投影为主叙事 Prompt 事实卡
  * @mod mod-engine
@@ -165,7 +169,7 @@ export function buildHistoricalEventPromptProjection(
     ...edges.map(formatEdge),
     ...(dueCandidates.length > 0
       ? [
-          '以下到期候选已完整投递；正文必须逐项表现其发生、继续等待、被拒绝或已经过期的真实结果，不得遗漏候选编号。',
+          '以下到期候选已完整投递；正文逐项呈现发生、继续等待、被拒绝或已经过期的真实结果，并在对应结果中保留候选编号。',
           ...dueCandidates.map(formatCandidate),
         ]
       : []),

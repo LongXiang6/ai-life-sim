@@ -1,0 +1,135 @@
+<!-- Purpose: Record the fifth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第五轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-05</p>
+      <h1>游戏故事 · 第五轮</h1>
+    </div>
+    <span class="status status-selected">已选择 B</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-04 定版候选 B（描边单选 · 同底统一）为基线，方向「命运分叉 div 与前面连贯统一的呈现」。共同基线（三个候选全部应用，硬性要求）：命运分叉 div（回显 + 编辑器）背景一律页面同底 #fdf9f1，与前面叙事流、顶栏完全连贯、无任何色彩差——上轮用户明确强调的验收点；描边单选圆（1.5px 描边空心圆 + 选中金棕实心填充）、chip 米白 #fffdf8 白底保持。分向为 div 与叙事流的统一呈现：候选 A 同底无缝（无边框无底色，仅排版留白 + 标题小字区分，最彻底融入）、候选 B 同底细线（页面同底 + 更融入的细线边框，边界最轻）、候选 C 同底菱形（页面同底 + 无边框，菱形分隔符呼应页面 readerDivider 装饰语言）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、命格胶囊最多 3 个、轮回天赋流光胶囊——第一行标签「轮回」、第二行胶囊「前世武骨」）、章节头单行化结构（第 1 回 · 故事进程 / 故事进行中 / 等待你的选择 / 三步 01 生成正文 02 完成本轮 03 继续人生）、长篇时间线五轮 + 暮年 70 岁待抉择编辑器（kicker + 标题 + 圆形单选选项 + textarea「写下你的做法……」+ 清空 / 请先选择禁用）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉与面板为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（轮回流光，nth-child(2) 延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>命运分叉 div 与叙事流的连贯统一度（无缝 / 细线 / 菱形）、div 背景与页面背景的色彩一致性（三候选均为页面同底 #fdf9f1 零色差）、单选圆识别度（描边空心 + 实心填充）、chip 白底层次与边界、长篇时间线的滚动节奏、轮回标签重组后的可读性、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>同底无缝</strong></header>
+          <p>命运分叉 div（回显 + 编辑器）去掉边框与底色，仅靠排版留白 + 标题小字（「命运分叉 · 你的抉择」/ kicker）与正文区分，完全融入叙事流，与前面连贯性最高；描边单选圆与 chip 米白保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-01-seamless.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>同底细线</strong></header>
+          <p>命运分叉 div 保持页面同底 #fdf9f1，边框由 #e5e1d6 换为页面分隔线语言 #eadfce（与章节头/分隔线一致）并减小圆角，边界最轻、与页面边框体系连贯；描边单选圆与 chip 米白保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-02-light-line.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>同底菱形</strong></header>
+          <p>命运分叉 div 保持页面同底 #fdf9f1、去掉边框，顶部加菱形分隔符（呼应页面 readerDivider 菱形装饰语言），分叉块与正文以装饰分隔而非色块；描边单选圆与 chip 米白保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-03-diamond-rule.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 同底无缝</span><span role="columnheader">B 同底细线</span><span role="columnheader">C 同底菱形</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">div 背景统一</strong><span role="cell">页面同底 #fdf9f1，零色差</span><span role="cell">页面同底 #fdf9f1，零色差</span><span role="cell">页面同底 #fdf9f1，零色差</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">div 分隔方式</strong><span role="cell">无边框无底色，排版留白 + 标题小字</span><span role="cell">#eadfce 细线边框 + 小圆角</span><span role="cell">无边框，顶部菱形分隔符</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选圆形</strong><span role="cell">1.5px 描边空心圆 + 选中实心填充</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性变化 chip</strong><span role="cell">米白 #fffdf8 + 细边框</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">选项编号</strong><span role="cell">无编号，仅圆形 + 文案</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">轮回标签</strong><span role="cell">第一行金棕「轮回」、胶囊第二行</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">时间线</strong><span role="cell">五轮长篇 + 待抉择编辑器</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 B</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 B 同底细线。命运分叉 div 保持页面同底 #fdf9f1 零色差（与前面叙事流/顶栏完全连贯），边框换页面分隔线语言 #eadfce + 6px 小圆角，边界最轻且与页面边框体系一致；描边单选圆 1.5px 描边空心圆 + 选中金棕实心填充识别清晰；chip 米白 #fffdf8 白底到位。轮回标签第一行、胶囊第二行保持。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A 同底无缝——div 无边框无底色，仅排版留白区分，编辑区与正文边界模糊、扫读时分叉块不易定位；候选 C 同底菱形——顶部菱形分隔符在长篇滚动中多次重复出现，装饰节奏偏重，与克制语言冲突。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 B（页面同底 #fdf9f1 + #eadfce 细线边框 + 描边单选圆 + chip 米白）为基线进入第六轮，方向「未选框白板 · 编辑区精简 · 轮次分隔」；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

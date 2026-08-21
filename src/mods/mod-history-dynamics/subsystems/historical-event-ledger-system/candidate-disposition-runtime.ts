@@ -31,11 +31,19 @@ function emptyResult(errors: string[]): HistoricalEventCandidateDispositionResul
   return { ok: false, errors, eventIds: [], candidateAudits: [] }
 }
 
-export function commitCandidateDispositionsRuntime(
+export interface PreparedCandidateDispositionResult extends HistoricalEventCandidateDispositionResult {
+  prepared?: HistoricalEventPreparedAppend
+}
+
+function emptyPreparation(errors: string[]): PreparedCandidateDispositionResult {
+  return { ...emptyResult(errors) }
+}
+
+export function prepareCandidateDispositionsRuntime(
   ledger: HistoricalEventLedgerSystem,
   batch: HistoricalEventCandidateDispositionBatch,
   rawContext: RoundContext | HistoricalEventValidationContext,
-): HistoricalEventCandidateDispositionResult {
+): PreparedCandidateDispositionResult {
   const context = toHistoricalValidationContext(rawContext)
   const errors: string[] = []
   ledger['validateValidationContext'](context, errors)
@@ -46,7 +54,7 @@ export function commitCandidateDispositionsRuntime(
   }
   if (!Array.isArray(batch?.dispositions)) errors.push('候选处置必须是数组')
   if (!Array.isArray(batch?.deliveredCandidateIds)) errors.push('候选处置缺少实际投递编号数组')
-  if (errors.length > 0) return emptyResult(errors)
+  if (errors.length > 0) return emptyPreparation(errors)
 
   const allDueById = new Map(
     getDueCandidatesRuntime(ledger, rawContext).map((audit) => [audit.candidateId, audit]),
@@ -97,8 +105,24 @@ export function commitCandidateDispositionsRuntime(
   for (const candidateId of deliveredIds) {
     if (!receivedIds.has(candidateId)) errors.push(`到期候选必须逐项处置: ${candidateId}`)
   }
-  if (errors.length > 0) return emptyResult(errors)
-  if (deliveredIds.size === 0) return { ok: true, errors: [], eventIds: [], candidateAudits: [] }
+  if (errors.length > 0) return emptyPreparation(errors)
+  if (deliveredIds.size === 0) {
+    return {
+      ok: true,
+      errors: [],
+      eventIds: [],
+      candidateAudits: [],
+      prepared: {
+        batchId: createLedgerId('candidate-disposition-batch'),
+        events: [],
+        transitions: [],
+        evidence: [],
+        causalEdges: [],
+        candidateAudits: [],
+        migrationMetadata: [],
+      },
+    }
+  }
 
   const eventInputs: HistoricalEventCreateInput[] = []
   const evidenceInputs: HistoricalEventEvidenceInput[] = []
@@ -163,7 +187,7 @@ export function commitCandidateDispositionsRuntime(
       ))
     }
   }
-  if (errors.length > 0) return emptyResult(errors)
+  if (errors.length > 0) return emptyPreparation(errors)
 
   const batchId = createLedgerId('candidate-disposition-batch')
   let prepared: HistoricalEventPreparedAppend = {
@@ -182,16 +206,32 @@ export function commitCandidateDispositionsRuntime(
       events: eventInputs,
       evidence: evidenceInputs,
     }, rawContext)
-    if (!preflight.ok || !preflight.prepared) return emptyResult(preflight.errors)
+    if (!preflight.ok || !preflight.prepared) return emptyPreparation(preflight.errors)
     prepared = preflight.prepared
   }
   prepared.candidateAudits.push(...candidateAudits)
-  const commit = ledger['commitPrepared']({ ok: true, errors: [], prepared })
+  return {
+    ok: true,
+    errors: [],
+    eventIds: prepared.events.map((event) => event.eventId),
+    candidateAudits: cloneValue(candidateAudits),
+    prepared: cloneValue(prepared),
+  }
+}
+
+export function commitCandidateDispositionsRuntime(
+  ledger: HistoricalEventLedgerSystem,
+  batch: HistoricalEventCandidateDispositionBatch,
+  rawContext: RoundContext | HistoricalEventValidationContext,
+): HistoricalEventCandidateDispositionResult {
+  const preparation = prepareCandidateDispositionsRuntime(ledger, batch, rawContext)
+  if (!preparation.ok || !preparation.prepared) return emptyResult(preparation.errors)
+  const commit = ledger.commitPrepared({ ok: true, errors: [], prepared: preparation.prepared })
   if (!commit.ok) return emptyResult(commit.errors)
   return {
     ok: true,
     errors: [],
     eventIds: commit.eventIds,
-    candidateAudits: cloneValue(candidateAudits),
+    candidateAudits: cloneValue(preparation.candidateAudits),
   }
 }

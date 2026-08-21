@@ -22,11 +22,6 @@ import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchest
 
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { resolveMvpRuntimeReadiness } from './mvp-runtime-policy'
-import {
-  cancelPreGenQueue,
-  clearPreGenQueue,
-  isPreGenQueueRunning,
-} from './pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './subsystem-store-sync'
 import { useEngineStore } from '../store'
 import {
@@ -36,18 +31,6 @@ import {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function assertPreGenIdle(action: string): void {
-  if (isPreGenQueueRunning()) {
-    throw new Error(`下一段故事的后台清理尚未完成，暂时不能${action}。`)
-  }
-}
-
-function assertCompressionIdle(action: string): void {
-  if (orchestrator.isBackgroundCompressionActive()) {
-    throw new Error(`上一轮记忆仍在整理，暂时不能${action}。请等待整理完成后重试。`)
-  }
 }
 
 function assertRuntimeReady(action: string): void {
@@ -145,10 +128,6 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
   const core = assertCoreSavePayload(data)
   const migratedCharacter = sanitizeCharacterStateSnapshot(core.character)
   const migratedWorld = sanitizeWorldStateSnapshot(core.world)
-  await cancelPreGenQueue()
-  await orchestrator.waitForBackgroundCompression()
-  assertPreGenIdle('加载存档')
-  assertCompressionIdle('加载存档')
   const savedTerminal = core.engine.status === 'complete'
   const previous = {
     engine: useEngineStore.getState(),
@@ -206,7 +185,6 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
     if (!ensureOrchestratorContextFromStores()) {
       throw new Error('存档中的世界上下文无法恢复，已中止进入模拟。')
     }
-    clearPreGenQueue()
   // 只有核心恢复成功（未抛出）才进入模拟态
   useGlobalStore.getState().setGamePhase('simulation')
   } catch (error) {
@@ -225,9 +203,7 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
   }
 }
 
-/** 收集当前可持久化状态（供手动/自动存档）。
- * 自动保存调用点位于 hooks.ts advanceRound 中 executeRoundV2 之后、
- * fillPreGenQueue 之前，因此载荷中不包含未消费的预生成缓存。 */
+/** 收集当前可持久化状态（供手动/自动存档）。 */
 export function collectGameSavePayload(): Record<string, unknown> {
   ensureOrchestratorContextFromStores()
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
@@ -240,13 +216,9 @@ export function collectGameSavePayload(): Record<string, unknown> {
   }
 }
 
-/** 手动存档先取消派生预生成并等待后台提交，再从唯一引擎边界收集载荷。 */
+/** 手动存档从唯一引擎边界收集已经提交的回合状态。 */
 export async function collectManualGameSavePayload(): Promise<Record<string, unknown>> {
   assertRuntimeReady('手动存档')
-  await cancelPreGenQueue()
-  await orchestrator.waitForBackgroundCompression()
-  assertPreGenIdle('手动存档')
-  assertCompressionIdle('手动存档')
   return collectGameSavePayload()
 }
 
@@ -314,7 +286,6 @@ export function ensureOrchestratorContextFromStores(): boolean {
       description: p.description,
       effect: p.effect,
       rarity: p.rarity,
-      polarity: p.polarity,
     })),
   })
   return true

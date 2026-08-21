@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose the heavyweight mod-engine runtime API separately from the lightweight index.
+ * Owner: mod-engine
+ * Responsibility: Re-export orchestrator, runtime subsystems, and save helpers for declared secondary consumers.
+ *
  * @module engine-api.ts
  * @description 引擎重 API —— 与 index.ts 轻量导出分离，避免 barrel 加载环
  * @mod mod-engine
@@ -13,9 +17,9 @@ export { NarrativeParserSystem, narrativeParser } from './subsystems/narrative-p
 export { SummaryCompressorSystem, summaryCompressor } from './subsystems/summary-compressor-system'
 export type { ParsedNarrative } from './subsystems/narrative-parser-system'
 export type {
-  CompressorConfig,
   CompressorStats,
-  CompressionResult,
+  NarrativeStoryContinuityTransactionSnapshot,
+  PreparedNarrativeStoryContinuity,
 } from './subsystems/summary-compressor-system'
 
 export {
@@ -25,7 +29,6 @@ export {
   ensureOrchestratorContextFromStores,
   saveCurrentGameToSlot,
 } from './helpers/save-restore'
-export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, getPreGenQueueLength } from './helpers/pre-gen-queue'
 export { formatCurrentNarrativeTimeLabel, formatNarrativeTimeLabel } from './helpers/narrative-calendar'
 export {
   AVAILABLE_TIME_STEPS,

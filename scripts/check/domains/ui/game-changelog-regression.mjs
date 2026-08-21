@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Verify synchronized player-facing version metadata and release transitions.
+ * Owner: quality:ui
+ * Responsibility: Changelog, package, engine-version, and help-page consistency checks only.
+ */
 
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -89,10 +94,17 @@ assert.ok(latestBullets.length >= 1 && latestBullets.length <= 3, 'newest change
 const chronologicalEntries = entriesByChunk.flatMap((entries) => [...entries].reverse())
 const releaseStart = chronologicalEntries.findIndex((entry) => entry.version === '5.0.0')
 assert.ok(releaseStart >= 0, '5.0.0 release baseline chunk is missing')
+function isValidVersionTransition(previous, current) {
+  if (current === incrementReleaseVersion(previous)) return true
+  const previousMajor = Number(previous.split('.')[0])
+  const [currentMajor, currentMinor, currentRevision] = current.split('.').map(Number)
+  return currentMajor === previousMajor + 1 && currentMinor === 0 && currentRevision === 0
+}
+
 for (let indexPosition = releaseStart + 1; indexPosition < chronologicalEntries.length; indexPosition += 1) {
   const previous = chronologicalEntries[indexPosition - 1]
   const current = chronologicalEntries[indexPosition]
-  assert.equal(current.version, incrementReleaseVersion(previous.version), `${current.version}: version sequence drift`)
+  assert.ok(isValidVersionTransition(previous.version, current.version), `${current.version}: version sequence drift`)
   assert.match(current.timestamp, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, `${current.version}: timestamp must include seconds`)
 }
 

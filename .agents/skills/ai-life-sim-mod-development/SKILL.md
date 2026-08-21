@@ -1,45 +1,62 @@
 ---
 name: ai-life-sim-mod-development
-description: 用于用户要求的 AI 人生模拟器 MOD 清单、注册、生命周期、子系统或公共 API 变更。
+description: 用于用户要求的 AI 人生模拟器 MOD 清单、注册、生命周期、子系统、核心模拟编排或公共 API 变更。
 ---
 
 # AI 人生模拟器 MOD 开发
 
 ## 目标
 
-让 MOD 以公司式金字塔中的部门身份承接核心模拟任务，拥有清晰的公共边界、生命周期、子系统职责、业务状态和结果回报。
+[核心原则] 让 MOD 以明确公共边界、生命周期、子系统职责、业务状态和结果契约承接核心模拟任务。
 
 ## 适用范围
 
-- MOD 清单、Manifest、注册、生命周期、子系统、公共 API、依赖和运行时活动成员。
-- MOD 行为必须通过声明的公共边界和生命周期到达；要求启用运行时行为时，完成注册并使其进入活动成员表。
-- 读取系统树的目标章节；涉及编排、活动子系统或回合提交时追加核心模拟目标章节。
+[核心原则] MOD 清单、Manifest、注册、生命周期、子系统、公共 API、依赖和运行时活动成员由本 Skill 负责。
+
+[次要规则] 编排、活动子系统和回合提交同时读取核心模拟活动权威。
 
 ## 执行契约
 
-- MOD 生命周期和可复用运行流程必须遵循全局 `prepare -> ready -> execute -> transition -> finalize` 契约；具体节点、依赖、业务状态码和故障接收者写在所属活动权威与实时源。
-- `src/core/execution/execution-flow-registry.ts` 是流程登记唯一所有者；新增或修改 MOD 生命周期、回合、世界初始化或子系统推进时，真实入口必须消费登记项，并通过 `npm run check:execution` 门禁。
-- 加载器、代码生成器和公共执行器自动完成注册、接线、拓扑、排队、状态码校验和生命周期收束；自动化不替 MOD 决定业务规则，也不建立第二状态所有者。
-- 标识、文件、格式、写法和排序按 [项目标准化契约](../ai-life-sim/references/standardization.md) 执行；生成文件只由声明和生成器维护。
+[核心原则] 先读取系统树与目标机制的活动权威，再定位 Manifest、活动成员、公共入口和所属状态所有者。
+
+[核心原则] 中央登记流程消费 `src/core/execution/execution-flow-registry.ts` 的唯一登记项。
+
+[核心原则] 加载器、生成器和公共执行器负责注册、接线、拓扑、排队、状态校验和生命周期收束。
+
+[核心原则] MOD 负责所属业务规则、业务状态、持久化和公开结果。
+
+[核心原则] 核心模拟负责跨 MOD 发令、依赖汇合、独立发布边界和流程终态。
+
+[次要规则] 标识、文件、格式、写法和排序按 [项目标准化契约](../ai-life-sim/references/standardization.md) 执行。
+
+[次要规则] 被替代入口、注册、调用、状态写入和测试引用在同一任务完成收口。
 
 ## 权威与实时源
 
-- Manifest：所属 `manifest.ts` 与 `src/foundation/types/mod.types.ts`。
-- 依赖解析：`src/core/mod-loader/dependency-resolver.ts`。
-- 生命周期：所属 `_internal/control.ts`。
-- 活动成员：`src/mods/mod-engine/helpers/mvp-stages-config.default.json`。
-- 自动接线：`scripts/codegen/generate-mod-wiring.mjs` 与生成目标。
-- 系统层级、标识与命名：`ai-life-sim/docs/authority/system-tree.md`。
+[核心原则] 系统层级、标识与命名读取 `docs/authority/system-tree.md`。
+
+[核心原则] 核心回合结果读取 `docs/authority/core-simulation.md` 及其机制导航。
+
+[核心原则] Manifest 读取所属 `manifest.ts` 与 `src/foundation/types/mod.types.ts`。
+
+[核心原则] 活动成员读取 `src/mods/mod-engine/helpers/mvp-stages-config.default.json`。
+
+[次要规则] 自动接线读取 `scripts/codegen/generate-mod-wiring.mjs` 与生成目标。
 
 ## 边界
 
-- 通过已声明的公共入口使用其他 MOD，不新增私有深层导入或第二状态所有者。
-- MOD 拥有本部门业务状态和结果；核心模拟只负责跨部门发令、依赖汇合和终态发布，不越权写入 MOD 私有状态。
-- 每项职责只保留一个活动所有者；被替代的入口、注册、调用和状态写入必须在同一任务删除，不保留兼容层、旁路或并行真源。
-- 现有公共或持久标识没有实际冲突时不做批量重命名；新建或本次修改的标识遵循系统树命名表。
+[核心原则] 跨 MOD 协作使用已声明公共入口和公开状态契约。
+
+[核心原则] 每项业务状态保留一个所属所有者。
+
+[次要规则] 公共或持久旧标识在真实冲突出现时进入专门迁移范围。
+
+[辅助说明] 新建或本次修改的标识遵循系统树命名表。
 
 ## 验收
 
-- MOD 或 Manifest 变更至少运行 `npm run check:structural` 和 `npm run check:mod`。
-- 生命周期、活动成员、执行图或诊断契约变更追加 `npm run check:execution`。
-- 完成注册、接线、旧入口清理和测试后，运行 `npm run check:standardization` 确认文件、命名、格式、生成标记和唯一归属符合项目契约。
+[核心原则] MOD 或 Manifest 变化运行 `npm run check:structural` 和 `npm run check:mod`。
+
+[次要规则] 生命周期、活动成员、执行图或诊断契约变化运行 `npm run check:execution`。
+
+[次要规则] 文件、命名、格式和生成物变化运行 `npm run check:standardization`。

@@ -1,35 +1,25 @@
 /**
  * Purpose: Declare the default world-init execution graph and its business step actions.
  * Owner: mod-world / world-init pipeline.
- * Responsibility: Step definitions and dependencies only; the shared runner owns retries and terminal publication.
+ * Responsibility: Step definitions and dependencies only; the shared runner owns terminal publication.
  */
 
-import { useWorldStore } from '../../store'
 import {
-  saveCachedWorldCalibration,
-  worldCalibrationPrompt,
   worldDimensionCalibrationPrompt,
   worldRegionProfileOutputSchema,
   worldRegionProfilePrompt,
-  worldTagsPrompt,
 } from '../../world-init-bundle-deps'
 import { calibrationEchoesDescription } from '../world-coherence-output-guard'
 import {
-  fromCalibrationBundleDiagnostics,
   fromDimensionCalibrationDiagnostics,
-  getWorldTagsValidationDiagnostics,
 } from '../world-init-ai-validation'
-import { parseWorldTagsResponse } from '../world-init-kv'
-import {
-  getCalibrationBundleDiagnostics,
-  validateWorldCalibrationBundleResponse,
-} from '../world-calibration-parse'
 import {
   getDimensionCalibrationDiagnostics,
   getDimensionCalibrationValidationError,
   parseWorldDimensionCalibrationResponse,
 } from '../world-dimension-calibration-parse'
-import { callWorldInitAIResilient } from './ai-service'
+import { parseWorldRegionProfileOutput } from '../world-region-profile'
+import { callWorldInitAIOnce } from './ai-service'
 import {
   WORLD_INIT_FAILURE_TARGET,
   WORLD_INIT_OWNER,
@@ -37,39 +27,14 @@ import {
   type WorldInitStep,
 } from './contracts'
 import {
-  applyCalibrationBundle,
   applyCalibrationParsed,
-  applyDimensionInferenceToContext,
   commitRegionProfileOutput,
-  commitWorldTags,
   finalizeAnchorYear,
   loadCalibrationFromCache,
   shouldRunDimensionInference,
   syncContextPromptVars,
   syncPipelineRegions,
 } from './context-state'
-import { parseWorldRegionProfileOutput } from '../world-region-profile'
-
-async function runCalibrationFallback(context: WorldInitPipelineContext): Promise<void> {
-  syncContextPromptVars(context)
-  const raw = await callWorldInitAIResilient(
-    context,
-    worldCalibrationPrompt.systemPrompt,
-    worldCalibrationPrompt.userPromptTemplate,
-    'world-init/pipeline:calibration-fallback',
-    'cal',
-    (response) => {
-      if (calibrationEchoesDescription(response, context.config.description.length)) {
-        throw new Error('calibration 错误回写了 worldDescription 全文')
-      }
-      validateWorldCalibrationBundleResponse(response)
-    },
-    (response) => fromCalibrationBundleDiagnostics(getCalibrationBundleDiagnostics(response)),
-    worldCalibrationPrompt.outputSchema,
-  )
-  applyCalibrationBundle(context, raw)
-  syncContextPromptVars(context)
-}
 
 function buildDimensionCalibrationStep(): WorldInitStep {
   return {
@@ -84,16 +49,12 @@ function buildDimensionCalibrationStep(): WorldInitStep {
       const modes = context.config._dimensionModes ?? {}
       const needInference = shouldRunDimensionInference(modes)
       if (loadCalibrationFromCache(context)) {
-        if (!context.configGenerated) {
-          console.info('[mod-world] 缓存无 W02 参数，补生成校准 fallback')
-          await runCalibrationFallback(context)
-        }
         finalizeAnchorYear(context)
         return { status: 'succeeded' }
       }
 
       syncContextPromptVars(context)
-      const raw = await callWorldInitAIResilient(
+      const raw = await callWorldInitAIOnce(
         context,
         worldDimensionCalibrationPrompt.systemPrompt,
         worldDimensionCalibrationPrompt.userPromptTemplate,
@@ -111,12 +72,7 @@ function buildDimensionCalibrationStep(): WorldInitStep {
       )
       const bundle = parseWorldDimensionCalibrationResponse(raw)
       if (!bundle) throw new Error('dimension-calibration 解析失败')
-      if (needInference) applyDimensionInferenceToContext(context, bundle.dimensions)
-      applyCalibrationParsed(context, bundle)
-      if (!context.configGenerated) {
-        console.info('[mod-world] 合并步未返回有效 W02，单独补 calibration-fallback')
-        await runCalibrationFallback(context)
-      }
+      applyCalibrationParsed(context, bundle, needInference)
       syncContextPromptVars(context)
       finalizeAnchorYear(context)
 
@@ -138,54 +94,19 @@ function buildDimensionCalibrationStep(): WorldInitStep {
   }
 }
 
-function buildTagsFallbackStep(): WorldInitStep {
-  return {
-    id: 'tags-fallback',
-    label: '标签生成',
-    phase: 'execute',
-    dependsOn: ['dimension-calibration'],
-    order: 200,
-    owner: WORLD_INIT_OWNER,
-    failureTarget: WORLD_INIT_FAILURE_TARGET,
-    optional: true,
-    shouldSkip: (context) => context.tagsGenerated,
-    run: async (context) => {
-      const raw = await callWorldInitAIResilient(
-        context,
-        worldTagsPrompt.systemPrompt,
-        worldTagsPrompt.userPromptTemplate,
-        'world-init/pipeline:tags-fallback',
-        'tag',
-        undefined,
-        getWorldTagsValidationDiagnostics,
-        worldTagsPrompt.outputSchema,
-      )
-      const filtered = commitWorldTags(context.config, parseWorldTagsResponse(raw))
-      context.rawTags = filtered
-      context.tagsGenerated = true
-      syncContextPromptVars(context)
-      const calibration = useWorldStore.getState().calibration
-      if (calibration) {
-        saveCachedWorldCalibration(context.worldCode, context.initFingerprint, calibration, filtered)
-      }
-      return { status: 'succeeded' }
-    },
-  }
-}
-
 function buildRegionProfilesStep(): WorldInitStep {
   return {
     id: 'region-profiles',
     label: '区域概况与生命阶段',
     phase: 'transition',
-    dependsOn: ['tags-fallback'],
+    dependsOn: ['dimension-calibration'],
     order: 300,
     owner: WORLD_INIT_OWNER,
     failureTarget: WORLD_INIT_FAILURE_TARGET,
     run: async (context) => {
       syncPipelineRegions(context)
       syncContextPromptVars(context)
-      const raw = await callWorldInitAIResilient(
+      const raw = await callWorldInitAIOnce(
         context,
         worldRegionProfilePrompt.systemPrompt,
         worldRegionProfilePrompt.userPromptTemplate,
@@ -233,7 +154,6 @@ export function createDefaultWorldInitSteps(): WorldInitStep[] {
       run: async () => ({ status: 'succeeded', message: '世界初始化步骤已按依赖排队' }),
     },
     buildDimensionCalibrationStep(),
-    buildTagsFallbackStep(),
     buildRegionProfilesStep(),
     {
       id: 'finalize-world-init',

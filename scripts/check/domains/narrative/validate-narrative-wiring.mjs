@@ -1,13 +1,12 @@
 /**
- * Purpose: Validate static wiring for immediate story publication, four background analyses, and the compression gate.
+ * Purpose: Validate the approved 01/02/03 narrative Prompt and execution wiring.
  * Owner: quality:narrative
- * Responsibility: Narrative wiring assertions only; runtime owners retain execution and state transitions.
+ * Responsibility: Static call, asset, stage, and no-repair assertions only.
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
-import { readModuleSource } from '../../lib/read-module-source.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
 let failed = 0
@@ -19,239 +18,188 @@ function read(relativePath) {
 function assertOk(condition, message) {
   if (condition) return
   console.error(`[FAIL] ${message}`)
-  failed++
+  failed += 1
 }
 
-const orchestrator = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', ROOT)
-for (const method of [
-  'buildCreationTimelineEntries',
-  'buildForeshadowingText',
-  'detectForeshadowing',
-  'resolveForeshadowing',
-  'recordNarrativeSignals',
-  'setAISemanticAnalysis',
-  'recordRelationshipUpdates',
-  'buildNarrativeTimelineProjection',
-]) {
-  assertOk(new RegExp(`\\b${method}\\s*\\(`).test(orchestrator), `orchestrator-system.ts 缺少调用 ${method}()`)
-}
-
-for (const [file, method] of [
-  ['foreshadowing-system.ts', 'getPlantedContext'],
-  ['memory-lifecycle-system.ts', 'buildCreationTimelineEntries'],
-  ['memory-lifecycle-system.ts', 'recordRelationshipUpdates'],
-]) {
-  assertOk(
-    new RegExp(`\\b${method}\\s*\\(`).test(read(`src/mods/mod-engine/subsystems/${file}`)),
-    `${file} 缺少调用 ${method}()`,
-  )
+function sortedMatches(source, pattern) {
+  return [...source.matchAll(pattern)].map((match) => match[1]).sort()
 }
 
 const promptBuilder = read('src/core/ai-service/prompt-builder.ts')
 const narrativePrompt = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
-const basicAttributePrompt = read('src/mods/mod-engine/prompts/narrative-basic-attribute-prompt.ts')
-const dataAnalysisPrompt = read('src/mods/mod-engine/prompts/narrative-data-analysis-prompt.ts')
-const eventRecognitionPrompt = read('src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts')
-const macroImpactPrompt = read('src/mods/mod-engine/prompts/narrative-macro-impact-prompt.ts')
-const narrativeServerAsset = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
-const basicAttributeServerAsset = read('src/mods/mod-engine/server/narrative-basic-attribute-system-prompt.ts')
-const dataAnalysisServerAsset = read('src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts')
-const eventRecognitionServerAsset = read('src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts')
-const macroImpactServerAsset = read('src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts')
-const serverPromptAssets = read('src/mods/mod-engine/server-prompt-assets.ts')
+const continuityPrompt = read('src/mods/mod-engine/prompts/narrative-story-continuity-prompt.ts')
+const talentPrompt = read('src/mods/mod-engine/prompts/narrative-talent-growth-prompt.ts')
+const narrativeServer = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const continuityServer = read('src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts')
+const talentServer = read('src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts')
+const serverAssets = read('src/mods/mod-engine/server-prompt-assets.ts')
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
-const campaignRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/campaign-stage-runtime.ts')
-const promptGuidanceRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/prompt-guidance-runtime.ts')
-const narrativeAcceptanceRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/narrative-acceptance-runtime.ts')
-const narrativeQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
-const aiClient = readModuleSource('src/core/ai-service/ai-client.ts', ROOT)
 const manifest = read('src/mods/mod-engine/manifest.ts')
+const fetchExecutor = read('src/core/ai-service/ai-client/fetch-executor.ts')
+const schemaValidation = read('src/core/ai-service/ai-client/schema-validation.ts')
 const envelope = read('src/mods/mod-engine/helpers/tagged-meta-envelope.ts')
+const protocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
+const quality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
+const mainNarrativeCall = read('src/mods/mod-engine/helpers/main-narrative-call.ts')
+const httpTransport = read('src/core/ai-service/ai-client/http-transport.ts')
+const preGenerationPath = path.join(ROOT, 'src/mods/mod-engine/helpers/narrative-pre-generation.ts')
+const preGeneration = fs.existsSync(preGenerationPath) ? fs.readFileSync(preGenerationPath, 'utf8') : ''
+const cachePool = read('src/core/ai-service/cache-pool.ts')
 
-for (const field of ['timelineMemory', '本轮可回收伏笔']) {
-  assertOk(promptBuilder.includes(field), `prompt-builder 缺少叙事记忆字段 ${field}`)
-}
-assertOk(
-  eventRecognitionPrompt.includes("version: '3.2.1'")
-    && eventRecognitionPrompt.includes("'mod-engine:narrative-event-recognition:3.2.1'")
-    && eventRecognitionPrompt.includes("outputFormat: 'json'")
-    && eventRecognitionPrompt.includes('outputSchema: NarrativeAIEventRecognitionDataSchema')
-    && eventRecognitionPrompt.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
-  '事件识别调用必须接入唯一 3.2.1 纯 JSON 受保护资产',
-)
 assertOk(
   promptBuilder.includes('userSegments: [string, string, string]')
-    && promptBuilder.includes('⟦全局信息⟧')
-    && promptBuilder.includes('⟦记忆⟧')
-    && promptBuilder.includes('⟦本轮引导⟧')
-    && !promptBuilder.includes('⟦变化要求⟧'),
-  '第一次调用必须只装配全局信息、记忆和本轮引导三条动态消息',
+    && promptBuilder.includes('JSON.stringify({ 世界: input.世界 ?? {} })')
+    && promptBuilder.indexOf('历史剧情: input.历史剧情') < promptBuilder.indexOf('最近两轮详细剧情: input.最近两轮详细剧情')
+    && promptBuilder.indexOf('最近两轮详细剧情: input.最近两轮详细剧情') < promptBuilder.indexOf('角色: input.角色')
+    && promptBuilder.includes('天赋: context.talents ?? []')
+    && promptBuilder.includes('本轮引导: input.本轮引导 ?? []')
+    && promptBuilder.includes('当前到期事件')
+    && !promptBuilder.includes('当前区域')
+    && !promptBuilder.includes('文明阶段')
+    && !promptBuilder.includes('当前可叙述状态'),
+  '01 必须只组装世界、历史与角色、本轮引导三条标准 JSON，且不接入样品外状态字段',
 )
 assertOk(
-  narrativePrompt.includes("version: '5.8.3'")
-    && narrativePrompt.includes("'mod-engine:narrative:5.8.3'")
-    && narrativePrompt.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  '第一次调用必须接入唯一 5.8.3 受保护叙事资产',
+  mainNarrativeCall.includes('prepareMainNarrativeRequest')
+    && mainNarrativeCall.includes('executeMainNarrativeRequest')
+    && mainNarrativeCall.includes("name: 'submit_story_turn'")
+    && mainNarrativeCall.includes('toolChoice')
+    && mainNarrativeCall.includes('responseToolName')
+    && preGeneration.length === 0,
+  '正式回合不得存在下一轮预生成旁路调用',
 )
 assertOk(
-  basicAttributePrompt.includes("version: '2.1.0'")
-    && basicAttributePrompt.includes("'mod-engine:narrative-basic-attribute-analysis:2.1.0'")
-    && basicAttributePrompt.includes("outputFormat: 'json'")
-    && basicAttributePrompt.includes('outputSchema: NarrativeAIBasicAttributeAnalysisDataSchema')
-    && basicAttributePrompt.includes('serverPromptAssetId: NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID')
-    && dataAnalysisPrompt.includes("version: '2.0.0'")
-    && dataAnalysisPrompt.includes("'mod-engine:narrative-data-analysis:2.0.0'")
-    && dataAnalysisPrompt.includes("outputFormat: 'json'")
-    && dataAnalysisPrompt.includes('outputSchema: NarrativeAIDataAnalysisDataSchema')
-    && dataAnalysisPrompt.includes('serverPromptAssetId: NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID')
-    && macroImpactPrompt.includes("version: '1.0.0'")
-    && macroImpactPrompt.includes("'mod-engine:narrative-macro-impact:1.0.0'")
-    && macroImpactPrompt.includes("outputFormat: 'json'")
-    && macroImpactPrompt.includes('outputSchema: NarrativeAIMacroImpactDataSchema')
-    && macroImpactPrompt.includes('serverPromptAssetId: NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID'),
-  '后台系统变化调用必须分别接入基础属性、数据分析和宏观影响纯 JSON 受保护资产',
+  !mainNarrativeCall.includes('strict: true')
+    && !mainNarrativeCall.includes('strictSchema: true')
+    && mainNarrativeCall.includes('正文、分支、结局都必须是字符串')
+    && mainNarrativeCall.includes('分支和结局未使用时填写 null 四个字符')
+    && mainNarrativeCall.includes('2 到 4 个第二人称可执行行动')
+    && mainNarrativeCall.includes('永久失去意识、感知、决定、行动和任何新经历')
+    && /toolArguments\?\.trim\(\)\s*\?\s*toolArguments\s*:\s*message\?\.content/u.test(httpTransport),
+  '01 必须保留唯一工具输出和同响应正文的宽容解析，不启用额外严格请求',
 )
 assertOk(
-  narrativeServerAsset.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')
-    && narrativeServerAsset.includes('buildNarrativeAIProtocolBaseRules')
-    && narrativeServerAsset.includes('buildNarrativeAIProtocolStandardExample')
-    && narrativeServerAsset.includes('buildNarrativeAIProtocolPromptExample')
-    && narrativeServerAsset.includes('reasoning_content 承载')
-    && narrativeServerAsset.includes('`${NARRATIVE_BODY_TAG}<完整正文>')
-    && !narrativeServerAsset.includes('此处填写')
-    && narrativeServerAsset.includes('【content 返回结构示例结束】'),
-  '主叙事资产必须只约束正文及可选分支，并提供唯一标准示例',
+  narrativePrompt.includes("version: '7.2.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.2.0')
+    && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
+    && continuityPrompt.includes("version: '2.6.0'")
+    && talentPrompt.includes("version: '3.2.0'")
+    && [narrativePrompt, continuityPrompt, talentPrompt].every((source) => (
+      source.includes("systemPrompt: ''") && source.includes('serverPromptAssetId:')
+    )),
+  '01/02/03 客户端契约必须绑定当前三个受保护资产版本',
 )
 assertOk(
-  basicAttributeServerAsset.includes('COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT')
-    && basicAttributeServerAsset.includes('buildNarrativeBasicAttributeContractLine')
-    && basicAttributeServerAsset.includes('buildNarrativeBasicAttributeStandardExample')
-    && dataAnalysisServerAsset.includes('COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT')
-    && dataAnalysisServerAsset.includes('buildNarrativeDataAnalysisSystemContractLines')
-    && dataAnalysisServerAsset.includes('buildNarrativeDataAnalysisStandardExample'),
-  '基础属性与数据分析资产必须各自派生固定契约和标准示例',
-)
-assertOk(
-  eventRecognitionServerAsset.includes('COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT')
-    && eventRecognitionServerAsset.includes('buildNarrativeEventRecognitionContractLine')
-    && eventRecognitionServerAsset.includes('buildNarrativeEventRecognitionStandardExample')
-    && eventRecognitionServerAsset.includes('尚未发生且需要未来条件'),
-  '事件识别资产必须同时识别已发生注册事件和未来待触发事项',
-)
-assertOk(
-  macroImpactServerAsset.includes('COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT')
-    && macroImpactServerAsset.includes('buildNarrativeMacroImpactContractProjection')
-    && macroImpactServerAsset.includes('直接影响或连锁反应')
-    && macroImpactServerAsset.includes('中性格式示例'),
-  '宏观影响资产必须读取完整系统契约并以中性空链示例约束 DAG 输出',
-)
-assertOk(
-  serverPromptAssets.includes('NARRATIVE_SERVER_PROMPT_ASSET_ID')
-    && serverPromptAssets.includes('NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID')
-    && serverPromptAssets.includes('NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID')
-    && serverPromptAssets.includes('NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID')
-    && serverPromptAssets.includes('NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID')
-    && !/NARRATIVE_(?:DATA|BRANCH|REPETITION|REPAIR)_SERVER_PROMPT_ASSET_ID/u.test(serverPromptAssets),
-  '服务端注册表必须只保留主叙事及四类后台分析五份资产',
-)
-assertOk(
-  campaign.includes("name: 'ai-narration'")
-    && campaign.includes("name: 'publish-narrative'")
-    && campaign.includes("name: 'ai-data-analysis'")
-    && campaign.includes("name: 'ai-basic-attribute-analysis'")
-    && campaign.includes("name: 'ai-event-recognition'")
-    && campaign.includes("name: 'ai-macro-impact'")
-    && campaign.match(/parallelGroup: 'narrative-background-analysis'/gu)?.length === 4
-    && campaign.includes("'ai-basic-attribute-analysis',\n        'ai-data-analysis',\n        'ai-event-recognition',")
-    && campaign.includes("'ai-macro-impact',")
-    && campaign.includes('buildNarrativeDataAnalysisPromptInput')
-    && campaign.includes('inspectNarrativeDataAnalysisQuality')
-    && campaign.includes('buildNarrativeBasicAttributePromptInput')
-    && campaign.includes('inspectNarrativeBasicAttributeAnalysisQuality')
-    && campaign.includes('buildNarrativeEventRecognitionPromptInput')
-    && campaign.includes('inspectNarrativeEventRecognitionQuality')
-    && campaign.includes('buildNarrativeMacroImpactPromptInput')
-    && campaign.includes('inspectNarrativeMacroImpactQuality')
-    && campaign.includes('orchestrator.acceptNarrativeResponse(')
-    && campaign.includes('orchestrator.launchNarrativeBackgroundAnalysis({')
-    && campaign.includes('runNonBlockingBackgroundLaunch(')
-    && campaign.includes('await orchestrator.ensureCompressionGate()')
-    && !campaign.includes('combineNarrativeBackgroundAnalysis')
-    && campaign.includes('narrativeBasicAttributePrompt')
-    && campaign.includes('narrativeDataAnalysisPrompt')
-    && campaign.includes('narrativeEventRecognitionPrompt')
-    && campaign.includes('narrativeMacroImpactPrompt')
-    && manifest.includes("'publish-narrative'")
-    && manifest.includes("'ai-data-analysis'")
-    && manifest.includes("'ai-basic-attribute-analysis'")
-    && manifest.includes("'ai-event-recognition'")
-    && manifest.includes("'ai-macro-impact'"),
-  '默认 Campaign 与 Manifest 必须声明正文发布、四路非阻塞后台分析和压缩唯一闸门',
-)
-assertOk(
-  campaign.includes('buildNarrativeRepairInstruction')
-    && campaign.match(/repairAttempts < MAX_NARRATIVE_REPAIR_ATTEMPTS/gu)?.length === 1
-    && !/buildNarrative(?:DataAnalysis|BasicAttributeAnalysis|EventRecognition)RepairInstruction/u.test(campaign)
-    && aiClient.includes('export async function validateWithRetry')
-    && aiClient.includes('前次输出不是合格的纯 JSON 对象')
-    && aiClient.includes('return retryResult || content'),
-  '主叙事的格式错误与高重复共用两次有界修复预算，四类后台统一由 AI 客户端 JSON Schema 最多修复一次',
-)
-assertOk(
-  promptGuidanceRuntime.includes('buildPlayerRoundActionProjection(freshPlayerChoice)')
-    && !promptGuidanceRuntime.includes("orchestrator['lastPlayerChoice'] = undefined")
-    && narrativeAcceptanceRuntime.includes('consumeAcceptedPlayerRoundAction')
-    && narrativeAcceptanceRuntime.includes('clearPendingNarrativeRoundPreparation(roundSequence)'),
-  '分支选择必须只读投影，并由成功接纳按实际投递原值一次性消费',
-)
-assertOk(
-  campaign.includes('if (ctx._isPreparedRoundRetry) return')
-    && campaign.includes('setPendingNarrativeRoundPreparation({')
-    && campaignRuntime.includes('const executionRoundSequence = runtime.executionRoundSequence')
-    && narrativeQuality.includes("repetitionMetric?.qualityLevel === 'high'")
-    && narrativeQuality.includes('不得只替换同义词')
-    && narrativeAcceptanceRuntime.includes("repetitionMetric.qualityLevel === 'high'")
-    && narrativeAcceptanceRuntime.includes("rejection.name = 'NarrativeGenerationRejectedError'")
-    && campaign.includes('clearPendingNarrative(executionId)'),
-  '主叙事失败重试必须复用同轮执行身份，高重复必须消费既有修复预算并由最终接纳点再次拒绝旁路',
-)
-for (const retiredMarker of [
-  'focusedBranchIntentId',
-  'branchIntents',
-  'archivedBranchIntents',
-  'commitFocusedBranchIntentResolution',
-  'intentResolution',
-  '命运意图判定',
-]) {
-  assertOk(
-    ![orchestrator, promptGuidanceRuntime, narrativeAcceptanceRuntime, eventRecognitionServerAsset].join('\n').includes(retiredMarker),
-    `活动叙事链仍残留已废弃长期意图标记：${retiredMarker}`,
-  )
-}
-assertOk(
-  envelope.includes('parseNarrativeResponseEnvelope')
-    && !/parseNarrative(?:DataAnalysis|BasicAttributeAnalysis|EventRecognition)Envelope/u.test(envelope)
-    && !envelope.includes('parseSingleTaggedEnvelope')
-    && envelope.includes('叙事响应缺少可识别的完整正文'),
-  '标签解析器只能拥有主叙事正文与可选分支，后台结构统一交给 JSON Schema',
+  narrativeServer.includes('你是人生模拟器的故事生成器。')
+    && continuityServer.includes('你是故事连续性提取器。')
+    && talentServer.includes('你是天赋成长判定与路线生成器。')
+    && continuityServer.includes('本轮记忆')
+    && continuityServer.includes('未来事件')
+    && talentServer.includes('深度强化、广度强化、转变强化')
+    && talentServer.includes('转变强化只改变作用方式，不额外扩大影响总量')
+    && talentServer.includes('长期积累')
+    && talentServer.includes('时间沉淀')
+    && talentServer.includes('明确契机')
+    && talentServer.includes('三项必须同时成立')
+    && !talentServer.includes('不得转为直接')
+    && !talentServer.includes('禁止直接操控'),
+  '三个固定 Prompt 必须分别承担故事、连续性和成长职责，且 03 不增加转变路线替代限制',
 )
 
-for (const retiredPath of [
-  'src/mods/mod-engine/server/narrative-repair-system-prompt.ts',
-  'src/mods/mod-engine/server/narrative-data-repair-system-prompt.ts',
-  'src/mods/mod-engine/server/narrative-branch-repair-system-prompt.ts',
-  'src/mods/mod-engine/server/narrative-repetition-repair-system-prompt.ts',
-  'src/mods/mod-engine/server/narrative-repetition-audit-system-prompt.ts',
-  'src/mods/mod-engine/prompts/narrative-data-repair-prompt.ts',
-  'src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts',
-  'src/mods/mod-engine/prompts/narrative-repetition-repair-prompt.ts',
-]) {
-  assertOk(!fs.existsSync(path.join(ROOT, retiredPath)), `旧协议资产仍然存在：${retiredPath}`)
-}
+const registeredAssetIds = sortedMatches(serverAssets, /^\s*\[(NARRATIVE(?:_[A-Z]+)*_SERVER_PROMPT_ASSET_ID)\]:/gmu)
+assertOk(
+  JSON.stringify(registeredAssetIds) === JSON.stringify([
+    'NARRATIVE_SERVER_PROMPT_ASSET_ID',
+    'NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID',
+    'NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID',
+  ].sort()),
+  '服务端资产注册表必须恰好登记 01/02/03 三个 Prompt',
+)
+
+const aiStages = sortedMatches(campaign, /name: '(ai-[^']+)'/gu)
+assertOk(
+  JSON.stringify(aiStages) === JSON.stringify([
+    'ai-narration',
+    'ai-story-continuity',
+    'ai-talent-growth',
+  ].sort()),
+  'Campaign 必须恰好包含 01 主故事和 02/03 两个 AI 阶段',
+)
+assertOk(
+  campaign.includes("name: 'prepare-narrative'")
+    && campaign.includes("name: 'commit-round'")
+    && campaign.includes("name: 'finalize-round'")
+    && /name: 'ai-story-continuity'[\s\S]{0,220}dependsOn: \['prepare-narrative'\][\s\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP/u.test(campaign)
+    && /name: 'ai-talent-growth'[\s\S]{0,220}dependsOn: \['prepare-narrative'\][\s\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP/u.test(campaign)
+    && campaign.includes("ctx._talentInput.eligiblePatterns.length === 0")
+    && campaign.includes('getRoundContextSnapshot')
+    && campaign.includes('totalDays: roundContext.totalDays')
+    && /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign),
+  '正文发布后必须并行执行 02/03，并由 commit-round 唯一汇合',
+)
+assertOk(
+  ['ai-narration', 'prepare-narrative', 'ai-story-continuity', 'ai-talent-growth', 'commit-round', 'finalize-round']
+    .every((stage) => manifest.includes(`'${stage}'`))
+    && sortedMatches(manifest, /'(ai-[^']+)'/gu).join('|') === aiStages.join('|'),
+  'Manifest 必须与 Campaign 的三个 AI 阶段唯一对齐',
+)
+
+const promptContracts = fs.readdirSync(path.join(ROOT, 'src/mods/mod-engine/prompts'))
+  .filter((name) => /^narrative(?:-[a-z-]+)?-prompt\.ts$/u.test(name))
+  .filter((name) => !['narrative-analysis-output-prompt.ts', 'narrative-prompt-components.ts'].includes(name))
+  .sort()
+const serverContracts = fs.readdirSync(path.join(ROOT, 'src/mods/mod-engine/server'))
+  .filter((name) => /^narrative(?:-[a-z-]+)?-system-prompt\.ts$/u.test(name))
+  .sort()
+assertOk(
+  JSON.stringify(promptContracts) === JSON.stringify([
+    'narrative-prompt.ts',
+    'narrative-story-continuity-prompt.ts',
+    'narrative-talent-growth-prompt.ts',
+  ])
+    && JSON.stringify(serverContracts) === JSON.stringify([
+      'narrative-story-continuity-system-prompt.ts',
+      'narrative-system-prompt.ts',
+      'narrative-talent-growth-system-prompt.ts',
+    ]),
+  '运行时叙事 Prompt 资产文件必须只剩 01/02/03',
+)
+assertOk(
+  protocol.includes('NarrativeAIStoryContinuityDataSchema')
+    && protocol.includes('NarrativeAITalentGrowthDataSchema')
+    && protocol.includes('min(2).max(4)')
+    && !protocol.includes('系统操作')
+    && !quality.includes('系统操作')
+    && !quality.includes('剧情进度')
+    && !quality.includes('到期候选判定'),
+  '协议与质量检查必须只保留 01/02/03 的输出职责',
+)
+assertOk(
+  cachePool.includes("'narrative-main'")
+    && cachePool.includes("'narrative-story-continuity'")
+    && cachePool.includes("'narrative-talent-growth'")
+    && sortedMatches(cachePool, /^\s*'((?:narrative)-(?:main|story-continuity|talent-growth))',?$/gmu).length === 3,
+  '叙事缓存池必须恰好隔离 01/02/03',
+)
+assertOk(
+  fetchExecutor.includes('maxAttempts: 1')
+    && fetchExecutor.includes('willRetry: false')
+    && !fetchExecutor.includes('for (let attempt')
+    && !fetchExecutor.includes('retryResult')
+    && schemaValidation.includes('never starts another AI request')
+    && !schemaValidation.includes('callAI('),
+  '每次逻辑调用必须零重试、零格式修复、零备用请求',
+)
+assertOk(
+  envelope.includes('parseNarrativeResponseEnvelope')
+    && envelope.includes('isExplicitPermanentNoAgency')
+    && envelope.includes('extractTaggedFields'),
+  '01 宽容解析必须继续支持正文、分支和结局的既有恢复边界',
+)
 
 if (failed > 0) {
   console.error(`\n叙事接线验证失败: ${failed} 项`)
   process.exit(1)
 }
 
-console.log('[OK] 故事即时发布、四路后台分析与压缩闸门接线验证通过')
+console.log('[OK] 01 主故事与并行 02/03 接线验证通过')

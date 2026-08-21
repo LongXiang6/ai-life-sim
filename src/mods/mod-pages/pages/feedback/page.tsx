@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized player feedback form. Owner: mod-pages. Responsibility: Feedback-page interaction and public submission wiring only. */
+
 'use client'
 
 /**
@@ -16,13 +18,14 @@ import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code
 import type { FeedbackCategory, PlayerFeedbackEnvelope } from '@/core/logger/feedback-contract'
 
 import { buildFeedbackDiagnostics } from './build-feedback-diagnostics'
+import { PlayerFeedbackList } from './PlayerFeedbackList'
 import styles from './Feedback.module.css'
 
-const CATEGORY_OPTIONS: Array<{ id: FeedbackCategory; label: string; description: string }> = [
-  { id: 'bug', label: '问题反馈', description: '错误、异常或无法继续' },
-  { id: 'suggestion', label: '功能建议', description: '希望增加或调整的内容' },
-  { id: 'experience', label: '体验意见', description: '叙事、界面或操作感受' },
-  { id: 'other', label: '其他', description: '不属于以上分类' },
+const CATEGORY_OPTIONS: Array<{ id: FeedbackCategory; icon: string; label: string; description: string; placeholder: string; guidance: string }> = [
+  { id: 'bug', icon: '⚠️', label: '问题反馈', description: '错误、异常或无法继续', placeholder: '发生了什么？当时在做什么？期待的结果是？', guidance: '问题出现的位置与复现方式' },
+  { id: 'suggestion', icon: '✨', label: '功能建议', description: '希望增加或调整的内容', placeholder: '希望增加或调整什么？想解决什么问题？', guidance: '期望行为与价值' },
+  { id: 'experience', icon: '🌱', label: '体验意见', description: '叙事、界面或操作感受', placeholder: '哪个环节的感受？为什么这样觉得？', guidance: '场景与原因' },
+  { id: 'other', icon: '📌', label: '其他', description: '不属于以上分类', placeholder: '描述你想说的内容', guidance: '自由描述' },
 ]
 
 interface SubmitResult {
@@ -41,6 +44,7 @@ export default function FeedbackPage() {
   const [diagnosticCode, setDiagnosticCode] = useState<string | null>(null)
   const [diagnosticCodeError, setDiagnosticCodeError] = useState(false)
   const [diagnosticCodeCopied, setDiagnosticCodeCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState<'submit' | 'player'>('submit')
 
   const copyText = async (value: string): Promise<boolean> => {
     try {
@@ -82,6 +86,7 @@ export default function FeedbackPage() {
   }, [])
 
   const canSubmit = message.trim().length > 0 && !submitting
+  const categoryOption = CATEGORY_OPTIONS.find((option) => option.id === category) ?? CATEGORY_OPTIONS[0]
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -127,36 +132,60 @@ export default function FeedbackPage() {
         <div className="flow-responsive-layout">
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
+              <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 反馈</span></div>
               <header className={styles.header}>
-                <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 反馈</span></div>
-                <h1>反馈与建议</h1>
+                <h1><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">💬</span>反馈与建议</h1>
+                <p>问题、建议与体验意见，都会完整送达。</p>
               </header>
 
-              <form className={styles.form} onSubmit={handleSubmit}>
-                <section className={styles.panel}>
-                  <div className={styles.feedbackGrid}>
-                    <label className={styles.field}>
-                      <span><span className="semantic-emoji" aria-hidden="true">💬</span>类型</span>
-                      <select value={category} disabled={submitting} onChange={(event) => setCategory(event.target.value as FeedbackCategory)}>
-                        {CATEGORY_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                      </select>
-                    </label>
-                    <label className={styles.field}>
-                      <span><span className="semantic-emoji" aria-hidden="true">✍️</span>内容</span>
-                      <textarea
-                        value={message}
-                        disabled={submitting}
-                        onChange={(event) => setMessage(event.target.value)}
-                        placeholder="描述问题或建议"
-                        rows={8}
-                      />
-                    </label>
+              <div className={styles.tabList} role="tablist" aria-label="反馈页面选项">
+                <button type="button" role="tab" aria-selected={activeTab === 'submit'} className={activeTab === 'submit' ? styles.tabButtonActive : styles.tabButton} onClick={() => setActiveTab('submit')}>说明</button>
+                <button type="button" role="tab" aria-selected={activeTab === 'player'} className={activeTab === 'player' ? styles.tabButtonActive : styles.tabButton} onClick={() => setActiveTab('player')}>玩家反馈</button>
+              </div>
+
+              {activeTab === 'player' ? <div className={styles.content}><PlayerFeedbackList /></div> : <form className={`${styles.content} ${styles.form}`} onSubmit={handleSubmit}>
+                <p className={styles.introCopy}>反馈会附上最近 20 轮叙事与运行诊断，方便准确定位问题。</p>
+                <section className={styles.section}>
+                  <div className={styles.sectionLabel}><h3><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">📋</span>反馈类型</h3><span>四选一</span></div>
+                  <div className={styles.sectionCard}>
+                    <div className={styles.categoryGrid} role="group" aria-label="反馈类型">
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={styles.categoryButton}
+                          aria-pressed={category === option.id}
+                          disabled={submitting}
+                          onClick={() => setCategory(option.id)}
+                        >
+                          <span className={styles.categoryTitle}><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{option.icon}</span>{option.label}</span>
+                          <span className={styles.categoryDescription}>{option.description}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </section>
 
-                <section className={styles.panel}>
-                  <div className={styles.dataRow} aria-live="polite">
-                    <span><strong>六位诊断编号</strong><small>反馈后可凭此编号查询近期记录</small></span>
+                <section className={styles.section}>
+                  <div className={styles.sectionLabel}><h3><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">✍️</span>反馈内容</h3><span>必填</span></div>
+                  <div className={styles.sectionCard}>
+                    <textarea
+                      className={styles.styleInput}
+                      value={message}
+                      disabled={submitting}
+                      onChange={(event) => setMessage(event.target.value)}
+                      placeholder={categoryOption.placeholder}
+                      rows={7}
+                    />
+                    <div className={styles.styleMeta}><span>{message.length} 字</span><span>提示：<em>{categoryOption.guidance}</em></span></div>
+                  </div>
+                </section>
+
+                <section className={styles.section}>
+                  <div className={styles.sectionLabel}><h3><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🔐</span>六位诊断编号</h3><span>便于定位记录</span></div>
+                  <div className={styles.sectionCard}>
+                    <div className={styles.dataRow} aria-live="polite">
+                      <span><strong>{diagnosticCode ?? '分配中'}</strong><small>反馈后可凭此编号查询近期记录</small></span>
                     {diagnosticCode ? (
                       <button
                         type="button"
@@ -166,13 +195,16 @@ export default function FeedbackPage() {
                           void copyText(diagnosticCode).then(setDiagnosticCodeCopied)
                         }}
                       >
-                        {diagnosticCodeCopied ? '已复制' : diagnosticCode}
+                        {diagnosticCodeCopied ? '已复制' : '复制编号'}
                       </button>
                     ) : diagnosticCodeError ? (
                       <button type="button" className={styles.valueAction} onClick={() => { void loadDiagnosticCode() }}>重新获取</button>
                     ) : <span className={styles.value}>分配中</span>}
+                    </div>
                   </div>
                 </section>
+
+                <p className={styles.disclaimer}>提交即代表你已了解：本地存档不会上传；诊断记录在服务器限期保存 30 天，仅用于定位问题；除你主动提交的反馈外，服务器不会保存你的故事内容。</p>
 
                 {error ? <p className={styles.error} role="alert">{error}</p> : null}
                 {feedbackId ? (
@@ -184,10 +216,10 @@ export default function FeedbackPage() {
                 <button type="submit" className={styles.submitButton} disabled={!canSubmit}>
                   {submitting ? '正在提交' : '提交反馈'}
                 </button>
-              </form>
+              </form>}
             </div>
 
-            <footer className={styles.footer} data-flow-bottom-bar>
+            <footer className={styles.bottomBar} data-flow-bottom-bar>
               <button type="button" className={styles.backButton} onClick={() => router.back()} aria-label="返回上一页">←</button>
               <button type="button" className={styles.returnButton} onClick={() => router.push('/welcome')}>
                 <span className={styles.returnNumber}>00</span><span className={styles.returnCopy}><strong>返回</strong><small>回到欢迎界面</small></span><span className={styles.returnArrow} aria-hidden="true">→</span>

@@ -1,7 +1,7 @@
 /**
- * @module ai-call-deadline.ts
- * @description 浏览器与代理共享的 AI 工作量总时限计算
- * @mod core
+ * Purpose: Resolve the shared AI request deadline from call kind and reasoning mode.
+ * Owner: core / ai-service
+ * Responsibility: Deadline calculation only; callers own cancellation and failure handling.
  */
 
 import type { ReasoningEffort } from '@/foundation'
@@ -23,21 +23,14 @@ const REASONING_RESERVE_MS: Readonly<Record<ReasoningEffort, number>> = {
 
 function workloadProfile(callKind: string): number {
   const kind = callKind.trim().toLowerCase()
-  if (kind === 'narrative-main' || kind === 'immersion-warmup' || kind === 'narrative-format-repair') {
+  if (kind === 'narrative-main' || kind === 'immersion-warmup') {
     return 60_000
   }
-  if (kind.startsWith('summary-compress-')) {
+  if (kind === 'narrative-story-continuity') {
     return 50_000
   }
   if (
-    kind === 'narrative-basic-attribute-analysis'
-    || kind === 'narrative-basic-attribute-analysis-format-repair'
-    || kind === 'narrative-data-analysis'
-    || kind === 'narrative-data-analysis-format-repair'
-    || kind === 'narrative-event-recognition'
-    || kind === 'narrative-event-recognition-format-repair'
-    || kind === 'narrative-macro-impact'
-    || kind === 'narrative-macro-impact-format-repair'
+    kind === 'narrative-talent-growth'
   ) {
     return 45_000
   }

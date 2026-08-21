@@ -27,7 +27,7 @@ export type {
   GameOverShareCardData,
   GameOverShareDimension,
   GameOverShareFact,
-  GameOverShareMythic,
+  GameOverShareReincarnation,
   GameOverShareOutcome,
 } from './game-over-share.types'
 
@@ -35,8 +35,8 @@ interface PreparedCardLayout {
   nameLines: string[]
   worldLines: string[]
   facts: Array<GameOverShareFact & { lines: string[] }>
-  mythicTitleLines: string[]
-  mythicEffectLines: string[]
+  reincarnationTitleLines: string[]
+  reincarnationEffectLines: string[]
   height: number
 }
 
@@ -104,16 +104,16 @@ function prepareCardLayout(
   }))
 
   context.font = `600 50px ${FONT_SERIF}`
-  const mythicTitleLines = wrapCanvasText(
+  const reincarnationTitleLines = wrapCanvasText(
     context,
-    data.mythic?.name ?? '此生已经留下回声',
+    data.reincarnation?.name ?? '此生已经留下回声',
     CARD_CONTENT_WIDTH - 160,
   )
 
   context.font = `400 30px ${FONT_SANS}`
-  const mythicEffectLines = wrapCanvasText(
+  const reincarnationEffectLines = wrapCanvasText(
     context,
-    data.mythic?.effect ?? '轮回天赋尚未凝结；分享卡仍只记录当前结算事实。',
+    data.reincarnation?.effect ?? '轮回天赋尚未凝结；分享卡仍只记录当前结算事实。',
     CARD_CONTENT_WIDTH - 160,
   )
 
@@ -121,7 +121,7 @@ function prepareCardLayout(
     (sum, fact) => sum + 62 + fact.lines.length * 44 + 16,
     0,
   )
-  const mythicBoxHeight = 108 + mythicTitleLines.length * 62 + mythicEffectLines.length * 44
+  const reincarnationBoxHeight = 108 + reincarnationTitleLines.length * 62 + reincarnationEffectLines.length * 44
   const contentBottom = 268
     + nameLines.length * 92
     + 8
@@ -134,7 +134,7 @@ function prepareCardLayout(
     + 48
     + data.dimensions.length * 82
     + 34
-    + mythicBoxHeight
+    + reincarnationBoxHeight
   const height = Math.max(
     CARD_MIN_HEIGHT,
     contentBottom + 200,
@@ -144,8 +144,8 @@ function prepareCardLayout(
     nameLines,
     worldLines,
     facts,
-    mythicTitleLines,
-    mythicEffectLines,
+    reincarnationTitleLines,
+    reincarnationEffectLines,
     height,
   }
 }
@@ -305,7 +305,7 @@ function drawShareCard(
   y += 30
   context.fillStyle = COLORS.text
   context.font = `600 42px ${FONT_SERIF}`
-  context.fillText('真实四维', CARD_PADDING, y)
+  context.fillText('世界五维', CARD_PADDING, y)
   y += 48
 
   const dimensionMaxWidth = CARD_CONTENT_WIDTH - 172
@@ -341,18 +341,18 @@ function drawShareCard(
   }
 
   y += 34
-  const mythicBoxHeight = 108 + layout.mythicTitleLines.length * 62 + layout.mythicEffectLines.length * 44
-  fillRoundedRect(context, CARD_PADDING, y, CARD_CONTENT_WIDTH, mythicBoxHeight, 28, COLORS.accentSoft, COLORS.border)
+  const reincarnationBoxHeight = 108 + layout.reincarnationTitleLines.length * 62 + layout.reincarnationEffectLines.length * 44
+  fillRoundedRect(context, CARD_PADDING, y, CARD_CONTENT_WIDTH, reincarnationBoxHeight, 28, COLORS.accentSoft, COLORS.border)
   context.fillStyle = COLORS.accent
   context.font = `700 22px ${FONT_SANS}`
-  context.fillText(data.mythic ? `轮回天赋 · ${data.mythic.concept}` : '轮回天赋', CARD_PADDING + 34, y + 42)
+  context.fillText(data.reincarnation ? `轮回天赋 · ${data.reincarnation.description}` : '轮回天赋', CARD_PADDING + 34, y + 42)
   context.fillStyle = COLORS.text
   context.font = `600 50px ${FONT_SERIF}`
-  let mythicY = drawLines(context, layout.mythicTitleLines, CARD_PADDING + 34, y + 102, 62)
-  mythicY += 6
+  let reincarnationY = drawLines(context, layout.reincarnationTitleLines, CARD_PADDING + 34, y + 102, 62)
+  reincarnationY += 6
   context.fillStyle = COLORS.secondary
   context.font = `400 30px ${FONT_SANS}`
-  drawLines(context, layout.mythicEffectLines, CARD_PADDING + 34, mythicY, 44)
+  drawLines(context, layout.reincarnationEffectLines, CARD_PADDING + 34, reincarnationY, 44)
 
   const footerY = layout.height - 100
   context.strokeStyle = COLORS.border

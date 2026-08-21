@@ -6,10 +6,7 @@
 
 export { RoundDiagnosticController } from './round-diagnostic-controller'
 export { CampaignStageRuntime } from './campaign-stage-runtime'
-export {
-  getNarrativeScopeViewRuntime,
-  refreshNarrativeMemoryRecallRuntime,
-} from './memory-recall-runtime'
+export { getNarrativeScopeViewRuntime } from './narrative-scope-runtime'
 export {
   buildPromptTimelineMemoryRuntime,
   formatNarrativeHistoryEntryRuntime,
@@ -17,12 +14,13 @@ export {
   projectRoundMemoryEventRuntime,
   resolveNarrativeRoundTimeRuntime,
 } from './timeline-projection-runtime'
+export { buildYearEventsRuntime } from './compression-runtime'
 export {
-  buildYearEventsRuntime,
-  ensureCompressionGateRuntime,
-  runCompressionPipelineRuntime,
-} from './compression-runtime'
-export { acceptNarrativeResponseRuntime } from './narrative-acceptance-runtime'
+  prepareNarrativeResponseRuntime,
+  commitNarrativeResponseRuntime,
+  finalizeNarrativeResponseRuntime,
+  discardNarrativeResponseRuntime,
+} from './narrative-acceptance-runtime'
 export {
   buildHistoricalCausalScopeRuntime,
   getAvailableHistoricalEventCandidatesRuntime,
@@ -33,31 +31,16 @@ export {
   type HistoricalEventLedgerRuntime,
 } from './historical-ledger-runtime'
 export {
-  buildHistoricalNarrativeTransactionPlanRuntime,
-  type HistoricalNarrativeTransactionOptions,
-  type HistoricalNarrativeTransactionPlan,
+  buildHistoricalDeathTransactionPlanRuntime,
+  type HistoricalDeathTransactionPlan,
 } from './historical-transaction-runtime'
 export {
-  consumeEventRecognitionRecordRuntime,
-  consumeNarrativeBackgroundResultsRuntime,
-  consumeSystemAnalysisRecordRuntime,
-  deferAcceptedNarrativeCausalityAfterRecognitionFailureRuntime,
-  getNarrativeBackgroundAnalysisRecordsRuntime,
-  launchNarrativeBackgroundAnalysisRuntime,
-  reconcileAcceptedNarrativeRecordsRuntime,
-  recordNarrativeBackgroundLaunchFailureRuntime,
-} from './narrative-background-runtime'
-export { applyNarrativeEventRecognitionRuntime } from './narrative-event-recognition-runtime'
+  captureNarrativeStoryContinuityLedgerTransactionRuntime,
+  commitPreparedNarrativeStoryContinuityLedgerRuntime,
+  prepareNarrativeStoryContinuityLedgerRuntime,
+  restoreNarrativeStoryContinuityLedgerTransactionRuntime,
+} from './narrative-story-continuity-runtime'
 export { updateNarrativeTransitionAuditRuntime } from './narrative-transition-audit-runtime'
 export { assemblePromptContextRuntime } from './prompt-context-runtime'
 export { buildRoundGuidanceInputRuntime } from './prompt-guidance-runtime'
-export {
-  buildAbbreviationSnapshotRuntime,
-  buildHintInputRuntime,
-  buildInfluenceTextRuntime,
-  buildLightWorldSettingRuntime,
-  buildSystemChangeSummaryRuntime,
-  buildTimeBridgeInputRuntime,
-  getMemoryL0TitlesRuntime,
-  getSystemContextRuntime,
-} from './prompt-state-projection-runtime'
+export { buildLightWorldSettingRuntime } from './prompt-state-projection-runtime'

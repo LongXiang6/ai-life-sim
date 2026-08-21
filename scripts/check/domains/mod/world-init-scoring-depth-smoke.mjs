@@ -1,23 +1,32 @@
+/**
+ * Purpose: Regress valid world-init state depth and invalid recursive structures.
+ * Owner: quality:mod
+ * Responsibility: One system-safety depth smoke only.
+ */
+
 import assert from 'node:assert/strict'
 
 import { deepSanitize } from '../../../../src/mods/mod-engine/helpers/system-safety.ts'
 
-const scoringState = {
+const worldState = {
   worldConfig: {
-    scoringProfile: {
-      dimensions: [
-        { id: 'growth', evidenceKinds: ['attributes', 'lifespan-adjustments'] },
-        { id: 'agency', evidenceKinds: ['choices'] },
-        { id: 'journey', evidenceKinds: ['journey'] },
-        { id: 'impact', evidenceKinds: ['achievements', 'choices', 'lifespan-adjustments'] },
+    powerFramework: {
+      label: '星海航路',
+      progression: '由近地轨道走向深空',
+      ranks: [
+        { id: 'ground', label: '地表', requirements: ['基础训练'] },
+        { id: 'orbit', label: '轨道', requirements: ['完成首次升空'] },
       ],
     },
+    lifeStageTemplate: [
+      { id: 'youth', label: '青年', ageRange: { min: 18, max: 40 } },
+    ],
   },
 }
 
-const scoringResult = deepSanitize(scoringState, 'sub.world-init.data')
-assert.equal(scoringResult.report.passed, true, 'world-init scoring profile must fit the safety depth budget')
-assert.deepEqual(scoringResult.result, scoringState, 'sanitization must preserve valid scoring profile data')
+const worldResult = deepSanitize(worldState, 'sub.world-init.data')
+assert.equal(worldResult.report.passed, true, 'valid world-init state must fit the safety depth budget')
+assert.deepEqual(worldResult.result, worldState, 'sanitization must preserve valid world-init state')
 
 const tooDeep = {}
 let cursor = tooDeep
@@ -41,4 +50,4 @@ assert.ok(
   'circular state must report a cycle error',
 )
 
-console.log('[world-init-scoring-depth-smoke] PASS')
+console.log('[world-init-state-depth-smoke] PASS')

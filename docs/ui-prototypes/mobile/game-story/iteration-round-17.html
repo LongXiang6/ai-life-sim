@@ -1,0 +1,138 @@
+<!-- Purpose: Record the seventeenth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第十七轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-17</p>
+      <h1>游戏故事 · 第十七轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A · 带季连点</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-16 定版候选 B（行尾表情）为基线，方向「纪元时间标签 · 表情换组」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：右栏 strong 两行表情装饰保持行尾位置、内容换成候选 C 组（🌸 林晚 · 女 / ⏳ 18 岁）；顶栏 identity 的 small 时间口径改为「纪元名称 + 年代」（纪元标签对齐运行时 formatEraYear：纪元名 + 年数 + 年，如「沧澜历18年」），不再使用年龄「多少岁」；顶栏 small 保持加大金棕（10px #6b4d1d 500，ROUND-16 基线不得改回）。分向为纪元时间标签的呈现：候选 A 带季连点（沧澜历 · 18 年 · 春）、候选 B 运行时格式（沧澜历18年 · 春季）、候选 C 纯纪元年代（沧澜历 · 18 年）。其余共同基线全部继承：前世武骨独立第二行左对齐（紧凑胶囊行）、chip 纯白 #fff + 1px 细灰边框 #e5e1d6、墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、单选与输入联动、branchPending 纯白 #fff + 1px 金棕描边、🎲 装饰标题居中、输入框 auto-grow、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（顶栏：身份信息 + 推进步长下拉 + 命运分叉按钮 + 当前信息按钮；barTop grid minmax(0,1fr) auto 40px）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行，barVitals grid minmax(0,1fr) auto 两行）、章节头单行化结构、长篇时间线五轮 + 暮年 70 岁待抉择编辑器、advanceDock 流末推进、信息面板。身份信息口径（姓名性别「林晚 · 女」、世界「沧澜界」、纪元名「沧澜历」、年代「18 年」）全部保留；顶栏 small 的时间由「年龄 18 岁」改为「纪元标签（纪元名 + 年代）」；右栏 strong 两行保持「林晚 · 女」（姓名性别）+「18 岁」（年龄，右栏年龄口径不变）。纪元标签格式对齐运行时 foundation/utils/format-time.ts formatEraYear（纪元名 + 年数 + 「年」）与 narrative-calendar.ts 顶栏时间标签（年步进为纪元标签本身，季节步进附「· 春季」）。前世武骨流光动画参数照抄运行时（bar-rebirth-flow 13s ease-in-out infinite，延迟 -3.1s，reduced-motion 停）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>纪元标签与运行时 formatEraYear / 顶栏时间标签口径一致性、纪元名 + 年代是否清晰、季节后缀取舍（附季 vs 纯纪元年代）、small 加大金棕层级与右栏大字是否失衡、行尾表情 🌸 / ⏳ 与暖纸墨金棕语言的协调、右栏两行与左侧四维/命格及前世武骨第二行的高度协调、窄屏下右栏是否挤压左侧命格胶囊、chip 纯白细线与白板的协调、墨黑中心原点与白板金棕描边的搭配、菱形分隔两端对齐、entryMeta 岁数精简节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>带季连点</strong></header>
+          <p>顶栏 small「沧澜历 · 18 年 · 春」（纪元 · 年代 · 季节，保留季节后缀）；右栏行尾表情 🌸 林晚 · 女 / 18 岁 ⏳。</p>
+          <a class="candidate-open" href="candidates/candidate-round-17-01-era-with-season.html" target="_blank" rel="noopener">
+            游戏故事 17 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>运行时格式</strong></header>
+          <p>顶栏 small「沧澜历18年 · 春季」（贴近运行时 formatEraYear 连写 + 季节全称）；右栏行尾表情 🌸 林晚 · 女 / 18 岁 ⏳。</p>
+          <a class="candidate-open" href="candidates/candidate-round-17-02-runtime-format.html" target="_blank" rel="noopener">
+            游戏故事 17 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>纯纪元年代</strong></header>
+          <p>顶栏 small「沧澜历 · 18 年」（仅纪元 + 年代，不附季节）；右栏行尾表情 🌸 林晚 · 女 / 18 岁 ⏳。</p>
+          <a class="candidate-open" href="candidates/candidate-round-17-03-era-only.html" target="_blank" rel="noopener">
+            游戏故事 17 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 带季连点</span><span role="columnheader">B 运行时格式</span><span role="columnheader">C 纯纪元年代</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏 small</strong><span role="cell">沧澜历 · 18 年 · 春（纪元 · 年代 · 季节）</span><span role="cell">沧澜历18年 · 春季（运行时连写格式）</span><span role="cell">沧澜历 · 18 年（仅纪元 + 年代）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">右栏 strong</strong><span role="cell">行尾表情 🌸 林晚 · 女 / 18 岁 ⏳</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨行</strong><span role="cell">独立第二行左对齐（紧凑胶囊行）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">chip 属性变化</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选样式</strong><span role="cell">墨黑 #241f18 描边 + 中心原点</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 背景</strong><span role="cell">纯白 #fff + 金棕描边</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A · 带季连点</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A 带季连点——顶栏 small「沧澜历 · 18 年 · 春」纪元 · 年代 · 季节三段连点分隔，与原型「·」节奏统一、季节保留信息完整、在加大金棕字下读感最好。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B 运行时格式——「沧澜历18年 · 春季」连写无空格在宋体小字下读感偏紧、季节全称「春季」与原型短名「春」风格不一致；候选 C 纯纪元年代——仅纪元 + 年代无季节信息、顶栏时间语义被精简掉一半。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 指示「`span` 这个中的 🌸 换成其他的。`div` 这种底色也换成其他有差异的显眼舒适颜色」——右栏姓名性别行尾表情 🌸 换掉（行尾位置保留）；branchResolved 回声块底色由页面同底改为与页面有差异的显眼舒适颜色。进入 ROUND-18（回声底色 · 表情换组），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

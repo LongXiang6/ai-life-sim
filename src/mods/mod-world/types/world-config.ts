@@ -7,7 +7,6 @@
 import type {
   CharacterLifeStageDefinition,
   PowerFrameworkDefinition,
-  WorldScoringProfile,
 } from '@/foundation'
 import type { WorldAIDetailedParameters } from '../prompts/world-config-prompt'
 
@@ -30,6 +29,4 @@ export interface WorldConfig {
   _dimensionModes?: Record<string, 'ai' | 'adaptive' | 'custom'>
   _dimensionValues?: Record<string, string>
   aiDetailedParameters?: WorldAIDetailedParameters
-  scoringProfile?: WorldScoringProfile
-  _scoringProfileSource?: 'fallback' | 'ai'
 }

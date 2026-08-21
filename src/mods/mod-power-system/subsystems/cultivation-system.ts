@@ -41,10 +41,13 @@ export class CultivationSystem extends BaseSubsystem {
     return { id: this.id, summary: `【修炼】${state.realmLabel}；训练 ×${state.trainingBonus.toFixed(2)}；突破 ${Math.round(state.breakthroughChance * 100)}%`, data: structuredClone(state) }
   }
 
-  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+  private applyToState(
+    state: CultivationState,
+    changes: SubSystemChanges,
+    context: RoundContext,
+  ): void {
     if (changes.id !== this.id) throw new Error('修炼指令目标不匹配')
     assertContext(changes, context, '修炼')
-    const state = this.ensure(context)
     const operation = changes.operation ?? 'adjust-bottleneck'
     if (operation === 'adjust-bottleneck') {
       if (typeof changes.changes.penaltyDelta !== 'number') throw new Error('修炼瓶颈变化缺少数值')
@@ -59,6 +62,21 @@ export class CultivationSystem extends BaseSubsystem {
       state.lastBreakthroughAtTotalDays = context.totalDays
     } else throw new Error(`未知修炼操作：${operation}`)
     state.updatedAtTotalDays = context.totalDays
+  }
+
+  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+    const candidate = clone(this.states[context.contextId] ?? initialState(context))
+    this.applyToState(candidate, changes, context)
+  }
+
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    this.applyToState(this.ensure(context), changes, context)
+  }
+
+  captureTransactionState(): Record<string, CultivationState> { return clone(this.states) }
+  restoreTransactionState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('修炼事务快照无效')
+    this.states = clone(snapshot as Record<string, CultivationState>)
   }
 
   getTrainingBonus(contextId?: string): number { return Object.values(this.states).find((state) => !contextId || state.contextId === contextId)?.trainingBonus ?? 1 }

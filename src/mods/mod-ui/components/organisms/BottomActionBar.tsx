@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized shared flow action bar. Owner: mod-ui. Responsibility: Action presentation and event forwarding only. */
+
 'use client'
 
 /**
@@ -22,6 +24,8 @@ export interface MoreMenuItem {
 export interface BottomActionBarProps {
   onBack?: () => void
   backTitle?: string
+  backText?: string
+  backDescription?: string
   backDisabled?: boolean
   onConfirm?: () => void
   confirmText?: string
@@ -49,6 +53,8 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () =
 export function BottomActionBar({
   onBack,
   backTitle = '返回上一步',
+  backText,
+  backDescription,
   backDisabled = false,
   onConfirm,
   confirmText = '确认',
@@ -88,9 +94,10 @@ export function BottomActionBar({
               title={backTitle}
               aria-label={backTitle}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M19 12H5m6-6-6 6 6 6" />
-              </svg>
+              <span className={styles.actionCopy}>
+                <strong>{backText ?? backTitle}</strong>
+                {backDescription ? <small>{backDescription}</small> : null}
+              </span>
             </button>
           ) : <span className={styles.backPlaceholder} aria-hidden="true" />}
         </div>
@@ -156,14 +163,11 @@ export function BottomActionBar({
               onClick={() => { if (!confirmDisabled) onConfirm?.() }}
               disabled={confirmDisabled}
               title={confirmTitle}
+              data-step={confirmNumber}
             >
-              {confirmNumber ? <span className={styles.confirmNumber}>{confirmNumber}</span> : null}
-              <span className={styles.confirmCopy}>
+              <span className={styles.actionCopy}>
                 <strong>{confirmText}</strong>
                 {confirmDescription ? <small>{confirmDescription}</small> : null}
-              </span>
-              <span className={styles.confirmArrow} aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
               </span>
             </button>
           ) : null}

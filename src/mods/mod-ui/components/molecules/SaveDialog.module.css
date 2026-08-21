@@ -6,32 +6,32 @@
   align-items: center;
   justify-content: center;
   padding: var(--spacing-px-24);
-  background: rgb(242 244 243 / 88%);
+  background: color-mix(in srgb, var(--flow-canvas) 88%, transparent);
   backdrop-filter: blur(2px);
 }
 
 .dialog {
   color-scheme: light;
-  --color-bg: #f6f8fa;
-  --color-bg-primary: #fff;
-  --color-bg-card: #fff;
+  --color-bg: var(--color-bg-secondary);
+  --color-bg-primary: var(--flow-paper);
+  --color-bg-card: var(--flow-paper);
   --color-text-primary: #17191d;
-  --color-text-secondary: #626870;
-  --color-text-tertiary: #969ba2;
+  --color-text-secondary: var(--flow-muted);
+  --color-text-tertiary: var(--flow-faint);
   --color-text-on-primary: #fff;
-  --color-border: #e5e7ea;
-  --color-primary: #6d7f94;
-  --color-primary-light: #f0f3f6;
+  --color-border: var(--flow-line);
+  --color-primary: var(--flow-accent);
+  --color-primary-light: var(--color-bg-tertiary);
   --color-warning: #9a7966;
   --color-error: #8d6d73;
-  --color-success: #6d7f94;
+  --color-success: var(--flow-accent);
   width: min(100%, 28rem);
   max-height: calc(100% - var(--spacing-px-32));
   overflow-x: hidden;
   overflow-y: auto;
   border-radius: 0.9rem;
   border: 1px solid var(--color-border);
-  background: #fff;
+  background: var(--flow-paper);
   backdrop-filter: none;
   box-shadow: 0 1rem 2.75rem rgb(24 28 34 / 10%);
   padding: var(--spacing-px-24);
@@ -69,7 +69,7 @@
 }
 
 .destinationTabs button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--flow-paper);
   color: var(--color-primary);
   box-shadow: 0 1px 3px rgb(24 28 34 / 8%);
   font-weight: 650;
@@ -102,7 +102,7 @@
   padding: var(--spacing-2) var(--spacing-1);
   border-radius: 0.55rem;
   border: 1px solid var(--color-border);
-  background: #fff;
+  background: var(--flow-paper);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   cursor: pointer;

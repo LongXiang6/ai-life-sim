@@ -1,13 +1,13 @@
 /**
- * Purpose: Render the identity, dimension, record, review, and achievement sections of game over.
+ * Purpose: Render the finalized five-dimension score, review, verse, and retained achievements.
  * Owner: mod-pages/game-over
- * Responsibility: Read-only overview presentation only; scoring and selection state remain in the page.
+ * Responsibility: Read-only settlement presentation only.
  */
 
 import type { RadarDimension } from '@/mods/mod-ui'
 
-import type { LifeRecord } from './game-over-life-records'
 import { GAME_OVER_DIMENSION_ICONS, GameOverRadar } from './GameOverRadar'
+import type { GameOverSettlementStatus } from './useGameOverSettlement'
 import styles from './GameOver.module.css'
 
 interface AchievementView {
@@ -26,104 +26,103 @@ interface RepetitionStatsView {
 }
 
 interface GameOverOverviewSectionsProps {
-  achievements: AchievementView[]
-  activeDimension: RadarDimension
+  activeDimension?: RadarDimension
   activeDimensionIndex: number
   ageLabel: string
-  characterName: string
   dimensions: RadarDimension[]
-  lifeRecords: LifeRecord[]
   lifeSummary: string
-  moralityLabel: string
-  overallScore: number
+  lifeVerse: string
+  overallScore: number | null
   rounds: number
-  sealCharacter: string
+  settlementError: string
+  settlementStatus: GameOverSettlementStatus
   storyRepetitionStats: RepetitionStatsView
   worldviewId: number | string | null
-  worldName: string
+  onRetrySettlement: () => void
   onSelectDimension: (index: number) => void
 }
 
+function settlementStatusText(status: GameOverSettlementStatus): string {
+  if (status === 'reviewing') return '五维评鉴已完成，正在整理此生评语与诗句…'
+  if (status === 'finalizing') return '正在封存本局结算…'
+  return '正在根据当前世界与完整人生生成五维评鉴…'
+}
+
 export function GameOverOverviewSections({
-  achievements,
   activeDimension,
   activeDimensionIndex,
   ageLabel,
-  characterName,
   dimensions,
-  lifeRecords,
   lifeSummary,
-  moralityLabel,
+  lifeVerse,
   overallScore,
   rounds,
-  sealCharacter,
+  settlementError,
+  settlementStatus,
   storyRepetitionStats,
   worldviewId,
-  worldName,
+  onRetrySettlement,
   onSelectDimension,
 }: GameOverOverviewSectionsProps) {
+  const settlementReady = settlementStatus === 'succeeded'
   return (
     <>
-      <section className={styles.identity} aria-label="角色人生概览">
-        <div className={styles.identitySeal} aria-hidden="true">{sealCharacter}</div>
-        <div className={styles.identityCopy}>
-          <h2>{characterName || '无名之辈'}</h2>
-          <p>{worldName} · {ageLabel} · {rounds} 轮世事</p>
-        </div>
-        <div className={styles.score}><strong>{overallScore}</strong><span>人生评分</span></div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="dimensions-title">
-        <div className={styles.sectionHeading}>
-          <div><span className={styles.sectionIndex}>01</span><h2 id="dimensions-title">世界维度</h2></div>
-          <p>点击维度查看本地评分依据</p>
-        </div>
-        <div className={styles.radarSection}>
-          <GameOverRadar dimensions={dimensions} activeIndex={activeDimensionIndex} overallScore={overallScore} onSelect={onSelectDimension} />
-        </div>
-        <p className={styles.metricComment} aria-live="polite">
-          <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{GAME_OVER_DIMENSION_ICONS[activeDimension.label] ?? '◇'}</span>{activeDimension.label}</span>
-          <strong>{activeDimension.comment}</strong>
-        </p>
-      </section>
-
-      <section className={styles.section} aria-labelledby="records-title">
-        <div className={styles.sectionHeading}>
-          <div><span className={styles.sectionIndex}>02</span><h2 id="records-title">人生三记</h2></div>
-          <p>从现有叙事历史取样，不新增剧情判断</p>
-        </div>
-        {lifeRecords.length > 0 ? (
-          <div className={styles.recordList}>
-            {lifeRecords.map((record) => (
-              <article key={record.id} className={styles.record}>
-                <div className={styles.recordMeta}>
-                  <strong>{record.stage}</strong>
-                  <span>{record.timeLabel}{record.ageLabel ? ` · ${record.ageLabel}` : ''}</span>
-                </div>
-                <p title={record.text}>{record.text}</p>
-              </article>
-            ))}
+      <h2 id="dimensions-title" className={styles.blockTitle}>世界五维</h2>
+      {overallScore === null || dimensions.length !== 5 ? (
+        <p className={styles.reviewStatus} aria-live="polite">{settlementStatusText(settlementStatus)}</p>
+      ) : (
+        <>
+          <div className={styles.radarSection}>
+            <GameOverRadar dimensions={dimensions} activeIndex={activeDimensionIndex} overallScore={overallScore} onSelect={onSelectDimension} />
           </div>
-        ) : <p className={styles.emptyState}>此生尚无可展示的叙事记录。</p>}
-        <div className={styles.summaryBlock}>
-          <span>此生评语</span>
-          <p>{lifeSummary}</p>
-          <div className={styles.summaryMeta}>
-            <span>{moralityLabel}</span><span>{rounds} 轮世事</span><span>{ageLabel}</span>
-            {worldviewId !== null && worldviewId !== undefined ? <span>世界编号 {worldviewId}</span> : null}
-          </div>
-          <div className={styles.repetitionSummary} aria-label="故事重复率统计">
-            <span>故事重复观测</span>
-            <strong>近五轮均值 {Math.round(storyRepetitionStats.recentAverageWordRepeatRate * 100)}%</strong>
-            <span>整局峰值 {Math.round(storyRepetitionStats.maxWordRepeatRate * 100)}%</span>
-            <span>高重复 {storyRepetitionStats.highRepeatRounds} 轮 · {storyRepetitionStats.trend === 'rising' ? '近期上升' : storyRepetitionStats.trend === 'falling' ? '近期下降' : '近期平稳'}</span>
-          </div>
-        </div>
-      </section>
+          {activeDimension ? (
+            <p className={styles.metricComment} aria-live="polite">
+              <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{GAME_OVER_DIMENSION_ICONS[activeDimension.label] ?? '◇'}</span>{activeDimension.label}</span>
+              <strong>{activeDimension.comment}</strong>
+            </p>
+          ) : null}
+        </>
+      )}
 
+      <p className={styles.ritualDivider} aria-hidden="true">✦</p>
+      <h2 className={styles.blockTitle}>此生评语</h2>
+      {!settlementReady && !settlementError && overallScore !== null ? (
+        <p className={styles.reviewStatus} aria-live="polite">{settlementStatusText(settlementStatus)}</p>
+      ) : null}
+      {settlementError ? (
+        <div className={styles.reviewFailure} role="alert">
+          <p className={styles.reviewError}>人生结算失败：{settlementError}</p>
+          <button type="button" className={styles.retrySettlementButton} onClick={onRetrySettlement}>重新结算</button>
+        </div>
+      ) : null}
+      {settlementReady ? (
+        <>
+          <p className={styles.summaryBody}>{lifeSummary}</p>
+          <p className={styles.summaryVerse}>{lifeVerse}</p>
+        </>
+      ) : null}
+      <p className={styles.summaryMeta}>
+        <span>{rounds} 轮世事</span>
+        <span>{ageLabel}</span>
+        {worldviewId !== null && worldviewId !== undefined ? <span>世界编号 {worldviewId}</span> : null}
+      </p>
+      <p className={styles.repetitionSummary} aria-label="故事重复率统计">
+        <span>故事重复观测</span>
+        <strong>近五轮均值 {Math.round(storyRepetitionStats.recentAverageWordRepeatRate * 100)}%</strong>
+        <span>整局峰值 {Math.round(storyRepetitionStats.maxWordRepeatRate * 100)}%</span>
+        <span>高重复 {storyRepetitionStats.highRepeatRounds} 轮 · {storyRepetitionStats.trend === 'rising' ? '近期上升' : storyRepetitionStats.trend === 'falling' ? '近期下降' : '近期平稳'}</span>
+      </p>
+    </>
+  )
+}
+
+export function GameOverAchievementSection({ achievements }: { achievements: AchievementView[] }) {
+  return (
+    <>
+      <p className={styles.ritualDivider} aria-hidden="true">✦</p>
       <section className={styles.section} aria-labelledby="achievements-title">
         <div className={styles.sectionHeading}>
-          <div><span className={styles.sectionIndex}>03</span><h2 id="achievements-title">此生大事</h2></div>
+          <div><span className={styles.sectionIndex}>01</span><h2 id="achievements-title">此生大事</h2></div>
           <p>{achievements.length} 项真实里程碑</p>
         </div>
         {achievements.length > 0 ? (

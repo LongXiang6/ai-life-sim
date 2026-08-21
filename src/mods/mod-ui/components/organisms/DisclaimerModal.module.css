@@ -1,3 +1,5 @@
+/* Purpose: Style the first-use disclaimer sheet in the warm-paper finalized palette. Owner: mod-ui. Responsibility: Disclaimer sheet dimensions, typography, colors, and reduced-transparency fallback only. */
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -5,7 +7,7 @@
   display: grid;
   overflow: hidden;
   place-items: center;
-  background: rgb(238 241 247 / 88%);
+  background: color-mix(in srgb, var(--flow-ink) 30%, transparent);
 }
 
 .frame {
@@ -15,10 +17,10 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: #fafbff;
-  color: #28324b;
+  background: var(--flow-paper);
+  color: var(--flow-ink);
   color-scheme: light;
-  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
   font-size: calc(10 * var(--final-flow-density-px));
   line-height: 1.5;
 }
@@ -35,21 +37,10 @@
   padding: calc(14 * var(--final-flow-density-px)) calc(15 * var(--final-flow-density-px)) 0;
 }
 
-.metaRow {
-  display: flex;
-  justify-content: space-between;
-  gap: calc(12 * var(--final-flow-density-px));
-  margin-bottom: calc(7 * var(--final-flow-density-px));
-  color: #929bb0;
-  font-size: calc(7 * var(--final-flow-density-px));
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
 .title {
-  margin: 0;
-  color: #28324b;
-  font-family: "Songti SC", STSong, SimSun, serif;
+  margin: calc(7 * var(--final-flow-density-px)) 0 0;
+  color: var(--flow-ink);
+  font-family: "Songti SC", "STSong", SimSun, "Noto Serif CJK SC", serif;
   font-size: calc(21 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.15;
@@ -57,7 +48,7 @@
 
 .header p {
   margin: calc(4 * var(--final-flow-density-px)) 0 0;
-  color: #707b92;
+  color: var(--flow-muted);
   font-size: calc(7 * var(--final-flow-density-px));
 }
 
@@ -70,8 +61,8 @@
   height: 100%;
   overflow-y: auto;
   padding: calc(8 * var(--final-flow-density-px)) 0;
-  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  border-bottom: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-top: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-bottom: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   scrollbar-width: none;
 }
 
@@ -81,7 +72,7 @@
 
 .contentPre {
   margin: 0;
-  color: #707b92;
+  color: var(--flow-ink);
   font-family: inherit;
   font-size: calc(7 * var(--final-flow-density-px));
   line-height: 1.8;
@@ -91,7 +82,7 @@
 
 .loading {
   margin: calc(20 * var(--final-flow-density-px)) 0;
-  color: #929bb0;
+  color: var(--flow-muted);
   font-size: calc(7 * var(--final-flow-density-px));
   text-align: center;
 }
@@ -107,10 +98,10 @@
   align-items: center;
   gap: calc(8 * var(--final-flow-density-px));
   padding: calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid rgb(207 215 238 / 90%);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: calc(18 * var(--final-flow-density-px));
-  background: rgb(255 255 255 / 80%);
-  box-shadow: 0 calc(12 * var(--final-flow-density-px)) calc(30 * var(--final-flow-density-px)) rgb(62 70 100 / 13%), 0 calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px)) rgb(62 70 100 / 6%);
+  background: var(--flow-paper);
+  box-shadow: 0 calc(12 * var(--final-flow-density-px)) calc(30 * var(--final-flow-density-px)) color-mix(in srgb, var(--flow-ink) 16%, transparent), 0 calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px)) color-mix(in srgb, var(--flow-ink) 6%, transparent);
   backdrop-filter: blur(calc(16 * var(--final-flow-density-px)));
 }
 
@@ -121,10 +112,10 @@
   flex: 0 0 calc(38 * var(--final-flow-density-px));
   place-items: center;
   padding: 0;
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: 50%;
-  background: #fff;
-  color: #707b92;
+  background: var(--flow-canvas);
+  color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
   font-size: calc(14 * var(--final-flow-density-px));
@@ -141,7 +132,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #28324b;
+  color: var(--flow-ink);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -160,7 +151,7 @@
 
 .acceptBtn small {
   margin-top: calc(2 * var(--final-flow-density-px));
-  color: #929bb0;
+  color: var(--flow-muted);
   font-size: calc(6.5 * var(--final-flow-density-px));
   line-height: 1.2;
 }
@@ -172,8 +163,8 @@
   flex: 0 0 calc(25 * var(--final-flow-density-px));
   place-items: center;
   border-radius: 50%;
-  background: #7382bb;
-  color: #fff;
+  background: var(--flow-accent);
+  color: var(--text-on-accent);
   font-size: calc(12 * var(--final-flow-density-px));
   font-style: normal;
 }
@@ -189,13 +180,13 @@
 
 .cancelBtn:focus-visible,
 .acceptBtn:focus-visible {
-  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 50%, transparent);
   outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .footer {
-    background: #fff;
+    background: var(--flow-paper);
     backdrop-filter: none;
   }
 }

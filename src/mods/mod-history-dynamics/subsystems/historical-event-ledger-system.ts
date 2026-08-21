@@ -7,7 +7,7 @@
  * 非职责：不创作正文、不随机触发题材事件、不替代 causal-delay 的叙事承诺兑现。
  * 输入：显式事件批次、候选、因果边、RoundContext 与 P0 世界/空间真源。
  * 输出与写入：当前/global/travel 相关事件视图；Store v2 六类 append-only 状态。
- * AI 参与：event-input；不加入旧 systemInstruction 白名单。
+ * AI 参与：02 连续性结果中的未来事件；状态仍由账本本地拥有。
  * 状态权威：Foundation provider-owned contract + useHistoryDynamicsStore。
  * 持久化权威：capturePersistenceState/restorePersistenceState 与 Store v2。
  * 运行存活：manifest 仅声明 HistoricalEventLedgerSystem；P1 runtime policy 由引擎登记。
@@ -74,7 +74,11 @@ import {
 } from '../utils'
 import { CausalGraphComponent } from '../components/causal-graph-component'
 import { EventCandidateProvider } from '../components/event-candidate-provider'
-import { commitCandidateDispositionsRuntime } from './historical-event-ledger-system/candidate-disposition-runtime'
+import {
+  commitCandidateDispositionsRuntime,
+  prepareCandidateDispositionsRuntime,
+  type PreparedCandidateDispositionResult,
+} from './historical-event-ledger-system/candidate-disposition-runtime'
 import {
   getDueCandidatesRuntime,
   isHistoricalScheduleDue,
@@ -469,6 +473,23 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     submission: HistoricalEventCandidateSubmission,
     rawContext: RoundContext | HistoricalEventValidationContext,
   ): HistoricalEventCandidateAudit[] {
+    const preparation = this.prepareCandidateSubmission(submission, rawContext)
+    const commit = this.commitPrepared({
+      ok: true,
+      errors: [],
+      prepared: preparation.prepared,
+    })
+    if (!commit.ok) throw new Error(commit.errors.join('；'))
+    return cloneValue(preparation.candidateAudits)
+  }
+
+  prepareCandidateSubmission(
+    submission: HistoricalEventCandidateSubmission,
+    rawContext: RoundContext | HistoricalEventValidationContext,
+  ): {
+    prepared: HistoricalEventPreparedAppend
+    candidateAudits: HistoricalEventCandidateAudit[]
+  } {
     const context = toValidationContext(rawContext)
     const errors: string[] = []
     this.validateValidationContext(context, errors)
@@ -513,7 +534,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       incoming.add(candidate.candidateId)
     }
     if (errors.length > 0) throw new Error(errors.join('；'))
-    useHistoryDynamicsStore.getState().commitAppend({
+    const prepared: HistoricalEventPreparedAppend = {
       batchId: createLedgerId('candidate-batch'),
       events: [],
       transitions: [],
@@ -521,8 +542,11 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       causalEdges: [],
       candidateAudits: audits,
       migrationMetadata: [],
-    })
-    return cloneValue(audits)
+    }
+    return {
+      prepared: cloneValue(prepared),
+      candidateAudits: cloneValue(audits),
+    }
   }
 
   queryCandidates(query: HistoricalEventCandidateQuery = {}): HistoricalEventCandidateAudit[] {
@@ -540,6 +564,13 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     rawContext: RoundContext | HistoricalEventValidationContext,
   ): HistoricalEventCandidateDispositionResult {
     return commitCandidateDispositionsRuntime(this, batch, rawContext)
+  }
+
+  prepareCandidateDispositions(
+    batch: HistoricalEventCandidateDispositionBatch,
+    rawContext: RoundContext | HistoricalEventValidationContext,
+  ): PreparedCandidateDispositionResult {
+    return prepareCandidateDispositionsRuntime(this, batch, rawContext)
   }
 
   promoteCandidate(
@@ -881,7 +912,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     return true
   }
 
-  private commitPrepared(preflight: HistoricalEventPreflightResult): HistoricalEventCommitResult {
+  commitPrepared(preflight: HistoricalEventPreflightResult): HistoricalEventCommitResult {
     if (!preflight.ok || !preflight.prepared) return emptyCommitResult(preflight.errors)
     useHistoryDynamicsStore.getState().commitAppend(preflight.prepared)
     this.markCurrentStoreValidated()

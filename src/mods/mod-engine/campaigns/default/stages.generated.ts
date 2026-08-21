@@ -15,12 +15,9 @@ export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
   "event-lifecycle",
   "assemble-prompt",
   "ai-narration",
-  "publish-narrative",
-  "ai-data-analysis",
-  "ai-basic-attribute-analysis",
-  "ai-event-recognition",
-  "ai-macro-impact",
-  "post-processing",
-  "epilogue-check",
-  "compress-save"
+  "prepare-narrative",
+  "ai-story-continuity",
+  "ai-talent-growth",
+  "commit-round",
+  "finalize-round"
 ] as const

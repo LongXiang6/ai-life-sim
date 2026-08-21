@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Purpose: Send an operator-authored mailbox message to the declared player audience.
+ * Owner: operations
+ * Responsibility: One validated mail command and persistence transaction only.
+ */
+
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -87,7 +93,7 @@ let accountDatabase
 try {
   playerDatabase.pragma('foreign_keys = ON')
   playerDatabase.pragma('busy_timeout = 5000')
-  assertSchema(playerDatabase, 'player_content_meta', '5')
+  assertSchema(playerDatabase, 'player_content_meta', '6')
 
   let audience = 'direct'
   let recipientKey = null
@@ -95,7 +101,7 @@ try {
   if (options.account) {
     accountDatabase = new Database(options.database, { readonly: true })
     accountDatabase.pragma('busy_timeout = 5000')
-    assertSchema(accountDatabase, 'account_meta', '5')
+    assertSchema(accountDatabase, 'account_meta', '6')
     const canonical = options.account.normalize('NFKC').trim().toLocaleLowerCase('zh-CN')
     const account = accountDatabase.prepare(`
       SELECT id, username FROM accounts WHERE username_canonical = ?

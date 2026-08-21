@@ -15,8 +15,6 @@ export interface WorldInitAIStatus {
   tagsGenerated: boolean
   configGenerated: boolean
   regionProfilesGenerated: boolean
-  retryCount: number
-  maxRetries: number
   errors: string[]
 }
 
@@ -60,7 +58,6 @@ export interface WorldCalibration {
   timeline?: {
     eraStartYear?: number
     stageSpan?: number
-    impactDistribution?: EventDistributionStrategy
   }
   entities?: {
     nationCount?: EntityCountRange

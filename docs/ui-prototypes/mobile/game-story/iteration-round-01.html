@@ -1,0 +1,138 @@
+<!-- Purpose: Record the first UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-01</p>
+      <h1>游戏故事 · 第一轮</h1>
+    </div>
+    <span class="status status-selected">已选择 01</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>建立游戏故事（game-story，08）主模拟界面第一轮。三个候选分向比较整页的「结构忠实 / 卷册重排 / 交互聚焦」：候选 01 忠实还原运行时布局结构、仅换暖纸墨语言；候选 02 将章节头与三步进度重排为书卷式区头、四维与命格下移为阅读区书签栏、信息面板改为内联账簿折叠；候选 03 将推进按钮改为固定底栏常驻、命运分叉编辑器卡片化、信息面板为底部抽屉。三个候选的动效全部照抄运行时 GameStory.module.css 与 NarrativeTimeline.module.css 参数，内容口径照抄运行时实际渲染。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉（年 / 3 年 / 5 年 / 10 年…）、命运分叉按钮、当前信息按钮）、vitals（四维 💪 体魄 4 / 🧠 心智 4 / ✨ 悟性 5 / 💫 魅力 5 直显、命格胶囊（灵根淬体·稀有 / 慧心通明·史诗 / 笑靥如花·精良）最多 3 个、轮回天赋「轮回 · 前世武骨」流光胶囊）、chapterHead（第 1 回 · 故事进程 / 标题「故事进行中」/ 进度标签 / 三步 01 生成正文 02 完成本轮 03 继续人生）、NarrativeTimeline（条目 era/age 元信息 + 分段正文 + 属性变化 chip + 命运分叉编辑器与已抉择回显 + 向上回望更早 + 分隔）、advanceDock（推进 idle「轻触，让岁月流转 / 下一段故事已经准备好」、生成中「命书正在续写…… / 下一段人生正在生成」、受阻「✔ 请先选择命运」、结算「前往人生结算 / 这一生的轨迹已经写完」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿）、结算横幅（endingTitle / endingDescription / 前往人生结算）。候选不含 localStorage/sessionStorage/fetch（步长下拉与面板为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（轮回流光，nth-child(2) 延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>结构忠实度（顶栏 / 章节头 / 时间线 / 推进的布局关系）、信息层级（四维与命格在顶栏 vs 阅读区的呈现）、推进交互的聚焦程度（时间线流末 vs 固定底栏常驻）、信息面板呈现（向下滑出 vs 阅读区内联折叠 vs 底部抽屉）、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>运行时结构</strong></header>
+          <p>忠实还原运行时布局：sticky 顶栏（身份 / 步长 / 分叉 / 信息）+ vitals 两段、菱形分隔、章节头（回次 · 标题 · 进度标签 · 三步）、时间线条目、信息面板向下滑出、推进 dock 在时间线流末；暖纸墨换色，动效参数照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-01-runtime-layout.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>卷册重排</strong></header>
+          <p>书卷式结构：回次标题与三步进度合并为单一区头、四维与命格从顶栏下移为阅读区书签栏、信息面板改为阅读区内联账簿折叠；推进 dock 仍在流末，作章尾押题。</p>
+          <a class="candidate-open" href="candidates/candidate-02-folio-merge.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>交互聚焦</strong></header>
+          <p>强化推进与生成交互：推进按钮固定底栏常驻、idle 呼吸 / 生成中光标与状态行更醒目、命运分叉编辑器卡片化、信息面板为底部抽屉上滑。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focus-advance.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 运行时结构</span><span role="columnheader">02 卷册重排</span><span role="columnheader">03 交互聚焦</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏</strong><span role="cell">sticky 身份 + vitals 两段</span><span role="cell">仅身份与操作，vitals 下移</span><span role="cell">sticky 身份 + vitals 两段</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">章节头</strong><span role="cell">回次 / 标题 / 标签 / 三步独立</span><span role="cell">回次标题书卷式合并，三步并入一行</span><span role="cell">回次 / 标题 / 标签 / 三步保留</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">推进</strong><span role="cell">时间线流末 advanceDock</span><span role="cell">章尾押题块（流末）</span><span role="cell">固定底栏常驻推进 dock</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息面板</strong><span role="cell">顶栏下方滑出 reveal</span><span role="cell">阅读区内联账簿折叠</span><span role="cell">底部抽屉上滑 reveal</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">分支编辑器</strong><span role="cell">条目内嵌</span><span role="cell">条目内嵌</span><span role="cell">卡片化（已抉择卡）+ 生成态光标与状态行</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（运行时结构）：忠实还原运行时布局——sticky 顶栏（身份 / 步长 / 分叉 / 信息）+ vitals 两段、菱形分隔、章节头（回次 · 标题 · 进度标签 · 三步）、时间线条目与分支回显、信息面板向下滑出（reveal 0.18s）、推进 dock 在时间线流末（advancePulse 2.8s）；暖纸墨换色，动效参数全部照抄运行时，结构最忠实。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（卷册重排）：vitals 下移为阅读区书签栏后顶栏只剩身份与操作，四维与命格的「随身可见」属性被削弱，章尾押题块使推进入口弱化为装饰，与主模拟界面「轻触推进」的核心交互契合度低于候选 01；候选 03（交互聚焦）：固定底栏推进 + 底部抽屉信息面板形成上下双固定区，压缩阅读视口，生成态演示（光标 + 状态行）抢占叙事正文的焦点。</dd></div>
+        <div><dt>下一轮继承</dt><dd>候选 01（运行时结构）为游戏故事（08）当前基线。进入 ROUND-02「结构演进」：以候选 01 为基线，三候选分向演进顶栏与阅读区结构细节（顶栏单行瘦身 / 账簿分类折叠面板 / 章节头单行化），动效参数照抄运行时不变，候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

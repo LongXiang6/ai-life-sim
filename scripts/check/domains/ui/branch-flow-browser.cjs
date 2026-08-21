@@ -10,7 +10,6 @@ const fs = require('node:fs')
 const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
 const chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 const worldCode = 202607230001
-const usePreGenFixture = process.argv.includes('--pre-gen')
 const firstParagraphs = [
   '城门外的风压过旷野，你握住那枚家族留下的印记，知道今天必须决定它将被交给谁。',
   '印记的纹路在掌心发热，旧盟约与新道路同时向你敞开，任何一个选择都会改变往后的生活。',
@@ -21,39 +20,12 @@ const secondParagraphs = [
 const thirdParagraphs = [
   '新盟约稳定下来后，两条通往不同人生的道路同时摆在你面前，你需要亲自决定下一步。',
 ]
-const branchMeta = {
-  重要程度: '高',
-  注册事件: [{ 内容: '家族印记引发不可逆的长期抉择', 重要度: 95, 涉及实体: ['家族印记', '守约者'] }],
-  情节状态: '开始',
-  语义信号: {
-    事件类型: '冲突',
-    冲突强度: 72,
-    张力变化: 12,
-    行动规模: '大',
-    不可逆: true,
-    影响范围: '个人',
-    叙事语域: '命运',
-    语域理由: '家族印记的归属会永久改变角色的长期关系与身份轨迹',
-    情节类型: '任务',
-  },
-}
-
 function narrativeResponse(paragraphs, branch) {
   return `⟦正文⟧${paragraphs.join('\n\n')}${branch ? `\n\n⟦分支⟧${JSON.stringify(branch)}` : ''}`
 }
 
-function eventRecognitionResponse(summary, metadata) {
-  return JSON.stringify({
-    回合事件: {
-    摘要: summary,
-    ...metadata,
-    },
-    待触发事件: [],
-  })
-}
-
-const dataAnalysisResponse = JSON.stringify({ 系统操作: [] })
-const basicAttributeAnalysisResponse = JSON.stringify({ 系统操作: [] })
+const storyContinuityResponse = JSON.stringify({ 本轮记忆: [], 未来事件: [] })
+const talentGrowthResponse = JSON.stringify({ 成长判定: { 需要成长: false } })
 
 const narrativeResponses = [
   narrativeResponse(firstParagraphs),
@@ -63,48 +35,12 @@ const narrativeResponses = [
     选项: ['留在此地巩固同盟', '前往远方追寻线索'],
   }),
 ]
-const eventRecognitionFixtures = [
-  ['家族印记带来一项不可逆的长期抉择。', branchMeta],
-  ['你选择守约者，新的同盟已经建立。', {
-    重要程度: '普通',
-    注册事件: [{ 内容: '你将印记交给守约者并建立新的同盟', 重要度: 72, 涉及实体: ['守约者'] }],
-    情节状态: '进行中',
-    语义信号: {
-      事件类型: '关系',
-      冲突强度: 20,
-      张力变化: 4,
-      行动规模: '中',
-      不可逆: false,
-      影响范围: '个人',
-      叙事语域: '生活',
-      语域理由: '新同盟进入日常相处阶段',
-      情节类型: '人生阶段',
-    },
-  }],
-  ['新同盟稳定后，你来到需要亲自选择的道路分岔口。', {
-    重要程度: '高',
-    注册事件: [{ 内容: '两条长期道路同时出现并等待你的选择', 重要度: 90, 涉及实体: ['守约者'] }],
-    情节状态: '开始',
-    语义信号: {
-      事件类型: '冲突',
-      冲突强度: 64,
-      张力变化: 10,
-      行动规模: '大',
-      不可逆: true,
-      影响范围: '个人',
-      叙事语域: '命运',
-      语域理由: '道路选择会改变长期目标和居所',
-      情节类型: '任务',
-    },
-  }],
-]
-
 const useUnavailableApiFixture = process.env.UNAVAILABLE_API_FIXTURE === '1'
 const useLongCustomNameFixture = process.env.LONG_CUSTOM_NAME_FIXTURE === '1'
 const customChoiceFixture = '把印记交给守约者前，先请守约者说明旧盟约的代价'
 
 function seedPage(page) {
-  return page.evaluateOnNewDocument((fixtureWorldCode, preGenerateRounds) => {
+  return page.evaluateOnNewDocument((fixtureWorldCode) => {
     localStorage.clear()
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({
       version: 5,
@@ -118,20 +54,20 @@ function seedPage(page) {
         worldTags: ['现代', '现实'], eraStartYear: 2000, eraName: '公元', calibration: null,
         destinyPatternModifiers: {},
         worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true,
-          tagsGenerated: true, configGenerated: true, entitiesGenerated: true, retryCount: 0, maxRetries: 3, errors: [] },
+          tagsGenerated: true, configGenerated: true, regionProfilesGenerated: true, errors: [] },
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 11, state: {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,
       topP: 0.8, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
-      aiTalentGeneration: false, preGenerateRounds, storySeed: '20260723', narrativeStyle: 'default',
+      aiTalentGeneration: false, storySeed: '20260723', narrativeStyle: 'default',
       wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
     }}))
-    localStorage.setItem('mod-character:persist:mythic-library', JSON.stringify({ version: 2, state: { patterns: [
-      { id: 'fixture-mythic-1', name: '未熄之诺', concept: '承诺', effect: '重要承诺会留下可追溯的行动方向。', acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
-      { id: 'fixture-mythic-2', name: '回声拾光', concept: '记忆', effect: '重要关系会保留可回到现场的线索。', acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
+    localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
+      { id: 'fixture-mythic-1', lineageId: 'fixture-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'social', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
+      { id: 'fixture-mythic-2', lineageId: 'fixture-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'social', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
     ] } }))
-  }, worldCode, usePreGenFixture ? 1 : 0)
+  }, worldCode)
 }
 
 async function assertCreationUiContract(page, expected) {
@@ -187,8 +123,7 @@ async function assertCreationUiContract(page, expected) {
         candidateCardsContained,
         candidateCardsSeparated,
       }),
-      ...(contract.mythicSlots === undefined ? {} : { mythicSlots: document.querySelectorAll('[aria-label="已选择的轮回天赋"] > button').length === contract.mythicSlots }),
-      ...(contract.ordinarySlots === undefined ? {} : { ordinarySlots: document.querySelectorAll('[aria-label="已选普通命格"] > button').length === contract.ordinarySlots }),
+      ...(contract.loadoutSlots === undefined ? {} : { loadoutSlots: document.querySelectorAll('[aria-label^="移除普通命格："], [aria-label^="移除轮回天赋："]').length === contract.loadoutSlots }),
       ...(contract.attributeRows === undefined ? {} : { attributeRows: ['体魄', '心智', '悟性', '魅力'].every((name) => document.querySelector(`button[aria-label="提高${name}"]`)) }),
       ...(contract.includes === undefined ? {} : { includes: contract.includes.every((value) => (document.body.innerText || '').includes(value)) }),
     }
@@ -222,7 +157,6 @@ async function main() {
   const nativeDialogs = []
   const requests = []
   let narrativeResponseIndex = 0
-  let eventRecognitionResponseIndex = 0
   const screenshotDir = process.env.UI_SCREENSHOT_DIR
   if (screenshotDir) fs.mkdirSync(screenshotDir, { recursive: true })
   const capture = async (name) => {
@@ -242,14 +176,10 @@ async function main() {
     requests.push(body)
     const promptAsset = String(body.prompt_asset || '')
     let content
-    if (promptAsset.includes('mod-engine:narrative-data-analysis:')) {
-      content = dataAnalysisResponse
-    } else if (promptAsset.includes('mod-engine:narrative-basic-attribute-analysis:')) {
-      content = basicAttributeAnalysisResponse
-    } else if (promptAsset.includes('mod-engine:narrative-event-recognition:')) {
-      const index = Math.min(eventRecognitionResponseIndex++, eventRecognitionFixtures.length - 1)
-      const [summary, metadata] = eventRecognitionFixtures[index]
-      content = eventRecognitionResponse(summary, metadata)
+    if (promptAsset.includes('mod-engine:narrative-story-continuity:')) {
+      content = storyContinuityResponse
+    } else if (promptAsset.includes('mod-engine:narrative-talent-growth:')) {
+      content = talentGrowthResponse
     } else {
       content = narrativeResponses[Math.min(narrativeResponseIndex++, narrativeResponses.length - 1)]
     }
@@ -324,23 +254,23 @@ async function main() {
   await capture('draw-idle')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始抽取') && !button.disabled)?.click())
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled))
-  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '进入命格选择', includes: ['十二道命印', '12 / 12'] })
+  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '进入命格选择', includes: ['四类首批命印', '16 / 16'] })
   await capture('draw-ready')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('进入命格选择'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw') && document.body.textContent?.includes('选择命格'))
-  for (const [slotIndex, name] of [[1, '未熄之诺'], [2, '回声拾光']]) {
-    await page.click(`button[aria-label^="轮回天赋槽${slotIndex}"]`)
-    await page.waitForSelector('#mythic-library-sheet')
-    await page.evaluate((patternName) => [...document.querySelectorAll('#mythic-library-sheet button')].find((button) => button.textContent?.includes(patternName))?.click(), name)
-    await page.waitForSelector('#mythic-library-sheet', { hidden: true })
+  await page.evaluate(() => [...document.querySelectorAll('button[role="tab"]')].find((button) => button.textContent?.includes('轮回天赋'))?.click())
+  for (const name of ['未熄之诺', '回声拾光']) {
+    await page.waitForSelector('button[aria-label$="选择轮回天赋"]')
+    await page.evaluate((patternName) => [...document.querySelectorAll('button[aria-label$="选择轮回天赋"]')].find((button) => button.textContent?.includes(patternName))?.click(), name)
   }
-  for (let index = 0; index < 3; index += 1) {
+  await page.evaluate(() => [...document.querySelectorAll('button[role="tab"]')].find((button) => button.textContent?.trim() === '战斗')?.click())
+  for (let index = 0; index < 2; index += 1) {
     await page.waitForSelector('button[aria-label$="选择普通命格"]')
     await page.evaluate(() => document.querySelector('button[aria-label$="选择普通命格"]')?.click())
   }
   await assertCreationUiContract(page, {
     header: '05 / 08', nextNumber: '06', primaryText: '确认命格',
-    candidates: 12, mythicSlots: 2, ordinarySlots: 3, includes: ['轮回天赋', '普通命格候选 12 / 12 条'],
+    loadoutSlots: 4, includes: ['轮回天赋', '携带命格', '4 / 4'],
   })
   await capture('selection-filled')
   try {
@@ -352,9 +282,9 @@ async function main() {
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认命格'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
   await page.waitForSelector('button[aria-label="提高体魄"]')
-  await assertCreationUiContract(page, { header: '06 / 08', nextNumber: '07', primaryText: '确认属性', attributeRows: 4, includes: ['/ 15', '四项基础属性'] })
+  await assertCreationUiContract(page, { header: '06 / 08', nextNumber: '07', primaryText: '确认属性', attributeRows: 4, includes: ['/ 12', '四项基础属性'] })
   await capture('attribute')
-  for (let i = 0; i < 15; i += 1) {
+  for (let i = 0; i < 12; i += 1) {
     const label = i < 10 ? '提高体魄' : '提高心智'
     await page.click(`button[aria-label="${label}"]`)
   }
@@ -398,96 +328,9 @@ async function main() {
       return false
     }
   }, { timeout: 60000 })
-  let preGenEvidence = null
-  if (usePreGenFixture) {
-    const requestDeadline = Date.now() + 60000
-    while (
-      Date.now() < requestDeadline
-      && requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length < 3
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 50))
-    }
-    try {
-      await page.click('button[aria-label="展开当前信息"]')
-      await page.waitForFunction(() => [...document.querySelectorAll('summary small')].some(
-        (node) => node.textContent?.includes('下一段已准备'),
-      ), { timeout: 60000 })
-      await page.click('button[aria-label="收起当前信息"]')
-    } catch (error) {
-      console.error('PREGEN_READY_TIMEOUT', await page.evaluate(() => ({
-        bodyTail: document.body.innerText.slice(-2500),
-        settings: JSON.parse(localStorage.getItem('mod-settings:store') || '{}').state || {},
-        engine: JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {},
-      })), {
-        requestCount: requests.length,
-        narrativeRequestCount: requests.filter(
-          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
-        ).length,
-        dataAnalysisRequestCount: requests.filter(
-          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:'),
-        ).length,
-        basicAttributeRequestCount: requests.filter(
-          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:'),
-        ).length,
-        eventRecognitionRequestCount: requests.filter(
-          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:'),
-        ).length,
-      })
-      throw error
-    }
-    const narrativeBeforeConsume = requests.filter(
-      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
-    )
-    const dataAnalysisBeforeConsume = requests.filter(
-      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:'),
-    )
-    const basicAttributeBeforeConsume = requests.filter(
-      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:'),
-    )
-    const eventRecognitionBeforeConsume = requests.filter(
-      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:'),
-    )
-    const previewPrompt = (narrativeBeforeConsume.at(-1)?.messages ?? [])
-      .map((message) => String(message.content ?? ''))
-      .join('\n')
-    const guidanceRoll = previewPrompt.match(/本地投掷 ([0-9.]+)\/100/u)?.[1] ?? null
-
-    await page.waitForFunction(() => [...document.querySelectorAll('button')].some(
-      (button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled,
-    ))
-    await page.evaluate(() => [...document.querySelectorAll('button')].find(
-      (button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled,
-    )?.click())
-    await page.waitForFunction((paragraph) => document.body.textContent?.includes(paragraph), { timeout: 60000 }, thirdParagraphs[0])
-    await page.waitForFunction(() => {
-      try {
-        const state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
-        return (state.narrativeHistory?.length || 0) >= 3
-      } catch {
-        return false
-      }
-    }, { timeout: 60000 })
-
-    preGenEvidence = {
-      readyBeforeConsume: true,
-      guidanceRoll,
-      narrativeRequestsBeforeConsume: narrativeBeforeConsume.length,
-      dataAnalysisRequestsBeforeConsume: dataAnalysisBeforeConsume.length,
-      basicAttributeRequestsBeforeConsume: basicAttributeBeforeConsume.length,
-      eventRecognitionRequestsBeforeConsume: eventRecognitionBeforeConsume.length,
-      narrativeRequestsAfterConsume: requests.filter(
-        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
-      ).length,
-      dataAnalysisRequestsAfterConsume: requests.filter(
-        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:'),
-      ).length,
-      basicAttributeRequestsAfterConsume: requests.filter(
-        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:'),
-      ).length,
-      eventRecognitionRequestsAfterConsume: requests.filter(
-        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:'),
-      ).length,
-    }
+  const requestDeadline = Date.now() + 60000
+  while (requests.length < 6 && Date.now() < requestDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
   }
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {})
   await page.click('button[aria-label="展开当前信息"]')
@@ -538,12 +381,9 @@ async function main() {
     selectedAfterClick,
     requestCount: requests.length,
     narrativeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length,
-    dataAnalysisRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:')).length,
-    basicAttributeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:')).length,
-    eventRecognitionRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:')).length,
+    storyContinuityRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-story-continuity:')).length,
+    talentGrowthRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-talent-growth:')).length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
-    firstNarrativeRequestedBranch: requests.find((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'))
-      ?.messages?.map((message) => message.content).join('\n').includes('本轮围绕会长期改变身份、核心关系、居所、目标或关键机会的选择现场推进'),
     radioCount,
     resolvedChoice: stored.narrativeHistory?.[0]?.resolvedChoice,
     narrativeEntries: stored.narrativeHistory?.length,
@@ -551,7 +391,6 @@ async function main() {
     repetitionSummaryRounds: stored.storyRepetitionStats?.rounds,
     repetitionSummaryMeasuredRounds: stored.storyRepetitionStats?.measuredRounds,
     repetitionRoundsVisible: repetitionRoundsText.includes('第1轮') && repetitionRoundsText.includes('第2轮'),
-    preGenEvidence,
     informationPanel,
     consoleErrors,
   }
@@ -559,38 +398,23 @@ async function main() {
   await browser.close()
   const expectedChoice = customChoiceFixture
   const choicePass = selectedAfterClick === customChoiceFixture
-  const expectedMetricRounds = usePreGenFixture ? '[1,2,3]' : '[1,2]'
-  const expectedRoundCount = usePreGenFixture ? 3 : 2
+  const expectedMetricRounds = '[1,2]'
+  const expectedRoundCount = 2
   const repetitionPass = JSON.stringify(result.repetitionMetricRounds) === expectedMetricRounds
     && result.repetitionSummaryRounds === expectedRoundCount
     && result.repetitionSummaryMeasuredRounds === expectedRoundCount - 1
     && result.repetitionRoundsVisible
-  const preGenPass = !usePreGenFixture || (
-    result.preGenEvidence?.readyBeforeConsume === true
-    && result.preGenEvidence?.guidanceRoll !== null
-    && result.preGenEvidence?.narrativeRequestsBeforeConsume === 3
-    && result.preGenEvidence?.dataAnalysisRequestsBeforeConsume === 2
-    && result.preGenEvidence?.basicAttributeRequestsBeforeConsume === 2
-    && result.preGenEvidence?.eventRecognitionRequestsBeforeConsume === 2
-    && result.preGenEvidence?.narrativeRequestsAfterConsume === 3
-    && result.preGenEvidence?.dataAnalysisRequestsAfterConsume === 3
-    && result.preGenEvidence?.basicAttributeRequestsAfterConsume === 3
-    && result.preGenEvidence?.eventRecognitionRequestsAfterConsume === 3
-  )
   if (
     !choicePass
     || result.radioCount !== 0
-    || result.firstNarrativeRequestedBranch !== true
     || result.resolvedChoice !== expectedChoice
-    || result.requestCount !== expectedRoundCount * 4
+    || result.requestCount !== expectedRoundCount * 3
     || result.narrativeRequestCount !== expectedRoundCount
-    || result.dataAnalysisRequestCount !== expectedRoundCount
-    || result.basicAttributeRequestCount !== expectedRoundCount
-    || result.eventRecognitionRequestCount !== expectedRoundCount
+    || result.storyContinuityRequestCount !== expectedRoundCount
+    || result.talentGrowthRequestCount !== expectedRoundCount
     || result.narrativeEntries !== expectedRoundCount
     || result.consoleErrors.length > 0
     || !repetitionPass
-    || !preGenPass
     || !result.informationPanel.viewportContained
     || !result.informationPanel.actionsVisibleAtOpen
     || !result.informationPanel.actionsBeforeLedger

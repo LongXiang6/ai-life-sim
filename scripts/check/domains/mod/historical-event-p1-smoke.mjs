@@ -1,5 +1,5 @@
 /**
- * Purpose: Verify historical facts, candidates, causal links, persistence, and character-status evidence.
+ * Purpose: Verify historical facts, candidates, causal links, and persistence.
  * Owner: quality:mod
  * Responsibility: One sequential historical-ledger acceptance scenario.
  */
@@ -17,14 +17,7 @@ import {
   rejectHistoricalEventCandidate,
 } from '../../../../src/mods/mod-history-dynamics/historical-event-api.ts'
 import { migrateHistoryDynamicsState } from '../../../../src/mods/mod-history-dynamics/store.ts'
-import { translateNarrativeAIDataAnalysis } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
-import { buildNarrativeEventRecognitionPromptInput } from '../../../../src/mods/mod-engine/helpers/narrative-event-recognition-context.ts'
-import {
-  inspectNarrativeEventRecognitionQuality,
-  inspectNarrativeResponseQuality,
-} from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
-import { getCharacterBaseSystem } from '../../../../src/mods/mod-character/subsystems/character-base-system.ts'
 
 let failed = 0
 
@@ -255,108 +248,6 @@ assertOk(
   'collectState must project every due candidate and exclude future candidates',
 )
 
-const recentStories = [798, 799, 800].map((roundNumber) => ({
-  回合: roundNumber,
-  规范时间: { 总天数: roundNumber, 时间标签: `第 ${roundNumber} 天` },
-  故事全文: `第 ${roundNumber} 天的完整故事。`,
-}))
-const recognitionInput = buildNarrativeEventRecognitionPromptInput({
-  subsystemStates: { 'historical-event-ledger': ledger.collectState(roundAt800) },
-  roundContext: roundAt800,
-  existingCandidates: dueAt800,
-  dueCandidates: dueAt800,
-  recentStories,
-})
-const projectedDueCandidates = JSON.parse(
-  recognitionInput.userSegments[4].slice('⟦本轮到期候选⟧'.length),
-)
-assertOk(
-  recognitionInput.userSegments.length === 6
-    && projectedDueCandidates.length === bulkDueCandidates.length
-    && recognitionInput.dueCandidates.length === bulkDueCandidates.length,
-  'event recognition input must deliver every due candidate without a hidden window',
-)
-
-const qualityDispositions = dueAt800.map((audit) => ({
-  候选编号: audit.candidateId,
-  状态: '继续等待',
-  判定理由: '正文尚未确认候选结果，继续等待已经声明的条件。',
-}))
-const parsedNarrative = inspectNarrativeResponseQuality(
-  '⟦正文⟧潮门附近的约定仍在等待最后条件，所有候选都保持待判断状态。',
-  500,
-).parsed
-const completeRecognition = inspectNarrativeEventRecognitionQuality({
-  content: JSON.stringify({
-    回合事件: { 摘要: '所有到期候选均已逐项判断', 注册事件: [], 到期候选判定: qualityDispositions },
-    待触发事件: [],
-  }),
-  narrative: parsedNarrative,
-  currentContextId: contextA,
-  currentTotalDays: 800,
-  existingCandidates: dueAt800,
-  dueCandidates: dueAt800,
-})
-const incompleteRecognition = inspectNarrativeEventRecognitionQuality({
-  content: JSON.stringify({
-    回合事件: { 摘要: '遗漏了一个到期候选', 注册事件: [], 到期候选判定: qualityDispositions.slice(1) },
-    待触发事件: [],
-  }),
-  narrative: parsedNarrative,
-  currentContextId: contextA,
-  currentTotalDays: 800,
-  existingCandidates: dueAt800,
-  dueCandidates: dueAt800,
-})
-assertOk(
-  completeRecognition.valid
-    && completeRecognition.metadata?.historicalEventCandidateDispositions?.length === bulkDueCandidates.length
-    && !incompleteRecognition.valid,
-  'event recognition must validate one disposition for every delivered due candidate without a quantity limit',
-)
-
-const optionalEmptyArraysNarrative = inspectNarrativeResponseQuality(
-  '⟦正文⟧天文学会公布了月蚀计划，你登记了观测席位；月蚀尚未发生。',
-  500,
-).parsed
-const optionalEmptyArraysRecognition = inspectNarrativeEventRecognitionQuality({
-  content: JSON.stringify({
-    回合事件: {
-      摘要: '天文学会公布月蚀计划，你登记了观测席位',
-      注册事件: [{ 内容: '天文学会公布月蚀计划，你登记了观测席位。', 重要度: 40, 涉及实体: [] }],
-      长期事件: [],
-      原创内容: [],
-      新伏笔: [],
-      新延迟因果: [],
-      到期因果判定: [],
-      到期候选判定: [],
-    },
-    待触发事件: [{
-      类型: '观测计划',
-      标题: '月蚀观测夜',
-      说明: '月蚀发生时开始正式观测。',
-      作用域: '当前上下文',
-      触发条件: '月蚀实际发生且观测活动开始',
-      延迟天数: 30,
-      相关人物: [],
-      相关地点: [],
-      所需能力: [],
-      标签: [],
-    }],
-  }),
-  narrative: optionalEmptyArraysNarrative,
-  currentContextId: contextA,
-  currentTotalDays: 800,
-  existingCandidates: [],
-  dueCandidates: [],
-})
-assertOk(
-  optionalEmptyArraysRecognition.valid
-    && optionalEmptyArraysRecognition.metadata?.keyEvents?.[0]?.entities === undefined
-    && optionalEmptyArraysRecognition.candidates?.[0]?.participants.length === 0,
-  `event recognition must accept optional arrays as empty collections instead of rejecting the complete package: ${optionalEmptyArraysRecognition.reason}`,
-)
-
 const dispositions = bulkDueCandidates.map((candidate, index) => ({
   candidateId: candidate.candidateId,
   status: index === 0
@@ -402,6 +293,33 @@ assertOk(
     && ledger.queryCandidates({ candidateIds: ['candidate:bulk-due:2'] })[0]?.status === 'rejected'
     && ledger.getEvent(dispositionResult.eventIds[0])?.status === 'occurred',
   'accepted, continuing, and rejected candidate decisions must produce the correct latest lifecycle state',
+)
+
+ledger.submitCandidates({
+  source: { kind: 'narrative', sourceId: 'narrative-story-continuity:delivery-marker-smoke' },
+  candidates: [{
+    candidateId: 'candidate:narrative-delivery-marker',
+    eventType: 'delivery-marker-test',
+    title: '正文已经投递的候选',
+    description: '候选仍保留在账本，但不应再次进入故事 Prompt。',
+    scope: { kind: 'context', contextIds: [contextA] },
+    schedule: { dueTotalDays: 800 },
+  }],
+}, roundAt800)
+const deliveryMarkerResult = ledger.commitCandidateDispositions({
+  source: { kind: 'narrative', sourceId: 'narrative-delivery:narrative-marker-smoke' },
+  deliveredCandidateIds: ['candidate:narrative-delivery-marker'],
+  dispositions: [{
+    candidateId: 'candidate:narrative-delivery-marker',
+    status: 'continuing',
+    reason: '[mod-engine:narrative-delivery] 正文已发布；候选仍保留在本地账本，不再重复投影。',
+  }],
+}, roundAt800)
+assertOk(
+  deliveryMarkerResult.ok
+    && ledger.queryCandidates({ candidateIds: ['candidate:narrative-delivery-marker'] })[0]?.status === 'available'
+    && !ledger.getDueCandidates(roundAt800).some((audit) => audit.candidateId === 'candidate:narrative-delivery-marker'),
+  'narrative delivery marker must keep a candidate available while preventing repeat due projection',
 )
 
 const exactDescription = `完整历史正文：${'潮声与灯火。'.repeat(600)}`
@@ -498,30 +416,6 @@ assertOk(scheduled.ok && activated.ok, 'scheduled fact and legal transition must
 assertOk(
   ledger.collectState(round).data.relevantEvents.some((event) => event.eventId === 'event:global:scheduled'),
   'collectState must expose only current relevant pending history plus aggregate counts',
-)
-
-const characterBase = getCharacterBaseSystem()
-characterBase.reset()
-characterBase.hydrateFromStore()
-const [statusChange] = translateNarrativeAIDataAnalysis({
-  系统操作: [{
-    系统: '角色状态',
-    目标对象: characterId,
-    目标上下文: contextA,
-    操作: '更新状态',
-    说明: '角色冒险保护他人。',
-    变更: { 道德变化: 5 },
-    依据事件: ['event:world-a:festival'],
-  }],
-}, {
-  allowedEvidenceEventIds: ['event:world-a:festival'],
-  allowedSubsystemIds: ['character-base'],
-  allowedOperationsBySubsystem: { 'character-base': ['update-status'] },
-})
-characterBase.applyChanges(statusChange, round)
-assertOk(
-  characterBase.collectState(round).data.status.morality.value === 5,
-  'historical evidence must support morality updates through character-base.status',
 )
 
 const beforeLongHistory = ledger.queryEvents({ limit: 500 }).length

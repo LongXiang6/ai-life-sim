@@ -24,7 +24,7 @@ export interface AICallLogContext {
   pool?: string
   model?: string
   sessionId?: string
-  /** real | preview；用于区分真实推进与预生成上游尝试。 */
+  /** real；用于区分正式推进调用的归档上下文。 */
   executionKind?: string
   /** 主叙事固定协议版本，用于缓存和日志分桶。 */
   promptVersion?: string
@@ -49,7 +49,7 @@ export interface RecordAICallLogParams {
   category: DebugLogCategory
   messages: Array<{ role: string; content: string }>
   response: string
-  /** 代理请求关联 ID；用于把同一次重试链与服务端访问日志串起来。 */
+  /** 代理请求关联 ID；用于把同一次调用与服务端访问日志串起来。 */
   requestId?: string
   logContext?: AICallLogContext
   usage?: AICallUsageSnapshot

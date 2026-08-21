@@ -1,7 +1,7 @@
 /**
  * Purpose: Expose the standard single-turn, conversation, and streaming AI call workflows.
  * Owner: core:ai-service
- * Responsibility: Compose request assembly, transport, retry, and optional schema validation without owning them.
+ * Responsibility: Compose request assembly, one transport attempt, and optional local schema validation.
  */
 
 import type { ReasoningEffort } from '@/foundation'
@@ -12,8 +12,8 @@ import {
   resolveCacheUsageContext,
   resolveCallReasoningEffort,
 } from './request-body'
-import { executeAiFetchWithRetry } from './retry-executor'
-import { validateWithRetry } from './schema-validation'
+import { executeAiFetch } from './fetch-executor'
+import { validateResponse } from './schema-validation'
 import type { AICallOptions, AiMessage } from './types'
 
 function proxyOptions(options: AICallOptions, reasoningEffort: ReasoningEffort) {
@@ -27,6 +27,8 @@ function proxyOptions(options: AICallOptions, reasoningEffort: ReasoningEffort) 
     customBaseUrl: options.customBaseUrl,
     customModel: options.customModel,
     serverPromptAssetId: options.serverPromptAssetId,
+    tools: options.tools,
+    toolChoice: options.toolChoice,
     reasoningEffort,
     logContext: options.logContext,
   }
@@ -45,7 +47,7 @@ export async function callAI(
     options.extraUserMessages,
   )
   const reasoningEffort = resolveCallReasoningEffort(options)
-  const result = await executeAiFetchWithRetry(
+  const result = await executeAiFetch(
     messages,
     options,
     pool,
@@ -53,17 +55,12 @@ export async function callAI(
       buildProxyBody(options.config, messages, false, pool, options.sessionId, proxyOptions(options, reasoningEffort)),
       resolveCacheUsageContext(options, pool),
       options.signal,
+      options.responseToolName,
     ),
-    options.signal,
   )
 
   if (options.outputSchema && options.jsonMode) {
-    return validateWithRetry(
-      result,
-      options.outputSchema,
-      { systemPrompt, userPrompt, options },
-      (retryOptions) => callAI(systemPrompt, userPrompt, retryOptions),
-    )
+    return validateResponse(result, options.outputSchema, options)
   }
   return result
 }
@@ -74,7 +71,7 @@ export async function callAIConversation(
 ): Promise<string> {
   const pool = options.pool ?? 'narrative'
   const reasoningEffort = resolveCallReasoningEffort(options)
-  return executeAiFetchWithRetry(
+  return executeAiFetch(
     messages,
     options,
     pool,
@@ -82,8 +79,8 @@ export async function callAIConversation(
       buildProxyBody(options.config, messages, false, pool, options.sessionId, proxyOptions(options, reasoningEffort)),
       resolveCacheUsageContext(options, pool),
       options.signal,
+      options.responseToolName,
     ),
-    options.signal,
   )
 }
 
@@ -93,7 +90,7 @@ export async function callAIStreamConversation(
 ): Promise<string> {
   const pool = options.pool ?? 'narrative'
   const reasoningEffort = resolveCallReasoningEffort(options)
-  return executeAiFetchWithRetry(
+  return executeAiFetch(
     messages,
     options,
     pool,
@@ -103,7 +100,6 @@ export async function callAIStreamConversation(
       options.onChunk,
       options.signal,
     ),
-    options.signal,
   )
 }
 

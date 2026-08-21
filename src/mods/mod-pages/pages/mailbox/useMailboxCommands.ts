@@ -22,7 +22,7 @@ import type {
   PlayerMailMessageView,
   PlayerMailPage,
 } from '@/core/player-content/player-content-contract'
-import { useMythicLibraryStore } from '@/mods/mod-character'
+import { useReincarnationLibraryStore } from '@/mods/mod-character'
 import { syncAccountNow } from '@/mods/mod-pages/account-cloud-api'
 
 type RecipientType = 'account' | 'diagnostic'
@@ -33,7 +33,7 @@ function failureMessage(reason: unknown, fallback: string): string {
 
 export function useMailboxCommands() {
   const accountStatus = useAccountClientStore((state) => state.status)
-  const talents = useMythicLibraryStore((state) => state.patterns)
+  const talents = useReincarnationLibraryStore((state) => state.talents)
   const [folder, setFolder] = useState<PlayerMailFolder>('inbox')
   const [messages, setMessages] = useState<PlayerMailMessageView[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -57,12 +57,12 @@ export function useMailboxCommands() {
       useAccountClientStore.getState().setRevision(page.accountRevision)
     }
     const removeIds = new Set(page.talentReconciliation.removeTalentIds)
-    for (const pattern of useMythicLibraryStore.getState().patterns) {
-      if (removeIds.has(pattern.id)) useMythicLibraryStore.getState().removePattern(pattern.id)
+    for (const talent of useReincarnationLibraryStore.getState().talents) {
+      if (removeIds.has(talent.id)) useReincarnationLibraryStore.getState().removeReincarnationTalent(talent.id)
     }
     for (const talent of page.talentReconciliation.ownedTalents) {
       try {
-        useMythicLibraryStore.getState().addPattern(talent)
+        useReincarnationLibraryStore.getState().addReincarnationTalent(talent)
       } catch (reason) {
         setNotice(failureMessage(reason, '轮回天赋暂时无法入库'))
       }
@@ -155,7 +155,7 @@ export function useMailboxCommands() {
       if (result.accountRevision !== null) {
         useAccountClientStore.getState().setRevision(result.accountRevision)
       }
-      if (result.acceptedTalent) useMythicLibraryStore.getState().addPattern(result.acceptedTalent)
+      if (result.acceptedTalent) useReincarnationLibraryStore.getState().addReincarnationTalent(result.acceptedTalent)
       setMessages((current) => current.map((message) => (
         message.id === messageId && message.talent
           ? {
@@ -181,7 +181,7 @@ export function useMailboxCommands() {
     const requestId = crypto.randomUUID()
     const selectedTalent = talents.find((talent) => talent.id === talentId)
     const completeSend = () => {
-      if (selectedTalent) useMythicLibraryStore.getState().removePattern(selectedTalent.id)
+      if (selectedTalent) useReincarnationLibraryStore.getState().removeReincarnationTalent(selectedTalent.id)
       setRecipientValue('')
       setTitle('')
       setBody('')

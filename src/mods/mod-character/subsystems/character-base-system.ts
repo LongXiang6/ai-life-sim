@@ -1,13 +1,12 @@
 /**
  * Purpose: Own player base attributes and the compact character narrative status.
  * Owner: mod-character / character-base
- * Responsibility: Attribute bounds, age and stage progression, health, fortune, morality, death binding, and epilogue state.
+ * Responsibility: Attribute bounds, age and stage progression, health, fortune, and death binding.
  */
 
 import { BaseSubsystem } from '@/core'
 import {
   CHARACTER_BASE_OPERATION_FIELDS,
-  type AIModelConfig,
   type CharacterNarrativeStatus,
   type PendingCharacterDeath,
   type RoundContext,
@@ -30,7 +29,6 @@ import type { AttributeModifiers, BaseAttributes, CharacterBaseState } from '../
 import { round } from '../utils'
 import { getAttrSemantic } from '../utils/attr-tiers'
 import { sanitizeCharacterBaseState } from '../utils/character-state-migration'
-import { generateCharacterEpilogueText } from './character-epilogue-runtime'
 import {
   advanceCharacterNarrativeStatus,
   createCharacterNarrativeStatus,
@@ -59,7 +57,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
   readonly id = 'character-base' as const
   readonly mod = 'mod-character' as const
   readonly label = '角色状态' as const
-  readonly description = '统一管理基础属性、生命阶段、健康、气运、道德、死亡与尾声' as const
+  readonly description = '统一管理基础属性、生命阶段、健康、气运与死亡' as const
   readonly alwaysRelevant = true
 
   private state: CharacterBaseState = emptyCharacterBaseState()
@@ -163,7 +161,6 @@ export class CharacterBaseSystem extends BaseSubsystem {
       deathId: `death:${encodeURIComponent(pending.entityId)}:${encodeURIComponent(historicalEventId)}`,
       ...pending,
       historicalEventId,
-      epilogueStatus: 'pending',
     }
     status.health.alive = false
     this.pendingDeath = undefined
@@ -172,25 +169,6 @@ export class CharacterBaseSystem extends BaseSubsystem {
 
   getPendingDeath(entityId: string): PendingCharacterDeath | undefined {
     return this.pendingDeath?.entityId === entityId ? structuredClone(this.pendingDeath) : undefined
-  }
-
-  hasEpilogue(entityId: string): boolean {
-    return this.state.status?.entityId === entityId
-      && this.state.status.health.death?.epilogueStatus === 'ready'
-  }
-
-  async generateEpilogue(
-    context: RoundContext,
-    aiConfig: AIModelConfig,
-    narrativeHistory: string[],
-    sessionId?: string,
-  ): Promise<string> {
-    const status = this.ensureStatus(context)
-    const epilogueText = await generateCharacterEpilogueText({ status, context, aiConfig, narrativeHistory, sessionId })
-    if (!status.health.death) throw new Error('角色死亡结果在尾声生成期间丢失')
-    status.health.death = { ...status.health.death, epilogueStatus: 'ready', epilogueText }
-    this.state.status = refreshCharacterGuidance(status)
-    return epilogueText
   }
 
   hydrateFromStore(): void {
@@ -206,6 +184,23 @@ export class CharacterBaseSystem extends BaseSubsystem {
   capturePersistenceState(): CharacterBaseState {
     if (this.pendingDeath) throw new Error('角色存在尚未绑定历史事件的死亡，不能持久化')
     return structuredClone(this.state)
+  }
+
+  captureTransactionState(): { state: CharacterBaseState; pendingDeath?: PendingCharacterDeath } {
+    return structuredClone({
+      state: this.state,
+      ...(this.pendingDeath ? { pendingDeath: this.pendingDeath } : {}),
+    })
+  }
+
+  restoreTransactionState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      throw new Error('角色状态事务快照无效')
+    }
+    const value = snapshot as { state?: unknown; pendingDeath?: PendingCharacterDeath }
+    this.state = sanitizeCharacterBaseState(value.state)
+    this.pendingDeath = value.pendingDeath ? structuredClone(value.pendingDeath) : undefined
+    useCharacterStore.setState({ characterBase: structuredClone(this.state) })
   }
 
   restorePersistenceState(snapshot: unknown): void {

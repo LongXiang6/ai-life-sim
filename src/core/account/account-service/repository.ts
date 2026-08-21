@@ -13,7 +13,7 @@ import {
   ACCOUNT_RETENTION_DAYS,
   CloudCharacterDraftSchema,
   CloudGameRecordSchema,
-  CloudMythicTalentSchema,
+  ReincarnationTalentSchema,
   CloudSettingsSchema,
   type AccountProfile,
   type AccountSessionPayload,
@@ -78,8 +78,8 @@ function accountProfile(database: Database.Database, row: AccountRow): AccountPr
 }
 
 export function readSnapshot(database: Database.Database, row: AccountRow): CloudAccountSnapshot {
-  const mythicTalents = database.prepare(`
-    SELECT data_json FROM account_mythic_talents
+  const reincarnationTalents = database.prepare(`
+    SELECT data_json FROM account_reincarnation_talents
     WHERE account_id = ? ORDER BY slot ASC
   `).all(row.id) as JsonRow[]
   const gameRecords = database.prepare(`
@@ -94,14 +94,14 @@ export function readSnapshot(database: Database.Database, row: AccountRow): Clou
       ? decryptApiKey(row.encrypted_api_key, row.id)
       : null,
     characterDraft: parseJson(row.character_draft_json, CloudCharacterDraftSchema),
-    mythicTalents: mythicTalents.map(({ data_json }) => parseJson(data_json, CloudMythicTalentSchema)),
+    reincarnationTalents: reincarnationTalents.map(({ data_json }) => parseJson(data_json, ReincarnationTalentSchema)),
     gameRecords: gameRecords.map(({ data_json }) => parseJson(data_json, CloudGameRecordSchema)),
   }
 }
 
 function replaceSlots(
   database: Database.Database,
-  table: 'account_mythic_talents' | 'account_game_records',
+  table: 'account_reincarnation_talents' | 'account_game_records',
   idColumn: 'talent_id' | 'record_id',
   accountId: string,
   values: Array<{ id: string; json: string }>,
@@ -141,10 +141,10 @@ export function writeCloudData(
   )
   replaceSlots(
     database,
-    'account_mythic_talents',
+    'account_reincarnation_talents',
     'talent_id',
     accountId,
-    data.mythicTalents.map((item) => ({ id: item.id, json: JSON.stringify(item) })),
+    data.reincarnationTalents.map((item) => ({ id: item.id, json: JSON.stringify(item) })),
     now,
   )
   replaceSlots(

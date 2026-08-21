@@ -1,0 +1,129 @@
+<!-- Purpose: Record the first UI iteration round for the talent-select SELECT sub-interface (05). Owner: Interface system. Responsibility: Compare confirmed select-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命格选取 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">TALENT-SELECT / ROUND-01</p>
+      <h1>命格选取 · 第一轮</h1>
+    </div>
+    <span class="status status-empty">已淘汰</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>建立命格选取（05）独立子界面第一轮。候选 01 还原运行时当前基线（蓝白纸面）作为对照；候选 02 应用已定版语言（暖纸墨、卡片化、金强调、双文字等宽底栏）；候选 03 聚焦式（候选卡片强化：字号层级、金选中态 + 勾选徽标）。三个候选的动效全部照抄运行时 TalentDraw.module.css（candidate-breathe / seal-breathe / rebirth-flow / rebirth-seal-halo 及候选选中态、轮回天赋流光）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（05 / 08）、标题「选择命格」、副句、轮回 · 可选（2 槽）、普通命格（选 3 槽）、普通命格候选（12 条）、重抽未选、底部返回（返回命格抽取）与确认（06 确认命格 / 正在确认）。命格抽取（04）独立在 talent-draw/ 目录迭代，不混入本工作表。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（槽位区与候选列表的主次）、动效（照抄运行时后，各候选在相同动画参数下的节奏体验）、操作效率（选择/取消/重抽路径）、精简协调性（与已定版世界选择/世界配置/角色塑造的基线与谐统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前基线</strong></header>
+          <p>还原运行时：蓝白纸面、轮回天赋槽 + 普通命格槽 + 12 候选卡呼吸动效、选中降透明度；动效参数照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>定版语言</strong></header>
+          <p>暖纸墨全页、卡片化分区、金强调、双文字等宽纯白同底按钮（返回 / 确认命格）；候选呼吸与轮回流光参数照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>聚焦式</strong></header>
+          <p>同暖纸墨，候选卡片强化（字号层级、金选中态 + 勾选徽标）；动画参数仍照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focused.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 当前基线</span><span role="columnheader">02 定版语言</span><span role="columnheader">03 聚焦式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯选取界面（抽取独立在 talent-draw/）</span><span role="cell">纯选取界面</span><span role="cell">纯选取界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">蓝白槽位 + 堆叠列表</span><span role="cell">卡片化分区</span><span role="cell">候选卡片主导</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">候选呼吸/选中槽呼吸/轮回流光，照抄运行时参数</span><span role="cell">同上，参数照抄</span><span role="cell">同上 + 金选中态</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">槽位 + 列表</span><span role="cell">同契约路径不变</span><span role="cell">选择路径更短</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版不一致</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-empty">已淘汰</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>无。用户对第一轮三个候选整体排版不满意，认为不符合设计直觉。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前基线）、候选 02（定版语言）、候选 03（聚焦式）：三段堆叠排版（轮回槽 / 普通槽 / 候选列表）不符合设计直觉，整体重排。</dd></div>
+        <div><dt>下一轮继承</dt><dd>进入第二轮（ROUND-02）。保留暖纸墨语言与照抄运行时的动效参数，重排信息架构（进度置顶 / 槽位贴底 / 分组置顶三向布局候选）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

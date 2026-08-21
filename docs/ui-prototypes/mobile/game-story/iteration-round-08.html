@@ -1,0 +1,136 @@
+<!-- Purpose: Record the eighth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第八轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-08</p>
+      <h1>游戏故事 · 第八轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-07 定版候选 A（✦ 双饰 · 标题居中 · 菱形骑线）为基线，方向「去轮回字 · 分叉着色 · 岁数精简」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：去掉顶栏轮回天赋区的「轮回」二字（rebirthTag 删除）；「前世武骨」流光胶囊放入已选命格 div（barTalents）第二行（流光样式与动画保留）；branchPending 未选框整块加带颜色的设计（分向核心）；entryMeta 只保留「X 岁」（如「70 岁」，去掉阶段词与纪年）。其余共同基线全部继承：白板底色、删 kicker、h3「✦ 命运分叉点」文字居中、条目间顶部细线 + 居中菱形精确骑线、描边单选圆、chip 米白、网页底色 #fdf9f1。分向为 branchPending 的颜色设计（暖纸墨语言内，颜色轻→重递进）：候选 A 白板微暖 + 金棕描边、候选 B 浅金暖底、候选 C 金棕仪式渐变。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 第二行前世武骨流光胶囊）、章节头单行化结构（第 1 回 · 故事进程 / 故事进行中 / 等待你的选择 / 三步 01 生成正文 02 完成本轮 03 继续人生）、长篇时间线五轮 + 暮年 70 岁待抉择编辑器（圆形单选选项 + textarea「写下你的做法……」+ 清空 / 请先选择禁用）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉与面板为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>branchPending 带颜色设计的层次与暖纸墨语言协调度（白板微暖描边 / 浅金暖底 / 金棕仪式渐变）、「轮回」字去除后顶栏整洁度、前世武骨第二行排布与已选命格的区分度、entryMeta 岁数精简后条目节奏、菱形分隔两端对齐、单选圆识别度、chip 白底、长篇时间线滚动节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>白板微暖 · 金棕描边</strong></header>
+          <p>branchPending 白板微暖底色 #fffdf8 + 1px 金棕描边 #d8c9a8 + 标题金棕 #6b4d1d，颜色最轻，仅描边与标题着色。</p>
+          <a class="candidate-open" href="candidates/candidate-round-08-01-warm-ring.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>浅金暖底</strong></header>
+          <p>branchPending 整块浅金暖底 #faf4e8 + 1px 金棕描边 #d8c9a8 + 标题金棕，整块带色，选项区在暖底上保持白板层次。</p>
+          <a class="candidate-open" href="candidates/candidate-round-08-02-gold-fill.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>金棕仪式渐变</strong></header>
+          <p>branchPending 金棕仪式渐变底（#f1ead9 → #fdf9f1 顶光渐变）+ 1.5px 金棕描边 #96783f + 顶部 3px 金棕色条 + 标题深金，颜色最重，仪式感最强。</p>
+          <a class="candidate-open" href="candidates/candidate-round-08-03-gold-ritual.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 白板微暖 · 金棕描边</span><span role="columnheader">B 浅金暖底</span><span role="columnheader">C 金棕仪式渐变</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">网页底色</strong><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 颜色</strong><span role="cell">白板微暖 #fffdf8 + 金棕描边</span><span role="cell">浅金暖底 #faf4e8 整块带色</span><span role="cell">金棕渐变 + 1.5px 描边 + 顶部色条</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">轮回字</strong><span role="cell">已去除（rebirthTag 删除）</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨位置</strong><span role="cell">已选命格 div 第二行（流光保留）</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">h3 标题</strong><span role="cell">✦ 命运分叉点 ✦ 居中</span><span role="cell">✦ 命运分叉点 ✦ 居中</span><span role="cell">✦ 命运分叉点 ✦ 居中</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选圆形</strong><span role="cell">1.5px 描边空心圆 + 选中实心填充</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性变化 chip</strong><span role="cell">米白 #fffdf8 + 细边框</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A 白板微暖 · 金棕描边——颜色最轻，白板微暖 #fffdf8 + 1px 金棕描边 #d8c9a8 与页面最协调，标题金棕 #6b4d1d 点缀到位；轮回字去除、前世武骨第二行、entryMeta 岁数精简全部到位。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B 浅金暖底——整块 #faf4e8 带色在暖纸墨长篇滚动中略抢眼，选项区层次被底色冲淡；候选 C 金棕仪式渐变——1.5px 金棕描边 + 顶部色条 + 渐变仪式感最重，在叙事流中压过正文。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 三条指示进入 ROUND-09（浅色着色 · 表情装饰 · 输入框自适应），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Regress player-owned AI settings and credential routing across active call paths.
+ * Owner: quality:narrative
+ * Responsibility: Static provider, proxy, world-init, and settings contract assertions only.
+ */
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -20,12 +25,14 @@ function assertOk(condition, message) {
 const provider = read('src/core/ai-service/provider-config.ts')
 const proxy = read('src/app/api/proxy/route.ts')
 const serverTargets = read('src/core/ai-service/server-provider-targets.ts')
-const worldInitRoute = read('src/app/api/world-init/route.ts')
 const worldInitBundle = read('src/mods/mod-world/world-init-bundle.ts')
+const worldInitAIService = read('src/mods/mod-world/utils/world-init-pipeline/ai-service.ts')
+const worldInitContextFactory = read('src/mods/mod-world/utils/world-init-pipeline/context-factory.ts')
 const store = read('src/mods/mod-settings/store.ts')
 const settings = read('src/mods/mod-settings/components/SettingsTabPresets.tsx')
 const modelSettings = read('src/mods/mod-settings/components/SettingsTabModel.tsx')
 const apiError = read('src/core/ai-service/api-error.ts')
+const mainNarrative = read('src/mods/mod-engine/helpers/main-narrative-call.ts')
 const envExample = read('.env.example')
 const productionEnvGate = read('scripts/ops/validate-production-env.mjs')
 const settingsPersistenceVersion = Number(
@@ -52,19 +59,30 @@ assertOk(
 assertOk(
   proxy.includes("providerId !== DEFAULT_AI_PROVIDER_ID")
     && proxy.includes("const baseUrl = body.baseUrl || ''")
-    && proxy.includes("const apiKey = body.apiKey || ''")
+    && proxy.includes("const apiKey = body.apiKey?.trim() || ''")
     && !proxy.includes('readServerProviderApiKey')
     && !proxy.includes('requestManagedAggregatedCompletion')
     && serverTargets.includes('isRegisteredProviderBaseUrl(baseUrl)'),
   'proxy must require the player request target and key without a server credential fallback',
 )
 assertOk(
-  worldInitRoute.includes("apiKey: z.string().min(1)")
-    && worldInitRoute.includes('baseUrl: z.string().url()')
-    && worldInitRoute.includes("model: z.string().min(1)")
-    && !worldInitRoute.includes('readServerProviderApiKey')
-    && !worldInitBundle.includes('providerId: settings.provider'),
-  'background world initialization must consume the same player-owned API triple',
+  provider.includes('isDeepSeekOfficialBaseUrl')
+    && proxy.includes('isDeepSeekOfficialBaseUrl(baseUrl)')
+    && mainNarrative.includes('customBaseUrl: settings.customUrl || undefined')
+    && mainNarrative.includes('apiKey: settings.customKey || undefined'),
+  'protected core narrative must keep the player relay URL and key; only an official DeepSeek target may use its beta endpoint',
+)
+assertOk(
+  !fs.existsSync(path.join(root, 'src/app/api/world-init/route.ts'))
+    && worldInitContextFactory.includes('const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()')
+    && worldInitContextFactory.includes('provider,')
+    && worldInitContextFactory.includes("customUrl: customUrl || ''")
+    && worldInitContextFactory.includes("customKey: customKey || ''")
+    && worldInitAIService.includes('providerId: context.provider')
+    && worldInitAIService.includes('customBaseUrl: context.customUrl || undefined')
+    && worldInitAIService.includes('apiKey: context.customKey')
+    && !worldInitAIService.includes('readServerProviderApiKey'),
+  'world initialization must call the shared player-owned AI client without a server route or credential fallback',
 )
 assertOk(
   settingsPersistenceVersion >= 12
@@ -92,7 +110,7 @@ assertOk(
   'player guidance and deployment validation must not point back to removed free providers',
 )
 assertOk(
-  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverTargets + worldInitRoute + worldInitBundle + store + settings + envExample),
+  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverTargets + worldInitBundle + worldInitAIService + worldInitContextFactory + store + settings + envExample),
   'tracked sources must not contain an API credential',
 )
 

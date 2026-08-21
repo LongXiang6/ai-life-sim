@@ -1,32 +1,48 @@
-export type ScoringEvidenceKind =
-  | 'attributes'
-  | 'journey'
-  | 'choices'
-  | 'achievements'
-  | 'completion'
+/**
+ * Purpose: Define the AI five-dimension life-settlement contracts.
+ * Owner: foundation:types
+ * Responsibility: Shared scoring evidence, result, and audit types only.
+ */
 
-export type ScoringCurveId =
-  | 'growth'
-  | 'agency'
-  | 'journey'
-  | 'impact'
+export type LifeScoringEvidenceKind =
+  | 'world-fact'
+  | 'character-state'
+  | 'narrative'
+  | 'life-digest'
+  | 'achievement'
 
-export interface WorldScoringDimension {
+export interface LifeScoringEvidence {
+  id: string
+  kind: LifeScoringEvidenceKind
+  content: string
+  timeLabel?: string
+}
+
+export interface LifeScoringDimension {
   id: string
   label: string
   description: string
-  weight: number
-  evidenceKinds: ScoringEvidenceKind[]
-  curveId: ScoringCurveId
+  value: number
+  comment: string
+  evidenceIds: string[]
 }
 
-export interface WorldScoringProfile {
-  profileVersion: 1
-  worldId: string
-  dimensions: WorldScoringDimension[]
+export interface LifeScoringIntegrityResult {
+  passed: boolean
+  checks: Record<string, boolean>
+  reasons: string[]
 }
 
-/** 单轮状态迁移的可复算证据；不包含正文或 Prompt。 */
+export interface LifeScoringResult {
+  version: 2
+  source: 'ai'
+  score: number
+  dimensions: LifeScoringDimension[]
+  evidenceIds: string[]
+  integrity: LifeScoringIntegrityResult
+}
+
+/** Single-round state-transition evidence; excludes story text and Prompt content. */
 export interface NarrativeTransitionAuditSnapshot {
   schemaVersion: 1
   round: number
@@ -45,7 +61,7 @@ export interface NarrativeTransitionAuditSnapshot {
   reasons: string[]
 }
 
-/** 结算时固化的评分输入；服务端用它重新执行同一套本地算法。 */
+/** Settlement-time completeness audit; AI does not decide these facts. */
 export interface LifeScoringAuditSnapshot {
   schemaVersion: 1
   lifeRunId: string
@@ -58,4 +74,8 @@ export interface LifeScoringAuditSnapshot {
   stateTransitionsTrusted: boolean
   hasValidationFailure: boolean
   transitionAudits: NarrativeTransitionAuditSnapshot[]
+}
+
+export interface StoredLifeScoringResult extends LifeScoringResult {
+  audit: LifeScoringAuditSnapshot
 }

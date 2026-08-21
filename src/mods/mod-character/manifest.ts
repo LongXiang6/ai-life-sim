@@ -14,13 +14,13 @@ export default defineMod({
   dependencies: ['mod-engine', 'mod-power-system', 'mod-world'],
   provides: ['character', 'character-base', 'destiny-pattern'],
   consumes: ['engine'],
-  secondaryPublicEntries: ['destiny-pattern-access.ts', 'mythic-pattern-access.ts'],
+  secondaryPublicEntries: ['destiny-pattern-access.ts', 'reincarnation-talent-access.ts'],
   subsystems: [
     'CharacterBaseSystem',
     'DestinyPatternSystem',
   ],
-  stores: ['useCharacterStore', 'useMythicLibraryStore'],
-  prompts: ['race-origin', 'mythic-pattern'],
+  stores: ['useCharacterStore', 'useReincarnationLibraryStore'],
+  prompts: ['race-origin', 'reincarnation-promotion'],
   events: {
     emits: ['mod-character:created', 'mod-character:died'],
     listens: ['mod-engine:round-complete'],

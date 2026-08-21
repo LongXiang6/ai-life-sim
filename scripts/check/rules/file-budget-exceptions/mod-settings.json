@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "entries": [
     {
-      "path": "src/mods/mod-settings/components/SettingsModal.module.css",
+      "path": "src/mods/mod-settings/components/SettingsTabModel.module.css",
       "owner": "mod-settings",
-      "reviewedLines": 309,
+      "reviewedLines": 475,
       "reason": "单组件原子 CSS Module，选择器与媒体查询共同维护该组件的层叠和响应式顺序。"
     },
     {
-      "path": "src/mods/mod-settings/components/SettingsTabModel.module.css",
+      "path": "src/mods/mod-settings/components/SettingsTabPresets.module.css",
       "owner": "mod-settings",
-      "reviewedLines": 380,
+      "reviewedLines": 313,
       "reason": "单组件原子 CSS Module，选择器与媒体查询共同维护该组件的层叠和响应式顺序。"
     },
     {
@@ -20,9 +20,15 @@
       "reason": "单个设置面板工作流，表单状态、命令和渲染共同维护同一设置事务。"
     },
     {
+      "path": "src/mods/mod-settings/components/SettingsTabStats.module.css",
+      "owner": "mod-settings",
+      "reviewedLines": 335,
+      "reason": "单组件原子 CSS Module，选择器与媒体查询共同维护该组件的层叠和响应式顺序。"
+    },
+    {
       "path": "src/mods/mod-settings/components/SettingsTabTheme.module.css",
       "owner": "mod-settings",
-      "reviewedLines": 415,
+      "reviewedLines": 554,
       "reason": "单组件原子 CSS Module，选择器与媒体查询共同维护该组件的层叠和响应式顺序。"
     }
   ]

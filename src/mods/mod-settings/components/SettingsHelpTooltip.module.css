@@ -12,9 +12,9 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: calc(1 * var(--final-flow-density-px)) solid #cfd5db;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: 50%;
-  background: #f8f9fa;
+  background: var(--color-bg-secondary);
   color: #78838e;
   cursor: pointer;
   font: inherit;
@@ -28,11 +28,11 @@
   box-sizing: border-box;
   max-width: calc(100% - calc(24 * var(--final-flow-density-px)));
   padding: calc(6 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: calc(7 * var(--final-flow-density-px));
-  background: #fff;
+  background: var(--flow-paper);
   box-shadow: 0 calc(12 * var(--final-flow-density-px)) calc(28 * var(--final-flow-density-px)) rgb(40 50 75 / 13%);
-  color: #46515c;
+  color: var(--flow-muted);
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
   font-size: calc(7 * var(--final-flow-density-px));
   font-weight: 400;
@@ -41,7 +41,7 @@
 }
 
 .trigger:focus-visible {
-  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 48%, transparent);
   outline-offset: calc(2 * var(--final-flow-density-px));
 }
 

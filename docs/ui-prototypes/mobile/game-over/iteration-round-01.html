@@ -1,0 +1,108 @@
+<!-- Purpose: Record the first UI iteration round for the game-over life-settlement interface (09). Owner: Interface system. Responsibility: Compare confirmed settlement-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>人生结算 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-OVER / ROUND-01</p>
+      <h1>人生结算 · 第一轮</h1>
+    </div>
+    <span class="status status-selected">已选择 01 · 运行时结构</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>建立人生结算（game-over，09）界面第一轮。三个候选分向比较整页的「结构忠实 / 卷册重排 / 评分聚焦」：候选 01 忠实还原运行时布局结构（身份概览 → 世界维度雷达 → 人生三记与评语 → 此生大事 → 轮回天赋 → 底部悬浮栏）、仅换暖纸墨语言；候选 02 恢复命书封面行（一生回望 + 终 印 + 终章·096）并将三记与大事合并为同一卷册时间线、区头书卷化；候选 03 恢复人生评分金印前置、放大世界维度雷达、轮回天赋选择器卡片化。三个候选的动效全部照抄运行时 GameOver.module.css 参数，内容口径照抄运行时实际渲染。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：身份概览（角色名「林晚」+「沧澜界 · 3—78 岁 · 96 轮世事」）、世界维度雷达（四维 💪 体魄 62 / 🧠 心智 81 / ✨ 悟性 74 / 💫 魅力 68，metricComment 随点击实时切换评语）、人生三记（早期 / 中期 / 最终记录 + 此生评语 summaryMeta 道德标签 · 轮世事 · 年龄 · 世界编号 + 故事重复观测近五轮均值 / 整局峰值 / 高重复轮与趋势）、此生大事（择 徽章 + 时间标签 + 命运抉择 + 标题 + 详情）、轮回天赋（88 分 · 深刻徽章 + 三项候选选择 + 焦点卡 + 封存至轮回天赋库、封存后不可在本局改选）、底部悬浮栏（返回首页 / 查看模拟数据 / 开始新人生，未封存轮回天赋前禁用）。候选不含 localStorage/sessionStorage/fetch（雷达维度切换与轮回天赋选择 / 封存为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：flow-shift 9s ease-in-out infinite（轮回天赋焦点卡与封存按钮的流光背景，prefers-reduced-motion 停）；radarDot transition r 120ms ease, fill 120ms ease（雷达活动点切换）。</dd></div>
+        <div><dt>比较维度</dt><dd>结构忠实度（身份概览首置 / 区块顺序 / 底部悬浮栏的布局关系）、结算叙事的组织（分区块 vs 卷册合并时间线）、评分的呈现强度（运行时基线隐藏 vs 封面行 vs 金印前置）、轮回天赋交互的聚焦程度（横排小圆钮 vs 卡片化）、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>运行时结构</strong></header>
+          <p>忠实还原运行时布局：身份概览居中首置（运行时基线已隐藏头部 / 评分 / 分享）、世界维度雷达 + 实时评语、人生三记与评语与重复观测、此生大事列表、轮回天赋三选与封存、底部悬浮栏常驻；暖纸墨换色，动效参数照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-01-runtime-layout.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>命书卷册</strong></header>
+          <p>书卷式结构：恢复命书封面行（一生回望 + 终 印 + 终章·096）、区头以圆形印章区号书卷化、三记与大事合并为同一纵向卷册时间线、此生评语作为卷末批注置于卷尾；轮回天赋与悬浮栏保持运行时结构。</p>
+          <a class="candidate-open" href="candidates/candidate-02-book-scroll.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>评分聚焦</strong></header>
+          <p>强化评分与核心交互：身份概览右侧恢复人生评分金印（88 人生评分）、世界维度雷达放大为页面核心、轮回天赋选择器改为竖式卡片化强调选中态；三记与大事保持独立区块。</p>
+          <a class="candidate-open" href="candidates/candidate-03-score-led.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 运行时结构</span><span role="columnheader">02 命书卷册</span><span role="columnheader">03 评分聚焦</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯人生结算界面</span><span role="cell">纯人生结算界面</span><span role="cell">纯人生结算界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">页面头部</strong><span role="cell">无（运行时基线隐藏）</span><span role="cell">命书封面行（一生回望 + 终 印 + 终章·096）</span><span role="cell">无（运行时基线隐藏）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">身份概览</strong><span role="cell">居中（角色名 + 世界 · 年龄 · 轮数）</span><span role="cell">居中（同左）</span><span role="cell">左文右评分金印（88 人生评分）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">评分呈现</strong><span role="cell">隐藏（运行时基线）</span><span role="cell">封面行终章序号，正文不显评分</span><span role="cell">金印前置 + 雷达中心 88</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">三记与大事</strong><span role="cell">两个独立区块</span><span role="cell">合并为同一卷册时间线</span><span role="cell">两个独立区块</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">轮回天赋选择器</strong><span role="cell">横排小圆钮</span><span role="cell">横排小圆钮</span><span role="cell">竖式卡片化强调选中态</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01 · 运行时结构</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（运行时结构）：最忠实运行时当前布局关系——身份概览居中首置、世界维度雷达 + 实时评语、人生三记与评语与重复观测、此生大事列表、轮回天赋三选与封存、底部悬浮栏常驻；用户「以 01 为主」定为后续轮次基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（命书卷册）：卷册封面行与合并时间线的书卷化整理暂不引入，三记与大事的合并方案保留为后续轮次的探索方向；候选 03（评分聚焦）：评分金印与雷达放大暂不引入，评分保持运行时基线的隐藏呈现。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 01 为基线：①顶部增加与前面创建流程界面（fate-preview 定版）统一的 runningHead 书眉（「AI LIFE SIM · 命书」+「09 / 09」）与 titleCopy 标题行；②去掉四个区块的 sectionHeading 区头（sectionIndex 编号 + 右侧引导语）与 recordList / achievementList 两个列表容器 div，区块改为命书题词式轻量区头、内容直接序列。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

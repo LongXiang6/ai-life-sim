@@ -189,7 +189,11 @@ export class SpatialGraphSystem extends BaseSubsystem {
     }
   }
 
-  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+  private buildUpdatedContext(
+    changes: SubSystemChanges,
+    context: RoundContext,
+    instance: WorldContextInstance,
+  ): WorldContextInstance {
     if (!changes || typeof changes !== 'object') throw new Error(`[${this.id}] Changes must be an object`)
     if (changes.id !== this.id) throw new Error(`[${this.id}] Changes ID mismatch`)
     if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
@@ -207,9 +211,6 @@ export class SpatialGraphSystem extends BaseSubsystem {
     if (!changes.targetObjectId) {
       throw new Error(`[${this.id}] 区域概况缺少目标区域`)
     }
-    const state = useWorldStore.getState()
-    const instance = state.contexts[context.contextId]
-    if (!instance) throw new Error(`[${this.id}] 未知上下文：${context.contextId}`)
     const graph = instance.spatialGraph
     const targetNode = graph.nodes[changes.targetObjectId]
     if (!targetNode || targetNode.contextId !== context.contextId || targetNode.kind !== 'region') {
@@ -245,7 +246,7 @@ export class SpatialGraphSystem extends BaseSubsystem {
       ))),
       updatedAtGlobalDay: context.totalDays,
     }
-    state.replaceContext({
+    return {
       ...instance,
       spatialGraph: {
         ...graph,
@@ -254,7 +255,35 @@ export class SpatialGraphSystem extends BaseSubsystem {
           [changes.targetObjectId]: nextProfile,
         },
       },
-    })
+    }
+  }
+
+  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+    const instance = useWorldStore.getState().contexts[context.contextId]
+    if (!instance) throw new Error(`[${this.id}] 未知上下文：${context.contextId}`)
+    this.buildUpdatedContext(changes, context, structuredClone(instance))
+  }
+
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    const state = useWorldStore.getState()
+    const instance = state.contexts[context.contextId]
+    if (!instance) throw new Error(`[${this.id}] 未知上下文：${context.contextId}`)
+    state.replaceContext(this.buildUpdatedContext(changes, context, instance))
+  }
+
+  captureTransactionState(): WorldContextInstance {
+    const state = useWorldStore.getState()
+    const contextId = state.currentContextId
+    const instance = contextId ? state.contexts[contextId] : undefined
+    if (!instance) throw new Error(`[${this.id}] 当前上下文不存在，无法捕获事务状态`)
+    return structuredClone(instance)
+  }
+
+  restoreTransactionState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+      throw new Error(`[${this.id}] 事务快照无效`)
+    }
+    useWorldStore.getState().replaceContext(structuredClone(snapshot as WorldContextInstance))
   }
 
   reset(): void {}

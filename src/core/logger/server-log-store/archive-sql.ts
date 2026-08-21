@@ -18,9 +18,10 @@ function getLogEntryColumns(database: Database.Database, schema = 'main'): strin
 export function assertMatchingLogEntrySchemas(database: Database.Database): string[] {
   const hotColumns = getLogEntryColumns(database)
   const archiveColumns = getLogEntryColumns(database, 'archive_logs')
+  const archiveColumnSet = new Set(archiveColumns)
   if (
     hotColumns.length !== archiveColumns.length
-    || hotColumns.some((column, index) => column !== archiveColumns[index])
+    || hotColumns.some((column) => !archiveColumnSet.has(column))
   ) {
     throw new Error('日志归档 Schema 与热库不一致')
   }

@@ -1,0 +1,130 @@
+<!-- Purpose: Record the fourth UI iteration round for the talent-select SELECT sub-interface (05). Owner: Interface system. Responsibility: Compare confirmed select-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命格选取 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">TALENT-SELECT / ROUND-04</p>
+      <h1>命格选取 · 第四轮</h1>
+    </div>
+    <span class="status status-selected">已选择 01</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以第三轮候选 02（进度胶囊）为基线继续迭代命格选取（05）：三个候选统一去掉候选卡右上角稀有度徽标（candidateRarity，稀有度改由卡片辉光与色条表达），候选卡完整详细介绍保留；候选 01 胶囊去徽标（基线演进）、候选 02 胶囊打勾（选中反馈从整卡降态改为右上打勾）、候选 03 完全重新设计（候选区改为横向滑卡流：一卡一候选、左右滑动浏览、点击选中打勾）。动效全部照抄运行时 TalentDraw.module.css（candidate-breathe / seal-breathe / rebirth-flow / rebirth-seal-halo 及候选选中态）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（05 / 08）、标题「选择命格」、副句、轮回 · 可选（2 槽）、普通命格（选 3 槽）、普通命格候选（12 条）、重抽未选、底部返回（返回命格抽取）与确认（06 确认命格 / 正在确认）。候选卡保留完整详细介绍（名称 / 描述 / 效果 / 属性与系统效果）；稀有度不再用角落徽标文字表达，仅用颜色辉光 / 色条。命格抽取（04）独立在 talent-draw/ 目录迭代，不混入本工作表。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>布局直觉（去徽标后稀有度信息的可读性、滑卡流与列表流的主次关系）、选中反馈（打勾 vs 降态的清晰度）、信息密度（完整详细介绍下的浏览效率）、动效（照抄运行时后与布局的结合）、精简协调性（与已定版抽取页 02 及角色塑造的基线与谐统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>胶囊去徽标</strong></header>
+          <p>进度胶囊基线演进：去掉候选卡右上角稀有度徽标，稀有度由卡片辉光颜色表达，其余保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-pill-clean.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>胶囊打勾</strong></header>
+          <p>胶囊基线 + 去徽标：选中反馈从整卡降态改为右上打勾徽标，已选卡保持可读，边框与底色更实。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-pill-check.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>滑卡流（重新设计）</strong></header>
+          <p>完全重新设计：候选区改为横向滑卡流，一卡一候选、左右滑动浏览，稀有度用左侧色条表达，点击选中打勾。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-card-stream.html" target="_blank" rel="noopener">
+            选取界面 05 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 胶囊去徽标</span><span role="columnheader">02 胶囊打勾</span><span role="columnheader">03 滑卡流</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯选取界面（抽取独立在 talent-draw/）</span><span role="cell">纯选取界面</span><span role="cell">纯选取界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">布局直觉</strong><span role="cell">胶囊吸顶 + 纵向列表</span><span role="cell">胶囊吸顶 + 纵向列表</span><span role="cell">胶囊吸顶 + 横向滑卡流</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">选中反馈</strong><span role="cell">整卡降态（opacity 0.42）</span><span role="cell">右上打勾 + 边框实化</span><span role="cell">右上打勾 + 边框实化</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息密度</strong><span role="cell">详情完整，列表扫读</span><span role="cell">详情完整，列表扫读</span><span role="cell">详情完整，一卡一屏浏览</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">呼吸/流光/选中态照抄运行时</span><span role="cell">同上，参数照抄</span><span role="cell">同上，参数照抄</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取页 02 定版语言统一</span><span role="cell">与抽取页 02 定版语言统一</span><span role="cell">与抽取页 02 定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（胶囊去徽标）。用户确认「定版01」。要点：进度胶囊吸顶（普通 0/3 + 三槽）+ 轮回独立卡片 + 候选卡去掉右上角稀有度徽标（稀有度由卡片辉光颜色表达）+ 完整详细介绍 + 动效照抄运行时。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（胶囊打勾）：右上打勾徽标与胶囊已选槽的反馈重复，先不采纳；候选 03（滑卡流）：横向滑卡浏览效率低于纵向列表扫读，且与创建流程其他页面的纵向节奏不统一，先不采纳。</dd></div>
+        <div><dt>下一轮继承</dt><dd>命格选取定版候选 01（胶囊去徽标）作为创建流程连贯基线；下一界面开始属性分配（06）迭代。候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

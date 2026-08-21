@@ -119,7 +119,6 @@ export async function POST(request: Request): Promise<Response> {
           round: report.round,
           status: report.status,
           narrativeAdopted: report.adoption.narrativeAdopted,
-          repairAttempts: report.quality?.repairAttempts,
         },
         payload: { outcome: report },
       })

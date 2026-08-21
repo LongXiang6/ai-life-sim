@@ -15,7 +15,6 @@ export const EVENTS = {
   MOD_DIFFICULTY_CHANGED: 'mod-difficulty:changed',
   // mod-engine
   MOD_ENGINE_ROUND_START: 'mod-engine:round-start',
-  MOD_ENGINE_POST_NARRATIVE_NOTIFICATION: 'mod-engine:post-narrative-notification',
   MOD_ENGINE_NARRATIVE_COMPRESSED: 'mod-engine:narrative-compressed',
   CORE_ALL_MODS_LOADED: 'core:all-mods-loaded',
   // mod-power-system

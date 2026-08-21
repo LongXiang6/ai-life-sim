@@ -1,12 +1,26 @@
 /**
- * @module parse-ai-json.ts
- * @description 无损解析完整 AI JSON；兼容围栏、说明文字和常见 JSON 标点偏差
- * @mod core
+ * Purpose: Parse AI JSON values with bounded, high-compatibility syntax recovery.
+ * Owner: core / ai-service
+ * Responsibility: JSON extraction and syntax recovery only; business schemas own field validation.
  */
 
 interface JsonSpanScan {
   spans: Array<{ start: number; end: number }>
   incomplete: boolean
+}
+
+export interface ParseAIJSONOptions {
+  recoverUnclosedString?: {
+    field: string
+    followingTopLevelFields: readonly string[]
+  }
+}
+
+export interface ParsedAIJSONCandidate<T = unknown> {
+  value: T
+  start: number
+  end: number
+  source: string
 }
 
 /** 只移除包住完整响应的一组成对 Markdown 围栏。 */
@@ -44,8 +58,8 @@ function scanCompleteJsonSpans(source: string): JsonSpanScan {
       continue
     }
 
-    if (character === '"') {
-      if (stack.length > 0) stringEnd = '"'
+    if (character === '"' || character === "'") {
+      if (stack.length > 0) stringEnd = character
       continue
     }
     if (character === '“') {
@@ -104,13 +118,26 @@ function normalizeJsonSyntax(source: string): string {
         stringEnd = ''
         continue
       }
-      output += stringEnd === '"' || character !== '"' ? character : '\\"'
+      if (character === '\n') {
+        output += '\\n'
+        continue
+      }
+      if (character === '\r') {
+        if (source[index + 1] === '\n') index += 1
+        output += '\\n'
+        continue
+      }
+      if (character === '\t') {
+        output += '\\t'
+        continue
+      }
+      output += stringEnd === "'" && character === '"' ? '\\"' : character
       continue
     }
 
-    if (character === '"') {
-      output += character
-      stringEnd = '"'
+    if (character === '"' || character === "'") {
+      output += '"'
+      stringEnd = character
       continue
     }
     if (character === '“') {
@@ -137,7 +164,46 @@ function normalizeJsonSyntax(source: string): string {
     output += character
   }
 
-  return output
+  return output.replace(/([{,]\s*)([A-Za-z_$\u4e00-\u9fff][\w$\u4e00-\u9fff-]*)\s*:/gu, '$1"$2":')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}
+
+function recoverUnclosedString<T>(
+  source: string,
+  recovery: NonNullable<ParseAIJSONOptions['recoverUnclosedString']>,
+): T | null {
+  const fieldPattern = new RegExp(`"${escapeRegExp(recovery.field)}"\\s*:\\s*"`, 'gu')
+  const fieldMatches = [...source.matchAll(fieldPattern)]
+  if (fieldMatches.length !== 1) return null
+
+  const fieldMatch = fieldMatches[0]
+  const valueStart = (fieldMatch.index ?? 0) + fieldMatch[0].length
+  const followingFields = [...new Set(recovery.followingTopLevelFields)]
+    .filter((field) => field && field !== recovery.field)
+  if (followingFields.length === 0) return null
+
+  const boundaryPattern = new RegExp(
+    `,\\s*"(${followingFields.map(escapeRegExp).join('|')})"\\s*:`,
+    'gu',
+  )
+  boundaryPattern.lastIndex = valueStart
+  const successful: T[] = []
+  let boundary: RegExpExecArray | null
+  while ((boundary = boundaryPattern.exec(source)) !== null) {
+    const boundaryIndex = boundary.index
+    const repaired = `${source.slice(0, boundaryIndex)}"${source.slice(boundaryIndex)}`
+    const parsed = parseCompleteJson<T>(repaired)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue
+    const record = parsed as Record<string, unknown>
+    if (typeof record[recovery.field] !== 'string') continue
+    if (!Object.prototype.hasOwnProperty.call(record, boundary[1])) continue
+    successful.push(parsed)
+  }
+
+  return successful.length === 1 ? successful[0] : null
 }
 
 function parseCompleteJson<T>(source: string): T | null {
@@ -152,20 +218,50 @@ function parseCompleteJson<T>(source: string): T | null {
   }
 }
 
+function parseJsonCandidates<T>(source: string): ParsedAIJSONCandidate<T>[] {
+  const scan = scanCompleteJsonSpans(source)
+  const candidates: ParsedAIJSONCandidate<T>[] = []
+  for (const span of scan.spans) {
+    const fragment = source.slice(span.start, span.end)
+    const parsed = parseCompleteJson<T>(fragment)
+    if (parsed !== null) candidates.push({ value: parsed, ...span, source: fragment })
+  }
+  return candidates
+}
+
+/** 返回响应中所有可独立消费的 JSON 候选；残缺尾部不会丢弃前面已经完整的候选。 */
+export function parseAIJSONCandidates<T = unknown>(
+  raw: string,
+  options: ParseAIJSONOptions = {},
+): ParsedAIJSONCandidate<T>[] {
+  if (!raw?.trim()) return []
+  const cleaned = unwrapCompleteMarkdownFence(raw)
+  if (!cleaned) return []
+
+  const direct = parseCompleteJson<T>(cleaned)
+  if (direct !== null) return [{ value: direct, start: 0, end: cleaned.length, source: cleaned }]
+
+  if (options.recoverUnclosedString) {
+    const recovered = recoverUnclosedString<T>(cleaned, options.recoverUnclosedString)
+    if (recovered !== null) return [{ value: recovered, start: 0, end: cleaned.length, source: cleaned }]
+  }
+  return parseJsonCandidates<T>(cleaned)
+}
+
 /**
- * 解析一个完整 JSON 值。可以忽略围栏或 JSON 外说明文字，但不能补写括号、
- * 丢弃残缺尾部，或在存在多个候选值时猜测应采用哪一个。
+ * 解析一个可消费 JSON 值。可以忽略围栏或 JSON 外说明文字；多个候选时优先选择
+ * 内容最长的完整候选，残缺尾部不会拖累前面已经完整的结果。
  */
-export function parseAIJSON<T = unknown>(raw: string): T | null {
+export function parseAIJSON<T = unknown>(
+  raw: string,
+  options: ParseAIJSONOptions = {},
+): T | null {
   if (!raw?.trim()) return null
   const cleaned = unwrapCompleteMarkdownFence(raw)
   if (!cleaned) return null
 
-  const direct = parseCompleteJson<T>(cleaned)
-  if (direct !== null) return direct
-
-  const scan = scanCompleteJsonSpans(cleaned)
-  if (scan.incomplete || scan.spans.length !== 1) return null
-  const [{ start, end }] = scan.spans
-  return parseCompleteJson<T>(cleaned.slice(start, end))
+  const candidates = parseAIJSONCandidates<T>(cleaned, options)
+  if (candidates.length === 0) return null
+  return [...candidates]
+    .sort((left, right) => (right.end - right.start) - (left.end - left.start))[0].value
 }

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Define the stable and variable user-key order for the fate prompt cache.
+ * Owner: mod-character.
+ * Responsibility: Fate KV prompt ordering and session identity only; generation owns content.
+ *
  * @module fate-kv.ts
  * @description 命格/天赋池 KV Cache —— user 键序、S2 分段与 sessionId
  * @mod mod-character

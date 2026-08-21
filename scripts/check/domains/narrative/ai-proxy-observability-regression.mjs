@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Purpose: Audit AI proxy identity, cache, retry, logging, and diagnostics contracts across their source owners.
+ * Purpose: Audit AI proxy identity, cache, logging, and diagnostics contracts across their source owners.
  * Owner: quality:narrative
  * Responsibility: Static observability regression only; runtime behavior is covered by focused transport tests.
  */
@@ -66,8 +66,8 @@ assert(
   /cache_pool:\s*z\.enum\(INTERNAL_CACHE_POOLS\)/.test(proxy)
     && /cache_pool:\s*resolveInternalCachePool\(pool, options\?\.logContext\?\.callKind\)/.test(client)
     && cachePool.includes("'narrative-main'")
-    && cachePool.includes("'narrative-data-analysis-repair'"),
-  'every proxy request must carry one centrally registered internal cache pool',
+    && !cachePool.includes('repair'),
+  'every proxy request must carry one centrally registered non-repair cache pool',
 )
 assert(
   /update\(`\$\{normalizedTrustedUserId\}\|\$\{body\.cache_pool\}`\)/.test(proxy)
@@ -80,10 +80,8 @@ assert(
   'proxy must observe repeated fingerprints without enforcing a fixed request-count rejection',
 )
 assert(
-  /function isRetryableAiError\(error: unknown\)/.test(client)
-    && /error instanceof AIHttpError/.test(client)
-    && /error\.status === 408 \|\| error\.status === 429 \|\| error\.status >= 500/.test(client),
-  'deterministic 400 responses must not enter the transient internal retry path',
+  !/validateWithRetry|retryResult|MAX_RETRY_COUNT|retry-executor/.test(client + proxy),
+  'AI client and proxy must not own an internal retry or repair loop',
 )
 assert(
   /randomUUID\(\)/.test(proxy)

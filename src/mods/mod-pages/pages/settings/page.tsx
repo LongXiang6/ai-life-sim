@@ -1,3 +1,5 @@
+/** Purpose: Render the standalone finalized settings surface. Owner: mod-pages. Responsibility: Page composition and navigation only. */
+
 'use client'
 
 /**
@@ -31,11 +33,12 @@ export default function SettingsPage() {
             <BottomActionBar
               onBack={() => router.back()}
               backTitle="返回上一页"
+              backDescription="退出设置"
               onConfirm={() => router.push('/welcome')}
               confirmNumber="00"
-              confirmText="返回欢迎界面"
-              confirmDescription="回到欢迎界面"
-              confirmTitle="返回欢迎界面"
+              confirmText="完成"
+              confirmDescription="返回欢迎界面"
+              confirmTitle="完成设置"
             />
           </main>
         </div>

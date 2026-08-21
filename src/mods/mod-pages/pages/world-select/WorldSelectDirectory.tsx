@@ -1,3 +1,5 @@
+/** Purpose: Render finalized world-source tabs and directories. Owner: mod-pages. Responsibility: World option presentation and event forwarding only. */
+
 import { resolvePresetWorldCode } from '@/mods/mod-world'
 
 import { WorldSelectCustomForm } from './WorldSelectCustomForm'
@@ -42,11 +44,11 @@ export function WorldSelectDirectory({
                     className={`${styles.moreWorldCard} ${hasCache ? styles.moreWorldCardWithCache : ''} ${selected ? styles.moreWorldCardSelected : ''}`}
                     onClick={() => logic.handleSelectPreset(world)}
                     aria-pressed={selected}
+                    data-selected={selected}
                     disabled={logic.isConfirming}
                   >
                     <span className={styles.worldIcon} data-semantic-emoji aria-hidden="true">{world.icon}</span>
                     <span>{world.name}</span>
-                    <small>{world.description.slice(0, 20)}</small>
                   </button>
                   {hasCache && (
                     <button
@@ -121,8 +123,10 @@ export function WorldSelectDirectory({
                   className={`${styles.savedWorldCard} ${selected ? styles.savedWorldSelected : ''}`}
                   onClick={() => logic.handleSelectCustomWorld(world)}
                   aria-pressed={selected}
+                  data-selected={selected}
                   disabled={logic.isConfirming}
                 >
+                  <span className={styles.worldIcon} data-semantic-emoji aria-hidden="true">🌍</span>
                   <span className={styles.savedWorldMain}>
                     <strong>{world.name}</strong>
                     <small>{world.description || `${world.eraName}${Math.abs(world.eraStartYear)}年`}</small>

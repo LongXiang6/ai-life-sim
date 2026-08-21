@@ -1,4 +1,8 @@
 /**
+ * Purpose: Project canonical time spans into scale-aware narrative guidance.
+ * Owner: mod-engine
+ * Responsibility: Time-scale and calendar Prompt hints only.
+ *
  * @module time-scale-narrative.ts
  * @description 12 档时间步进到叙事视角提示的唯一组装权威
  * @mod mod-engine
@@ -47,73 +51,73 @@ export const TIME_SCALE_NARRATIVE_PROFILES: readonly TimeScaleNarrativeProfile[]
     key: 'day:1',
     id: 'single-day-scene',
     macroLevel: 10,
-    prompt: '【单日现场视角】镜头贴近角色这一日的连续行动、对话、感官、即时阻力与直接后果；可以细写动作和情绪，但不得把数周或数月的成果压进一天。',
+    prompt: '【单日现场视角】镜头贴近角色这一日的连续行动、对话、感官、即时阻力与直接后果；长期变化在今天呈现为开端、征兆或一次可见推进。',
   },
   {
     key: 'month:1',
     id: 'monthly-change',
     macroLevel: 20,
-    prompt: '【月度变化视角】用一至两个前后承接的代表性场景表现本月变化；场景保持相同的中近景叙事距离，过渡只交代必要时间和因果，不插入月度报告，也不要把单日琐事夸成整月命运转折。',
+    prompt: '【月度变化视角】围绕本月持续作用的一件事，用一至两个前后承接的代表性场景表现过程与结果；场景保持相同的中近景距离，时间通过人物、关系、环境或工作进度的变化自然流过。',
   },
   {
     key: 'season:1',
     id: 'seasonal-stage',
     macroLevel: 30,
-    prompt: '【季度阶段视角】用少量因果相连的代表性场景覆盖完整三个月；各场景保持一致的中景距离，环境、关系或任务节律只通过场景中的可见变化呈现，不写季度报告，也不得把整个季度压成一天的一幕。',
+    prompt: '【季度阶段视角】选择贯穿三个月的目标、关系或变化，用少量因果相连的代表性场景写出它怎样积累、转折并形成当前结果；环境、关系与任务节律通过场景中的可见变化呈现。',
   },
   {
     key: 'year:1',
     id: 'annual-panorama',
     macroLevel: 40,
-    prompt: '【年度连续场景视角】用二至三个前后相承的代表性场景覆盖一整年：场景分别承担起点、阶段变化和结束结果，并保持相同的人物叙事距离；场景之间只用必要的时间与因果过渡，不写年度报告，不插入宏观总结，也不得把全年压成一个即时现场。0岁开场仍以出生与家世为起点，并继续用后续场景表现这一年形成的照料关系与生存处境。',
+    prompt: '【年度故事弧线视角】先确定这一年持续作用的一条因果主线，再用二至三个彼此照应的代表性场景写出开端、变化与结果；时间通过同一人物、关系、物件或目标的改变自然显现。若最近两轮已经沿用同一主线，本年必须选择另一条自然成立的因果主线，旧主线只能作为承接背景，不能占据多数篇幅。0岁开场从出生与家世起笔，并沿照料关系与生存处境写出这一年如何展开。',
   },
   {
     key: 'year:3',
     id: 'three-year-life-stage',
     macroLevel: 50,
-    prompt: '【三年人生阶段视角】用三个左右前后承接的人物场景表现连续三年的起点、积累或变化与结束结果；镜头始终保持在角色及其直接关系上，过渡只说明必要的时间和因果，不逐年报账，也不能只写最后一年。',
+    prompt: '【三年人生阶段视角】围绕一段关系、目标或处境的持续变化，用几个前后承接的场景写出三年中的积累、转折与当前结果；家庭、组织、地域或制度的变化通过它们与角色生活的真实交汇进入故事。',
   },
   {
     key: 'year:5',
     id: 'five-year-growth-arc',
     macroLevel: 60,
-    prompt: '【五年成长阶段视角】用三至四个镜头一致、前后承接的人物场景覆盖完整五年，表现长期行动如何积累为成长、职业、家庭或社会位置变化；不写五年概述后再突然切入单日现场。',
+    prompt: '【五年成长阶段视角】选择一条能够承载五年变化的成长、职业、家庭或社会位置主线，用少量镜头一致、前后承接的场景表现长期行动如何积累、付出代价并改变生活，也呈现行业、社区、势力或环境如何独立变化并形成回应。',
   },
   {
     key: 'year:10',
     id: 'decade-transformation',
     macroLevel: 70,
-    prompt: '【十年人生转型视角】用三至四个前后承接的人物阶段场景展示角色人生阶段、核心关系、资源地位或外部环境如何变化；各节点保持相同叙事距离，不逐年罗列，不使用十年报告式概述，也不得把篇幅集中在结束节点当天。',
+    prompt: '【十年人生转型视角】以一条持续十年的核心变化为贯穿线，让角色阶段、核心关系、资源地位或外部环境在少量代表性场景中彼此作用；开头留下的问题在结尾获得结果或新的意义。',
   },
   {
     key: 'year:50',
     id: 'half-century-history',
     macroLevel: 80,
-    prompt: '【半世纪历史视角】从半世纪开始自然抬升到家族、组织、地域或制度层面，用至少三个时代节点写清个人命运与长期结构如何互相影响。每个节点保持一致的历史叙事距离，大部分篇幅不得停留在结束节点当天或任何单一现场；角色寿命不足时，只能由已有因果建立的延续主体承接，并保留最终历史位置。',
+    prompt: '【半世纪历史视角】把个人命运放进家族、组织、地域或制度的长期变化中，选择少量能够代表转折的时代场景，追踪同一个选择、事业、关系或遗产如何改变形态并反过来塑造人生。角色生命结束后，由已有因果建立的延续主体承接其回声与历史位置。',
   },
   {
     key: 'year:100',
     id: 'century-epic',
     macroLevel: 90,
-    prompt: '【世纪史诗视角】从世纪尺度描写政权、技术、文化、族群或世界秩序的重大转型，并以角色、家族、组织或遗产的延续串联至少三个时代节点；重点是百年前后世界与命运结构的根本差异，不得把世纪变化写成终点人物的一次回忆或单一现场。',
+    prompt: '【世纪史诗视角】选择一个贯穿百年的政权、技术、文化、族群或世界秩序变化，以角色、家族、组织或遗产的延续串联少量时代场景，让百年前后的世界差异从同一因果中显现。',
   },
   {
     key: 'year:200',
     id: 'multi-generational-structure',
     macroLevel: 100,
-    prompt: '【跨世代结构视角】覆盖约两百年的多代更替，表现制度、文明关系、知识传统与资源版图如何重组。个人镜头只保留能代表代际承接、断裂或遗忘的节点，结尾必须说明最初选择留下了什么长期结构。',
+    prompt: '【跨世代结构视角】以一个最初选择或遗产为起点，追踪它在约两百年的多代更替中如何被承接、改变、遗忘或重新理解，并让制度、文明关系、知识传统与资源版图的重组围绕这条线展开。',
   },
   {
     key: 'year:500',
     id: 'civilization-rise-and-fall',
     macroLevel: 110,
-    prompt: '【文明兴衰视角】以五百年观察文明、政体、信仰体系、族群或力量体系的兴起、鼎盛、裂变与余波；角色及其遗产是穿越时代的因果线索，叙事重点转向文明尺度的创造、代价、覆灭与重生。',
+    prompt: '【文明兴衰视角】以角色及其遗产作为穿越时代的因果线索，讲述文明、政体、信仰体系、族群或力量体系在五百年中如何从一处起点走向创造、代价、裂变与余波。',
   },
   {
     key: 'year:1000',
     id: 'millennial-era-legacy',
     macroLevel: 120,
-    prompt: '【千年时代与遗产视角】用千年尺度展现纪元更替、文明迁徙、世界秩序和集体记忆的深层变化。只选择少数具有时代代表性的断点，追踪角色、后继者、组织、理念或遗产如何被继承、误读、神话化或彻底消散，并落到千年后的世界格局。',
+    prompt: '【千年时代与遗产视角】选择一条能够穿越千年的遗产、理念、组织或集体记忆，借少数具有时代代表性的场景追踪它如何被继承、改写、神话化或消散，并让纪元更替、文明迁徙与世界秩序的变化围绕它形成完整回声。',
   },
 ] as const
 
@@ -188,10 +192,10 @@ function buildActualNarrativeWindow(
   const unit = unitLabel[input.timeStep.unit]
   const amount = normalizeAmount(input.timeStep.value)
   const alignment = input.timeStepAlignment
-    ? `这是从${normalizeAmount(input.timeStepAlignment.fromValue)}${unitLabel[input.timeStepAlignment.fromUnit]}切换到当前${amount}${unit}后的边界对齐桥接；前一粗粒度窗口已经完成，不能把被跳过的跨度重新写成当前${unit}的流水账。正文直接从当前合法节点建立一个代表性现场、后果或新线索，必要时只用一句过渡。`
+    ? `这是从${normalizeAmount(input.timeStepAlignment.fromValue)}${unitLabel[input.timeStepAlignment.fromUnit]}切换到当前${amount}${unit}后的边界对齐桥接；前一粗粒度窗口已经完成。正文从当前合法节点建立一个代表性现场、后果或新线索，用一句必要过渡连接已经成立的背景。`
     : ''
 
-  return `本轮实际时间窗口：上一叙事节点为${previous}，当前结束节点为${current}；已推进${days}天（${amount}${unit}）。正文只叙述上一节点之后至当前节点之间发生的事，不得重复上一节点之前已经完成的周期，也不得把当前结束节点之后的时间提前写入。${alignment}`
+  return `本轮实际时间窗口：上一叙事节点为${previous}，当前结束节点为${current}；已推进${days}天（${amount}${unit}）。正文取材范围是两个节点之间已经发生的事情，以窗口内正在发生的行动、关系、环境或世界变化进入场景，开端承接上一节点的既成结果，收束落在当前结束节点；日期、年龄与阶段名称在需要定位转折时自然出现。${alignment}`
 }
 
 /** 构建可独立回归的历法跨度说明；季节只由月份推导。 */
@@ -201,7 +205,7 @@ export function buildCanonicalCalendarNarrativeHint(
   const amount = normalizeAmount(input.timeStep.value)
   const actualWindow = buildActualNarrativeWindow(input)
   const endSeason = SEASON_NAMES[getSeasonForMonth(input.month - 1)] ?? '未知'
-  const calendarRule = `项目历法固定为3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季；天气、衣着、农事与正文季节必须服从阳历月份，不得自行套用其他季节划分。其中${input.month}月必须称${endSeason}季；气温可以异常寒冷或炎热，但不得把该月改称其他季节。`
+  const calendarRule = `项目历法固定为3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季；天气、衣着、农事与社会节律沿用阳历月份，并作为场景背景融入行动与变化。其中${input.month}月称${endSeason}季；异常寒冷或炎热作为该季节中的特殊天气呈现。`
 
   if (actualWindow) {
     return `${calendarRule}${actualWindow}`
@@ -232,7 +236,7 @@ export function buildCanonicalCalendarNarrativeHint(
       const endMonth = input.calendarYear * 12 + input.month - 1
       const monthCount = amount * 3
       const startMonth = endMonth - monthCount + 1
-      return `${calendarRule}本轮连续推进${amount}个季度（${monthCount}个月），覆盖${formatYearMonth(startMonth)}至${formatYearMonth(endMonth)}，结束节点属于${endSeason}季；不得把跨季跨度写成单一季节。`
+      return `${calendarRule}本轮连续推进${amount}个季度（${monthCount}个月），覆盖${formatYearMonth(startMonth)}至${formatYearMonth(endMonth)}，结束节点属于${endSeason}季；环境与社会节律随跨季过程自然变化。`
     }
     case 'year':
     default: {
@@ -259,8 +263,7 @@ export function buildTimeScaleNarrativeHint(
   }
 
   return [
-    `【时间尺度】当前时间是本轮叙事的结束节点；正文只写上一叙事节点之后到当前节点之间发生的事。本次推进${amount}${unitLabel[timeStep.unit]}。`,
+    `【时间尺度】当前时间是本轮叙事的结束节点；正文讲述上一叙事节点之后到当前节点之间发生的事情，并从窗口内正在发生的行动、关系或世界变化进入场景。本次推进${amount}${unitLabel[timeStep.unit]}；先读取最近两轮，若它们连续由同一地点、关系、日常动作或能力主导，本轮必须更换至少一项叙事重心，并形成新的目标、阻碍、关系变化或外部回应，不能只换时间继续复述；时间通过变化自然显现。`,
     profile.prompt,
-    '正文必须沿同一时间跨度内的因果主线推进，不拼接互不相干的事件或生活切片。首句不要使用“这一年”“这一月”“这一天”等泛指时间套语，也不要复用上一轮起句结构；根据本档视角直接进入行动、关系变化、制度变化、冲突或时代格局，确需时间锚时使用“当前时间”中的具体纪年、季节、月日。',
   ].join('')
 }

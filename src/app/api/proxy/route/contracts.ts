@@ -10,6 +10,16 @@ import { INTERNAL_CACHE_POOLS } from '@/core/ai-service/cache-pool'
 import { DEFAULT_AI_PROVIDER_ID } from '@/core/ai-service/provider-config'
 import { normalizeProxyStorySeedInput } from '@/core/ai-service/story-seed'
 
+const ProxyFunctionToolSchema = z.object({
+  type: z.literal('function'),
+  function: z.object({
+    name: z.string().min(1).max(96),
+    description: z.string().max(600).optional(),
+    strict: z.boolean().optional(),
+    parameters: z.record(z.string(), z.unknown()),
+  }).strict(),
+}).strict()
+
 export const ProxyRequestSchema = z.object({
   cache_pool: z.enum(INTERNAL_CACHE_POOLS),
   model: z.string().min(1),
@@ -21,6 +31,11 @@ export const ProxyRequestSchema = z.object({
   stream: z.boolean().optional(),
   stream_options: z.object({ include_usage: z.boolean() }).strict().optional(),
   response_format: z.object({ type: z.string() }).optional(),
+  tools: z.array(ProxyFunctionToolSchema).min(1).max(1).optional(),
+  tool_choice: z.object({
+    type: z.literal('function'),
+    function: z.object({ name: z.string().min(1).max(96) }).strict(),
+  }).strict().optional(),
   top_p: z.number().min(0).max(1).optional(),
   seed: z.preprocess(normalizeProxyStorySeedInput, z.number().finite().optional()),
   thinking: z.object({ type: z.enum(['disabled', 'enabled']) }).strict().optional(),

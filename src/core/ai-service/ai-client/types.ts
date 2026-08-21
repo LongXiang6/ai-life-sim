@@ -15,6 +15,21 @@ export interface AiMessage {
   content: string
 }
 
+export interface AiFunctionTool {
+  type: 'function'
+  function: {
+    name: string
+    description?: string
+    strict?: boolean
+    parameters: Record<string, unknown>
+  }
+}
+
+export interface AiFunctionToolChoice {
+  type: 'function'
+  function: { name: string }
+}
+
 export interface AICallOptions {
   config: AIModelConfig
   pool?: CachePoolType
@@ -25,6 +40,10 @@ export interface AICallOptions {
   overrideTemperature?: number
   overrideTopP?: number
   jsonMode?: boolean
+  tools?: readonly AiFunctionTool[]
+  toolChoice?: AiFunctionToolChoice
+  /** 当且仅当固定函数出口返回时，读取该函数参数作为调用文本结果。 */
+  responseToolName?: string
   storySeed?: string | number
   providerId?: string
   apiKey?: string
@@ -39,12 +58,17 @@ export interface AICallOptions {
   logMeta?: Record<string, unknown>
   logMetaResolver?: (response: string) => Record<string, unknown>
   outputSchema?: ZodSchema
-  strictSchema?: boolean
 }
 
 export interface AIResponse {
   choices: Array<{
-    message: { content: string }
+    message: {
+      content?: string | null
+      tool_calls?: Array<{
+        type?: string
+        function?: { name?: string; arguments?: string }
+      }>
+    }
     finish_reason: string
   }>
   usage?: Record<string, unknown>

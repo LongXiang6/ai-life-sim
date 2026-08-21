@@ -35,16 +35,16 @@ function seedPage(page) {
       entities: [], initialized: true, worldCode: fixtureWorldCode, currentYear: 2000, worldTags: ['现代', '现实'], eraStartYear: 2000, eraName: '公元',
       calibration: null, destinyPatternModifiers: {},
       worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true, tagsGenerated: true, configGenerated: true,
-        entitiesGenerated: true, retryCount: 0, maxRetries: 3, errors: [] },
+        regionProfilesGenerated: true, errors: [] },
     } }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
       provider: 'deepseek', customKey: '', customUrl: '', customModel: 'deepseek-v4-flash', temperature: 0.8, topP: 0.8,
-      reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled', aiTalentGeneration: false, preGenerateRounds: 0, storySeed: '20260723-live',
+      reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled', aiTalentGeneration: false, storySeed: '20260723-live',
       narrativeStyle: 'default', wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
     }}))
-    localStorage.setItem('mod-character:persist:mythic-library', JSON.stringify({ version: 2, state: { patterns: [
-      { id: 'live-mythic-1', name: '未熄之诺', concept: '承诺', effect: '重要承诺会留下可追溯的行动方向。', acquiredAt: 1, source: { worldName: '真实测试', characterName: '旧角色' } },
-      { id: 'live-mythic-2', name: '回声拾光', concept: '记忆', effect: '重要关系会保留可回到现场的线索。', acquiredAt: 2, source: { worldName: '真实测试', characterName: '旧角色' } },
+    localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
+      { id: 'live-mythic-1', lineageId: 'live-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'social', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '真实测试', characterName: '旧角色' } },
+      { id: 'live-mythic-2', lineageId: 'live-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'social', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '真实测试', characterName: '旧角色' } },
     ] } }))
   }, worldCode)
 }
@@ -167,11 +167,9 @@ async function main() {
   await clickText(page, '开始抽取')
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled), { timeout: 60000 })
   await clickText(page, '进入命格选择')
-  for (const [slotIndex, patternName] of [[1, '未熄之诺'], [2, '回声拾光']]) {
-    await page.click(`button[aria-label^="轮回天赋槽${slotIndex}"]`)
-    await page.waitForSelector('#mythic-library-sheet')
-    await clickText(page, patternName, '#mythic-library-sheet button')
-    await page.waitForSelector('#mythic-library-sheet', { hidden: true })
+  await clickText(page, '轮回天赋', 'button[role="tab"]')
+  for (const patternName of ['未熄之诺', '回声拾光']) {
+    await clickText(page, patternName, 'button[aria-label*="选择轮回天赋"]')
   }
   await page.waitForSelector('button[aria-label$="选择普通命格"]')
   for (let index = 0; index < 3; index += 1) {
@@ -250,7 +248,10 @@ async function main() {
     }
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 2500))
+  const requestDeadline = Date.now() + 240000
+  while (proxyRequests.length < targetRounds * 3 && Date.now() < requestDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
 
   const persisted = await page.evaluate(() => {
     const parse = (key) => JSON.parse(localStorage.getItem(key) || '{}').state || {}
@@ -292,9 +293,8 @@ async function main() {
     route: await page.evaluate(() => location.pathname),
     proxyRequestCount: proxyRequests.length,
     mainNarrativeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative:')).length,
-    dataAnalysisRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-data-analysis:')).length,
-    basicAttributeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-basic-attribute-analysis:')).length,
-    eventRecognitionRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-event-recognition:')).length,
+    storyContinuityRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-story-continuity:')).length,
+    talentGrowthRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-talent-growth:')).length,
     narrativeEntries: persisted.engine.narrativeHistory?.length || 0,
     incompleteNarrativeRounds: narrativeRounds.filter((entry) => entry.chars < 20).map((entry) => entry.round),
     missingRepetitionMetricRounds: narrativeRounds.filter((entry) => !entry.repetition).map((entry) => entry.round),
@@ -302,7 +302,7 @@ async function main() {
     highRepeatRounds: narrativeRounds.filter((entry) => entry.repetition?.qualityLevel === 'high').map((entry) => entry.round),
     repetitionSummary: persisted.engine.storyRepetitionStats,
     roundDurationsMs,
-    equippedMythicPatterns: persisted.character.equippedMythicPatterns?.length || 0,
+    equippedReincarnationTalents: persisted.character.equippedReincarnationTalents?.length || 0,
     forcedBranchAttempts,
     branchObserved, branchResolved, branchObservedCount, branchResolvedCount,
     forceBranchNext: persisted.engine.forceBranchNext === true,
@@ -330,13 +330,13 @@ async function main() {
     || result.incompleteNarrativeRounds.length > 0
     || result.missingRepetitionMetricRounds.length > 0
     || result.highRepeatRounds.length > 0
-    || result.equippedMythicPatterns !== 2
+    || result.equippedReincarnationTalents !== 2
     || !result.branchObserved
     || !result.branchResolved
-    || result.mainNarrativeRequests < targetRounds
-    || result.dataAnalysisRequests < targetRounds
-    || result.basicAttributeRequests < targetRounds
-    || result.eventRecognitionRequests < targetRounds
+    || result.proxyRequestCount !== targetRounds * 3
+    || result.mainNarrativeRequests !== targetRounds
+    || result.storyContinuityRequests !== targetRounds
+    || result.talentGrowthRequests !== targetRounds
     || result.forceBranchNext
     || !result.reloadVerified
     || result.lastAutoSaveRound < targetRounds

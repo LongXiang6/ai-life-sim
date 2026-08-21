@@ -28,7 +28,6 @@ export function buildGameOverShareFacts(data: GameOverShareCardData): GameOverSh
   return [
     { label: '此生行程', value: `${data.rounds} 轮世事` },
     { label: '此生年岁', value: data.ageLabel },
-    { label: '此生品性', value: data.moralityLabel },
     { label: '此生里程碑', value: `${data.achievementCount} 项已确认大事` },
     ...(data.featuredAchievement
       ? [{ label: '代表大事', value: `${data.featuredAchievement.title} · ${data.featuredAchievement.detail}` }]
@@ -46,13 +45,13 @@ export function buildGameOverShareText(data: GameOverShareCardData): string {
   const strongest = getStrongestShareDimension(data.dimensions)
   return [
     `${data.characterName || '无名之辈'}在「${data.worldName}」走完了一生。`,
-    `${data.rounds} 轮世事 · ${data.ageLabel} · 人生评分 ${data.overallScore} · ${data.moralityLabel}`,
+    `${data.rounds} 轮世事 · ${data.ageLabel} · 人生评分 ${data.overallScore}`,
     `${data.achievementCount} 项已确认大事`,
     data.featuredAchievement
       ? `代表大事：${data.featuredAchievement.title} · ${data.featuredAchievement.detail}`
       : '',
     strongest ? `最鲜明的力量：${strongest.label} ${strongest.value}（${getDimensionComment(strongest)}）` : '',
-    data.mythic ? `此生留下的轮回天赋：${data.mythic.name} · ${data.mythic.concept}` : '',
+    data.reincarnation ? `此生留下的轮回天赋：${data.reincarnation.name} · ${data.reincarnation.description}` : '',
     '#AI人生模拟器',
     data.shareUrl?.trim() ?? '',
   ].filter(Boolean).join('\n')

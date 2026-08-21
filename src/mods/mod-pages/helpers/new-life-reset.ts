@@ -1,9 +1,16 @@
+/**
+ * Purpose: Reset active-life runtime state and per-life creation drafts.
+ * Owner: mod-pages
+ * Responsibility: New-life boundary orchestration only.
+ */
+
 import { useGlobalStore } from '@/core/global-store'
 import { flushOpfsQueueNow } from '@/core/storage'
 import { useCharacterStore } from '@/mods/mod-character'
-import { getPreGenQueueStatus, useEngineStore } from '@/mods/mod-engine'
-import { clearPreGenQueue, orchestrator } from '@/mods/mod-engine/engine-api'
+import { useEngineStore } from '@/mods/mod-engine'
+import { orchestrator } from '@/mods/mod-engine/engine-api'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
+import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { clearNewLifeCreationDrafts } from './creation-draft-storage'
@@ -60,7 +67,11 @@ export async function prepareNewLifeWorldCommit(nextWorldCode?: number): Promise
   const changesCreationWorld = hasExistingContext
     && (!Number.isFinite(nextWorldCode) || nextWorldCode === undefined || world.worldCode !== nextWorldCode)
 
-  if (!hasActiveLifeProgress() && !changesCreationWorld) return 'preserved'
+  if (!hasActiveLifeProgress() && !changesCreationWorld) {
+    // A confirmed world starts a fresh seed scope even when its draft context is reused.
+    useSettingsStore.getState().setStorySeed('')
+    return 'preserved'
+  }
 
   await resetForNewLife()
   return 'reset'
@@ -71,19 +82,11 @@ export async function prepareNewLifeWorldCommit(nextWorldCode?: number): Promise
  * 必须等待 MOD 运行注册完成，保证 P0/P1 等所有当前活动子系统都参与同一次重置。
  */
 export async function resetForNewLife(): Promise<void> {
-  if (getPreGenQueueStatus().isActive) {
-    throw new Error('下一段故事仍在后台准备，请稍候再开启新人生。')
-  }
-  await orchestrator.waitForBackgroundCompression()
-  if (getPreGenQueueStatus().isActive) {
-    throw new Error('下一段故事仍在后台准备，请稍候再开启新人生。')
-  }
-
   await waitForModRuntimeReady()
-  clearPreGenQueue()
   orchestrator.reset()
   clearNewLifeCreationDrafts()
   useCharacterStore.getState().reset()
+  useSettingsStore.getState().setStorySeed('')
   useWorldStore.getState().reset()
   useEngineStore.getState().reset()
   usePowerSystemStore.getState().reset()

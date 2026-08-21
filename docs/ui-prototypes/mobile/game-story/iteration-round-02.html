@@ -1,0 +1,137 @@
+<!-- Purpose: Record the second UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-02</p>
+      <h1>游戏故事 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 C</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-01 定版候选 01（运行时结构）为基线演进，方向「结构演进」——三个候选分向优化顶栏与阅读区三个结构细节：候选 A 顶栏单行瘦身（barTop 与 barVitals 合并为单行横向滚动，顶栏高度减半）、候选 B 账簿分类折叠面板（信息面板世界与角色账簿拆为四个折叠组默认收起，面板默认高度大幅降低）、候选 C 章节头单行化（回次 / 标题 / 三步进度整合为单行，状态并入小字）。三个候选的业务契约与动效参数均照抄运行时与 ROUND-01 定版基线。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals 内容（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、命格胶囊最多 3 个、轮回天赋流光胶囊）、chapterHead 文案（第 1 回 · 故事进程 / 故事进行中 / 进度标签 / 三步 01 生成正文 02 完成本轮 03 继续人生）、NarrativeTimeline（条目元信息 + 分段正文 + 属性变化 chip + 分支回显）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板内容（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉与面板为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（轮回流光，nth-child(2) 延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>顶栏信息密度（两段 vs 单行横向滚动下的可达性）、信息面板首屏高度（账簿全开 vs 折叠分组后的可发现性）、章节头垂直占用（四行堆叠 vs 单行后阅读正文的进入节奏）、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>顶栏单行瘦身</strong></header>
+          <p>barTop 与 barVitals 合并为单行：身份居左、四维与命格胶囊居中横排（超出横向滚动）、操作收右，顶栏高度减半；信息面板与章节头以下保持 ROUND-01 基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-slim-top.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>账簿分类折叠面板</strong></header>
+          <p>顶栏保持两段基线；信息面板的世界与角色账簿拆为四个折叠组（角色词条 / 轮回天赋 / 世界与当前状态 / 叙事重复观测）默认收起，面板默认高度大幅降低，其余内容不变。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-ledger-tabs.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>章节头单行化</strong></header>
+          <p>顶栏保持两段基线；章节头从回次 / 标题 / 标签 / 三步四行堆叠改为单行紧凑：回次 · 标题左对齐 + 三步进度胶囊右对齐，状态标签并入三步下方小字，阅读正文更快进入。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-chapter-line.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 顶栏单行瘦身</span><span role="columnheader">B 账簿分类折叠面板</span><span role="columnheader">C 章节头单行化</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏</strong><span role="cell">单行合并，横向滚动</span><span role="cell">两段保持（ROUND-01 基线）</span><span role="cell">两段保持（ROUND-01 基线）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息面板</strong><span role="cell">账簿全开（基线）</span><span role="cell">账簿拆四组折叠默认收起</span><span role="cell">账簿全开（基线）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">章节头</strong><span role="cell">四行堆叠（基线）</span><span role="cell">四行堆叠（基线）</span><span role="cell">单行紧凑（回次·标题 + 三步）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">推进</strong><span role="cell">时间线流末 advanceDock</span><span role="cell">时间线流末 advanceDock</span><span role="cell">时间线流末 advanceDock</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 C</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 C（章节头单行化）：顶栏保持两段基线，章节头从四行居中堆叠改为左标题 + 右三步胶囊竖排单行结构，状态标签并入标题下方小字，虚线底部分隔保留——阅读正文更快进入、垂直占用最小，且章节信息仍在同一视觉区内完整可见。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A（顶栏单行瘦身）：barTop 与 barVitals 合并单行后四维/命格/轮回依赖横向滚动，随身可见性比两段基线弱化，顶栏高度收益以信息可达性为代价；候选 B（账簿分类折叠面板）：账簿四组默认收起，首屏高度降低有限（面板主体仍高），且每次查看账簿需多点一次展开，可发现性下降。</dd></div>
+        <div><dt>下一轮继承</dt><dd>候选 C（章节头单行化）为游戏故事（08）当前基线。进入 ROUND-03「条目外框与长篇叙事」：用户指示——属性变化 chip（span）加标签外框、时间线多添加几个轮次展示长篇效果、命运分叉回显（div）加外框且外框与页面背景协调不形成明显色差、轮回胶囊去掉「轮回」二字并把「轮回」移动到轮回天赋区第二行。三个候选分向外框风格，共同基线先全部应用。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

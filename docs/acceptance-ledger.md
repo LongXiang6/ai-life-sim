@@ -130,7 +130,7 @@
 
 ### 2.8 人生结算分享
 
-结算页在既有事实展示、结构化大事和轮回天赋之后提供“留下此生”：本机 Canvas 生成完整 PNG，优先使用 Web Share，能力不可用时降级下载。数据只来自角色名、世界、年岁、轮数、品性、人生评分、四维、已确认分支/突破大事和当前轮回天赋；不从正文编造成就，不上传正文、Prompt、API 配置、诊断编号、日志或设备信息，也不修改存档与模拟状态。
+结算页在既有事实展示、结构化大事和轮回天赋之后提供“留下此生”：本机 Canvas 生成完整 PNG，优先使用 Web Share，能力不可用时降级下载。数据只来自角色名、世界、年岁、轮数、人生评分、四维、已确认分支/突破大事和当前轮回天赋；不从正文编造成就，不上传正文、Prompt、API 配置、诊断编号、日志或设备信息，也不修改存档与模拟状态。
 
 320—1280px 响应式、1080px PNG、长文本换行、零值轨道、系统分享、下载降级、控制台、自动 UI 检查和 5.2.0 生产发布后路径均通过。
 
@@ -352,6 +352,28 @@
 `BaselineDifference: check:ui 仍报告 14 项 S26 页内自定义 CSS 变量未被 Design Token 扫描识别（变量已在页面根定义）；gate-check:quick 仍因 orchestrator-system.ts 既有 D-07 相对 import 失败。本轮未恢复废弃 100dvh/42rem 壳层。`
 
 `ProjectChange: yes; FunctionalChange: yes; 已按发布台账生成 5.3.9 与一条玩家更新记录（public/changelog-42.txt，2026-07-24 21:18:31）。`
+
+### 2.24 DeepSeek 天赋进阶多维上下文真实评测
+
+`LastVerified: 2026-08-20`
+
+`Authority: docs/authority/mechanisms/core-round/post-story-analysis.md; docs/authority/mechanisms/prompt-and-cache.md`
+
+`RuntimeSource: src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts; src/mods/mod-engine/helpers/narrative-talent-growth-context.ts; src/mods/mod-engine/helpers/narrative-response-quality.ts; src/mods/mod-character/destiny-pattern-growth.ts`
+
+`Result: partial; reproducible semantic defect`
+
+`Evidence: 使用当前 03 Prompt 3.1.0、正式三段动态组装、DeepSeek deepseek-v4-flash、temperature=0、关闭推理、非流式顺序执行 21 次真实请求；21/21 HTTP 成功、finish_reason=stop 且经现行宽容解析器形成合法协议结果，18/21 语义结果符合样本预期。零直接能力证据样本 4/4 正确拒绝成长，多候选样本 4/4 选择直接证据更充分的听潮天赋，低魔工程世界边界样本 4/4 未生成直接元素操控，已有一次成长历史样本 2/2 延续主动声学探查路线。17 份成长结果共 51 条路线均满足固定顺序、名称区分和目标等级属性上限，未出现负属性或强制能力加代价模板。21 次请求平均 4874ms、中位 5640ms、P95 6553ms，平均输入 2249 tokens、平均输出 365 tokens；重复请求观察到 Prompt cache hit。专用入口为 npm run test:talent-growth:live，可通过参数只执行指定样本，并用 LIVE_EVAL_ATTEMPTS 控制重复次数。`
+
+`Defect: 当候选只有一个直接且可验证的能力表现窗口时，DeepSeek 3/3 仍判定成长；三次成长依据都只引用该唯一窗口，违反普通到精良至少两个直接证据窗口的现行契约。动态组装当前把压缩记忆扁平化为时间文本，并以 currentRound >= minimumWindows 作为程序前筛，未向本地提交提供可校验的候选证据窗口编号，因此合法 JSON 与属性校验无法阻止这类语义误判。专用 live-eval 已把该场景作为 expected-decision 失败返回非零退出码。`
+
+`QualityRisk: 人工复核的四份低魔世界成长结果中有两份把转变强化写成嘈杂环境中的声音筛选或注意力聚焦，接近深度强化而非作用方式根本变化；不影响协议提交，但三路线的实质差异仍存在模型质量波动。`
+
+`HistoricalComparison: 2026-07-25 的历史 DeepSeek 证据覆盖创建流程、4 轮主故事与分支补救，不包含 03 天赋成长，也没有耗时或 Token 基线，因此只能确认当前 03 的网络与协议成功率，不宣称相对旧 03 质量或性能提升。此次为顺序语义评测，不是并发压测。API Key 仅从本地环境读取，未进入脚本、账本、响应摘要或版本库。`
+
+`RepairVerification: 按用户确认完成 03 v3.2.0 修复：证据窗口按来源故事回合稳定编号并合并同回合事实；程序按普通/精良/稀有/史诗目标分别要求至少 2/3/4/5 个窗口，仅把上次成长之后的窗口投影给候选；AI 必须返回实际窗口编号，程序验证编号存在、属于当前天赋、不重复且达到最低数量，失败按不成长处理；转变强化排除单纯精度、抗噪、注意力、速度或稳定性提升。`
+
+`RepairLiveEvidence: 全量 6 样本×2 次共 12 次 DeepSeek 请求全部 HTTP 成功，11/12 经解析器合法；唯一异常是 world-boundary 一次不可解析 JSON，程序拒绝该结果，11 个合法结果本地检查 0 失败。充分证据 2/2 成长并引用 round:1—4，不足证据 2/2 不成长，单窗口 2/2 不成长，多候选 2/2 选择 lineage:tide-listener，成长历史 2/2 只引用成长后 round:24/25/26，低魔边界合法结果均未越界。平均 4808ms、P95 7709ms、平均输入 2536 tokens、平均输出 350 tokens；相较上一轮 3.1.0 的 21 次评测（18/21 语义通过、平均 4874ms、P95 6553ms、平均输入 2249、输出 365），平均耗时约降 1.4%、输入约增 12.7%、输出约降 4.1%，P95 升 17.6%；样本次数与请求混合不同，只作方向性对照，且本次仍是顺序评测，不是并发压测。单窗口夹具与 `npx tsc --noEmit`、`npm run validate:narrative`、`npm run check:execution`、目标 ESLint 均通过。`
 
 ## 3. 阶段与发布验收摘要
 

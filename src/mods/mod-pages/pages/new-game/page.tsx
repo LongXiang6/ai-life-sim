@@ -31,15 +31,15 @@ export default function NewGamePage() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="max-w-md px-6 text-center">
-        <p className="text-sm text-gray-500" role="status" aria-live="polite">
+        <p className="text-sm text-[var(--flow-muted)]" role="status" aria-live="polite">
           {error || '正在清理上一段人生并准备新的世界…'}
         </p>
         {error && (
           <div className="mt-4 flex justify-center gap-3">
-            <button type="button" className="rounded border border-gray-300 px-4 py-2 text-sm" onClick={() => router.replace('/welcome')}>返回欢迎页</button>
+            <button type="button" className="rounded border border-[var(--flow-line-strong)] bg-[var(--flow-paper)] px-4 py-2 text-sm text-[var(--flow-muted)]" onClick={() => router.replace('/welcome')}>返回欢迎页</button>
             <button
               type="button"
-              className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
+              className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
               onClick={() => {
                 setError('')
                 setAttempt((value) => value + 1)

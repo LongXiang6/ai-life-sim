@@ -1,5 +1,7 @@
 /**
- * 结算分享卡：只使用真实结算事实、本机生成、系统分享与 PNG 降级回归。
+ * Purpose: Regress game-over share facts, local rendering, system sharing, and PNG download behavior.
+ * Owner: quality:ui
+ * Responsibility: One local share-card contract and source-projection assertion lifecycle only.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -15,7 +17,8 @@ const {
   getReincarnationStrengthTier,
   selectFeaturedAchievement,
 } = await import('../../../../src/mods/mod-pages/pages/game-over/game-over-scoring.ts')
-const { calculateLifeScore } = await import('../../../../src/core/scoring/life-scoring.ts')
+const { createLifeScoringResult } = await import('../../../../src/core/scoring/life-scoring.ts')
+const { decideReincarnationPromotion } = await import('../../../../src/mods/mod-character/reincarnation-talent-access.ts')
 
 let failed = 0
 function assertOk(condition, message) {
@@ -32,7 +35,6 @@ const shareData = {
   worldName: longWorldName,
   ageLabel: '18—87 岁',
   rounds: 69,
-  moralityLabel: '善良',
   overallScore: 78,
   achievementCount: 2,
   featuredAchievement: {
@@ -44,10 +46,11 @@ const shareData = {
     { label: '心智', value: 86, comment: '卓越' },
     { label: '悟性', value: 86, comment: '卓越' },
     { label: '魅力', value: 64, comment: '出众' },
+    { label: '回响', value: 82, comment: '清晰' },
   ],
-  mythic: {
+  reincarnation: {
     name: longMythicName,
-    concept: '承诺',
+    description: '承诺',
     effect: '真心承担过的承诺，会在后来者的选择中留下回声。',
   },
   shareUrl: 'https://ai-mnrs.icu',
@@ -57,7 +60,7 @@ const strongest = getStrongestShareDimension(shareData.dimensions)
 assertOk(strongest?.label === '心智', 'equal strongest dimensions must keep deterministic source order')
 
 const facts = buildGameOverShareFacts(shareData)
-assertOk(facts.length === 6, 'share preview must expose score-independent facts and structured achievements')
+assertOk(facts.length === 5, 'share preview must expose score-independent facts and structured achievements')
 assertOk(facts.some((fact) => fact.value.includes('心智 86')), 'share facts must use the real strongest dimension')
 assertOk(facts.some((fact) => fact.value === '69 轮世事'), 'share facts must use the real narrative round count')
 assertOk(facts.some((fact) => fact.value === '2 项已确认大事'), 'share facts must include the structured achievement count')
@@ -74,63 +77,107 @@ assertOk(
   'share file name must use the stable technical life run ID rather than player prose',
 )
 
-const scoringProfile = {
-  profileVersion: 1,
-  worldId: 'share-smoke-world',
-  dimensions: [
-    { id: 'growth', label: '成长', description: '角色成长', weight: 25, evidenceKinds: ['attributes'], curveId: 'growth' },
-    { id: 'agency', label: '抉择', description: '关键抉择', weight: 25, evidenceKinds: ['choices', 'achievements'], curveId: 'agency' },
-    { id: 'journey', label: '历程', description: '完整历程', weight: 25, evidenceKinds: ['journey', 'completion'], curveId: 'journey' },
-    { id: 'impact', label: '影响', description: '留下影响', weight: 25, evidenceKinds: ['achievements', 'choices'], curveId: 'impact' },
-  ],
-}
-const meaningfulScore = calculateLifeScore({
-  profile: scoringProfile,
+const scoringNarrativeIds = Array.from({ length: 5 }, (_, index) => `round-${index + 1}`)
+const scoringEvidenceIds = scoringNarrativeIds.map((id) => `narrative:${id}`)
+const scoringAudit = {
+  schemaVersion: 1,
   lifeRunId: 'life-score-meaningful',
-  attributeValues: [10, 10, 10, 10],
-  rounds: 12,
-  committedRounds: 12,
-  narrativeIds: Array.from({ length: 12 }, (_, index) => `round-${index + 1}`),
-  resolvedChoiceCount: 4,
-  achievementIds: ['a', 'b', 'c', 'd', 'e'],
+  committedRounds: 5,
+  narrativeIds: scoringNarrativeIds,
+  resolvedChoiceCount: 1,
+  achievementIds: ['choice-1'],
   completed: true,
   terminalCommitted: true,
   stateTransitionsTrusted: true,
+  hasValidationFailure: false,
+  transitionAudits: scoringNarrativeIds.map((narrativeId, index) => ({
+    schemaVersion: 1,
+    round: index + 1,
+    narrativeId,
+    validatedWritePath: true,
+    interceptorPassed: true,
+    intentValidationPassed: true,
+    historicalCommitPassed: true,
+    structuredDataPresent: true,
+    structuredDataAccepted: true,
+    requestedChangeCount: 0,
+    committedChangeCount: 0,
+    rejectedChangeCount: 0,
+    trusted: true,
+    validationClean: true,
+    reasons: [],
+  })),
+}
+const dimensionValues = [80, 82, 84, 86, 88]
+const scoreResponse = {
+  dimensions: dimensionValues.map((value, index) => ({
+    id: `dimension-${index + 1}`,
+    label: `维度${index + 1}`,
+    description: `当前世界中的第${index + 1}项人生衡量`,
+    value,
+    comment: `你在第${index + 1}项维度留下了可追溯的经历。`,
+    evidenceIds: [scoringEvidenceIds[index]],
+  })),
+}
+const meaningfulScore = createLifeScoringResult({
+  response: scoreResponse,
+  allowedEvidenceIds: scoringEvidenceIds,
+  audit: scoringAudit,
 })
-assertOk(meaningfulScore.score >= 80, 'a meaningful completed run must commonly clear 80')
-assertOk(meaningfulScore.score < 90, 'a sub-90 raw result must remain below the protected 90-point range')
-const invalidScore = calculateLifeScore({
-  profile: scoringProfile,
-  lifeRunId: 'life-score-invalid',
-  attributeValues: [10],
-  rounds: 2,
-  committedRounds: 1,
-  narrativeIds: ['only-one'],
-  resolvedChoiceCount: 5,
-  achievementIds: ['a', 'b', 'c', 'd', 'e'],
-  completed: true,
-  terminalCommitted: true,
-  stateTransitionsTrusted: true,
+assertOk(meaningfulScore.score === 84, 'final score must be the rounded arithmetic mean of exactly five AI dimensions')
+assertOk(meaningfulScore.integrity.passed, 'complete five-dimension evidence must pass structural integrity')
+const invalidScore = createLifeScoringResult({
+  response: scoreResponse,
+  allowedEvidenceIds: scoringEvidenceIds,
+  audit: { ...scoringAudit, committedRounds: 1 },
 })
-assertOk(invalidScore.score <= 69 && !invalidScore.integrity.passed, 'invalid completion evidence must never receive a 70+ score')
-const perfectScore = calculateLifeScore({
-  profile: scoringProfile,
-  lifeRunId: 'life-score-perfect',
-  attributeValues: [1000, 1000, 1000, 1000],
-  rounds: 20,
-  committedRounds: 20,
-  narrativeIds: Array.from({ length: 20 }, (_, index) => `perfect-round-${index + 1}`),
-  resolvedChoiceCount: 5,
-  achievementIds: ['a', 'b', 'c', 'd', 'e'],
-  completed: true,
-  terminalCommitted: true,
-  stateTransitionsTrusted: true,
-})
-assertOk(perfectScore.score === 100 && perfectScore.integrity.perfectGatePassed, '100 points must require every deterministic perfect gate')
+assertOk(invalidScore.score === 84 && !invalidScore.integrity.passed, 'audit failure must stay separate from the AI dimension values')
+let rejectedFourDimensions = false
+try {
+  createLifeScoringResult({
+    response: { dimensions: scoreResponse.dimensions.slice(0, 4) },
+    allowedEvidenceIds: scoringEvidenceIds,
+    audit: scoringAudit,
+  })
+} catch {
+  rejectedFourDimensions = true
+}
+assertOk(rejectedFourDimensions, 'settlement scoring must require exactly five dimensions')
 assertOk(getReincarnationStrengthTier(79).id === 'echo', 'scores below 80 must use the echo tier')
 assertOk(getReincarnationStrengthTier(80).id === 'deep', 'score 80 must enter the deep tier')
 assertOk(getReincarnationStrengthTier(90).id === 'legacy', 'score 90 must enter the legacy tier')
 assertOk(getReincarnationStrengthTier(95).id === 'immortal', 'score 95 must enter the immortal tier')
+
+const mythicSource = {
+  lineageId: 'mythic:test',
+  version: 6,
+  name: '命运之书',
+  description: '记录已经发生的命运。',
+  effect: '可在明确代价下调整一次既定结果。',
+  category: 'exploration',
+  rarity: 'mythic',
+  attrBonus: { mind: 8, talentAptitude: 7, luck: 3 },
+  strengthenLevel: 5,
+}
+const firstFailure = decideReincarnationPromotion(mythicSource, () => 0)
+assertOk(
+  !firstFailure.success
+    && firstFailure.attemptedStrengthenLevel === 6
+    && firstFailure.resultingStrengthenLevel === 4
+    && firstFailure.failureRate === 10
+    && firstFailure.mutationSeverity === '轻微异变'
+    && firstFailure.attributeCap === 22,
+  'mythic +5 to +6 failure must retreat one level from the pre-attempt level and apply the resulting attribute cap',
+)
+const secondFailure = decideReincarnationPromotion({ ...mythicSource, strengthenLevel: 6 }, () => 0)
+assertOk(
+  secondFailure.attemptedStrengthenLevel === 7
+    && secondFailure.resultingStrengthenLevel === 5
+    && secondFailure.failureRate === 20,
+  'mythic +6 to +7 failure must retreat to +5 rather than +4',
+)
+const cappedFailure = decideReincarnationPromotion({ ...mythicSource, strengthenLevel: 12 }, () => 0)
+assertOk(cappedFailure.failureRate === 50 && cappedFailure.mutationSeverity === '彻底重组', 'mythic failure rate must remain capped at 50 percent')
 
 const achievements = buildGameOverAchievements([
   {
@@ -157,7 +204,11 @@ const talentCssSource = await readFile(
   'utf8',
 )
 const promptSource = await readFile(
-  new URL('../../../../src/mods/mod-character/prompts/mythic-pattern-prompt.ts', import.meta.url),
+  new URL('../../../../src/mods/mod-character/prompts/reincarnation-promotion-prompt.ts', import.meta.url),
+  'utf8',
+)
+const promptAccessSource = await readFile(
+  new URL('../../../../src/mods/mod-character/reincarnation-talent-access.ts', import.meta.url),
   'utf8',
 )
 assertOk(!helperSource.includes('narrativeHistory'), 'share renderer must not ingest complete story history')
@@ -172,10 +223,11 @@ assertOk(
 assertOk(!scoringSource.includes('calculateGameOverScore'), 'the page helper must not retain a second score calculation owner')
 assertOk(!talentCssSource.includes('-webkit-line-clamp'), 'talent detail text must not be hidden by line clamping')
 assertOk(
-  promptSource.includes("version: '1.2.1'")
-    && promptSource.includes('endingScore')
-    && promptSource.includes('reincarnationStrengthTier'),
-  'reincarnation generation Prompt must receive the deterministic score and strength tier',
+  promptSource.includes("version: '2.0.0'")
+    && promptAccessSource.includes('endingScore: input.endingScore')
+    && promptAccessSource.includes('reincarnationStrengthTier: input.strengthTier')
+    && promptAccessSource.includes('promotionDecision: input.promotionDecision'),
+  'reincarnation generation Prompt must receive the score, strength tier, and program-decided promotion result',
 )
 assertOk(
   helperSource.includes('await navigator.share({')

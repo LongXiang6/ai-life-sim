@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized welcome page. Owner: mod-pages. Responsibility: Welcome composition and public action wiring only. */
+
 'use client'
 
 /**
@@ -8,6 +10,7 @@
 
 import type { SaveMetadata } from '@/core/storage/save-manager'
 import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
+import { FlowRunningHead } from '@/mods/mod-ui'
 
 import styles from './WelcomeView.module.css'
 import WelcomeSaveSheet from './WelcomeSaveSheet'
@@ -51,9 +54,8 @@ export default function WelcomeView({
 
   return (
     <main className={styles.container}>
-      <div className={styles.runningHead} aria-hidden="true">
-        <span>AI LIFE SIM · 命书</span>
-        <span>00 / 欢迎</span>
+      <div className={styles.runningHeadSlot}>
+        <FlowRunningHead stepLabel="00 / 欢迎" />
       </div>
 
       <nav className={styles.quickActions} aria-label="排行榜与邮箱">
@@ -71,65 +73,46 @@ export default function WelcomeView({
       </nav>
 
       <section className={styles.intro} aria-labelledby="welcome-title">
-        <p className={styles.brand}>人生序章</p>
+        <p className={styles.brand}>✦ 人生序章</p>
         <h1 id="welcome-title" className={styles.title}>
-          一生很长，
+          命书已翻至首页，
           <br />
-          <span>也只由几次选择组成。</span>
+          故事由你落笔。
         </h1>
-        <p className={styles.subtitle}>选择世界与角色。</p>
+        <p className={styles.subtitle}>✦ 选择世界与角色。</p>
       </section>
 
       <section className={styles.actions} aria-label="开始与辅助操作">
-        <p className={styles.routeHeading}>从这里开始</p>
         <button
           type="button"
-          className={`${styles.routeAction} ${styles.primaryBtn}`}
+          className={styles.primaryAction}
           onClick={onStartNewGame}
           title="进入世界选择界面，创建一个全新的人生"
         >
-          <span className={styles.routeIndex}>01</span>
-          <span className={styles.routeCopy}>
-            <strong>开始新人生</strong>
-          </span>
-          <span className={styles.routeArrow} aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </span>
+          🌱 开始新人生
         </button>
 
-        {hasAnySave && (
-          <WelcomeSaveSheet
-            saves={saves}
-            cloudSave={cloudSave}
-            selectedSaveId={selectedSaveId}
-            onSelectSave={onSelectSave}
-            onContinueSave={onContinueSave}
-            onDeleteSave={onDeleteSave}
-            onContinueCloudSave={onContinueCloudSave}
-            onDeleteCloudSave={onDeleteCloudSave}
-          />
-        )}
+        <div className={styles.routeList}>
+          {hasAnySave && (
+            <WelcomeSaveSheet
+              saves={saves}
+              cloudSave={cloudSave}
+              selectedSaveId={selectedSaveId}
+              onSelectSave={onSelectSave}
+              onContinueSave={onContinueSave}
+              onDeleteSave={onDeleteSave}
+              onContinueCloudSave={onContinueCloudSave}
+              onDeleteCloudSave={onDeleteCloudSave}
+            />
+          )}
+        </div>
 
-        <p className={styles.utilityHeading}>辅助入口</p>
-        <div className={styles.secondaryActions}>
-          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenAccount}>
-            <span className={styles.routeIndex}>03</span>
-            <span className={styles.routeCopy}><strong>账号与云端</strong></span>
-          </button>
-          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenSettings}>
-            <span className={styles.routeIndex}>04</span>
-            <span className={styles.routeCopy}><strong>设置</strong></span>
-          </button>
-          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenHelp}>
-            <span className={styles.routeIndex}>05</span>
-            <span className={styles.routeCopy}><strong>游戏说明</strong></span>
-          </button>
-          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenFeedback}>
-            <span className={styles.routeIndex}>06</span>
-            <span className={styles.routeCopy}><strong>反馈与建议</strong></span>
-          </button>
+        <div className={styles.sectionDivider} role="presentation" />
+        <div className={styles.utilityGrid}>
+          <button type="button" className={styles.utilityAction} onClick={onOpenAccount}>☁️ 账号与云端</button>
+          <button type="button" className={styles.utilityAction} onClick={onOpenSettings}>⚙️ 设置</button>
+          <button type="button" className={styles.utilityAction} onClick={onOpenHelp}>📜 游戏说明</button>
+          <button type="button" className={styles.utilityAction} onClick={onOpenFeedback}>💬 反馈与建议</button>
         </div>
       </section>
     </main>

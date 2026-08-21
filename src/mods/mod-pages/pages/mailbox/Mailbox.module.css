@@ -1,23 +1,25 @@
+/* Purpose: Render the finalized warm-paper mailbox. Owner: mod-pages/mailbox. Responsibility: Mailbox composition and local interaction states only. */
+
 .page {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  background: #f5f7fa;
-  color: #20283a;
-  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
-}
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--flow-canvas);
+      color: var(--flow-ink);
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
 
 .screen {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-  padding: calc(2.2 * var(--final-flow-block-unit)) calc(4.2 * var(--final-flow-inline-unit)) calc(76 * var(--final-flow-density-px) + env(safe-area-inset-bottom, 0px));
-  overflow: hidden;
-}
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: calc(18.333 * var(--final-flow-density-px)) calc(23.333 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px));
+      overflow: hidden;
+    }
 
 .meta,
 .header,
@@ -28,33 +30,37 @@
 }
 
 .meta {
-  justify-content: space-between;
-  color: #718099;
-  font-size: calc(1 * var(--final-flow-block-unit));
-  font-weight: 650;
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-weight: 650;
+    }
 
 .header {
-  justify-content: space-between;
-  gap: calc(3 * var(--final-flow-inline-unit));
-  padding: calc(2.6 * var(--final-flow-block-unit)) calc(0.6 * var(--final-flow-inline-unit)) calc(1.6 * var(--final-flow-block-unit));
-  border-bottom: calc(0.15 * var(--final-flow-inline-unit)) solid #dce3ed;
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(15 * var(--final-flow-density-px));
+      padding: calc(18.333 * var(--final-flow-density-px)) calc(3.333 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px));
+      border-bottom: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+    }
 
 .header h1 {
-  margin: 0;
-  color: #171e35;
-  font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: calc(4.6 * var(--final-flow-inline-unit));
-  font-weight: 600;
-  line-height: 1.1;
-}
+      margin: 0;
+      color: var(--flow-ink);
+      font-size: calc(23.333 * var(--final-flow-density-px));
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
 
 .header p {
-  margin: calc(0.7 * var(--final-flow-block-unit)) 0 0;
-  color: #718099;
-  font-size: calc(1 * var(--final-flow-block-unit));
-}
+      margin: calc(5 * var(--final-flow-density-px)) 0 0;
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+    }
 
 .composeButton,
 .sendButton,
@@ -64,7 +70,7 @@
   min-height: calc(4.4 * var(--final-flow-block-unit));
   border: 0;
   border-radius: calc(0.8 * var(--final-flow-inline-unit));
-  background: #344357;
+  background: var(--flow-accent);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -72,23 +78,33 @@
 }
 
 .composeButton {
-  flex: 0 0 auto;
-  padding: 0 calc(3.2 * var(--final-flow-inline-unit));
-}
+      flex: 0 0 auto;
+      min-height: calc(36.667 * var(--final-flow-density-px));
+      padding: 0 calc(15 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+      border-radius: calc(20 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      box-shadow: 0 calc(4.167 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.1);
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(10 * var(--final-flow-density-px));
+      font-weight: 650;
+    }
 
 .composer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: calc(1 * var(--final-flow-block-unit)) calc(2 * var(--final-flow-inline-unit));
   padding: calc(1.4 * var(--final-flow-block-unit)) calc(0.6 * var(--final-flow-inline-unit));
-  border-bottom: calc(0.15 * var(--final-flow-inline-unit)) solid #dce3ed;
-  background: #fff;
+  border-bottom: calc(0.15 * var(--final-flow-inline-unit)) solid var(--flow-line);
+  background: var(--flow-paper);
 }
 
 .composer label {
   display: grid;
   gap: calc(0.45 * var(--final-flow-block-unit));
-  color: #536176;
+  color: var(--flow-muted);
   font-size: calc(1 * var(--final-flow-block-unit));
 }
 
@@ -101,9 +117,9 @@
 .composer select {
   width: 100%;
   min-width: 0;
-  border: calc(0.15 * var(--final-flow-inline-unit)) solid #cdd5e1;
+  border: calc(0.15 * var(--final-flow-inline-unit)) solid var(--flow-line);
   border-radius: calc(0.7 * var(--final-flow-inline-unit));
-  background: #fff;
+  background: var(--flow-paper);
   color: #20283a;
   font: inherit;
   font-size: calc(1.1 * var(--final-flow-block-unit));
@@ -135,7 +151,7 @@
 .folderTabs button {
   border: 0;
   background: transparent;
-  color: #6c788b;
+  color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
 }
@@ -143,13 +159,13 @@
 .recipientMode button {
   min-height: calc(4.3 * var(--final-flow-block-unit));
   flex: 1;
-  border: calc(0.15 * var(--final-flow-inline-unit)) solid #cdd5e1;
+  border: calc(0.15 * var(--final-flow-inline-unit)) solid var(--flow-line);
   font-size: calc(1 * var(--final-flow-block-unit));
 }
 
 .recipientMode button[data-active="true"] {
-  border-color: #344357;
-  background: #e9eef4;
+  border-color: var(--color-border-focus);
+  background: var(--color-bg-secondary);
   color: #20283a;
   font-weight: 650;
 }
@@ -166,39 +182,44 @@
 }
 
 .folderTabs {
-  flex: 0 0 auto;
-  gap: calc(3 * var(--final-flow-inline-unit));
-  padding: 0 calc(0.6 * var(--final-flow-inline-unit));
-  border-bottom: calc(0.15 * var(--final-flow-inline-unit)) solid #dce3ed;
-}
+      display: flex;
+      flex: 0 0 auto;
+      gap: calc(15 * var(--final-flow-density-px));
+      padding: 0 calc(3.333 * var(--final-flow-density-px));
+      border-bottom: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+    }
 
 .folderTabs button {
-  min-height: calc(5.2 * var(--final-flow-block-unit));
-  border-bottom: calc(0.3 * var(--final-flow-inline-unit)) solid transparent;
-  font-size: calc(1.1 * var(--final-flow-block-unit));
-}
+      min-height: calc(40 * var(--final-flow-density-px));
+      border: 0;
+      border-bottom: calc(2.5 * var(--final-flow-density-px)) solid transparent;
+      background: transparent;
+      color: var(--flow-muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(10.833 * var(--final-flow-density-px));
+    }
 
 .folderTabs button[data-active="true"] {
-  border-bottom-color: #344357;
-  color: #20283a;
-  font-weight: 700;
-}
+      border-bottom-color: var(--color-border-focus);
+      color: var(--flow-ink);
+      font-weight: 700;
+    }
 
 .content {
-  min-height: 0;
-  flex: 1;
-  padding: calc(1.2 * var(--final-flow-block-unit)) calc(0.4 * var(--final-flow-inline-unit));
-  overflow-y: auto;
-  scroll-padding-bottom: calc(1.2 * var(--final-flow-block-unit));
-  scrollbar-width: thin;
-}
+      min-height: 0;
+      flex: 1;
+      padding: calc(10 * var(--final-flow-density-px)) 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
 
 .status {
   display: grid;
   min-height: calc(23 * var(--final-flow-block-unit));
   place-items: center;
   margin: 0;
-  color: #718099;
+  color: var(--flow-muted);
   font-size: calc(1.15 * var(--final-flow-block-unit));
   text-align: center;
 }
@@ -206,175 +227,197 @@
 .feedback {
   margin: 0 0 calc(1 * var(--final-flow-block-unit));
   padding: calc(0.8 * var(--final-flow-block-unit)) calc(1.4 * var(--final-flow-inline-unit));
-  border-left: calc(0.35 * var(--final-flow-inline-unit)) solid #8292a7;
-  background: #eef2f6;
-  color: #536176;
+  border-left: calc(0.35 * var(--final-flow-inline-unit)) solid var(--flow-line-strong);
+  background: var(--color-bg-secondary);
+  color: var(--flow-muted);
   font-size: calc(1 * var(--final-flow-block-unit));
 }
 
 .error {
-  border-left-color: #a1555d;
+  border-left-color: var(--color-error);
   color: #914750;
 }
 
 .mailList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+      display: grid;
+      gap: calc(10 * var(--final-flow-density-px));
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
 
 .mail {
-  border-bottom: calc(0.15 * var(--final-flow-inline-unit)) solid #dce3ed;
-  background: #fff;
-}
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(16.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      overflow: hidden;
+    }
 
 .mail[data-unread="true"] {
-  background: #edf3f8;
-}
+      border-color: var(--flow-line-strong);
+      background: var(--flow-accent-soft);
+    }
 
 .mailSummary {
-  position: relative;
-  width: 100%;
-  min-height: calc(7.2 * var(--final-flow-block-unit));
-  gap: calc(1.5 * var(--final-flow-inline-unit));
-  padding: calc(1 * var(--final-flow-block-unit)) calc(1.4 * var(--final-flow-inline-unit));
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
+      position: relative;
+      display: grid;
+      width: 100%;
+      min-height: calc(55 * var(--final-flow-density-px));
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: calc(3.333 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px));
+      padding: calc(10.833 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px));
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
 
 .mailIdentity {
-  width: calc(16 * var(--final-flow-inline-unit));
-  flex: 0 0 auto;
-  overflow: hidden;
-  color: #536176;
-  font-size: calc(1.05 * var(--final-flow-block-unit));
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+      grid-column: 1;
+      overflow: hidden;
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
 .mailSummary strong {
-  width: calc(20 * var(--final-flow-inline-unit));
-  flex: 0 0 auto;
-  overflow: hidden;
-  font-size: calc(1.15 * var(--final-flow-block-unit));
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+      grid-column: 1;
+      overflow: hidden;
+      font-size: calc(12.5 * var(--final-flow-density-px));
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
 .mailPreview {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  color: #718099;
-  font-size: calc(1 * var(--final-flow-block-unit));
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+      grid-column: 1;
+      overflow: hidden;
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
 .mailTime {
-  flex: 0 0 auto;
-  color: #8490a2;
-  font-size: calc(0.9 * var(--final-flow-block-unit));
-}
+      grid-column: 2;
+      grid-row: 1;
+      color: var(--flow-faint);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .unreadDot {
-  width: calc(1.3 * var(--final-flow-inline-unit));
-  height: calc(1.3 * var(--final-flow-inline-unit));
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #49749a;
-}
+      position: absolute;
+      right: calc(13.333 * var(--final-flow-density-px));
+      bottom: calc(10 * var(--final-flow-density-px));
+      width: calc(6.667 * var(--final-flow-density-px));
+      height: calc(6.667 * var(--final-flow-density-px));
+      border-radius: 50%;
+      background: var(--flow-muted);
+    }
 
 .mailBody {
-  padding: 0 calc(2 * var(--final-flow-inline-unit)) calc(1.5 * var(--final-flow-block-unit));
-  border-top: calc(0.1 * var(--final-flow-inline-unit)) solid #e6ebf1;
-}
+      padding: 0 calc(13.333 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px));
+      border-top: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+    }
 
 .mailBody > p {
-  margin: calc(1.5 * var(--final-flow-block-unit)) 0;
-  color: #3f4c60;
-  font-size: calc(1.1 * var(--final-flow-block-unit));
-  line-height: 1.75;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
+      margin: calc(10 * var(--final-flow-density-px)) 0;
+      color: var(--flow-muted);
+      font-size: calc(10 * var(--final-flow-density-px));
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
 
 .portrait {
-  width: min(100%, calc(65 * var(--final-flow-inline-unit)));
-  height: auto;
-  border: calc(0.15 * var(--final-flow-inline-unit)) solid #d8deea;
-  border-radius: calc(0.8 * var(--final-flow-inline-unit));
-  object-fit: cover;
-}
+      width: min(100%, calc(216.667 * var(--final-flow-density-px)));
+      height: auto;
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(10 * var(--final-flow-density-px));
+      object-fit: cover;
+    }
 
 .talentAttachment {
-  margin-top: calc(1.2 * var(--final-flow-block-unit));
-  padding: calc(1.4 * var(--final-flow-block-unit)) calc(2 * var(--final-flow-inline-unit));
-  border: calc(0.15 * var(--final-flow-inline-unit)) solid #bdc9d6;
-  border-radius: calc(0.8 * var(--final-flow-inline-unit));
-  background: #f7f9fb;
-}
+      margin-top: calc(8.333 * var(--final-flow-density-px));
+      padding: calc(8.333 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+      border-radius: calc(13.333 * var(--final-flow-density-px));
+      background: var(--flow-accent-soft);
+    }
 
 .talentAttachment small,
-.talentAttachment strong {
-  display: block;
-}
+    .talentAttachment strong {
+      display: block;
+    }
 
 .talentAttachment small {
-  color: #718099;
-  font-size: calc(0.9 * var(--final-flow-block-unit));
-}
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .talentAttachment strong {
-  margin-top: calc(0.35 * var(--final-flow-block-unit));
-  font-family: "Songti SC", "STSong", serif;
-  font-size: calc(1.4 * var(--final-flow-block-unit));
-}
+      margin-top: calc(2.5 * var(--final-flow-density-px));
+      font-size: calc(11.667 * var(--final-flow-density-px));
+      font-weight: 650;
+    }
 
 .talentAttachment p {
-  margin: calc(0.7 * var(--final-flow-block-unit)) 0 0;
-  color: #536176;
-  font-size: calc(1 * var(--final-flow-block-unit));
-  line-height: 1.55;
-}
+      margin: calc(5 * var(--final-flow-density-px)) 0 0;
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      line-height: 1.55;
+    }
 
 .talentAttachment button {
-  margin-top: calc(1 * var(--final-flow-block-unit));
-  padding: 0 calc(3 * var(--final-flow-inline-unit));
-}
+      margin-top: calc(6.667 * var(--final-flow-density-px));
+      min-height: calc(31.667 * var(--final-flow-density-px));
+      padding: 0 calc(13.333 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+      border-radius: calc(20 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      box-shadow: 0 calc(4.167 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.1);
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-weight: 650;
+    }
 
 .mailActions {
-  justify-content: space-between;
-  gap: calc(2 * var(--final-flow-inline-unit));
-  margin-top: calc(1.4 * var(--final-flow-block-unit));
-  color: #8490a2;
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(10 * var(--final-flow-density-px));
+      margin-top: calc(10 * var(--final-flow-density-px));
+      color: var(--flow-faint);
+    }
 
 .mailActions small {
-  font-size: calc(0.9 * var(--final-flow-block-unit));
-}
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .mailActions button {
-  min-height: calc(3.8 * var(--final-flow-block-unit));
-  padding: 0 calc(2.6 * var(--final-flow-inline-unit));
-  background: #8a4b54;
-}
+      min-height: calc(30 * var(--final-flow-density-px));
+      padding: 0 calc(13.333 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+      border-radius: calc(16.667 * var(--final-flow-density-px));
+      background: var(--flow-accent-soft);
+      color: #7a4a3f;
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(9.167 * var(--final-flow-density-px));
+    }
 
 .moreButton {
   display: block;
   margin: calc(1.5 * var(--final-flow-block-unit)) auto 0;
   padding: 0 calc(4 * var(--final-flow-inline-unit));
-  background: #69788b;
+  background: var(--flow-accent);
 }
 
 @media (max-width: 640px) {
-  .screen {
-    padding-inline: calc(2.2 * var(--final-flow-inline-unit));
-  }
 
   .status {
     min-height: calc(14 * var(--final-flow-block-unit));
@@ -388,12 +431,6 @@
     grid-column: auto;
   }
 
-  .mailSummary {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: calc(0.4 * var(--final-flow-block-unit)) calc(1.5 * var(--final-flow-inline-unit));
-  }
-
   .mailIdentity,
   .mailSummary strong,
   .mailPreview {
@@ -404,16 +441,5 @@
   .mailSummary strong,
   .mailPreview {
     grid-column: 1;
-  }
-
-  .mailTime {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .unreadDot {
-    position: absolute;
-    right: calc(1.4 * var(--final-flow-inline-unit));
-    bottom: calc(1.2 * var(--final-flow-block-unit));
   }
 }

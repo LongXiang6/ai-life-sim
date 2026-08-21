@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized attribute allocation step. Owner: mod-pages. Responsibility: Page composition and interaction wiring only. */
+
 'use client'
 
 /**
@@ -10,19 +12,19 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import {
-  DESTINY_PATTERN_SELECT_COUNT,
   getAttrSemantic,
   getAttrTierIndex,
+  isPatternLoadoutComplete,
   useCharacterStore,
 } from '@/mods/mod-character'
 import type { BaseAttributes } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, FlowRunningHead } from '@/mods/mod-ui'
 
 import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
 import styles from './AttributeAlloc.module.css'
 
-const TOTAL_POINTS = 15
+const TOTAL_POINTS = 4
 
 const ATTRIBUTES: ReadonlyArray<{
   key: keyof BaseAttributes
@@ -58,6 +60,12 @@ function AttributeAllocContent() {
   const [attributes, setAttributes] = useState(() => ({ ...initialAttributes }))
   const [showUnusedDialog, setShowUnusedDialog] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
+
+  // The character store owns the creation draft so route changes do not lose edits.
+  useEffect(() => {
+    if (JSON.stringify(characterBase.base) === JSON.stringify(attributes)) return
+    setCharacterBase({ base: normalizeAttributes(attributes) })
+  }, [attributes, characterBase.base, setCharacterBase])
 
   const usedPoints = useMemo(
     () => ATTRIBUTES.reduce((total, attribute) => total + attributes[attribute.key], 0),
@@ -124,22 +132,25 @@ function AttributeAllocContent() {
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
           <header className={styles.header}>
-            <div className={styles.meta}><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>
-            <div className={styles.titleRow}>
-              <div className={styles.titleCopy}>
-                <h2>属性分配</h2>
-                <p>塑造这段人生的先天起点。</p>
-              </div>
+            <FlowRunningHead stepLabel="06 / 08" />
+            <div className={styles.titleCopy}>
+              <h1><span className="semantic-emoji" aria-hidden="true">📜</span>属性分配</h1>
+              <p><span className={styles.deco} aria-hidden="true">❖</span>命格既显，根基待你一一铭定<span className={styles.deco} aria-hidden="true">❖</span></p>
             </div>
           </header>
 
+          <div className={styles.scriptRule} aria-hidden="true"><i>✦</i></div>
+
           <section className={styles.section} aria-labelledby="attribute-budget-title">
-            <div className={styles.sectionHead}><strong id="attribute-budget-title">基础点数</strong><small>命格加成不占预算</small></div>
+            <div className={styles.sectionHead}>
+              <strong id="attribute-budget-title"><span className={styles.deco} aria-hidden="true">✦</span>基础点数<span className={styles.deco} aria-hidden="true">✦</span></strong>
+              <small>命格加成不占预算</small>
+            </div>
             <div className={styles.budget}>
-              <div className={styles.budgetScore}><div><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div></div>
+              <div className={styles.budgetScore} aria-hidden="true"><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div>
               <div className={styles.budgetCopy}>
                 <strong>剩余 <span>{remainingPoints}</span> 点</strong>
-                <p>0 是普通人基准，10 是人类顶尖，超过 10 即为超凡；命格加成另行结算。</p>
+                <p><span className={styles.deco} aria-hidden="true">❖</span>凡胎以零为基、以十为巅，逾十即入超凡之境；命格所赠，不占此数。</p>
                 <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={Math.max(0, Math.min(TOTAL_POINTS, usedPoints))} aria-valuetext={`已使用 ${usedPoints} 点，剩余 ${remainingPoints} 点`} aria-label="已使用属性点">
                   {Array.from({ length: TOTAL_POINTS }, (_, index) => (
                     <i key={index} className={index < usedPoints ? styles.isOn : ''} />
@@ -150,7 +161,10 @@ function AttributeAllocContent() {
           </section>
 
           <section className={styles.section} aria-labelledby="attribute-list-title">
-            <div className={styles.sectionHead}><strong id="attribute-list-title">四项基础属性</strong><small>数值越高，倾向越明显</small></div>
+            <div className={styles.sectionHead}>
+              <strong id="attribute-list-title"><span className={styles.deco} aria-hidden="true">✦</span>四项基础属性<span className={styles.deco} aria-hidden="true">✦</span></strong>
+              <small>数值越高，倾向越明显</small>
+            </div>
             <ol className={styles.attributeList}>
             {ATTRIBUTES.map((attribute) => {
               const value = attributes[attribute.key]
@@ -162,12 +176,14 @@ function AttributeAllocContent() {
                   <div className={styles.attributeName}>
                     <strong><span className="semantic-emoji" aria-hidden="true">{attribute.icon}</span>{attribute.name}</strong>
                     <span>{getAttrSemantic(attribute.key, effectiveValue)}{bonus ? ` · 命格 ${formatSigned(bonus)}` : ''}</span>
-                    <span className={styles.attributeBase}>基础值 {value} · 有效值 {effectiveValue}</span>
                   </div>
                   <div className={styles.stepper}>
                     <button type="button" onClick={() => updateAttribute(attribute.key, -1)} aria-label={`降低${attribute.name}`}>−</button>
                     <b aria-label={`${attribute.name}最终有效值 ${effectiveValue}`}>{effectiveValue}</b>
                     <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={remainingPoints <= 0} aria-label={`提高${attribute.name}`}>＋</button>
+                  </div>
+                  <div className={styles.attributeMeta}>
+                    <span><span className={styles.deco} aria-hidden="true">❖</span>基础值 {value}<span className={styles.deco} aria-hidden="true">·</span>有效值 <b>{effectiveValue}</b></span>
                   </div>
                   <div className={styles.axis} aria-hidden="true">
                     {Array.from({ length: 15 }, (_, index) => {
@@ -181,8 +197,8 @@ function AttributeAllocContent() {
             </ol>
 
             <div className={styles.tools}>
-              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ ...initialAttributes })}>重置</button>
-              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ physique: 4, mind: 4, talentAptitude: 4, charisma: 3 })}>平均分配</button>
+              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ ...initialAttributes })}><span className={styles.deco} aria-hidden="true">✧</span>重置</button>
+              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ physique: 1, mind: 1, talentAptitude: 1, charisma: 1 })}><span className={styles.deco} aria-hidden="true">✧</span>平均分配</button>
             </div>
           </section>
             </div>
@@ -191,6 +207,8 @@ function AttributeAllocContent() {
           <BottomActionBar
         onBack={() => router.push('/talent-draw')}
         backTitle="返回命格选择"
+        backText="返回"
+        backDescription="返回命格选择"
         onConfirm={handleConfirm}
         confirmText="确认属性"
         confirmNumber="07"
@@ -222,10 +240,11 @@ export default function AttributeAllocPage() {
   const worldCode = useWorldStore((state) => state.worldCode)
   const worldInitialized = useWorldStore((state) => state.initialized)
   const characterName = useCharacterStore((state) => state.name)
-  const selectedPatternCount = useCharacterStore((state) => state.destinyPatterns.patterns.length)
+  const selectedPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
+  const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
   const hasWorld = Boolean(worldConfig && worldCode > 0 && worldInitialized)
   const hasCharacter = Boolean(characterName.trim())
-  const hasPatterns = selectedPatternCount === DESTINY_PATTERN_SELECT_COUNT
+  const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)
 
   useEffect(() => {
     if (!storesHydrated) return

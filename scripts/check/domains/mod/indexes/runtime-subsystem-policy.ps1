@@ -1,10 +1,9 @@
-# Purpose: Load active and narrative-writable runtime subsystem membership.
+# Purpose: Load active runtime subsystem membership.
 # Owner: quality:mod
 # Responsibility: Parse runtime policy and answer subsystem activation queries only.
 
 $Script:RuntimePolicyLoaded = $false
 $Script:ActiveRuntimeSubsystemIds = [System.Collections.Generic.HashSet[string]]::new()
-$Script:NarrativeWritableSubsystemIds = [System.Collections.Generic.HashSet[string]]::new()
 $Script:RuntimeSubsystemPolicyError = $null
 $runtimePolicyPath = Join-Path $modsDir 'mod-engine/helpers/mvp-stages-config.default.json'
 if (Test-Path $runtimePolicyPath) {
@@ -13,9 +12,6 @@ if (Test-Path $runtimePolicyPath) {
     $runtimeStage = $runtimePolicy.stages.($runtimePolicy.currentStage)
     foreach ($id in @($runtimeStage.runtime.external) + @($runtimeStage.runtime.engine)) {
       [void]$Script:ActiveRuntimeSubsystemIds.Add([string]$id)
-    }
-    foreach ($id in @($runtimeStage.systemInstruction)) {
-      [void]$Script:NarrativeWritableSubsystemIds.Add([string]$id)
     }
     $Script:RuntimePolicyLoaded = $true
   } catch {

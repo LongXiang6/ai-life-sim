@@ -1,16 +1,11 @@
 /**
  * Purpose: Build the deterministic timeline-memory projection used by the main narrative prompt.
  * Owner: mod-engine
- * Responsibility: Merge recent facts, compressed summaries, creations, recalls, and historical entries in time order.
+ * Responsibility: Merge older per-round compressed memory, the latest three full stories, and creations in time order.
  */
 
 import type { NarrativeChunk } from '../../orchestrator-shared'
-import {
-  RECENT_NARRATIVE_WINDOW,
-  digestLedger,
-  memoryLifecycle,
-  summaryCompressor,
-} from '../../orchestrator-shared'
+import { isNarrativeRecordVisible } from '../../helpers/narrative-context-scope'
 import {
   formatNarrativeTimelineEntries,
   formatNarrativeTimelineForPrompt,
@@ -20,42 +15,27 @@ import type { OrchestratorSystem } from '../orchestrator-system'
 
 export function buildPromptTimelineMemoryRuntime(
   orchestrator: OrchestratorSystem,
-): string | undefined {
+): string[] | undefined {
   const scopeView = orchestrator['getNarrativeScopeView']()
-  const latestCompletedRound = Math.max(0, orchestrator['state'].totalRounds - 1)
-  const recentTimelineEntries = digestLedger.selectRecentFactsForNarrativeTimeline(
-    latestCompletedRound,
-    RECENT_NARRATIVE_WINDOW,
-    scopeView.currentContextId,
-    scopeView.closedContextIds,
-  ).map((event) => orchestrator['projectRoundMemoryEvent'](
-    event.round,
-    event.text,
-    event.contextId,
-  ))
-  const timelineProjection = memoryLifecycle.buildNarrativeTimelineProjection(
-    recentTimelineEntries,
-    summaryCompressor.getSummaries(),
-    scopeView.currentContextId,
-    scopeView.closedContextIds,
-    orchestrator['state'].totalRounds,
+  const { memoryLifecycle, summaryCompressor } = orchestrator.getRuntimeDependencies()
+  const history = orchestrator['state'].narrativeHistory
+  const firstCommittedRound = Math.max(1, orchestrator['state'].totalRounds - history.length)
+  const firstDetailedIndex = Math.max(0, history.length - 2)
+  const compressedRounds = new Set(
+    summaryCompressor.getSummaries().summaries.map((summary) => summary.sourceRound),
   )
-
-  const ledgerEntries = digestLedger.selectForNarrativeTimeline(
-    orchestrator['state'].totalRounds,
-    scopeView.currentContextId,
-    scopeView.closedContextIds,
-    {
-      excludeRoundsAtOrAfter: Math.max(
-        1,
-        latestCompletedRound - RECENT_NARRATIVE_WINDOW + 1,
-      ),
-    },
-  ).map((event) => orchestrator['projectRoundMemoryEvent'](
-    event.round,
-    event.text,
-    event.contextId,
-  ))
+  const uncompressedHistoricalEntries = history.flatMap((entry, index) => {
+    if (index >= firstDetailedIndex) return []
+    if (!isNarrativeRecordVisible(entry, scopeView)) return []
+    const round = entry.transitionAudit?.round ?? firstCommittedRound + index
+    if (compressedRounds.has(round)) return []
+    return [orchestrator['projectNarrativeHistoryEntry'](entry, round)]
+  })
+  const timelineProjection = memoryLifecycle.buildNarrativeTimelineProjection(
+    uncompressedHistoricalEntries,
+    summaryCompressor.getSummaries(),
+    scopeView,
+  )
   const creationEntries = memoryLifecycle.buildCreationTimelineEntries(
     orchestrator['state'].characterCreations,
     (round: number) => orchestrator['resolveNarrativeRoundTime'](round),
@@ -63,11 +43,9 @@ export function buildPromptTimelineMemoryRuntime(
   const timelineMemory = formatNarrativeTimelineForPrompt([
     ...timelineProjection.timelineEntries,
     ...creationEntries,
-    ...orchestrator['narrativeMemoryRecall'],
-    ...ledgerEntries,
   ])
 
-  return timelineMemory || undefined
+  return timelineMemory.length > 0 ? timelineMemory : undefined
 }
 
 export function resolveNarrativeRoundTimeRuntime(

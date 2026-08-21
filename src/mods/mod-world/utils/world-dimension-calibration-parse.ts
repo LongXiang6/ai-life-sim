@@ -1,6 +1,6 @@
 /**
  * @module world-dimension-calibration-parse.ts
- * @description 维度推断 + 校准合并响应解析（含归一化容错）
+ * @description 维度推断 + 校准合并响应解析（只归一化等价结构）
  * @mod mod-world
  */
 
@@ -23,8 +23,8 @@ import { isLikelyTruncatedJSON } from './world-coherence-output-guard'
 export interface ParsedWorldDimensionCalibrationBundle {
   dimensions: DimensionInferenceOutput
   calibration: WorldCalibration
-  aiDetailedParameters?: WorldAIDetailedParameters
-  worldTags?: string[]
+  aiDetailedParameters: WorldAIDetailedParameters
+  worldTags: string[]
 }
 
 /** 解析合并 AI 响应（归一化后再校验） */
@@ -51,15 +51,15 @@ export function parseWorldDimensionCalibrationResponse(
   const calResult = worldCalibrationOutputSchema.safeParse(calNormalized)
   if (!calResult.success) return null
 
-  const aiDetailedParameters = normalizedTop.aiDetailedParameters != null
-    ? parseWorldConfigFromObject(normalizedTop.aiDetailedParameters) ?? undefined
-    : undefined
+  const aiDetailedParameters = parseWorldConfigFromObject(normalizedTop.aiDetailedParameters)
+  if (!aiDetailedParameters) return null
 
-  let worldTags: string[] | undefined
-  if (Array.isArray(normalizedTop.worldTags)) {
-    const strings = normalizedTop.worldTags.filter((t): t is string => typeof t === 'string')
-    if (strings.length >= 3) worldTags = strings
-  }
+  if (!Array.isArray(normalizedTop.worldTags)) return null
+  const worldTags = normalizedTop.worldTags
+    .filter((tag): tag is string => typeof tag === 'string')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+  if (worldTags.length === 0) return null
 
   return {
     dimensions: dimResult.data,
@@ -69,7 +69,7 @@ export function parseWorldDimensionCalibrationResponse(
   }
 }
 
-/** 供 resilient 重试：返回人类可读校验错误 */
+/** 返回当前单次响应的人类可读校验错误。 */
 export function getDimensionCalibrationValidationError(raw: string): string | null {
   const parsed = parseAIJSON<Record<string, unknown>>(raw)
   if (!parsed || typeof parsed !== 'object') {
@@ -96,6 +96,15 @@ export function getDimensionCalibrationValidationError(raw: string): string | nu
   const calResult = worldCalibrationOutputSchema.safeParse(calNormalized)
   if (!calResult.success) {
     return `calibration 校验失败: ${calResult.error.issues.map((i) => i.message).join('; ')}`
+  }
+
+  if (!parseWorldConfigFromObject(normalizeDimensionCalibrationParsed(parsed).aiDetailedParameters)) {
+    return 'aiDetailedParameters 缺失或格式错误'
+  }
+
+  const worldTags = normalizeDimensionCalibrationParsed(parsed).worldTags
+  if (!Array.isArray(worldTags) || worldTags.every((tag) => typeof tag !== 'string' || !tag.trim())) {
+    return 'worldTags 缺失或格式错误'
   }
 
   if (isLikelyTruncatedJSON(raw)) {
@@ -195,7 +204,7 @@ export function formatDimensionCalibrationDiagnostics(d: DimensionCalibrationDia
   return parts.join(' | ')
 }
 
-/** resilient validate：dimensions + calibration 必须可解析；W02 缺失不阻塞（由 fallback 补） */
+/** 校验合并响应四个职责区域均可解析。 */
 export function validateWorldDimensionCalibrationResponse(raw: string): void {
   const err = getDimensionCalibrationValidationError(raw)
   if (err) throw new Error(`dimension-calibration ${err}`)

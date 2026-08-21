@@ -9,7 +9,6 @@ export {
   worldConfigPrompt,
   worldRegionProfilePrompt,
   worldRegionProfileOutputSchema,
-  worldCalibrationPrompt,
   worldCalibrationOutputSchema,
   worldDimensionCalibrationPrompt,
   worldDimensionCalibrationOutputSchema,

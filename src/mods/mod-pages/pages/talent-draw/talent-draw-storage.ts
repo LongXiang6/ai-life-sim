@@ -6,7 +6,9 @@
 
 import { configStore } from '@/core'
 import {
+  DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_DISPLAY_COUNT,
+  PATTERN_LOADOUT_SLOT_COUNT,
   useCharacterStore,
 } from '@/mods/mod-character'
 import {
@@ -17,8 +19,15 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import type { DestinyPattern } from '@/mods/mod-character'
-import type { InitialTalentDrawState, TalentDrawPhase, TalentDrawSlots } from './talent-draw.types'
+import type {
+  InitialTalentDrawState,
+  TalentDrawPhase,
+  TalentDrawSlots,
+  TalentLoadoutEntry,
+  TalentLoadoutSlots,
+} from './talent-draw.types'
 import {
+  createLoadoutSlots,
   drawSlotsFromPool,
   isAIGeneratedPattern,
   uniquePatternsByIdentity,
@@ -27,7 +36,7 @@ import {
 interface SavedTalentDrawState {
   phase: 'idle' | 'generating' | 'selecting'
   slots: TalentDrawSlots
-  selectedSlotIndices: number[]
+  loadoutSlots: TalentLoadoutSlots
   aiTalentGeneration: boolean
 }
 
@@ -37,7 +46,22 @@ function storageKey(): string {
 }
 
 function loadState(): SavedTalentDrawState | null {
-  return configStore.get<SavedTalentDrawState>('mod-pages', storageKey())
+  const value = configStore.get<unknown>('mod-pages', storageKey())
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  if (!Array.isArray(record.slots) || !Array.isArray(record.loadoutSlots)) return null
+  const loadoutEntries = record.loadoutSlots.flatMap((entry): TalentLoadoutEntry[] => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return []
+    const item = entry as Record<string, unknown>
+    if ((item.kind !== 'destiny' && item.kind !== 'mythic') || typeof item.patternId !== 'string') return []
+    return [{ kind: item.kind, patternId: item.patternId }]
+  })
+  return {
+    phase: record.phase === 'selecting' ? 'selecting' : record.phase === 'generating' ? 'generating' : 'idle',
+    slots: record.slots as TalentDrawSlots,
+    loadoutSlots: createLoadoutSlots(loadoutEntries),
+    aiTalentGeneration: record.aiTalentGeneration === true,
+  }
 }
 
 function normalizeSavedPhase(phase?: SavedTalentDrawState['phase']): TalentDrawPhase {
@@ -51,6 +75,12 @@ export function loadCachedPool(): DestinyPattern[] {
   )
 }
 
+function hasAllDestinyPatternCategories(patterns: DestinyPattern[]): boolean {
+  return DESTINY_PATTERN_CATEGORY_ORDER.every((category) => (
+    patterns.some((pattern) => pattern.category === category)
+  ))
+}
+
 export function saveCachedPool(patterns: DestinyPattern[]): void {
   const aiPatterns = uniquePatternsByIdentity(patterns.filter(isAIGeneratedPattern))
   if (aiPatterns.length > 0) {
@@ -61,12 +91,12 @@ export function saveCachedPool(patterns: DestinyPattern[]): void {
 export function persistTalentDrawState(
   phase: 'idle' | 'selecting',
   slots: TalentDrawSlots,
-  selectedSlotIndices: number[],
+  loadoutSlots: TalentLoadoutSlots,
 ): void {
   configStore.set('mod-pages', storageKey(), {
     phase,
     slots,
-    selectedSlotIndices,
+    loadoutSlots,
     aiTalentGeneration: useSettingsStore.getState().aiTalentGeneration,
   } satisfies SavedTalentDrawState)
 }
@@ -88,7 +118,7 @@ export function resolveInitialTalentDrawState(): InitialTalentDrawState {
       return {
         phase: 'idle',
         slots: Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null),
-        selectedSlotIndices: [],
+        loadoutSlots: Array(PATTERN_LOADOUT_SLOT_COUNT).fill(null),
         localPoolSize: cached.length,
         pool: cached,
       }
@@ -96,21 +126,27 @@ export function resolveInitialTalentDrawState(): InitialTalentDrawState {
     return {
       phase: 'selecting',
       slots: usableSaved.slots,
-      selectedSlotIndices: usableSaved.selectedSlotIndices ?? [],
-      localPoolSize: Math.max(cached.length, usableSaved.slots.filter(Boolean).length),
-      pool: cached.length > 0
+      loadoutSlots: usableSaved.loadoutSlots,
+      localPoolSize: aiTalentGeneration
+        ? Math.max(cached.length, savedPatterns.length)
+        : savedPatterns.length,
+      pool: aiTalentGeneration && cached.length > 0
         ? cached
-        : usableSaved.slots.filter((pattern): pattern is DestinyPattern => pattern !== null),
+        : savedPatterns,
     }
   }
 
-  if (aiTalentGeneration && cached.length >= DESTINY_PATTERN_DISPLAY_COUNT) {
+  if (
+    aiTalentGeneration
+    && cached.length >= DESTINY_PATTERN_DISPLAY_COUNT
+    && hasAllDestinyPatternCategories(cached)
+  ) {
     const slots = drawSlotsFromPool(cached)
     useCharacterStore.getState().setDestinyPatterns({ candidates: cached })
     return {
       phase: 'ready',
       slots,
-      selectedSlotIndices: [],
+      loadoutSlots: Array(PATTERN_LOADOUT_SLOT_COUNT).fill(null),
       localPoolSize: cached.length,
       pool: cached,
     }
@@ -121,7 +157,7 @@ export function resolveInitialTalentDrawState(): InitialTalentDrawState {
     slots: usableSaved?.slots?.length === DESTINY_PATTERN_DISPLAY_COUNT
       ? usableSaved.slots
       : Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null),
-    selectedSlotIndices: usableSaved?.selectedSlotIndices ?? [],
+    loadoutSlots: usableSaved?.loadoutSlots ?? Array(PATTERN_LOADOUT_SLOT_COUNT).fill(null),
     localPoolSize: cached.length,
     pool: cached,
   }

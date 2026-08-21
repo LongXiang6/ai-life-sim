@@ -1,5 +1,7 @@
 /**
- * 新人生隔离：直接进入世界选择、切换创建世界和活动子系统重置回归。
+ * Purpose: Regress new-life isolation, creation-draft cleanup, and runtime reset.
+ * Owner: quality:ui
+ * Responsibility: Focused new-life reset smoke only.
  */
 
 class MemoryStorage {
@@ -27,6 +29,7 @@ const [
   { useEngineStore },
   { orchestrator },
   { useCharacterStore },
+  { useSettingsStore },
   { useWorldStore },
   { prepareNewLifeWorldCommit },
 ] = await Promise.all([
@@ -36,6 +39,7 @@ const [
   import('../../../../src/mods/mod-engine/store.ts'),
   import('../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   import('../../../../src/mods/mod-character/store.ts'),
+  import('../../../../src/mods/mod-settings/store.ts'),
   import('../../../../src/mods/mod-world/store.ts'),
   import('../../../../src/mods/mod-pages/helpers/new-life-reset.ts'),
 ])
@@ -72,6 +76,7 @@ useEngineStore.setState({
   currentNarrative: '旧世界完整故事',
 })
 useCharacterStore.setState({ name: '旧角色', characterId: 'char_old', age: 12, worldCode: 101 })
+useSettingsStore.getState().setStorySeed('123')
 useWorldStore.setState({
   contexts: { ctx_old: { worldCode: 101 } },
   currentContextId: 'ctx_old',
@@ -105,6 +110,8 @@ assertOk(useEngineStore.getState().narrativeHistory.length === 0, 'new-life rese
 assertOk(Object.keys(useWorldStore.getState().contexts).length === 0, 'new-life reset must clear the previous save-level world registry')
 assertOk(useWorldStore.getState().worldCode === 0, 'new-life reset must clear the previous compatibility world code')
 assertOk(useCharacterStore.getState().name === '', 'new-life reset must clear the previous character identity')
+assertOk(useSettingsStore.getState().storySeed === '', 'new-life reset must clear the current simulation seed')
+assertOk(!String(localStorage.getItem('mod-settings:store') ?? '').includes('\"storySeed\":\"123\"'), 'simulation seed must not be persisted in settings storage')
 assertOk(historicalResetCount === 1, 'new-life reset must include the active P1 historical ledger after runtime registration')
 assertOk(
   configStore.keys('mod-pages').every((key) => (

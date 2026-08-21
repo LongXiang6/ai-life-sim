@@ -1,0 +1,108 @@
+<!-- Purpose: Record the second UI iteration round for the game-over life-settlement interface (09). Owner: Interface system. Responsibility: Compare confirmed settlement-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>人生结算 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-OVER / ROUND-02</p>
+      <h1>人生结算 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 B · 命书卷式</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-01 定版候选 01（运行时结构）为唯一基线，落实用户修正：①顶部与前面创建流程界面（fate-preview 定版）统一——增加 runningHead 书眉（「AI LIFE SIM · 命书」+「09 / 09」）与 titleCopy 标题行（一生回望 + 副标题），样式照抄 fate-preview 定版参数；②去掉全部结构性包裹标签（div / article / section），内容改为纯文本流——区块区头 div 改为纯文本题词行（h2.blockTitle + ✦），列表容器 div 去掉，记录 / 大事条目不再使用 article / section 包裹；③用户「B继续」选定命书卷式为唯一方向，并追加修正：页面宽度与前面界面统一（book 不设 max-width、跟随 viewport 30rem、padding 20px 20px 96px，与 fate-preview 定版 paper 一致）；④用户最终修正：不要三记与大事这些记录，页面只保留雷达图（世界维度）、评语（此生评语）、轮回天赋三块——人生三记（3 条 record）与此生大事（3 条 achievement）整块移除；⑤用户继续修正：底部按钮与前面界面一致——悬浮工具栏改为 fate-preview 定版同款 bottomBar（全宽双列网格、纯白 46px 胶囊按钮、strong 14px 650 + small 11px 500），左侧返回首页、右侧开始新人生（未封存前禁用）；主体文字大小对齐 fate-preview 定版字级（区头 10px、正文 10.5px、次要 9.5px）。顶部书眉、悬浮栏与各保留区块内容口径照抄运行时与 ROUND-01 定版候选 01。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约（本轮定版后）：顶部 runningHead + titleCopy（「AI LIFE SIM · 命书」+「09 / 09」+ 一生回望标题行）、世界维度雷达（💪 体魄 62 / 🧠 心智 81 / ✨ 悟性 74 / 💫 魅力 68 + 人生评分 88，metricComment 实时切换评语）、此生评语（总结句 + summaryMeta + 故事重复观测近五轮均值 / 整局峰值 / 高重复轮与趋势）、轮回天赋（三项候选选择 + 焦点卡 + 封存至轮回天赋库、封存后不可在本局改选）、底部 bottomBar（返回首页 / 开始新人生，未封存前禁用——与 fate-preview 定版双按钮一致，查看模拟数据工具钮随悬浮栏结构一并去除）。候选不含 localStorage/sessionStorage/fetch（雷达维度切换与轮回天赋选择 / 封存为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：flow-shift 9s ease-in-out infinite（轮回天赋焦点卡与封存按钮流光背景，prefers-reduced-motion 停）；radarDot transition r 120ms ease, fill 120ms ease（雷达活动点切换）。</dd></div>
+        <div><dt>比较维度</dt><dd>顶部与前面界面（fate-preview 定版 runningHead / titleCopy）的统一度、去 div 后区头的呈现（居中 ✦ 题词卡 vs 左对齐 ✦ 题词无卡）、三记与大事的组织（独立区块 vs 合并同卷时间线）、去 div 后内容序列化的疏密（直接排布 vs 细线分隔 vs 时间线卷）、与创建流程已定版页面的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>命书题词卡</strong></header>
+          <p>顶部 runningHead + titleCopy 与前面界面统一；四个区块沿用 fate-preview 定版卡式（#fffdf8 圆角 18px + 边框），区头改为居中 ✦ 题词（dashed 底线）；三记与大事直接序列于卡内（去 recordList / achievementList 容器），大事条目间以细线分隔；轮回天赋与悬浮栏保持运行时结构。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-inscription-cards.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>命书卷式</strong></header>
+          <p>顶部与 A 相同；区块不套卡、无边框背景，整页为连续命书卷——区头为 ✦ 题词 + dashed 底线（纯文本 h2，无 div 包裹）。定版修正：div / article / section 结构性标签全部去掉（纯文本流），宽度与前面界面统一（book 无 max-width、跟随 viewport 30rem、padding 20px 20px 96px）；三记与大事记录整块移除，只保留雷达图、此生评语、轮回天赋；底部改为 fate-preview 定版同款 bottomBar 双按钮（返回首页 / 开始新人生 disabled），主体文字大小对齐 fate-preview 字级（区头 10px、正文 10.5px、次要 9.5px）。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-scroll-continuous.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>命书卷册</strong></header>
+          <p>顶部与 A 相同；区头为居中 ✦ 题词；三记与大事合并为同一「人生卷册」区块、共用一条纵向时间线（记录实心点、大事空心环点），评语作为卷末批注；轮回天赋与悬浮栏保持运行时结构。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-chronicle-scroll.html" target="_blank" rel="noopener">
+            人生结算 09 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 命书题词卡</span><span role="columnheader">B 命书卷式</span><span role="columnheader">C 命书卷册</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯人生结算界面</span><span role="cell">纯人生结算界面</span><span role="cell">纯人生结算界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶部统一</strong><span role="cell">runningHead + titleCopy（fate-preview 定版同款）</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">区头呈现</strong><span role="cell">居中 ✦ 题词 + dashed 底线</span><span role="cell">左对齐 ✦ 题词 + dashed 底线（纯文本 h2）</span><span role="cell">居中 ✦ 题词 + dashed 底线</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">区块框架</strong><span role="cell">卡式（#fffdf8 圆角 18px + 边框）</span><span role="cell">无卡纯文本流（div / article / section 全去）</span><span role="cell">卡式（同 A）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">三记与大事</strong><span role="cell">两个独立区块，卡内直接序列</span><span role="cell">定版移除（只保留雷达图、评语、轮回天赋）</span><span role="cell">合并为「人生卷册」同一时间线</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">轮回天赋 / 悬浮栏</strong><span role="cell">运行时结构（flow-shift 照抄）</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">宽度与前面界面</strong><span role="cell">viewport 30rem 内卡式</span><span role="cell">跟随 viewport 30rem、无内容列钳制（与定版 paper 一致）</span><span role="cell">viewport 30rem 内卡式</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 B · 命书卷式</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 B（命书卷式）：用户「B继续」选定为唯一方向，并连续落实修正——①div / article / section 结构性标签彻底去掉（纯文本流：h2 区头 ✦ + p 段落）；②宽度与前面界面统一（book 无 max-width、内容列跟随 viewport 30rem、padding 20px 20px 96px）；③去掉三记与此生大事记录，只保留雷达图（世界维度 + metricComment 实时评语）、此生评语（总结句 + summaryMeta + 重复观测）、轮回天赋（选择 + 焦点卡 + 封存）；④底部按钮与前面界面一致——悬浮工具栏改为 fate-preview 定版同款 bottomBar 双按钮（返回首页 / 开始新人生，未封存前禁用），主体文字大小对齐 fate-preview 字级（区头 10px、正文 10.5px、次要 9.5px）。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A（命书题词卡）：卡式区块仍保留结构包裹，方向被用户否决；候选 C（命书卷册）：合并同卷时间线的整合暂不采用；三记与此生大事两个信息区块整体移除（用户明确不要这些记录）；悬浮工具栏结构与「查看模拟数据」工具钮随底部统一为双按钮 bottomBar 一并去除。</dd></div>
+        <div><dt>下一轮继承</dt><dd>待后续轮次指令。当前定版为：顶部 runningHead + titleCopy（fate-preview 同款）、雷达图（世界维度 + 实时评语）、此生评语、轮回天赋、底部 bottomBar 双按钮，全页纯文本流无结构包裹、宽度与字级与前面界面一致。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

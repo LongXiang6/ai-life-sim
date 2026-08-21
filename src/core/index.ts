@@ -2,6 +2,9 @@
  * @module index.ts
  * @description Core 层统一导出 —— MOD 加载器 + 事件总线 + 全局 Store + AI 服务 + 存储 + 主题
  * @mod core
+ * Purpose: Expose the core public modules through one stable barrel.
+ * Owner: core
+ * Responsibility: Export wiring only; business state remains with owning modules.
  */
 
 // MOD 加载器
@@ -69,7 +72,7 @@ export { useGlobalStore } from './global-store'
 export type { GlobalState, GamePhase } from './global-store'
 
 // AI 服务
-export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, handleStream, buildSegmentedPrompt, buildNarrativeUserJson, computeAiCallDeadlineMs, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, isAiResponseTruncatedError, parseAIJSON } from './ai-service'
+export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, handleStream, buildSegmentedPrompt, buildNarrativeUserJson, computeAiCallDeadlineMs, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, isAiResponseTruncatedError, parseAIJSON, parseAIJSONCandidates } from './ai-service'
 export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, PromptSegments, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
 
 // 存储服务

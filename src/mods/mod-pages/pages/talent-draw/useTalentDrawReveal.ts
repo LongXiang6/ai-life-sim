@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_DISPLAY_COUNT,
   useCharacterStore,
 } from '@/mods/mod-character'
@@ -68,16 +69,17 @@ export function useTalentDrawReveal({
     completionTimerRef.current = null
   }, [])
 
-  const startSealReveal = useCallback((startCount: number, onAllRevealed: () => void): void => {
+  const startSealReveal = useCallback((startCount: number, targetCount: number, onAllRevealed: () => void): void => {
     if (revealTimerRef.current !== null) window.clearInterval(revealTimerRef.current)
-    const clampedStart = Math.max(0, Math.min(startCount, DESTINY_PATTERN_DISPLAY_COUNT))
+    const clampedTarget = Math.max(0, Math.min(targetCount, DESTINY_PATTERN_DISPLAY_COUNT))
+    const clampedStart = Math.max(0, Math.min(startCount, clampedTarget))
     if (prefersReducedMotion()) {
-      setRevealCountSynced(DESTINY_PATTERN_DISPLAY_COUNT)
+      setRevealCountSynced(clampedTarget)
       onAllRevealed()
       return
     }
     setRevealCountSynced(clampedStart)
-    if (clampedStart >= DESTINY_PATTERN_DISPLAY_COUNT) {
+    if (clampedStart >= clampedTarget) {
       onAllRevealed()
       return
     }
@@ -85,7 +87,7 @@ export function useTalentDrawReveal({
     revealTimerRef.current = window.setInterval(() => {
       current += 1
       setRevealCountSynced(current)
-      if (current >= DESTINY_PATTERN_DISPLAY_COUNT) {
+      if (current >= clampedTarget) {
         if (revealTimerRef.current !== null) window.clearInterval(revealTimerRef.current)
         revealTimerRef.current = null
         onAllRevealed()
@@ -96,7 +98,7 @@ export function useTalentDrawReveal({
   const completeFullDraw = useCallback((patterns: DestinyPattern[]): boolean => {
     const visiblePatterns = uniquePatternsByIdentity(patterns)
     if (
-      visiblePatterns.length < DESTINY_PATTERN_DISPLAY_COUNT
+      !DESTINY_PATTERN_CATEGORY_ORDER.every((category) => visiblePatterns.some((pattern) => pattern.category === category))
       || abortRef.current
       || completionScheduledRef.current
     ) return false
@@ -109,12 +111,13 @@ export function useTalentDrawReveal({
     setLocalPoolSize(visiblePatterns.length)
     setCompletionReplay(true)
     if (prefersReducedMotion()) {
-      setRevealCountSynced(DESTINY_PATTERN_DISPLAY_COUNT)
+      setRevealCountSynced(Math.min(visiblePatterns.length, DESTINY_PATTERN_DISPLAY_COUNT))
       setCompletionReplay(false)
       setPhase('ready')
       return true
     }
-    startSealReveal(Math.min(revealCountRef.current, DESTINY_PATTERN_DISPLAY_COUNT), () => {
+    const targetCount = Math.min(visiblePatterns.length, DESTINY_PATTERN_DISPLAY_COUNT)
+    startSealReveal(Math.min(revealCountRef.current, targetCount), targetCount, () => {
       clearCompletionTimer()
       completionTimerRef.current = window.setTimeout(() => {
         completionTimerRef.current = null
@@ -140,10 +143,10 @@ export function useTalentDrawReveal({
     if (initialPhase !== 'ready') return
     abortRef.current = false
     const frame = window.requestAnimationFrame(() => {
-      startSealReveal(0, () => setCompletionReplay(false))
+      startSealReveal(0, initialSlots.filter(Boolean).length, () => setCompletionReplay(false))
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [abortRef, initialPhase, startSealReveal])
+  }, [abortRef, initialPhase, initialSlots, startSealReveal])
 
   useEffect(() => () => {
     if (revealTimerRef.current !== null) window.clearInterval(revealTimerRef.current)

@@ -1,14 +1,14 @@
+/* Purpose: Render finalized provider preset settings. Owner: mod-settings. Responsibility: Provider-preset presentation only. */
+
 .tabRoot {
   width: 100%;
-  color: #28324b;
+  color: var(--flow-ink);
   font-size: calc(10 * var(--final-flow-density-px));
 }
 
 .section {
-  margin: 0;
-  padding: calc(9 * var(--final-flow-density-px)) 0;
-  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-}
+      margin: 0 0 calc(11.667 * var(--final-flow-density-px));
+    }
 
 .section:first-of-type {
   border-top: 0;
@@ -24,115 +24,123 @@
 }
 
 .sectionLabel {
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-  margin: 0 0 calc(4 * var(--final-flow-density-px));
-  padding-inline: calc(3 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      margin: 0 calc(3.333 * var(--final-flow-density-px)) calc(5 * var(--final-flow-density-px));
+    }
 
 .sectionLabel h3 {
-  margin: 0;
-  color: #28324b;
-  font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: calc(10 * var(--final-flow-density-px));
-  font-weight: 600;
-  letter-spacing: 0;
-}
+      margin: 0;
+      color: var(--flow-ink);
+      font-size: calc(10.833 * var(--final-flow-density-px));
+      font-weight: 700;
+    }
 
 .sectionLabel > span {
-  color: #929bb0;
+  color: var(--flow-faint);
   font-size: calc(5.5 * var(--final-flow-density-px));
   text-align: right;
 }
 
 .sectionCard {
-  overflow: visible;
-  border: 0;
-  background: transparent;
-}
+      padding: calc(3.333 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(16.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+    }
 
 .cardBody {
   padding: calc(4 * var(--final-flow-density-px)) 0;
 }
 
 .presetRow {
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(8.333 * var(--final-flow-density-px));
+      padding-top: calc(5 * var(--final-flow-density-px));
+    }
 
 .supportingText,
 .providerGuide {
   margin: 0;
-  color: #929bb0;
+  color: var(--flow-faint);
   font-size: calc(6.5 * var(--final-flow-density-px));
   line-height: 1.55;
 }
 
 .supportingText {
-  min-width: 0;
-  flex: 1 1 auto;
-}
+      margin: calc(6.667 * var(--final-flow-density-px)) 0;
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      line-height: 1.5;
+    }
 
 .fieldGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: calc(7 * var(--final-flow-density-px));
-  margin-top: calc(8 * var(--final-flow-density-px));
-}
+      display: grid;
+      gap: calc(6.667 * var(--final-flow-density-px));
+      padding: calc(6.667 * var(--final-flow-density-px)) 0 calc(1.667 * var(--final-flow-density-px));
+    }
 
 .field:first-child {
   grid-column: 1 / -1;
 }
 
 .field {
-  display: grid;
-  gap: calc(3 * var(--final-flow-density-px));
-}
+      display: grid;
+      gap: calc(3.333 * var(--final-flow-density-px));
+    }
 
 .field > span {
-  color: #929bb0;
-  font-size: calc(6.5 * var(--final-flow-density-px));
-}
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .presetInput {
-  width: 100%;
-  min-height: calc(29 * var(--final-flow-density-px));
-  padding: calc(4 * var(--final-flow-density-px)) calc(6 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  border-radius: calc(7 * var(--final-flow-density-px));
-  background: #fff;
-  color: #46515c;
-  font: inherit;
-  font-size: calc(7 * var(--final-flow-density-px));
-}
+      width: 100%;
+      min-height: calc(31.667 * var(--final-flow-density-px));
+      padding: 0 calc(10 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(10 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-ink);
+      font: inherit;
+      font-size: calc(10 * var(--final-flow-density-px));
+    }
 
 .presetInput::placeholder {
-  color: #b2bac5;
-}
+      color: var(--flow-faint);
+    }
 
 .presetInput:focus {
-  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 48%, transparent);
   outline-offset: calc(1 * var(--final-flow-density-px));
 }
 
 .providerGuide {
-  margin-top: calc(7 * var(--final-flow-density-px));
-  padding: calc(6 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
-  background: #f6f8fa;
-}
+      margin: calc(3.333 * var(--final-flow-density-px)) 0 calc(6.667 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+      line-height: 1.5;
+    }
 
 .providerGuide a {
-  color: #52639c;
-  font-weight: 650;
-  text-underline-offset: calc(2 * var(--final-flow-density-px));
-}
+      color: var(--flow-ink);
+      text-decoration: underline;
+    }
 
 .connectionRow {
-  justify-content: space-between;
-  gap: calc(8 * var(--final-flow-density-px));
-  margin-top: calc(8 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(8.333 * var(--final-flow-density-px));
+      padding: calc(8.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+      margin: calc(3.333 * var(--final-flow-density-px)) 0 calc(5 * var(--final-flow-density-px));
+      border-radius: calc(11.667 * var(--final-flow-density-px));
+      background: var(--flow-accent-soft);
+    }
 
 .configSummary {
   display: grid;
@@ -141,70 +149,74 @@
 }
 
 .configSummary span {
-  color: #929bb0;
-  font-size: calc(5.8 * var(--final-flow-density-px));
-}
+      display: block;
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
 
 .configSummary strong {
-  overflow: hidden;
-  color: #46515c;
-  font-size: calc(7 * var(--final-flow-density-px));
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+      display: block;
+      margin-top: calc(1.667 * var(--final-flow-density-px));
+      color: var(--flow-ink);
+      font-size: calc(10 * var(--final-flow-density-px));
+      font-weight: 650;
+    }
 
 .connectionStatus {
-  flex: 0 0 auto;
-  gap: calc(4 * var(--final-flow-density-px));
-  color: #929bb0;
-  font-size: calc(6.5 * var(--final-flow-density-px));
-}
+      display: flex;
+      align-items: center;
+      gap: calc(5 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      white-space: nowrap;
+    }
 
 .statusDot {
-  width: calc(7 * var(--final-flow-density-px));
-  height: calc(7 * var(--final-flow-density-px));
-  border-radius: 50%;
-  background: #929bb0;
-}
+      width: calc(6.667 * var(--final-flow-density-px));
+      height: calc(6.667 * var(--final-flow-density-px));
+      border-radius: 50%;
+      background: var(--color-bg-tertiary);
+    }
 
 .connectionStatus[data-state="connected"] .statusDot {
-  background: #6d967d;
+  background: var(--color-success-bg);
 }
 
 .connectionStatus[data-state="failed"] .statusDot {
-  background: #a85d57;
+  background: var(--color-error-bg);
 }
 
 .connectionStatus[data-state="testing"] .statusDot {
-  background: #a3865b;
+  background: var(--color-warning-bg);
 }
 
 .actionRow {
-  flex-wrap: wrap;
-  gap: calc(5 * var(--final-flow-density-px));
-  padding: calc(4 * var(--final-flow-density-px)) 0;
-}
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: calc(6.667 * var(--final-flow-density-px));
+      padding: calc(6.667 * var(--final-flow-density-px)) 0 calc(3.333 * var(--final-flow-density-px));
+    }
 
 .primaryButton,
 .secondaryButton {
   min-width: 0;
   min-height: calc(29 * var(--final-flow-density-px));
   padding: calc(4 * var(--final-flow-density-px)) calc(9 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: calc(8 * var(--final-flow-density-px));
-  background: #fff;
-  color: #46515c;
+  background: var(--flow-paper);
+  color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
   font-size: calc(7 * var(--final-flow-density-px));
 }
 
 .primaryButton {
-  border-color: #61758c;
-  background: #61758c;
-  color: #fff;
-  font-weight: 650;
-}
+      border-color: var(--color-border-focus);
+      background: var(--flow-accent);
+      color: #fff;
+      font-weight: 650;
+    }
 
 .primaryButton:disabled {
   cursor: wait;
@@ -213,7 +225,7 @@
 
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible {
-  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 48%, transparent);
   outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
@@ -231,4 +243,71 @@
   .field:first-child {
     grid-column: auto;
   }
+
 }
+
+.sectionLabel span {
+      color: var(--flow-faint);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
+
+.sectionCard[data-adjusted="true"] {
+      border-color: var(--color-border-focus);
+      box-shadow: 0 calc(3.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px)) rgba(151, 112, 38, 0.1);
+    }
+
+.secondaryButton,
+    .dangerButton,
+    .primaryButton {
+      min-height: calc(33.333 * var(--final-flow-density-px));
+      padding: 0 calc(5 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      border-radius: calc(16.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: calc(9.167 * var(--final-flow-density-px));
+      text-align: center;
+    }
+
+.actions .secondaryButton,
+    .actions .primaryButton {
+      min-height: calc(30 * var(--final-flow-density-px));
+      padding: 0 calc(13.333 * var(--final-flow-density-px));
+    }
+
+.presetRow .supportingText {
+      flex: 1;
+      margin: 0;
+    }
+
+.presetRow .secondaryButton {
+      min-height: calc(30 * var(--final-flow-density-px));
+      padding: 0 calc(10 * var(--final-flow-density-px));
+    }
+
+.sectionCard progress {
+      display: block;
+      width: 100%;
+      height: calc(6.667 * var(--final-flow-density-px));
+      margin-bottom: calc(6.667 * var(--final-flow-density-px));
+      border: 0;
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      overflow: hidden;
+    }
+
+.sectionCard progress::-webkit-progress-bar {
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      background: var(--color-bg-tertiary);
+    }
+
+.sectionCard progress::-webkit-progress-value {
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      background: var(--flow-muted);
+    }
+
+.sectionCard progress::-moz-progress-bar {
+      border-radius: calc(832.5 * var(--final-flow-density-px));
+      background: var(--flow-muted);
+    }

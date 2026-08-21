@@ -17,7 +17,6 @@ export interface TimeBridgeInput {
   tickCount: number
   prevSnapshot: BridgeSnapshot
   currentSnapshot: BridgeSnapshot
-  memoryL0Titles: string[]
 }
 
 /** 从子系统状态提取 bridge 对比快照 */
@@ -50,11 +49,6 @@ export function buildTimeBridgeSummary(input: TimeBridgeInput): string | undefin
     && prevSnapshot.cultivationRealm !== currentSnapshot.cultivationRealm
   ) {
     bullets.push(`修炼：${prevSnapshot.cultivationRealm}→${currentSnapshot.cultivationRealm}`)
-  }
-
-  for (const title of input.memoryL0Titles) {
-    if (!title?.trim()) continue
-    bullets.push(`记忆：${title.trim()}`)
   }
 
   if (bullets.length === 0) return undefined

@@ -18,12 +18,12 @@ export interface BadgeProps {
 }
 
 const colorClasses: Record<NonNullable<BadgeProps['color']>, string> = {
-  default: 'bg-gray-100 text-gray-700',
+  default: 'bg-[var(--color-bg-tertiary)] text-[var(--flow-muted)]',
   primary: 'bg-[var(--color-primary-light)] text-[var(--color-primary)]',
-  success: 'bg-green-100 text-[var(--color-success)]',
-  warning: 'bg-amber-100 text-[var(--color-warning)]',
-  error: 'bg-red-100 text-[var(--color-error)]',
-  info: 'bg-sky-100 text-sky-700',
+  success: 'bg-[var(--color-success-bg)] text-[var(--color-success)]',
+  warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
+  error: 'bg-[var(--color-error-bg)] text-[var(--color-error)]',
+  info: 'bg-[var(--color-info-bg)] text-[var(--color-info)]',
 }
 
 const sizeClasses = {

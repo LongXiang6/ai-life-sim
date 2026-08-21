@@ -1,3 +1,5 @@
+/** Purpose: Compose the finalized world customization page. Owner: mod-pages. Responsibility: Page layout and public world-configuration wiring only. */
+
 'use client'
 
 /**
@@ -7,6 +9,7 @@
  */
 
 import { useWorldStore } from '@/mods/mod-world'
+import { FlowRunningHead } from '@/mods/mod-ui'
 
 import { WorldCustomizeBottomBar } from './WorldCustomizeBottomBar'
 import { WorldCustomizeDimensionCard } from './WorldCustomizeDimensionCard'
@@ -26,21 +29,6 @@ export function WorldCustomizeMobile() {
   const logic = useWorldCustomize()
   const macroFields = logic.groupedFields.macro ?? []
   const worldConfig = useWorldStore((state) => state.worldConfig)
-  const difficultyLabels: Record<string, string> = {
-    normal: '普通',
-    hard: '困难',
-    nightmare: '噩梦',
-    hell: '地狱',
-  }
-  const difficultyLabel = difficultyLabels[worldConfig?.difficulty ?? 'normal'] ?? '普通'
-  const eraName = worldConfig?.eraName?.trim() || '待确定'
-  const eraStartYear = worldConfig?.eraStartYear
-  const eraLabel = typeof eraStartYear === 'number' && Number.isFinite(eraStartYear) && eraStartYear !== 0
-    ? `${eraName} ${eraStartYear} 年`
-    : eraName
-  const ruleSummary = (logic.worldDescription || worldConfig?.description || '').trim()
-    || '确认这段人生的底层规则与世界描述。'
-  const sourceLabel = worldConfig ? '已保存' : '自定义'
   const rulePreview = logic.fields.map((field) => ({
     key: field.key,
     icon: field.icon,
@@ -58,44 +46,13 @@ export function WorldCustomizeMobile() {
               <div className={`${styles.paper} final-flow-page-surface`}>
             <span className={styles.spine} aria-hidden="true" />
             <header className={styles.header}>
-              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>02 / 08</span></div>
-              <div className={styles.titleRow}>
-                <div>
-                  <h1>世界创作工坊</h1>
-                  <p>确认这段人生的底层规则。</p>
-                </div>
-              </div>
+              <FlowRunningHead stepLabel="02 / 08" />
+              <h1>世界创作工坊</h1>
             </header>
-
-            <section className={styles.worldSummary} aria-live="polite" aria-label="当前世界规则摘要">
-              <div className={styles.summaryTop}>
-                <span>{worldConfig ? '保存世界' : '自定义世界'}</span>
-                <span>当前选择</span>
-              </div>
-              <div className={styles.summaryDifficulty} aria-label={`人生难度：${difficultyLabel}`}>
-                <span>难度</span>
-                <strong>{difficultyLabel}</strong>
-                <span className={styles.summaryDifficultyIcon} aria-hidden="true">
-                  <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-                </span>
-              </div>
-              <h3>{worldConfig?.name ?? '尚未命名世界'}</h3>
-              <div className={styles.summaryEra}>{eraLabel}</div>
-              <div className={styles.summaryRule}>
-                <span>规则摘要</span>
-                <p>{ruleSummary}</p>
-              </div>
-              <div className={styles.summaryFacts} aria-label="世界概览">
-                <div><span>来源</span><strong>{sourceLabel}</strong></div>
-                <div><span>年代</span><strong>{eraName}</strong></div>
-                <div><span>难度</span><strong>{difficultyLabel}</strong></div>
-              </div>
-            </section>
 
             <section className={`${styles.paperSection} ${styles.previewSection}`} aria-labelledby="world-rule-preview-title">
               <div className={styles.sectionHeading}>
                 <strong id="world-rule-preview-title">世界规则预览</strong>
-                <span>四项规则实时预览</span>
               </div>
               <div className={styles.rulePreviewGrid}>
                 {rulePreview.map((item) => (
@@ -129,7 +86,6 @@ export function WorldCustomizeMobile() {
             <section className={styles.paperSection} aria-labelledby="festival-scope-title">
               <div className={styles.sectionHeading}>
                 <strong id="festival-scope-title">节日范围</strong>
-                <span>统一游戏历法</span>
               </div>
               <div className={styles.festivalControl} role="group" aria-label="节日范围">
                 <button
@@ -155,7 +111,7 @@ export function WorldCustomizeMobile() {
 
             <section className={`${styles.paperSection} ${styles.rulesSection}`}>
               <div className={styles.sectionHeading}>
-                <strong>世界规则</strong><span>从基础形态到力量边界</span>
+                <strong>世界规则</strong>
               </div>
               <ol
                 className={`${styles.dimensionList} ${logic.isSaving ? styles.controlsDisabled : ''}`}

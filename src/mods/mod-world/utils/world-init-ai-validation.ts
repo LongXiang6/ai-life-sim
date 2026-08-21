@@ -12,8 +12,6 @@ import {
 } from './world-coherence-output-guard'
 import type { DimensionCalibrationDiagnostics } from './world-dimension-calibration-parse'
 import { formatDimensionCalibrationDiagnostics } from './world-dimension-calibration-parse'
-import type { CalibrationBundleDiagnostics } from './world-calibration-parse'
-import { formatCalibrationBundleDiagnostics } from './world-calibration-parse'
 
 export interface WorldInitValidationDiagnostics {
   ok: boolean
@@ -59,16 +57,6 @@ export function fromDimensionCalibrationDiagnostics(
     ok: d.ok,
     error: d.summary,
     details: formatDimensionCalibrationDiagnostics(d),
-  }
-}
-
-export function fromCalibrationBundleDiagnostics(
-  d: CalibrationBundleDiagnostics,
-): WorldInitValidationDiagnostics {
-  return {
-    ok: d.ok,
-    error: d.error,
-    details: formatCalibrationBundleDiagnostics(d),
   }
 }
 

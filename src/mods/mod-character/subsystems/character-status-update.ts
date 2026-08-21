@@ -1,7 +1,7 @@
 /**
- * Purpose: Validate and apply one post-narrative character-status operation.
+ * Purpose: Validate and apply one local character-status operation.
  * Owner: mod-character / character-base
- * Responsibility: Mutate compact health, fortune, morality, and pending-death state only.
+ * Responsibility: Mutate compact health, fortune, and pending-death state only.
  */
 
 import type {
@@ -14,7 +14,6 @@ import type {
 import {
   refreshCharacterGuidance,
   updateFortune,
-  updateMorality,
   upsertCondition,
 } from './character-status-runtime'
 
@@ -101,12 +100,6 @@ export function applyCharacterStatusUpdate(input: {
     if (delta === 0) throw new Error('气运不能提交零变化')
     updateFortune(status, delta)
   }
-  if (payload.moralityDelta !== undefined) {
-    const delta = integer(payload.moralityDelta, '道德变化', -20, 20)
-    if (delta === 0) throw new Error('道德不能提交零变化')
-    updateMorality(status, delta)
-  }
-
   const hasDeathKind = payload.deathCauseKind !== undefined
   const hasDeathLabel = payload.deathCauseLabel !== undefined
   if (hasDeathKind !== hasDeathLabel) throw new Error('死亡原因类型与说明必须同时提交')

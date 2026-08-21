@@ -1,294 +1,155 @@
 /**
- * Purpose: Audit active narrative semantic authority against validated AI META ownership.
+ * Purpose: Audit the 01/02/03 Prompt responsibilities and runtime ownership boundaries.
  * Owner: quality:narrative
- * Responsibility: Static semantic-authority assertions only; story-text inference is forbidden.
+ * Responsibility: Schema isolation, stage ownership, and absence of local story-text inference only.
  */
+
+import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+
 import { getProjectRoot } from '../../lib/project-root.mjs'
 import { readDirectorySource, readModuleSource } from '../../lib/read-module-source.mjs'
 import {
-  NarrativeRoundMetadataSchema,
-  createNeutralNarrativeSemanticSignals,
-} from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
-import {
-  NarrativeAIBasicAttributeAnalysisDataSchema,
-  NarrativeAIDataAnalysisDataSchema,
-  NarrativeAIEventRecognitionDataSchema,
+  NarrativeAIBranchSchema,
+  NarrativeAIStoryContinuityDataSchema,
+  NarrativeAITalentGrowthDataSchema,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
-import {
-  NarrativeAIMacroImpactDataSchema,
-} from '../../../../src/mods/mod-engine/helpers/narrative-macro-impact-context.ts'
 
 const root = getProjectRoot(import.meta.url)
-let failed = 0
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8')
 
-function read(rel) {
-  return fs.readFileSync(path.join(root, rel), 'utf8')
-}
-
-function fail(message) {
-  console.error(`FAIL: ${message}`)
-  failed++
-}
-
-function assertIncludes(source, expected, message) {
-  if (!source.includes(expected)) fail(message)
-}
-
-function assertExcludes(source, forbidden, message) {
-  if (source.includes(forbidden)) fail(message)
-}
-
-const activeFiles = {
-  orchestrator: readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root),
+const sources = {
   campaign: read('src/mods/mod-engine/campaigns/default/index.ts'),
-  hints: read('src/mods/mod-engine/helpers/narrative-hints.ts'),
   parser: read('src/mods/mod-engine/subsystems/narrative-parser-system.ts'),
-  prompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
-  promptComponents: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
-  dataAnalysisPromptComponents: read('src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts'),
-  basicAttributePromptComponents: read('src/mods/mod-engine/server/narrative-basic-attribute-system-prompt.ts'),
-  eventRecognitionPromptComponents: read('src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts'),
-  macroImpactPromptComponents: read('src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts'),
-  aiProtocol: read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts'),
-  plot: read('src/mods/mod-engine/subsystems/plot-structure-system.ts'),
-  memory: readModuleSource('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts', root),
-  summary: readModuleSource('src/mods/mod-engine/subsystems/summary-compressor-system.ts', root),
-  digest: read('src/mods/mod-engine/helpers/digest-ledger.ts'),
+  orchestrator: readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root),
+  mainPrompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
+  mainSystemPrompt: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
+  continuityPrompt: read('src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts'),
+  talentPrompt: read('src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts'),
+  continuityContext: read('src/mods/mod-engine/helpers/narrative-story-continuity-context.ts'),
+  talentContext: read('src/mods/mod-engine/helpers/narrative-talent-growth-context.ts'),
+  protocol: read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts'),
+  quality: read('src/mods/mod-engine/helpers/narrative-response-quality.ts'),
+  contexts: readDirectorySource('src/mods/mod-engine/helpers', root),
   characterBase: readModuleSource('src/mods/mod-character/subsystems/character-base-system.ts', root),
   characterCreate: readDirectorySource('src/mods/mod-pages/pages/character-create', root),
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-const forbiddenByFile = {
-  orchestrator: [
-    'runPostNarrativePhase',
-    'runNarrativePostProcessing',
-    'countConsecutiveConflictRounds(',
-    'setAIRoundImportance(',
-    'setAIArcStatus(',
-    'checkResolution(',
-    'classifyActionScale(',
-    'determineLocalDirection(',
-    'checkForforgetting(',
-    'extractFromNarrative(',
-  ],
-  campaign: ['runNarrativePostProcessing('],
-  hints: [
-    'SMALL_ACTION_KEYWORDS',
-    'LARGE_ACTION_KEYWORDS',
-    'MULTI_STEP_KEYWORDS',
-    'classifyActionScale',
-    'marriageKeywords',
-    'sideQuestPatterns',
-    'hasDisease',
-  ],
-  plot: ['TENSION_KEYWORDS'],
-  memory: [
-    'HIGH_KEYWORDS',
-    'NORMAL_KEYWORDS',
-    'LOW_KEYWORDS',
-    'CLOSURE_PATTERNS',
-    'rateImportance(',
-    'detectClosure(',
-  ],
-  summary: ['rateImportance('],
-  digest: ['extractEntities(ev.text)'],
-  characterBase: ['detectStartingAge('],
-  characterCreate: [
-    'detectStartingAge(',
-    'LIFESPAN_BG_BONUS_KEYWORDS',
-    'background.includes(',
-  ],
+assert.match(sources.mainPrompt, /version: '7\.2\.0'/u)
+assert.match(sources.mainSystemPrompt, /人生模拟器的故事生成器/u)
+assert.match(sources.mainSystemPrompt, /String\.raw/u)
+assert.match(sources.mainSystemPrompt, /以第二人称‘你’作为当前角色的叙事主语/u)
+assert.doesNotMatch(sources.mainSystemPrompt, /examples\s*:/u)
+assert.doesNotMatch(sources.mainSystemPrompt, /详细示例|示例正文|例如：/u)
+assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查', '你暂时撤回'] }).success)
+assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你先观察', '你请求协助', '你调整工具', '你退出现场'] }).success)
+assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查'] }).success, false)
+assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['一', '二', '三', '四', '五'] }).success, false)
+
+assert.match(sources.continuityPrompt, /故事连续性提取器/u)
+assert.match(sources.continuityPrompt, /本轮记忆/u)
+assert.match(sources.continuityPrompt, /未来事件/u)
+assert.match(sources.continuityPrompt, /时间、事实和权重/u)
+assert.match(sources.talentPrompt, /天赋成长判定与路线生成器/u)
+assert.match(sources.talentPrompt, /下一等级/u)
+assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
+assert.match(sources.talentPrompt, /转变强化只改变作用方式，不额外扩大影响总量/u)
+assert.match(sources.talentPrompt, /长期积累/u)
+assert.match(sources.talentPrompt, /时间沉淀/u)
+assert.match(sources.talentPrompt, /明确契机/u)
+assert.match(sources.talentPrompt, /三项必须同时成立/u)
+assert.doesNotMatch(sources.talentPrompt, /感知[^\n]{0,80}不得[^\n]{0,80}(?:创造|消除|操控)/u)
+assert.doesNotMatch(sources.talentPrompt, /判断[^\n]{0,80}不得[^\n]{0,80}(?:创造|消除|操控)/u)
+for (const prompt of [sources.continuityPrompt, sources.talentPrompt]) {
+  assert.doesNotMatch(prompt, /详细故事输出示例|示例正文|few-shot|examples\s*:/iu)
 }
 
-for (const [file, forbiddenValues] of Object.entries(forbiddenByFile)) {
-  for (const forbidden of forbiddenValues) {
-    assertExcludes(
-      activeFiles[file],
-      forbidden,
-      `${file} must not contain active text-semantic inference: ${forbidden}`,
-    )
-  }
-}
-
-if (fs.existsSync(path.join(root, 'src/mods/mod-engine/helpers/post-narrative-processor.ts'))) {
-  fail('legacy post-narrative text scanner must remain removed')
-}
-
-for (const field of ['语义信号', '叙事语域', '关系变化', '已回收伏笔编号']) {
-  assertIncludes(activeFiles.aiProtocol, field, `Chinese narrative protocol missing structured field ${field}`)
-}
-for (const register of ['生活', '命运', '传承']) {
-  assertIncludes(
-    activeFiles.aiProtocol,
-    `'${register}'`,
-    `narrative prompt must define the ${register} register`,
+for (const stage of ['ai-story-continuity', 'ai-talent-growth']) {
+  assert.match(
+    sources.campaign,
+    new RegExp(`name: '${stage}'[\\s\\S]{0,220}dependsOn: \\[\\s*'prepare-narrative'\\s*\\][\\s\\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP`, 'u'),
   )
 }
-assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
-assertIncludes(activeFiles.prompt, "version: '5.8.3'", 'pure narrative contract must use Prompt version 5.8.3')
-assertIncludes(
-  activeFiles.dataAnalysisPromptComponents,
-  '没有变化的系统省略整段',
-  'AI-visible optional system changes must omit empty segments instead of emitting noise',
+assert.match(
+  sources.campaign,
+  /dependsOn:\s*\[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u,
 )
-if (/关系变化\s*:\s*\{\s*shape\s*:/.test(activeFiles.aiProtocol)) {
-  fail('Chinese relationship updates must not be modeled as a shape/types wrapper object')
-}
-assertIncludes(
-  activeFiles.dataAnalysisPromptComponents,
-  '只有通用关系系统的解除操作使用空变更对象',
-  'prompt must reserve the only empty-object payload for relationship termination',
-)
-assertIncludes(
-  activeFiles.parser,
-  'NarrativeRoundMetadataSchema.parse({',
-  'event-recognition metadata must validate against its independent round schema',
-)
-assertIncludes(
-  activeFiles.parser,
-  'validateNarrativeEventMetadataForNarrative(',
-  'parser must validate event metadata against the accepted main-narrative branch contract',
-)
-assertExcludes(
-  activeFiles.parser,
-  'combineNarrativeBackgroundAnalysis(',
-  'retired combined narrative/background response boundary must remain removed',
-)
-assertIncludes(
-  activeFiles.orchestrator,
-  'if (parsed.semanticSignals)',
-  'orchestrator must apply semantic side effects only when validated settlement metadata exists',
-)
-assertIncludes(
-  activeFiles.orchestrator,
-  'acceptNarrativeResponse(\n    parsed: ParsedNarrative,\n    playerChoice?: string,',
-  'orchestrator must accept the validated main narrative with the exact delivered one-shot action',
-)
-assertIncludes(
-  activeFiles.orchestrator,
-  'launchNarrativeBackgroundAnalysis<TResult>',
-  'orchestrator must register independently versioned background results',
-)
+assert.equal([...sources.campaign.matchAll(/name: '(ai-[^']+)'/gu)].length, 3)
 
-for (const call of [
-  'plotStructure.recordNarrativeSignals(',
-  'memoryLifecycle.setAISemanticAnalysis(',
-  'memoryLifecycle.recordRelationshipUpdates(',
-  'foreshadowing.resolveForeshadowing(',
-]) {
-  assertIncludes(activeFiles.orchestrator, call, `orchestrator missing structured consumer ${call}`)
-}
+assert.match(sources.parser, /parseNarrativeResponseEnvelope\(content, options\)/u)
+assert.match(sources.parser, /endingTitle/u)
+assert.doesNotMatch(sources.parser, /本轮记忆|未来事件|成长判定/u)
+assert.doesNotMatch(sources.orchestrator, /runNarrativePostProcessing|launchNarrativeBackgroundAnalysis|combineNarrativeBackgroundAnalysis/u)
 
-assertIncludes(
-  activeFiles.fatePreview,
-  'startingAge,\n      status: undefined,',
-  'fate preview must hydrate character-base from the confirmed creation draft',
-)
-assertIncludes(
-  activeFiles.digest,
-  'new Set(ev.entities ?? [])',
-  'digest chaining must use only AI-provided entities',
-)
-
-const validMetadata = {
-  importance: 'NORMAL',
-  digest: '日常的一天过去。',
-  keyEvents: [{ text: '完成日常工作', importance: 20 }],
-  arcStatus: 'ongoing',
-  semanticSignals: {
-    eventType: 'routine',
-    conflictIntensity: 0,
-    tensionDelta: -1,
-    actionScale: 'small',
-    irreversible: false,
-    impactScope: 'personal',
-    narrativeRegister: 'life',
-    registerReason: '普通生活推进',
-    arcType: 'none',
-    relationshipUpdates: [],
-    resolvedForeshadowingIds: [],
+assert(NarrativeAIStoryContinuityDataSchema.safeParse({
+  本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6 }],
+  未来事件: ['317年5月1日：贺峤带队检查内层石缝。'],
+}).success)
+assert(NarrativeAIStoryContinuityDataSchema.safeParse({
+  本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6, 来源: '当前回合' }],
+  未来事件: [],
+}).success)
+assert(NarrativeAITalentGrowthDataSchema.safeParse({
+  成长判定: { 需要成长: false },
+}).success)
+assert(NarrativeAITalentGrowthDataSchema.safeParse({
+  成长判定: {
+    需要成长: true,
+    命格血脉编号: 'lineage:test',
+  成长依据: '既有事实明确体现了能力效果。',
+  依据窗口编号: ['round:16', 'round:17'],
+    下一阶方向: [
+      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 悟性: 2 } },
+      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 悟性: 1 } },
+      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不能增大可影响的水量。', 属性加成: { 心智: -1, 悟性: 3 } },
+    ],
   },
+}).success, 'Schema 必须允许转变路线从感知判断质变为直接操控类')
+
+const continuityOrder = ['历史记忆:', '最近两轮正文:', '当前回合:']
+let continuityCursor = -1
+for (const fragment of continuityOrder) {
+  const index = sources.continuityContext.indexOf(fragment)
+  assert(index > continuityCursor, `02 消息顺序漂移：${fragment}`)
+  continuityCursor = index
+}
+const talentOrder = ['历史记忆:', '最近两轮详细记忆:', '玩家已选天赋:']
+let talentCursor = -1
+for (const fragment of talentOrder) {
+  const index = sources.talentContext.indexOf(fragment)
+  assert(index > talentCursor, `03 消息顺序漂移：${fragment}`)
+  talentCursor = index
+}
+assert.doesNotMatch(sources.talentContext, /极性/u)
+assert.doesNotMatch(sources.quality, /MAX_|等级总加成上限|负属性绝对值总和/u)
+
+const approvedProtocolExports = [
+  'NarrativeAIStoryResultSchema',
+  'NarrativeAITalentGrowthDataSchema',
+  'NarrativeAIStoryContinuityDataSchema',
+]
+for (const exportName of approvedProtocolExports) assert.match(sources.protocol, new RegExp(`export const ${exportName}`))
+assert.equal([...sources.protocol.matchAll(/export const NarrativeAI[A-Za-z]+DataSchema/gu)].length, 2)
+
+const textInferenceTokens = [
+  'SMALL_ACTION_KEYWORDS',
+  'LARGE_ACTION_KEYWORDS',
+  'classifyActionScale',
+  'detectStartingAge(',
+  'extractFromNarrative(',
+  'checkForforgetting(',
+]
+const inferenceOwners = [
+  sources.orchestrator,
+  sources.contexts,
+  sources.characterBase,
+  sources.characterCreate,
+]
+for (const token of textInferenceTokens) {
+  for (const source of inferenceOwners) assert.equal(source.includes(token), false, `活动路径不得本地推断：${token}`)
 }
 
-if (!NarrativeRoundMetadataSchema.safeParse(validMetadata).success) {
-  fail('valid narrative metadata must pass schema validation')
-}
-
-if (NarrativeRoundMetadataSchema.safeParse({ ...validMetadata, changes: [] }).success) {
-  fail('event-recognition metadata must not absorb system changes from another AI owner')
-}
-
-const wrappedRelationships = structuredClone(validMetadata)
-wrappedRelationships.semanticSignals.relationshipUpdates = { shape: [] }
-if (NarrativeRoundMetadataSchema.safeParse(wrappedRelationships).success) {
-  fail('shape/types wrapped relationshipUpdates must fail the event metadata schema')
-}
-
-const validSystemInstruction = {
-  系统: '角色状态',
-  目标对象: 'player:current',
-  目标上下文: 'context:world-a',
-  操作: '调整属性',
-  说明: '长期训练已经形成稳定体魄变化。',
-  变更: { 体魄变化: 1 },
-  依据事件: [],
-}
-if (!NarrativeAIDataAnalysisDataSchema.safeParse({ 系统操作: [validSystemInstruction] }).success) {
-  fail('data-analysis schema must independently accept its own strict system-operation root')
-}
-if (!NarrativeAIBasicAttributeAnalysisDataSchema.safeParse({ 系统操作: [validSystemInstruction] }).success) {
-  fail('basic-attribute schema must independently accept one valid player-base increment')
-}
-if (!NarrativeAIEventRecognitionDataSchema.safeParse({
-  回合事件: { 摘要: '日常的一天过去。', 注册事件: [] },
-  待触发事件: [],
-}).success) {
-  fail('event-recognition schema must independently accept occurred metadata and an empty future-candidate list')
-}
-if (!NarrativeAIMacroImpactDataSchema.safeParse({ 影响链: [] }).success) {
-  fail('macro-impact schema must independently accept an empty verified-impact DAG')
-}
-if (NarrativeAIDataAnalysisDataSchema.safeParse({
-  系统操作: [{ id: 'character-base', description: 'test', fields: { mindDelta: 1 } }],
-}).success) {
-  fail('legacy fields-shaped changes must fail the independent data-analysis schema')
-}
-if (NarrativeAIDataAnalysisDataSchema.safeParse({
-  系统操作: [],
-  回合事件: { 摘要: '越权字段', 注册事件: [] },
-}).success) {
-  fail('data-analysis schema must reject event-recognition fields from another owner')
-}
-
-const missingEntities = structuredClone(validMetadata)
-missingEntities.keyEvents[0].entities = []
-if (NarrativeRoundMetadataSchema.safeParse(missingEntities).success) {
-  fail('empty keyEvents.entities must fail; no entities should omit the field')
-}
-
-const invalidConflict = structuredClone(validMetadata)
-invalidConflict.semanticSignals.conflictIntensity = 101
-if (NarrativeRoundMetadataSchema.safeParse(invalidConflict).success) {
-  fail('out-of-range conflict intensity must fail validation')
-}
-
-const neutral = createNeutralNarrativeSemanticSignals()
-if (
-  neutral.narrativeRegister !== 'life'
-  || neutral.conflictIntensity !== 0
-  || neutral.relationshipUpdates.length !== 0
-  || neutral.resolvedForeshadowingIds.length !== 0
-) {
-  fail('neutral semantic fallback must be identifiable and non-inferential')
-}
-
-assertExcludes(
-  activeFiles.prompt,
-  'examples: [',
-  'the live schema and register rules must not be duplicated into costly few-shot examples',
-)
-if (failed > 0) process.exit(1)
+assert.match(sources.fatePreview, /startingAge/u)
 console.log('PASS: semantic-authority-audit')

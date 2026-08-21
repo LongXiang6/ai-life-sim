@@ -1,8 +1,4 @@
-/**
- * @module index.ts
- * @description MOD 公共 API 导出 —— UI 组件
- * @mod mod-ui
- */
+/** Purpose: Export the mod-ui public API. Owner: mod-ui. Responsibility: Public UI exports only. */
 
 export { useIsMobile } from '@/foundation'
 
@@ -27,6 +23,9 @@ export type { SpinnerProps } from './components/atoms/Spinner'
 
 export { ProgressBar } from './components/atoms/ProgressBar'
 export type { ProgressBarProps } from './components/atoms/ProgressBar'
+
+export { FlowRunningHead } from './components/atoms/FlowRunningHead'
+export type { FlowRunningHeadProps } from './components/atoms/FlowRunningHead'
 
 export { Card } from './components/molecules/Card'
 export type { CardProps } from './components/molecules/Card'
@@ -83,7 +82,12 @@ export { WorldInfoPanel } from './components/organisms/WorldInfoPanel'
 export type { WorldInfoPanelProps } from './components/organisms/WorldInfoPanel'
 
 export { NarrativeTimeline } from './components/organisms/NarrativeTimeline'
-export type { NarrativeTimelineProps, NarrativeEntry } from './components/organisms/NarrativeTimeline'
+export type {
+  NarrativeTimelineProps,
+  NarrativeEntry,
+  NarrativeDestinyPatternGrowthEntry,
+  NarrativeDestinyPatternGrowthPatternEntry,
+} from './components/organisms/NarrativeTimeline'
 
 export { GameBottomBar, DEFAULT_TIME_STEPS } from './components/organisms/GameBottomBar'
 export type { GameBottomBarProps, TimeStepOption } from './components/organisms/GameBottomBar'
@@ -93,9 +97,6 @@ export type { MoreActionsModalProps } from './components/organisms/MoreActionsMo
 
 export { AttributeTag } from './components/molecules/AttributeTag'
 export type { AttributeTagProps } from './components/molecules/AttributeTag'
-
-export { AttrChangeLabel } from './components/molecules/AttrChangeLabel'
-export type { AttrChangeLabelProps } from './components/molecules/AttrChangeLabel'
 
 export { TalentBadge } from './components/molecules/TalentBadge'
 export type { TalentBadgeProps, TalentRarity } from './components/molecules/TalentBadge'

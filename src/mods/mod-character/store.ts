@@ -1,3 +1,9 @@
+/**
+ * Purpose: Own the persisted character creation and in-life destiny-pattern state.
+ * Owner: mod-character
+ * Responsibility: Character Store actions, hydration normalization, and persistence projection only.
+ */
+
 'use client'
 
 import { create } from 'zustand'
@@ -7,19 +13,28 @@ import type { TalentPreset } from './prompts/talent-presets'
 import type {
   CharacterBaseState,
   CharacterSummary,
+  DestinyPattern,
+  DestinyPatternGrowthHistoryEntry,
   DestinyPatternState,
   LifespanDraftState,
-  MythicPattern,
-  MythicPatternCandidate,
+  PendingDestinyPatternGrowth,
+  ReincarnationTalent,
 } from './types'
 import {
-  MYTHIC_PATTERN_SELECT_COUNT,
+  PATTERN_LOADOUT_SLOT_COUNT,
   RACE_LIFESPAN,
 } from './constants'
 import {
   createGlobalCharacterId,
   sanitizeCharacterStateSnapshot,
+  sanitizeDestinyPatternState,
 } from './utils/character-state-migration'
+import { assertPatternLoadout } from './pattern-loadout'
+import {
+  isDestinyPatternGrowthAgeEligible,
+  registerPendingDestinyPatternGrowthInState,
+  resolvePendingDestinyPatternGrowthInState,
+} from './destiny-pattern-growth'
 
 function destinyPoolCacheKey(worldCode: number): string {
   return `mod-character:destiny-pool:${worldCode}`
@@ -29,13 +44,18 @@ function talentPoolCacheKey(worldCode: number): string {
   return `mod-character:talent-pool:${worldCode}`
 }
 
-function normalizeEquippedMythicPatterns(patterns: readonly MythicPattern[]): MythicPattern[] {
+function normalizeEquippedReincarnationTalents(talents: readonly ReincarnationTalent[]): ReincarnationTalent[] {
   const seen = new Set<string>()
-  return patterns.filter((pattern) => {
-    if (!pattern || seen.has(pattern.id)) return false
-    seen.add(pattern.id)
-    return true
-  }).slice(0, MYTHIC_PATTERN_SELECT_COUNT)
+  const normalized: ReincarnationTalent[] = []
+  for (const talent of talents) {
+    if (!talent || seen.has(talent.id)) throw new Error('轮回天赋选择包含重复项')
+    seen.add(talent.id)
+    normalized.push(talent)
+  }
+  if (normalized.length > PATTERN_LOADOUT_SLOT_COUNT) {
+    throw new Error(`轮回天赋不能超过 ${PATTERN_LOADOUT_SLOT_COUNT} 项`)
+  }
+  return normalized
 }
 
 const HUMAN_RACE = RACE_LIFESPAN.human!
@@ -51,7 +71,9 @@ const initialCharacterBase = (): CharacterBaseState => ({
 const initialDestinyPatterns = (): DestinyPatternState => ({
   candidates: [],
   patterns: [],
-  rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 },
+  rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+  pendingGrowth: null,
+  growthHistory: [],
 })
 
 const initialLifespanDraft = (): LifespanDraftState => ({
@@ -74,9 +96,7 @@ interface CharacterStore {
   lifespanDraft: LifespanDraftState
 
   talents: TalentPreset[]
-  mythicCandidates: MythicPatternCandidate[]
-  equippedMythicPatterns: MythicPattern[]
-  sealedMythicPatternId: string | null
+  equippedReincarnationTalents: ReincarnationTalent[]
 
   worldCode: number
   destinyPoolCacheKey: string
@@ -94,9 +114,14 @@ interface CharacterStore {
   setDestinyPatterns: (state: Partial<DestinyPatternState>) => void
   setLifespanDraft: (state: LifespanDraftState) => void
   setTalents: (talents: TalentPreset[]) => void
-  setMythicCandidates: (patterns: MythicPatternCandidate[]) => void
-  setEquippedMythicPatterns: (patterns: MythicPattern[]) => void
-  setSealedMythicPatternId: (id: string | null) => void
+  setEquippedReincarnationTalents: (talents: ReincarnationTalent[]) => void
+  setPatternLoadout: (
+    patterns: DestinyPattern[],
+    reincarnationTalents: ReincarnationTalent[],
+    candidates: DestinyPattern[],
+  ) => void
+  registerPendingDestinyPatternGrowth: (pending: PendingDestinyPatternGrowth) => void
+  resolvePendingDestinyPatternGrowth: (optionId: string) => DestinyPatternGrowthHistoryEntry
   setWorldCode: (code: number) => void
   reset: () => void
 }
@@ -115,9 +140,7 @@ export const useCharacterStore = create<CharacterStore>()(
       destinyPatterns: initialDestinyPatterns(),
       lifespanDraft: initialLifespanDraft(),
       talents: [],
-      mythicCandidates: [],
-      equippedMythicPatterns: [],
-      sealedMythicPatternId: null,
+      equippedReincarnationTalents: [],
       worldCode: 0,
       destinyPoolCacheKey: destinyPoolCacheKey(0),
       talentPoolCacheKey: talentPoolCacheKey(0),
@@ -148,19 +171,68 @@ export const useCharacterStore = create<CharacterStore>()(
         characterId: state.characterId || createGlobalCharacterId(),
       })),
       setGender: (gender) => set({ gender }),
-      setAge: (age) => set({ age }),
+      setAge: (age) => set((state) => ({
+        age,
+        destinyPatterns: sanitizeDestinyPatternState(state.destinyPatterns, age),
+      })),
       setRace: (race) => set({ race }),
       setBackground: (background) => set({ background }),
       setRaceOrigin: (raceOrigin) => set({ raceOrigin }),
       setCharacterBase: (partial) => set((state) => ({ characterBase: { ...state.characterBase, ...partial } })),
-      setDestinyPatterns: (partial) => set((state) => ({ destinyPatterns: { ...state.destinyPatterns, ...partial } })),
+      setDestinyPatterns: (partial) => set((state) => {
+        const destinyPatterns = sanitizeDestinyPatternState(
+          { ...state.destinyPatterns, ...partial },
+          state.age,
+        )
+        assertPatternLoadout(destinyPatterns.patterns, state.equippedReincarnationTalents)
+        return { destinyPatterns }
+      }),
       setLifespanDraft: (lifespanDraft) => set({ lifespanDraft: structuredClone(lifespanDraft) }),
       setTalents: (talents) => set({ talents }),
-      setMythicCandidates: (mythicCandidates) => set({ mythicCandidates, sealedMythicPatternId: null }),
-      setEquippedMythicPatterns: (equippedMythicPatterns) => set({
-        equippedMythicPatterns: normalizeEquippedMythicPatterns(equippedMythicPatterns),
+      setEquippedReincarnationTalents: (talents) => set((state) => {
+        const equippedReincarnationTalents = normalizeEquippedReincarnationTalents(talents)
+        assertPatternLoadout(state.destinyPatterns.patterns, equippedReincarnationTalents)
+        return { equippedReincarnationTalents }
       }),
-      setSealedMythicPatternId: (sealedMythicPatternId) => set({ sealedMythicPatternId }),
+      setPatternLoadout: (patterns, reincarnationTalents, candidates) => set((state) => {
+        const equippedReincarnationTalents = normalizeEquippedReincarnationTalents(reincarnationTalents)
+        assertPatternLoadout(patterns, equippedReincarnationTalents, true)
+        const rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 } satisfies DestinyPatternState['rarityCount']
+        for (const pattern of patterns) rarityCount[pattern.rarity]++
+        return {
+          characterBase: {
+            ...initialCharacterBase(),
+            startingAge: state.characterBase.startingAge,
+          },
+          destinyPatterns: {
+            ...state.destinyPatterns,
+            candidates: [...candidates],
+            patterns: [...patterns],
+            rarityCount,
+            pendingGrowth: null,
+            growthHistory: [],
+          },
+          equippedReincarnationTalents,
+        }
+      }),
+      registerPendingDestinyPatternGrowth: (pending) => set((state) => ({
+        destinyPatterns: registerPendingDestinyPatternGrowthInState(
+          state.destinyPatterns,
+          pending,
+          state.age,
+        ),
+      })),
+      resolvePendingDestinyPatternGrowth: (optionId) => {
+        if (!isDestinyPatternGrowthAgeEligible(get().age)) {
+          throw new Error('角色未满 16 岁，不能确认天赋成长')
+        }
+        const resolved = resolvePendingDestinyPatternGrowthInState(
+          get().destinyPatterns,
+          optionId,
+        )
+        set({ destinyPatterns: resolved.state })
+        return resolved.historyEntry
+      },
       setWorldCode: (code) => set({
         worldCode: code,
         destinyPoolCacheKey: destinyPoolCacheKey(code),
@@ -179,20 +251,29 @@ export const useCharacterStore = create<CharacterStore>()(
         destinyPatterns: initialDestinyPatterns(),
         lifespanDraft: initialLifespanDraft(),
         talents: [],
-        mythicCandidates: [],
-        equippedMythicPatterns: [],
-        sealedMythicPatternId: null,
+        equippedReincarnationTalents: [],
       }),
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 6,
+      version: 9,
       migrate: (persistedState: unknown) => {
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')
           return undefined as unknown as CharacterStore
         }
         return sanitizeCharacterStateSnapshot(persistedState) as unknown as CharacterStore
+      },
+      merge: (persistedState, currentState) => {
+        if (
+          typeof persistedState !== 'object'
+          || persistedState === null
+          || Array.isArray(persistedState)
+        ) return currentState
+        return {
+          ...currentState,
+          ...sanitizeCharacterStateSnapshot(persistedState),
+        } as CharacterStore
       },
       partialize: (state) => {
         const {
@@ -208,9 +289,10 @@ export const useCharacterStore = create<CharacterStore>()(
           setDestinyPatterns: _setDestinyPatterns,
           setLifespanDraft: _setLifespanDraft,
           setTalents: _setTalents,
-          setMythicCandidates: _setMythicCandidates,
-          setEquippedMythicPatterns: _setEquippedMythicPatterns,
-          setSealedMythicPatternId: _setSealedMythicPatternId,
+          setEquippedReincarnationTalents: _setEquippedReincarnationTalents,
+          setPatternLoadout: _setPatternLoadout,
+          registerPendingDestinyPatternGrowth: _registerPendingDestinyPatternGrowth,
+          resolvePendingDestinyPatternGrowth: _resolvePendingDestinyPatternGrowth,
           setWorldCode: _setWorldCode,
           reset: _reset,
           ...persisted
@@ -221,4 +303,4 @@ export const useCharacterStore = create<CharacterStore>()(
   ),
 )
 
-export { useMythicLibraryStore } from './mythic-library-store'
+export { useReincarnationLibraryStore } from './reincarnation-library-store'

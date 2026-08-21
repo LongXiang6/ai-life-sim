@@ -5,9 +5,9 @@
  */
 
 import {
-  ACCOUNT_MAX_SLOTS,
-  CloudMythicTalentSchema,
-  type CloudMythicTalent,
+  REINCARNATION_LIBRARY_MAX_SLOTS,
+  ReincarnationTalentSchema,
+  type CloudReincarnationTalent,
 } from '@/core/account/account-contract'
 
 import { getPlayerContentDatabase } from '../player-content-database'
@@ -23,24 +23,24 @@ import type { StoredAttachmentRow } from './types'
 export function addTalentToAttachedAccount(
   database: ReturnType<typeof getPlayerContentDatabase>,
   accountId: string,
-  talent: CloudMythicTalent,
+  talent: CloudReincarnationTalent,
   now: number,
 ): boolean {
   const existing = database.prepare(`
-    SELECT 1 FROM account_store.account_mythic_talents
+    SELECT 1 FROM account_store.account_reincarnation_talents
     WHERE account_id = ? AND talent_id = ?
   `).get(accountId, talent.id)
   if (existing) return false
   const slots = database.prepare(`
-    SELECT slot FROM account_store.account_mythic_talents
+    SELECT slot FROM account_store.account_reincarnation_talents
     WHERE account_id = ? ORDER BY slot
   `).all(accountId) as Array<{ slot: number }>
   const occupied = new Set(slots.map((row) => row.slot))
   let slot = 1
-  while (occupied.has(slot) && slot <= ACCOUNT_MAX_SLOTS) slot += 1
-  if (slot > ACCOUNT_MAX_SLOTS) return false
+  while (occupied.has(slot) && slot <= REINCARNATION_LIBRARY_MAX_SLOTS) slot += 1
+  if (slot > REINCARNATION_LIBRARY_MAX_SLOTS) return false
   database.prepare(`
-    INSERT INTO account_store.account_mythic_talents(
+    INSERT INTO account_store.account_reincarnation_talents(
       account_id, slot, talent_id, data_json, updated_at
     ) VALUES (?, ?, ?, ?, ?)
   `).run(accountId, slot, talent.id, JSON.stringify(talent), now)
@@ -78,11 +78,11 @@ export function returnAttachment(
 
 export function reconcileAccountMailTalents(input: {
   accountId: string
-  talents: readonly CloudMythicTalent[]
+  talents: readonly CloudReincarnationTalent[]
   diagnosticCode?: string
   deviceProvenanceId?: string
   now?: number
-}): CloudMythicTalent[] {
+}): CloudReincarnationTalent[] {
   const now = input.now ?? Date.now()
   const database = getPlayerContentDatabase()
   const verifiedDiagnostic = input.diagnosticCode && input.deviceProvenanceId
@@ -112,18 +112,18 @@ export function reconcileAccountMailTalents(input: {
     updated_at: number
   }>
   const registry = new Map(registryRows.map((row) => [row.talent_id, row]))
-  const result: CloudMythicTalent[] = []
+  const result: CloudReincarnationTalent[] = []
   const included = new Set<string>()
   for (const talent of input.talents) {
     const owner = registry.get(talent.id)?.owner_key
     if (owner && owner !== accountKey(input.accountId)) continue
     if (included.has(talent.id)) continue
-    result.push(CloudMythicTalentSchema.parse(talent))
+    result.push(ReincarnationTalentSchema.parse(talent))
     included.add(talent.id)
   }
   for (const row of registryRows) {
     if (row.owner_key !== accountKey(input.accountId) || included.has(row.talent_id)) continue
-    if (result.length >= ACCOUNT_MAX_SLOTS) break
+    if (result.length >= REINCARNATION_LIBRARY_MAX_SLOTS) break
     result.push(parseTalent(row.talent_json))
     included.add(row.talent_id)
   }

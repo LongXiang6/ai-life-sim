@@ -10,9 +10,7 @@ import { createExecutionOutcomeCodes, runExecutionSequence } from '@/foundation'
 import { useWorldStore } from '../../store'
 import type { WorldConfig, WorldInitAIStatus } from '../../types'
 import { buildDefaultCalibration, formatCalibrationSummary } from '../../world-init-bundle-deps'
-import { withRetry } from './ai-service'
 import {
-  MAX_AI_RETRIES,
   type WorldInitPipelineContext,
   type WorldInitPipelineResult,
   type WorldInitStep,
@@ -34,10 +32,6 @@ function updatePipelineStatus(
     tagsGenerated: context.tagsGenerated,
     configGenerated: context.configGenerated,
     regionProfilesGenerated: context.regionProfilesGenerated,
-    retryCount: context.calibrationGenerated
-      && context.tagsGenerated
-      && context.configGenerated
-      && context.regionProfilesGenerated ? 0 : 1,
     errors: context.errors,
   })
 }
@@ -53,8 +47,6 @@ export async function runWorldInitPipeline(
     tagsGenerated: false,
     configGenerated: false,
     regionProfilesGenerated: false,
-    retryCount: 0,
-    maxRetries: MAX_AI_RETRIES,
     errors: [],
     stepTimers: {},
   }
@@ -74,17 +66,7 @@ export async function runWorldInitPipeline(
     timeoutMs: step.timeoutMs,
     shouldSkip: step.shouldSkip,
     outcomes: createExecutionOutcomeCodes(flow.flowId, step.id),
-    run: async (pipelineContext: WorldInitPipelineContext) => {
-      const signal = await withRetry(step.label, async () => {
-        const result = await step.run(pipelineContext)
-        if (result === undefined) throw new Error(`步骤 "${step.id}" 返回但未提供状态码`)
-        return result
-      }, pipelineContext.errors)
-      return signal ?? {
-        status: 'failed' as const,
-        message: pipelineContext.errors.at(-1) ?? `${step.label} 执行失败`,
-      }
-    },
+    run: (pipelineContext: WorldInitPipelineContext) => step.run(pipelineContext),
   }))
 
   const sequenceResult = await runExecutionSequence({
@@ -142,8 +124,6 @@ export async function runWorldInitPipeline(
     tagsGenerated: context.tagsGenerated,
     configGenerated: context.configGenerated,
     regionProfilesGenerated: context.regionProfilesGenerated,
-    retryCount: MAX_AI_RETRIES,
-    maxRetries: MAX_AI_RETRIES,
     errors: context.errors,
   })
 

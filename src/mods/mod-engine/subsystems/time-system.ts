@@ -506,12 +506,12 @@ export class TimeSystem implements ISubSystem {
     this.lastDaysPassed = 0
   }
 
-  /** 导出当前历法状态（预生成快照用） */
+  /** 导出当前历法状态。 */
   exportRound(): RoundInfo {
     return structuredClone(this.round)
   }
 
-  /** 恢复历法状态（预生成快照用）。快照恢复不算一次推进，daysPassed 归零。 */
+  /** 恢复历法状态；恢复本身不算一次推进。 */
   importRound(round: RoundInfo): void {
     this.round = structuredClone(round)
     this.round.season = getSeasonForMonth(this.round.month)

@@ -55,9 +55,9 @@ export async function registerAccount(
   const accountId = randomUUID()
   const initialData = {
     ...input.initialData,
-    mythicTalents: reconcileAccountMailTalents({
+    reincarnationTalents: reconcileAccountMailTalents({
       accountId,
-      talents: input.initialData.mythicTalents,
+      talents: input.initialData.reincarnationTalents,
       diagnosticCode: mailboxIdentity.diagnosticCode,
       deviceProvenanceId: mailboxIdentity.deviceProvenanceId,
       now,
@@ -119,9 +119,9 @@ export function syncAccount(
   const now = Date.now()
   const reconciledInput = {
     ...input,
-    mythicTalents: reconcileAccountMailTalents({
+    reincarnationTalents: reconcileAccountMailTalents({
       accountId: account.id,
-      talents: input.mythicTalents,
+      talents: input.reincarnationTalents,
       diagnosticCode: mailboxIdentity.diagnosticCode,
       deviceProvenanceId: mailboxIdentity.deviceProvenanceId,
       now,

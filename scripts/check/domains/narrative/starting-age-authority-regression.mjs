@@ -4,7 +4,7 @@
  * Responsibility: Creation confirmation and fate-preview prerequisite assertions only.
  *
  * 创建流程完整性回归：保护角色创建写入的结构化种族/寿命与 startingAge，
- * 并确保命运预览只允许已确认角色且恰好 3 条命格开始人生。
+ * 并确保命运预览只允许已确认角色且四个共享命格槽已填满时开始人生。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -203,28 +203,29 @@ assertOk(
 )
 assertOk(!/\bage\s*:\s*0\b/.test(handleBody), 'handleStartLife must not hard-reset any age field to 0')
 assertOk(
-  handleBody.includes('if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return'),
-  'handleStartLife must enforce creation and 4/4 world-initialization prerequisites even if invoked outside the disabled button',
+  handleBody.includes('if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return'),
+  'handleStartLife must enforce creation and local world-readiness prerequisites even if invoked outside the disabled button',
 )
 assertOk(
-  handleBody.includes('if (!allModsLoaded)')
-    && handleBody.includes('commitResult.rejected.length > 0')
-    && handleBody.includes('commitResult.committed.length !== 1'),
-  'handleStartLife must wait for the complete MOD runtime and reject incomplete creation commits before navigation',
+  handleBody.includes('MAX_CREATION_COMMIT_ATTEMPTS')
+    && handleBody.includes('commitResult.rejected.length === 0')
+    && handleBody.includes('commitResult.committed.length === 1')
+    && handleBody.includes('isTransientCreationCommitReason'),
+  'handleStartLife must retry transient creation-commit readiness failures and stop on a complete commit',
 )
 assertOk(
-  sourceText.includes('selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT')
-    && sourceText.includes("status?.status === 'complete'")
-    && sourceText.includes('completedSteps === WORLD_INIT_STEPS.length')
-    && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason) || !aiComplete}'),
-  'fate preview must require exactly 3 patterns, a complete four-step world initialization, and a ready MOD runtime before start',
+  sourceText.includes('const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)')
+    && sourceText.includes('const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)')
+    && sourceText.includes('const worldReady = worldInitialized && !!worldConfig && worldCode > 0')
+    && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}'),
+  'fate preview must require a complete four-slot pattern loadout, local world confirmation, and ready MOD runtime before start',
 )
 assertOk(
-  /export const DESTINY_PATTERN_SELECT_COUNT = 3\b/.test(characterConstantsSourceText),
-  'the creation-flow prerequisite must remain exactly 3 confirmed destiny patterns',
+  /export const PATTERN_LOADOUT_SLOT_COUNT = 4\b/.test(characterConstantsSourceText),
+  'the creation-flow prerequisite must remain exactly four shared pattern slots',
 )
 assertOk(
-  sourceText.includes('>起始年龄：</span>') && sourceText.includes('>{startingAge} 岁</span>'),
+  sourceText.includes('>起始年龄：</span>') && sourceText.includes('>{startingAge} 岁</b>'),
   'final fate preview must visibly display the starting age',
 )
 assertOk(

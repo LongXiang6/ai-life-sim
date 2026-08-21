@@ -1,0 +1,127 @@
+/*
+ * Purpose: Style the named local custom-model profile controls.
+ * Owner: mod-settings
+ * Responsibility: Profile controls presentation and responsive layout only.
+ */
+
+.root {
+  margin-top: calc(8.333 * var(--final-flow-density-px));
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: calc(6.667 * var(--final-flow-density-px));
+}
+
+.nameField {
+  display: grid;
+  gap: calc(3.333 * var(--final-flow-density-px));
+}
+
+.nameField > span {
+  color: var(--flow-muted);
+  font-size: calc(8.333 * var(--final-flow-density-px));
+}
+
+.input {
+  width: 100%;
+  min-height: calc(31.667 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
+  background: var(--flow-paper);
+  color: var(--flow-ink);
+  font: inherit;
+}
+
+.saveButton {
+  min-width: calc(70 * var(--final-flow-density-px));
+  min-height: calc(33.333 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
+  background: var(--flow-paper);
+  color: var(--flow-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(9.167 * var(--final-flow-density-px));
+}
+
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.saveButton:focus-visible,
+.input:focus-visible,
+.item:focus-visible {
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 48%, transparent);
+  outline-offset: calc(1 * var(--final-flow-density-px));
+}
+
+.notice,
+.empty {
+  margin: calc(4.167 * var(--final-flow-density-px)) 0 0;
+  color: var(--flow-muted);
+  font-size: calc(8.333 * var(--final-flow-density-px));
+  line-height: 1.45;
+}
+
+.notice { color: var(--color-primary); }
+
+.list {
+  display: grid;
+  gap: calc(4.167 * var(--final-flow-density-px));
+  margin-top: calc(6.667 * var(--final-flow-density-px));
+}
+
+.item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(6.667 * var(--final-flow-density-px));
+  min-width: 0;
+  padding: calc(5.833 * var(--final-flow-density-px)) calc(8.333 * var(--final-flow-density-px));
+  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
+  background: var(--flow-paper);
+  color: var(--flow-ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.item[data-active="true"] {
+  border-color: var(--color-border-focus);
+  background: var(--flow-accent-soft);
+}
+
+.itemMain {
+  display: grid;
+  min-width: 0;
+  gap: calc(2.5 * var(--final-flow-density-px));
+}
+
+.itemMain strong,
+.itemMain small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemMain strong { font-size: calc(9.167 * var(--final-flow-density-px)); }
+
+.itemMain small,
+.itemMark {
+  color: var(--flow-faint);
+  font-size: calc(7.5 * var(--final-flow-density-px));
+}
+
+.itemMark { flex: 0 0 auto; }
+
+@media (max-width: 640px) {
+  .tools { grid-template-columns: 1fr; }
+}

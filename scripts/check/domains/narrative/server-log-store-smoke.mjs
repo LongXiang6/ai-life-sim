@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Regress plaintext hot/archive server-log persistence, querying, retention, and conflicts.
+ * Owner: quality:narrative
+ * Responsibility: One isolated server-log storage lifecycle scenario only.
+ */
 
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -6,8 +11,33 @@ import path from 'node:path'
 
 import Database from 'better-sqlite3'
 
+import { assertMatchingLogEntrySchemas } from '../../../../src/core/logger/server-log-store/archive-sql.ts'
+
 function assert(condition, message) {
   if (!condition) throw new Error(message)
+}
+
+const schemaOrderDatabase = new Database(':memory:')
+try {
+  schemaOrderDatabase.exec(`
+    CREATE TABLE log_entries (id TEXT, device_provenance_id TEXT);
+    ATTACH DATABASE ':memory:' AS archive_logs;
+    CREATE TABLE archive_logs.log_entries (device_provenance_id TEXT, id TEXT);
+  `)
+  assert(
+    assertMatchingLogEntrySchemas(schemaOrderDatabase).join(',') === 'id,device_provenance_id',
+    'archive compatibility must compare named columns rather than physical column order',
+  )
+  schemaOrderDatabase.exec('ALTER TABLE archive_logs.log_entries ADD COLUMN extra_column TEXT')
+  let schemaMismatch
+  try {
+    assertMatchingLogEntrySchemas(schemaOrderDatabase)
+  } catch (error) {
+    schemaMismatch = error
+  }
+  assert(schemaMismatch instanceof Error, 'archive compatibility must still reject a different column set')
+} finally {
+  schemaOrderDatabase.close()
 }
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-sim-plaintext-log-'))

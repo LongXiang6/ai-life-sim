@@ -14,10 +14,6 @@ import {
 } from '../world-init-bundle-deps'
 import type { WorldConfig, WorldInitAIStatus, WorldSnapshot } from '../types'
 import { assertValidPowerFramework, materializePowerFramework } from '../utils/power-framework'
-import {
-  buildFallbackWorldScoringProfile,
-  isCompleteWorldScoringProfile,
-} from '../scoring-profile'
 import { resolvePipelineAnchorYear } from '../utils/world-init-anchor-year'
 import {
   buildWorldContextInstance,
@@ -75,15 +71,7 @@ export async function commitWorldInitialization(
     source: coherentConfig.powerFramework.source,
   })
   assertValidPowerFramework(framework)
-  const coherentConfigWithFramework = { ...coherentConfig, powerFramework: framework }
-  const resolvedConfig = isCompleteWorldScoringProfile(coherentConfigWithFramework.scoringProfile)
-    && coherentConfigWithFramework.scoringProfile.worldId === contextId
-    ? coherentConfigWithFramework
-    : {
-        ...coherentConfigWithFramework,
-        scoringProfile: buildFallbackWorldScoringProfile(coherentConfigWithFramework, contextId),
-        _scoringProfileSource: 'fallback' as const,
-      }
+  const resolvedConfig = { ...coherentConfig, powerFramework: framework }
   const parentContextId = options?.parentContextId ?? previousInstance?.record.parentContextId
   const contextKind = options?.contextKind ?? previousInstance?.record.kind ?? inferContextKind(resolvedConfig)
   const localCalendar = options?.localCalendar ?? previousInstance?.record.localCalendar
@@ -112,8 +100,6 @@ export async function commitWorldInitialization(
     tagsGenerated: true,
     configGenerated: true,
     regionProfilesGenerated: true,
-    retryCount: 0,
-    maxRetries: 0,
     errors: [],
   }
   const instance = buildWorldContextInstance({

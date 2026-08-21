@@ -1,9 +1,8 @@
 /**
- * Purpose: Regress deterministic historical-event ledger projection into the main narrative Prompt.
+ * Purpose: Regress that the local historical-event ledger stays outside the 01 story Prompt.
  * Owner: quality:narrative
- * Responsibility: Exercise the public ledger state contract without creating a second fact store.
+ * Responsibility: Keep ledger facts local while the approved 01 messages remain field-whitelisted.
  */
-
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
 import { getCharacterBaseSystem } from '../../../../src/mods/mod-character/subsystems/character-base-system.ts'
@@ -163,6 +162,13 @@ const dueCandidate = {
   },
 }
 
+const duplicateDueCandidate = structuredClone(dueCandidate)
+duplicateDueCandidate.auditId = 'candidate-audit:prompt-due-duplicate'
+duplicateDueCandidate.candidateId = 'candidate:prompt-due-duplicate'
+duplicateDueCandidate.candidate.candidateId = duplicateDueCandidate.candidateId
+duplicateDueCandidate.candidate.title = '潮门会合'
+duplicateDueCandidate.candidate.description = '守门人已经约定在潮门第七响时会合。'
+
 const ledgerContract = {
   contextId: contextA,
   relevantEvents: [
@@ -213,6 +219,15 @@ const ledgerSubsystem = {
   commitBatch() {
     return { ok: true, errors: [], eventIds: [], transitionIds: [], evidenceIds: [], causalEdgeIds: [] }
   },
+  commitPrepared() {
+    return { ok: true, errors: [], eventIds: [], transitionIds: [], evidenceIds: [], causalEdgeIds: [] }
+  },
+  prepareCandidateSubmission() {
+    return {
+      prepared: { batchId: 'fixture', events: [], transitions: [], evidence: [], causalEdges: [], candidateAudits: [], migrationMetadata: [] },
+      candidateAudits: [],
+    }
+  },
   submitCandidates() {
     return []
   },
@@ -220,11 +235,18 @@ const ledgerSubsystem = {
     return [structuredClone(dueCandidate)]
   },
   getDueCandidates() {
-    return [structuredClone(dueCandidate)]
+    return [structuredClone(dueCandidate), structuredClone(duplicateDueCandidate)]
   },
   commitCandidateDispositions() {
     return { ok: true, errors: [], eventIds: [], candidateAudits: [] }
   },
+  prepareCandidateDispositions() {
+    return { ok: true, errors: [], eventIds: [], candidateAudits: [] }
+  },
+  capturePersistenceState() {
+    return structuredClone(ledgerContract)
+  },
+  restorePersistenceState() {},
   getEvent(eventId) {
     return ledgerContract.relevantEvents.find((candidate) => candidate.eventId === eventId)
   },
@@ -273,63 +295,74 @@ orchestrator.setContext({
 // 测试专用地调用内部收集阶段，使断言覆盖真实 relevance -> assemblePromptContext 链。
 orchestrator.collectSubsystemStates(false, false)
 const promptContext = orchestrator.assemblePromptContext()
-const historicalProjection = promptContext.subsystemSummaries.find((summary) => (
-  summary.includes('【历史事件账本：当前待续事实与到期候选】')
-))
 const compiledSegments = buildSegmentedPrompt(narrativePrompt, promptContext)
 const compiledPrompt = compiledSegments.full
-const compiledRoundInput = JSON.parse(
-  compiledSegments.userSegments[2].slice('⟦本轮引导⟧'.length),
+const compiledWorldInput = JSON.parse(compiledSegments.userSegments[0])
+const compiledMemoryInput = JSON.parse(compiledSegments.userSegments[1])
+const compiledRoundInput = JSON.parse(compiledSegments.userSegments[2])
+const localLedgerState = ledgerSubsystem.collectState().data
+
+assertOk(
+  Array.isArray(localLedgerState.relevantEvents)
+    && localLedgerState.relevantEvents.length === ledgerContract.relevantEvents.length
+    && ledgerSubsystem.queryCandidates().some((item) => item.candidateId === dueCandidate.candidateId),
+  'historical facts and candidates must continue to exist in their local ledger owner',
+)
+assertOk(
+  narrativePrompt.version === '7.2.0',
+  'the story Prompt must use the approved 01 asset version',
+)
+assertOk(
+  JSON.stringify(Object.keys(compiledWorldInput)) === JSON.stringify(['世界'])
+    && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史剧情', '最近两轮详细剧情', '角色'])
+    && JSON.stringify(Object.keys(compiledRoundInput)) === JSON.stringify(['本轮引导', '当前到期事件'])
+    && Array.isArray(compiledRoundInput.本轮引导)
+    && compiledRoundInput.本轮引导.length === 5,
+  '01 must retain exactly three user messages and inject current due events only when available',
+)
+assertOk(
+  promptContext.subsystemSummaries.length === 0,
+  '01 PromptContext must not expose subsystem status summaries',
+)
+const forbiddenPromptValues = [
+  ...ledgerContract.relevantEvents.flatMap((item) => [item.eventId, item.description]),
+  ...ledgerContract.relevantCausalEdges.map((item) => item.edgeId),
+  dueCandidate.candidateId,
+  dueCandidate.candidateId,
+  rawOwnerSummary,
+  contextA,
+  contextB,
+  contextC,
+]
+assertOk(
+  forbiddenPromptValues.every((value) => !compiledPrompt.includes(value)),
+  'historical events, candidate IDs, causal edges, owner summaries, and context IDs must not enter 01',
+)
+assertOk(
+  compiledRoundInput.当前到期事件.length === 1
+    && compiledRoundInput.当前到期事件[0].includes(dueCandidate.candidate.title)
+    && compiledRoundInput.当前到期事件[0].includes(dueCandidate.candidate.description),
+  '01 current due events must expose only readable time/title/fact content',
 )
 
 assertOk(
-  Boolean(historicalProjection)
-    && Array.isArray(compiledRoundInput.当前状态)
-    && compiledRoundInput.当前状态.includes(historicalProjection),
-  'deterministic historical projection must enter the first narrative input byte-for-byte without an adaptation call',
+  orchestrator.pendingNarrativeEventCandidateIds?.length === 2,
+  'all semantically merged due candidates must enter the existing delivered lifecycle',
+)
+
+const prepared = orchestrator.prepareNarrativeResponse({
+  narrative: '潮门的约定终于来到眼前，守门人把下一步交还给你的决定。',
+})
+orchestrator.commitNarrativeResponse(prepared.narrativeId)
+orchestrator.finalizeNarrativeResponse(prepared.narrativeId)
+const nextPromptContext = orchestrator.assemblePromptContext()
+assertOk(
+  nextPromptContext.currentDueEvents === undefined,
+  'a successfully published due candidate must not be injected again in a later round',
 )
 assertOk(
-  narrativePrompt.version === '5.8.3',
-  'historical Prompt input semantics must use pure narrative Prompt 5.8.3',
-)
-assertOk(
-  Boolean(historicalProjection)
-    && historicalProjection.includes(`历史事件[${currentEvent.eventId}]`)
-    && historicalProjection.includes('已确认事实：当前世界的潮门将在第七响后关闭。')
-    && historicalProjection.includes(`作用域：当地上下文[${contextA}]`)
-    && historicalProjection.includes('处理条件：全局第430天、潮门第七响')
-    && historicalProjection.includes(`历史事件[${globalEvent.eventId}]`)
-    && historicalProjection.includes('作用域：全局')
-    && historicalProjection.includes(`历史事件[${crossContextEvent.eventId}]`)
-    && historicalProjection.includes(`作用域：跨上下文[${contextA}、${contextB}]`)
-    && historicalProjection.includes(`到期事件候选[${dueCandidate.candidateId}]`)
-    && historicalProjection.includes(dueCandidate.candidate.description),
-  'current-context, global, and explicitly current-crossing scheduled/active facts must retain IDs, text, status, scope, and schedule',
-)
-assertOk(
-  historicalProjection?.includes(`显式因果边[${currentEdge.edgeId}]`)
-    && historicalProjection.includes(`显式因果边[${crossEdge.edgeId}]`)
-    && historicalProjection.includes(`事件[${currentEvent.eventId}]使之成为可能事件[${globalEvent.eventId}]`)
-    && historicalProjection.includes(`事件[${crossContextEvent.eventId}]传播到事件[${currentEvent.eventId}]`),
-  'causal edges related to current pending facts must retain edge IDs, endpoint IDs, relations, and scopes',
-)
-assertOk(
-  !historicalProjection?.includes(dormantForeignEvent.description)
-    && !historicalProjection?.includes(closedForeignEvent.description)
-    && !historicalProjection?.includes(resolvedCurrentEvent.description)
-    && !historicalProjection?.includes(foreignEdge.edgeId)
-    && !historicalProjection?.includes(rawOwnerSummary),
-  'dormant, closed, unrelated-world, resolved, and non-projected owner text must stay outside the current Prompt fact card',
-)
-assertOk(
-  compiledPrompt.includes(currentEvent.description)
-    && compiledPrompt.includes(currentEdge.edgeId)
-    && compiledPrompt.includes(`作用域：当地上下文[${contextA}]`)
-    && !compiledPrompt.includes(dormantForeignEvent.description)
-    && !compiledPrompt.includes(closedForeignEvent.description)
-    && !compiledPrompt.includes(foreignEdge.edgeId)
-    && !compiledPrompt.includes(rawOwnerSummary),
-  'the concrete deterministic fact card and related edge must reach the compiled three-layer main Prompt without other-world leakage',
+  ledgerSubsystem.queryCandidates().some((item) => item.candidateId === dueCandidate.candidateId),
+  'suppressing repeat projection must not auto-accept, reject, expire, or delete the ledger candidate',
 )
 
 if (failed > 0) {

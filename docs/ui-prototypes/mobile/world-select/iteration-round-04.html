@@ -1,0 +1,132 @@
+<!-- Purpose: Record the fourth UI iteration round for the world-select sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界选择 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WORLD-SELECT / ROUND-04</p>
+      <h1>世界选择 · 第四轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第三轮入选的沉浸极简（候选 03）基础上继续优化：保持世界引语、大图标、来源由 tabs 承担的语言，同时提升明确性（难度与年代更易感知）与引语排版质感。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（01 / 08）、标题「选择世界」、世界聚焦 Stage（世界图标、名称、年代、难度可切换）、三来源 tabs（预设/已存/自创）与各自面板、预设世界卡与更多入口、底部返回与确认世界（02）；候选仍可串联、不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>沉浸感（引语与氛围）、明确性（难度/年代可感知）、引语质感（宋体排版与节奏）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>基线微调</strong></header>
+          <p>继承上轮 03 沉浸极简，微调引语字距与年代位置，作对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>基调入幕</strong></header>
+          <p>难度从右下角微型按钮改为 Stage 内底部柔和一行（可点击循环）；年代作引语尾注；引语宋体加大居中。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-tone-inline.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>世界幕景</strong></header>
+          <p>浅金渐变氛围底 + 更大图标；引语居中；底部一条"年代 · 基调"微型分隔行（明确与装饰兼得）。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-scenery.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 基调入幕</span><span role="columnheader">03 世界幕景</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">沉浸感</strong><span role="cell">保持上轮</span><span role="cell">引语居中放大</span><span role="cell">渐变氛围底</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">明确性</strong><span role="cell">微型难度按钮</span><span role="cell">底部基调行</span><span role="cell">分隔行兼得</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">引语质感</strong><span role="cell">基本不变</span><span role="cell">宋体加大</span><span role="cell">尾注分隔</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">定版 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>定版</dt><dd>候选 01（基线微调 · 沉浸极简定稿）。用户确认：大 emoji 图标、世界引语（宋体 13.5px 字距 0.04em）、年代小字、微型右下角难度 emoji 按钮、来源由 tabs 承担、暖纸墨卡片化、双文字等宽底栏为世界选择定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（基调入幕）：难度入幕行仍显功能化。候选 03（世界幕景）：渐变氛围底超出定版节奏。</dd></div>
+        <div><dt>后续</dt><dd>世界选择子界面迭代结束，下一界面为创建流程第二页「世界配置」（world-customize）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

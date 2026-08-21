@@ -238,7 +238,7 @@ async function main() {
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,
       topP: 0.8, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
-      aiTalentGeneration: false, preGenerateRounds: 0, storySeed: 'global-user-journey', narrativeStyle: 'default',
+      aiTalentGeneration: false, storySeed: 'global-user-journey', narrativeStyle: 'default',
       wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
     }}))
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({ version: 6, state: {
@@ -248,7 +248,7 @@ async function main() {
       entities: [], initialized: true, worldCode: 1, currentYear: 2000, worldTags: ['现代', '现实'], eraStartYear: 2000,
       eraName: '公元', calibration: null, destinyPatternModifiers: {},
       worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true, tagsGenerated: true,
-        configGenerated: true, entitiesGenerated: true, retryCount: 0, maxRetries: 3, errors: [] },
+        configGenerated: true, regionProfilesGenerated: true, errors: [] },
     }}))
   })
 

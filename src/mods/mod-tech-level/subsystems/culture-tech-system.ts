@@ -23,6 +23,32 @@ const RESEARCH_CAPACITY: Record<string, number> = {
   prehistoric: 1, ancient: 5, medieval: 9, renaissance: 18, industrial: 38, modern: 68, information: 86, space: 95,
 }
 
+function createInitialState(context: RoundContext): CultureTechState {
+  const instance = listWorldContexts().find((item) => item.record.id === context.contextId)
+  const stage = instance?.worldConfig.civilizationStage ?? 'ancient'
+  const baselines = MATURITY[stage] ?? MATURITY.ancient
+  const capacity = RESEARCH_CAPACITY[stage] ?? RESEARCH_CAPACITY.ancient
+  const domains: KnowledgeDomain[] = DEFAULT_KNOWLEDGE_DOMAINS.map((id) => ({
+    id,
+    label: KNOWLEDGE_DOMAIN_LABELS[id],
+    maturity: baselines[id] ?? 0,
+    diffusion: clamp((baselines[id] ?? 0) * 0.78),
+    annualResearchCapacity: capacity,
+    applications: [],
+    updatedAtTotalDays: context.totalDays,
+  }))
+  return {
+    contextId: context.contextId,
+    researchCapacity: capacity,
+    domains,
+    activeTrends: [],
+    knowledgeBonus: domains.reduce((sum, item) => sum + item.maturity, 0) / domains.length / 100,
+    workQualityBonus: 0,
+    lastUpdateTotalDays: context.totalDays,
+    activeEvents: [],
+  }
+}
+
 function validateEvidence(ids: readonly string[], contextId: string): void {
   if (ids.length === 0) throw new Error('知识突破或应用必须引用已确认历史事件')
   for (const id of ids) {
@@ -39,31 +65,7 @@ export class CultureTechSystem extends BaseSubsystem {
   private states: Record<string, CultureTechState> = {}
 
   private ensure(context: RoundContext): CultureTechState {
-    const existing = this.states[context.contextId]
-    if (existing) return existing
-    const instance = listWorldContexts().find((item) => item.record.id === context.contextId)
-    const stage = instance?.worldConfig.civilizationStage ?? 'ancient'
-    const baselines = MATURITY[stage] ?? MATURITY.ancient
-    const capacity = RESEARCH_CAPACITY[stage] ?? RESEARCH_CAPACITY.ancient
-    const domains: KnowledgeDomain[] = DEFAULT_KNOWLEDGE_DOMAINS.map((id) => ({
-      id,
-      label: KNOWLEDGE_DOMAIN_LABELS[id],
-      maturity: baselines[id] ?? 0,
-      diffusion: clamp((baselines[id] ?? 0) * 0.78),
-      annualResearchCapacity: capacity,
-      applications: [],
-      updatedAtTotalDays: context.totalDays,
-    }))
-    return this.states[context.contextId] = {
-      contextId: context.contextId,
-      researchCapacity: capacity,
-      domains,
-      activeTrends: [],
-      knowledgeBonus: domains.reduce((sum, item) => sum + item.maturity, 0) / domains.length / 100,
-      workQualityBonus: 0,
-      lastUpdateTotalDays: context.totalDays,
-      activeEvents: [],
-    }
+    return this.states[context.contextId] ??= createInitialState(context)
   }
 
   advance(context: RoundContext): void {
@@ -96,10 +98,13 @@ export class CultureTechSystem extends BaseSubsystem {
     return { id: this.id, summary: `【知识技术】研究能力 ${state.researchCapacity.toFixed(1)}；领先领域 ${leading}`, data: clone(state) }
   }
 
-  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+  private applyToState(
+    state: CultureTechState,
+    changes: SubSystemChanges,
+    context: RoundContext,
+  ): void {
     if (changes.id !== this.id) throw new Error('知识技术指令目标不匹配')
     if (changes.targetContextId && changes.targetContextId !== context.contextId) throw new Error('知识技术指令上下文不匹配')
-    const state = this.ensure(context)
     const operation = changes.operation ?? 'research-domain'
     if (operation === 'research-domain' || operation === 'add-application') {
       validateEvidence(changes.evidenceEventIds ?? [], context.contextId)
@@ -125,6 +130,21 @@ export class CultureTechSystem extends BaseSubsystem {
       state.activeTrends = [...state.activeTrends.filter((item) => item.id !== id), trend]
     } else throw new Error(`未知知识技术操作：${operation}`)
     state.lastUpdateTotalDays = context.totalDays
+  }
+
+  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+    const candidate = clone(this.states[context.contextId] ?? createInitialState(context))
+    this.applyToState(candidate, changes, context)
+  }
+
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    this.applyToState(this.ensure(context), changes, context)
+  }
+
+  captureTransactionState(): Record<string, CultureTechState> { return clone(this.states) }
+  restoreTransactionState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new Error('知识技术事务快照无效')
+    this.states = clone(snapshot as Record<string, CultureTechState>)
   }
 
   capturePersistenceState(): CultureTechPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Export the shared pure utility surface used across MOD boundaries.
+ * Owner: core:shared
+ * Responsibility: Keep the cross-MOD barrel limited to public shared helpers.
+ *
  * core/shared/ — 跨 MOD 公共函数库
  *
  * 使用规则：
@@ -14,4 +18,3 @@ export * from './character-utils';
 export * from './world-utils';
 export * from './narrative-utils';
 export * from './balance-config';
-export * from './character-origin';

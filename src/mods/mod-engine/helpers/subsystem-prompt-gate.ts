@@ -1,4 +1,8 @@
 /**
+ * Purpose: Assemble active subsystem facts into the layered main-narrative Prompt context.
+ * Owner: mod-engine
+ * Responsibility: Relevance gating, layering, deduplication, and coherence framing only; subsystems retain fact ownership.
+ *
  * @module subsystem-prompt-gate.ts
  * @description 叙事 Prompt 注入门控 —— 空 summary / 噪声过滤 / 分层状态卡 / 去重
  * @mod mod-engine
@@ -6,11 +10,7 @@
 
 import type { ModManifest, RoundContext, SubSystemState } from '@/foundation'
 
-import {
-  isMvpSystemInstructionSubsystem,
-  isMvpPromptSubsystem,
-  MVP_MACRO_IMPACT_SUBSYSTEM_IDS,
-} from './mvp-runtime-policy'
+import { isMvpPromptSubsystem } from './mvp-runtime-policy'
 
 /** memorySummary【当前状态】三层 */
 export type PromptStateLayer = 'personal' | 'local' | 'world'
@@ -50,11 +50,6 @@ const PROMPT_NOISE_MARKERS = [
   '实体：0 个',
   '0/0 事件已填充',
 ] as const
-
-/** 叙事回合禁止 AI 直接写入 enabled 开关的子系统 */
-const NO_AI_ENABLED_TOGGLE = new Set([
-  'cultivation',
-])
 
 export function resolvePromptStateLayer(subsystemId: string): PromptStateLayer {
   if (PERSONAL_LAYER_IDS.has(subsystemId)) return 'personal'
@@ -187,59 +182,19 @@ export function dedupeSummariesAgainstMemory(
     .filter((line) => line.length > 0 && !memorySet.has(line))
 }
 
-/** System-instruction commit gate: inactive systems reject writes. */
-export function getSystemInstructionBlockReason(
-  subsystemId: string,
-  changes: Record<string, unknown>,
-  context: RoundContext,
-): string | null {
-  if (!isMvpSystemInstructionSubsystem(subsystemId)) {
-    return `子系统 "${subsystemId}" 不在当前 MVP 系统指令白名单，拒绝提交`
-  }
-
-  const state = context.subsystemStates[subsystemId]
-  if (state && !isSubsystemOpenForPrompt(state, subsystemId)) {
-    return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝系统指令`
-  }
-
-  if (NO_AI_ENABLED_TOGGLE.has(subsystemId) && typeof changes.enabled !== 'undefined') {
-    return `子系统 "${subsystemId}" 的 enabled 不可由叙事 AI 修改`
-  }
-
-  return null
-}
-
 /** 叙事一致性头（自然语言，非 tag 正则切换） */
 export function buildNarrativeCoherenceHeader(
   config: Record<string, unknown>,
 ): string | undefined {
   const parts: string[] = ['【叙事一致性】']
-  parts.push('世界基调以同条消息“世界设定”中的世界描述为准，禁止在此重复展开世界观全文。')
+  parts.push('同条消息中的“世界设定”独立承载完整世界描述，本节只补充叙事一致性。')
   const powerFramework = config.powerFramework as { enabled?: boolean; label?: string } | undefined
   if (!powerFramework?.enabled) {
-    parts.push('基础力量体系为“无”；超常内容只采用【世界设定】【命格天赋】或【当前状态】已经明确成立的事实。')
+    parts.push('基础力量体系为“无”；【世界设定】【命格天赋】或【当前状态】中已经成立的超常事实按各自条件生效。')
   } else {
-    parts.push(`力量体系：${powerFramework.label ?? '按世界设定运行'}；仅使用【当前状态】中已出现的能力与设定。`)
+    parts.push(`力量体系：${powerFramework.label ?? '按世界设定运行'}；本轮能力与设定从【当前状态】的已成立事实中取用。`)
   }
   return parts.join('\n')
-}
-
-export function getMacroImpactBlockReason(
-  subsystemId: string,
-  changes: Record<string, unknown>,
-  context: RoundContext,
-): string | null {
-  if (!MVP_MACRO_IMPACT_SUBSYSTEM_IDS.has(subsystemId)) {
-    return `子系统 "${subsystemId}" 不在宏观影响白名单，拒绝提交`
-  }
-  const state = context.subsystemStates[subsystemId]
-  if (!state || !isSubsystemOpenForPrompt(state, subsystemId)) {
-    return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝宏观影响`
-  }
-  if (typeof changes.enabled !== 'undefined') {
-    return `子系统 "${subsystemId}" 的 enabled 不可由宏观影响 AI 修改`
-  }
-  return null
 }
 
 /** 世界规则只保留 tag 兜底；校准摘要已有独立字段，避免稳定 Prompt 重复发送。 */

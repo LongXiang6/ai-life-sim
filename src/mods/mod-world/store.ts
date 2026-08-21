@@ -81,13 +81,6 @@ export const useWorldStore = create<WorldStore>()(
         calibration,
         ...updateCurrentContext(s, (instance) => ({ ...instance, calibration: structuredClone(calibration) })),
       }),),
-      setDestinyPatternModifiers: (destinyPatternModifiers,) => set((s) => ({
-        destinyPatternModifiers,
-        ...updateCurrentContext(s, (instance) => ({
-          ...instance,
-          destinyPatternModifiers: { ...destinyPatternModifiers },
-        })),
-      }),),
       setWorldInitAIStatus: (status) => set((s) => ({
         worldInitAIStatus: status,
         ...updateCurrentContext(s, (instance) => ({
@@ -202,9 +195,6 @@ export const useWorldStore = create<WorldStore>()(
         const state = persistedState as Record<string, unknown>
         if (version < 2 && state.calibration === undefined) {
           state.calibration = null
-        }
-        if (version < 3 && state.destinyPatternModifiers === undefined) {
-          state.destinyPatternModifiers = {}
         }
         return sanitizeWorldStateSnapshot(state) as unknown as WorldStore
       },

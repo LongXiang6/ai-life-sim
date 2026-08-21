@@ -1,3 +1,5 @@
+/** Purpose: Compose the finalized character creation page. Owner: mod-pages. Responsibility: Page layout and public logic projection only. */
+
 'use client'
 
 /**
@@ -7,6 +9,7 @@
  */
 
 import { useWorldStore } from '@/mods/mod-world'
+import { FlowRunningHead } from '@/mods/mod-ui'
 
 import { CharacterBackgroundSection } from './CharacterBackgroundSection'
 import { CharacterCreateBottomBar } from './CharacterCreateBottomBar'
@@ -32,31 +35,21 @@ export function CharacterCreateMobile() {
           <main className={styles.page}>
             <div className={styles.container}>
               <div className={`${styles.paper} final-flow-page-surface`}>
-            <span className={styles.spine} aria-hidden="true" />
-            <header className={styles.header}>
-              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>03 / 08</span></div>
-              <div className={styles.titleRow}>
-                <div>
-                  <h1>塑造角色</h1>
-                  <p>写下这段人生的起点。</p>
-                </div>
-              </div>
-            </header>
+            <FlowRunningHead stepLabel="03 / 08" />
 
             <section className={styles.profileSummary} aria-live="polite">
-              <span className={styles.profileAvatar} aria-hidden="true">人</span>
+              <span className={styles.profileAvatar} aria-hidden="true">📜</span>
               <div className={styles.profileCopy}>
                 <strong>{logic.name.trim() || '未命名角色'}</strong>
                 <span>
                   {logic.gender === 'male' ? '男性' : logic.gender === 'female' ? '女性' : logic.gender}
                   {' · '}{logic.getRaceDisplayName(logic.race)}
-                  {' · '}{logic.background.trim() ? '已填写背景' : '尚未填写背景'}
                 </span>
               </div>
               <div className={styles.profileFacts}>
-                <div><span>寿命</span><strong>{typeof lifespanDisplay === 'number' ? `${lifespanDisplay} 年` : lifespanDisplay}</strong></div>
-                <div><span>起始</span><strong>{startingAgeDisplay > 0 ? `${startingAgeDisplay} 岁` : '出生'}</strong></div>
-                <div><span>世界</span><strong>{worldName}</strong></div>
+                <div><span>⏳ 寿命</span><strong>{typeof lifespanDisplay === 'number' ? `${lifespanDisplay} 年` : lifespanDisplay}</strong></div>
+                <div><span>🌅 起始</span><strong>{startingAgeDisplay > 0 ? `${startingAgeDisplay} 岁` : '出生'}</strong></div>
+                <div><span>🌌 世界</span><strong>{worldName}</strong></div>
               </div>
             </section>
 

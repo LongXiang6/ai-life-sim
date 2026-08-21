@@ -1,66 +1,64 @@
 /**
- * Purpose: Assemble the final main-narrative PromptContext from stable subsystem projections.
+ * Purpose: Assemble the final main-narrative PromptContext from sample-approved projections.
  * Owner: mod-engine
- * Responsibility: Final prompt field composition only; state mutation and AI transport remain with their owners.
+ * Responsibility: Compose only the fields consumed by the approved 01 story-AI messages.
  */
 
 import { getInstrumentHooks, isInstrumentEnabled } from '@/core/instrument/instrument-mode'
-import type {
-  CharacterNarrativeStatus,
-  PowerFrameworkDefinition,
-  PromptContext,
-} from '@/foundation'
+import type { CharacterNarrativeStatus, PowerFrameworkDefinition, PromptContext } from '@/foundation'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
-import {
-  formatCalibrationSummary,
-  formatPowerFrameworkForPrompt,
-  type WorldCalibration,
-} from '@/mods/mod-world/world-runtime-api'
-import { buildCalendarNarrativeContext } from '../../helpers/calendar-narrative-context'
+import { isNarrativeRecordVisible } from '../../helpers/narrative-context-scope'
 import {
   projectCharacterForNarrativeAI,
   projectWorldSettingForNarrativeAI,
   type NarrativeAICharacterBaseState,
 } from '../../helpers/narrative-ai-input-view'
 import {
-  buildHistoricalEventPromptProjection,
-  HISTORICAL_EVENT_LEDGER_ID,
-} from '../../helpers/historical-event-prompt-projection'
-import { buildNarrativeRoundOutputContract } from '../../helpers/narrative-response-quality'
-import { compileNarrativeDynamicComponents } from '../../prompts/narrative-prompt-components'
-import {
-  buildNarrativeCoherenceHeader,
   buildNarrativeTimeContext,
   buildNarrativeWorldRules,
-  buildTimeBridgeSummary,
-  buildTimeScaleNarrativeHint,
   buildWordCountInstruction,
-  causalDelay,
   collectActiveModWorldRules,
   DEFAULT_WORD_COUNT_TARGET,
-  foreshadowing,
   getWorldRules,
-  isSubsystemOpenForPrompt,
-  plotStructure,
-  readBirthEraYearFromConfig,
-  readEraStartYearFromConfig,
-  resolveCalendarEraYear,
-  resolveNarrativeToneHint,
-  subsystemRelevance,
-  timeSystem,
-  type NarrativePromptComponent,
-  useEngineStore,
 } from '../../orchestrator-shared'
 import type { OrchestratorSystem } from '../orchestrator-system'
 import {
   formatDestinyPatternsForPrompt,
-  formatEquippedMythicPatternForPrompt,
+  formatEquippedReincarnationTalentsForPrompt,
 } from './prompt-talent-projection'
+
+function projectPowerFramework(
+  framework: PowerFrameworkDefinition | undefined,
+  powerSystemTag: unknown,
+): Record<string, string> | undefined {
+  if (!framework?.enabled) return undefined
+  const ranks = framework.ranks
+    .map((rank) => `${rank.label}：${rank.description}`)
+    .join('；')
+  const boundary = framework.progression === 'open'
+    ? '开放进阶，当前已知阶位之后仍须由世界内事实继续建立'
+    : '有限体系，最高已知阶位就是当前世界可达边界'
+  return {
+    名称: framework.label,
+    来源: typeof powerSystemTag === 'string' && powerSystemTag.trim()
+      ? `依照当前世界的${powerSystemTag.trim()}规则形成`
+      : '依照当前世界已经成立的客观规则形成',
+    边界: ranks ? `${boundary}；已知阶位为${ranks}` : boundary,
+  }
+}
+
+function normalizeCurrentDueEventKey(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[\s，。！？、；：:,.!?]/gu, '')
+    .replace(/[的地得]/gu, '')
+}
 
 export function assemblePromptContextRuntime(
   orchestrator: OrchestratorSystem,
-  eventInjectionText?: string,
+  _eventInjectionText?: string,
 ): PromptContext {
   const worldSetting = orchestrator['worldSetting']
   if (!worldSetting || !orchestrator['characterState']) {
@@ -68,216 +66,149 @@ export function assemblePromptContextRuntime(
   }
 
   const context = orchestrator['buildRoundContext']()
-  const luckNarrativeGuidance = orchestrator['prepareLuckNarrativeGuidance'](context)
   const syncedCharacter = orchestrator['syncCharacterStateForPrompt'](context)
   const narrativeTime = buildNarrativeTimeContext(context, worldSetting)
-  const dueHistoricalCandidates = orchestrator.getDueHistoricalEventCandidates()
-  orchestrator['pendingNarrativeEventCandidateIds'] = dueHistoricalCandidates.map(
-    (audit) => audit.candidateId,
-  )
-  const inFlightHistoricalCandidateIds = [
-    ...orchestrator['inFlightNarrativeEventCandidateIds'],
-  ]
-  const relevantStates = subsystemRelevance.getRelevantStates(
-    orchestrator['lastSubsystemStates'],
-    context,
-  )
-  const summaries = Object.values(relevantStates)
-    .filter((state) => (
-      state.id !== orchestrator.id
-      && state.id !== 'culture-tech'
-      && isSubsystemOpenForPrompt(state, state.id)
-    ))
-    .map((state) => ({
-      id: state.id,
-      summary: state.id === HISTORICAL_EVENT_LEDGER_ID
-        ? buildHistoricalEventPromptProjection(
-            state,
-            context.contextId,
-            inFlightHistoricalCandidateIds,
-          ) ?? ''
-        : state.summary,
-    }))
-    .filter((state) => state.summary)
-    .map((state) => state.summary)
-  const influenceSummary = orchestrator['buildInfluenceText']()
-  if (influenceSummary) summaries.push(influenceSummary)
-
-  const currentAbbreviation = orchestrator['buildAbbreviationSnapshot']()
-  const systemChangeSummary = orchestrator['buildSystemChangeSummary'](currentAbbreviation)
-  orchestrator['prevAbbreviationSnapshot'] = currentAbbreviation
-
   const config = worldSetting.config ?? {}
   const baseData = orchestrator['lastSubsystemStates']?.['character-base']?.data as (
     NarrativeAICharacterBaseState & { startingAge?: number; status?: CharacterNarrativeStatus }
   ) | undefined
   if (!baseData) throw new Error('主叙事缺少完整的基础属性状态')
-  const startingAge = baseData.startingAge ?? 0
-  const isOpeningRound = orchestrator['state'].narrativeHistory.length === 0
-  const isBirthOpeningRound = isOpeningRound && startingAge === 0 && syncedCharacter.age === 0
-  const dynamicGuidanceSources: Array<{
-    id: string
-    content: string | undefined
-    order: number
-    kind: NarrativePromptComponent['kind']
-    authority: NarrativePromptComponent['authority']
-  }> = [
-    {
-      id: 'round-coherence',
-      content: buildNarrativeCoherenceHeader(config),
-      order: 10,
-      kind: '硬限制',
-      authority: '世界与协议',
-    },
-    {
-      id: 'round-output-contract',
-      content: buildNarrativeRoundOutputContract(
-        useEngineStore.getState().forceBranchNext,
-        isOpeningRound,
-      ),
-      order: 10_000,
-      kind: '硬限制',
-      authority: '世界与协议',
-    },
-  ]
-  const narrativeGuidanceText = compileNarrativeDynamicComponents(
-    dynamicGuidanceSources
-      .filter((source) => Boolean(source.content?.trim()))
-      .map((source) => ({
-        id: source.id,
-        title: source.id,
-        kind: source.kind,
-        lifecycle: '每轮更新',
-        authority: source.authority,
-        order: source.order,
-        dependsOn: [],
-        assemblyPosition: '本轮引导',
-        loadWhen: '对应动态来源在本轮返回非空内容',
-        exitWhen: '触发条件不再成立',
-        acceptanceEvidence: 'npm run test:narrative-protocol',
-        content: source.content!,
-      })),
-  )
-  const calibration = config._calibration as WorldCalibration | undefined
-  const narrativeToneHint = resolveNarrativeToneHint(calibration?.styleGuide?.narrativeTone)
-  const calibrationSummary = calibration
-    ? formatCalibrationSummary({
-        ...calibration,
-        ...(calibration.formulas ? {
-          formulas: Object.fromEntries(
-            Object.entries(calibration.formulas).filter(([key]) => key !== 'techProgressModifier'),
-          ) as WorldCalibration['formulas'],
-        } : {}),
-      })
-    : undefined
 
-  const roundGuidance = orchestrator['buildRoundGuidanceInput'](luckNarrativeGuidance)
+  orchestrator['pendingNarrativeEventCandidateIds'] = []
+  orchestrator['pendingNarrativeCausalEventIds'] = []
+
+  const isOpeningRound = orchestrator['state'].narrativeHistory.length === 0
   const destinyPatterns = (syncedCharacter.destinyPatterns ?? []).map((pattern) => ({
     name: pattern.name,
     description: pattern.description,
     effect: pattern.effect ?? '',
   }))
+  const characterStore = useCharacterStore.getState()
   const talents = [
-    formatEquippedMythicPatternForPrompt(useCharacterStore.getState().equippedMythicPatterns),
-    formatDestinyPatternsForPrompt(destinyPatterns, isOpeningRound),
-  ].filter(Boolean).join('\n') || undefined
-  const lightWorldSetting = orchestrator['buildLightWorldSetting'](narrativeTime.eraLabel)
-  const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter, baseData)
-  const previousCalendarYear = resolveCalendarEraYear(
-    orchestrator['previousNarrativeRound'].year,
-    readEraStartYearFromConfig(config),
-    readBirthEraYearFromConfig(config),
-  )
-  const currentLifeStage = baseData.status?.lifeStages.find(
-    (stage) => stage.stageId === baseData.status?.currentStageId,
-  )
-  const calendarNarrativeContext = buildCalendarNarrativeContext({
-    timeStep: orchestrator['state'].timeStep,
-    calendarYear: narrativeTime.calendarYear,
-    seasonName: narrativeTime.seasonName,
-    month: narrativeTime.month,
-    day: narrativeTime.day,
-    festivalScope: config.festivalScope === 'china-and-international'
-      ? 'china-and-international'
-      : 'china',
-    characterStageName: currentLifeStage?.displayName,
-    characterBackground: syncedCharacter.background,
-    previousNode: {
-      calendarYear: previousCalendarYear,
-      month: orchestrator['previousNarrativeRound'].month + 1,
-      day: orchestrator['previousNarrativeRound'].day + 1,
+    ...formatEquippedReincarnationTalentsForPrompt(characterStore.equippedReincarnationTalents),
+    ...formatDestinyPatternsForPrompt(destinyPatterns, isOpeningRound),
+  ]
+  const fortuneBonus = [
+    ...characterStore.destinyPatterns.patterns,
+    ...characterStore.equippedReincarnationTalents,
+  ].reduce((sum, talent) => sum + (talent.attrBonus.luck ?? 0), 0)
+  const growthHistory = characterStore.destinyPatterns.growthHistory
+  const openingPatternModifiers: Record<string, number> = {}
+  const currentPatternModifiers: Record<string, number> = {}
+  for (const pattern of characterStore.destinyPatterns.patterns) {
+    const lineageHistory = growthHistory
+      .filter((entry) => entry.lineageId === pattern.lineageId)
+      .sort((left, right) => left.source.version - right.source.version)
+    const openingPattern = lineageHistory[0]?.source ?? pattern
+    for (const key of ['physique', 'mind', 'talentAptitude', 'charisma'] as const) {
+      openingPatternModifiers[key] = (openingPatternModifiers[key] ?? 0) + (openingPattern.attrBonus[key] ?? 0)
+      currentPatternModifiers[key] = (currentPatternModifiers[key] ?? 0) + (pattern.attrBonus[key] ?? 0)
+    }
+  }
+  const characterNarrativeView = projectCharacterForNarrativeAI(
+    syncedCharacter,
+    baseData,
+    {
+      openingModifiers: {
+        physique: baseData.modifiers.physique - (currentPatternModifiers.physique ?? 0) + (openingPatternModifiers.physique ?? 0),
+        mind: baseData.modifiers.mind - (currentPatternModifiers.mind ?? 0) + (openingPatternModifiers.mind ?? 0),
+        talentAptitude: baseData.modifiers.talentAptitude - (currentPatternModifiers.talentAptitude ?? 0) + (openingPatternModifiers.talentAptitude ?? 0),
+        charisma: baseData.modifiers.charisma - (currentPatternModifiers.charisma ?? 0) + (openingPatternModifiers.charisma ?? 0),
+      },
+      openingLuckBonus: characterStore.destinyPatterns.patterns
+        .reduce((sum, pattern) => {
+          const lineageHistory = growthHistory
+            .filter((entry) => entry.lineageId === pattern.lineageId)
+            .sort((left, right) => left.source.version - right.source.version)
+          return sum + (lineageHistory[0]?.source.attrBonus.luck ?? pattern.attrBonus.luck ?? 0)
+        }, characterStore.equippedReincarnationTalents.reduce(
+          (sum, talent) => sum + (talent.attrBonus.luck ?? 0),
+          0,
+        )),
+      currentLuckBonus: fortuneBonus,
+      hasInLifeTalentGrowth: growthHistory.length > 0,
     },
-    daysPassed: timeSystem.getDaysPassed(),
-    timeStepAlignment: orchestrator['lastTimeStepAlignment'],
-  })
-  const triggeredCausality = causalDelay.checkCausalTrigger(orchestrator['state'].totalRounds, {
-    currentTotalDays: orchestrator['state'].round.totalDays,
-    scope: worldSetting.contextId ? 'context' : 'global',
-    contextId: worldSetting.contextId,
-  })
-  orchestrator['pendingNarrativeCausalEventIds'] = triggeredCausality.triggeredEvents.map(
-    (event) => event.id,
+    characterStore.lifespanDraft.race.name,
   )
-
+  const narrativeScopeView = orchestrator['getNarrativeScopeView']()
+  const recentDetailedStories = orchestrator['state'].narrativeHistory
+    .filter((entry) => isNarrativeRecordVisible(entry, narrativeScopeView))
+    .slice(-2)
+    .map((entry) => ({
+      时间: entry.displayTimeLabel?.trim() || '时间未标注',
+      正文: entry.text.replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim(),
+    }))
+  const lightWorldSetting = orchestrator['buildLightWorldSetting'](narrativeTime.eraLabel)
+  const roundGuidance = orchestrator['buildRoundGuidanceInput']()
+  const dueCandidates = (() => {
+    try {
+      return orchestrator.getDueHistoricalEventCandidates()
+    } catch {
+      return []
+    }
+  })()
+  const injectedCandidateIds: string[] = []
+  const currentDueEvents: string[] = []
+  const seenDueEventKeys = new Set<string>()
+  for (const audit of dueCandidates) {
+    const candidate = audit.candidate
+    const schedule = candidate.schedule
+    const dueLabel = schedule?.dueTotalDays !== undefined
+      ? `全局第${schedule.dueTotalDays}天`
+      : schedule?.dueRoundSequence !== undefined
+        ? `第${schedule.dueRoundSequence}轮`
+        : schedule?.legacyYear !== undefined
+        ? `${schedule.legacyYear}年`
+          : narrativeTime.timeLabel
+    const title = candidate.title?.trim() || candidate.eventType?.trim() || '到期事项'
+    const description = candidate.description?.trim()
+    const readable = `${dueLabel}：${title}${description && description !== title ? `：${description}` : ''}`
+    const dedupeKey = normalizeCurrentDueEventKey(readable)
+    if (seenDueEventKeys.has(dedupeKey)) {
+      injectedCandidateIds.push(audit.candidateId)
+      continue
+    }
+    seenDueEventKeys.add(dedupeKey)
+    injectedCandidateIds.push(audit.candidateId)
+    currentDueEvents.push(readable)
+  }
+  // 记录本轮实际投影的候选；正文接纳阶段会把这些编号转入既有 in-flight 生命周期。
+  orchestrator['pendingNarrativeEventCandidateIds'] = [...new Set(injectedCandidateIds)]
   const assembled: PromptContext = {
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting, narrativeTime),
     characterProfileView: characterNarrativeView.profile,
     characterStatusView: characterNarrativeView.status,
+    subsystemSummaries: [],
     currentTime: narrativeTime.timeLabel,
-    subsystemSummaries: summaries,
-    eventInjectionText: eventInjectionText || undefined,
-    causalChainHint: triggeredCausality.narrativeText || undefined,
-    timeBridgeSummary: buildTimeBridgeSummary(orchestrator['buildTimeBridgeInput']()) || undefined,
-    systemChangeSummary: systemChangeSummary || undefined,
-    narrativeGuidanceText: narrativeGuidanceText || undefined,
-    plotStructureText: plotStructure.buildPhaseGuidance() || undefined,
-    foreshadowingText: foreshadowing.buildForeshadowingText(worldSetting.contextId) || undefined,
-    worldTagsText: config._worldTagsText as string | undefined,
     worldRules: buildNarrativeWorldRules(getWorldRules(config.essenceTag as string | undefined)) || undefined,
     modWorldRules: collectActiveModWorldRules(
       orchestrator['modManifests'],
       orchestrator['getSubsystemBindings'](),
     ),
     narrativeStyle: orchestrator['getNarrativeStyle'](),
-    narrativeToneHint,
     talents,
     timelineMemory: orchestrator['buildPromptTimelineMemory'](),
+    recentDetailedStories,
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),
-    calibrationSummary,
-    roundSystemGuidanceText: roundGuidance.roundSystemGuidanceText,
     playerBranchIntent: roundGuidance.playerBranchIntent,
-    powerFramework: formatPowerFrameworkForPrompt(
+    ...(currentDueEvents.length > 0 ? { currentDueEvents } : {}),
+    powerFramework: projectPowerFramework(
       config.powerFramework as PowerFrameworkDefinition | undefined,
+      config.powerSystemTag,
     ),
   }
 
-  if (isOpeningRound) {
-    const instruction = isBirthOpeningRound
-      ? '【出生开场】只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到后续成长阶段。'
-      : '人生记录开场：从当前年龄附近的具体场景建立身份、家世、环境与社会位置，不概述此前整段人生。'
-    assembled.roundSystemGuidanceText = assembled.roundSystemGuidanceText
-      ? `${assembled.roundSystemGuidanceText}\n\n${instruction}`
-      : instruction
-  }
-  assembled.timeGuideText = [
-    buildTimeScaleNarrativeHint(orchestrator['state'].timeStep),
-    calendarNarrativeContext,
-  ].filter(Boolean).join('\n')
-
   if (isInstrumentEnabled()) {
-    const memory = assembled.timelineMemory ?? ''
-    const foreshadowingText = assembled.foreshadowingText ?? ''
-    const plotStructureText = assembled.plotStructureText ?? ''
-    const totalChars = memory.length + foreshadowingText.length + plotStructureText.length
+    const memoryChars = (assembled.timelineMemory ?? []).join('').length
     getInstrumentHooks().onPromptAssembled?.({
       round: orchestrator['state'].totalRounds,
-      memorySummaryChars: memory.length,
-      foreshadowingChars: foreshadowingText.length,
+      memorySummaryChars: memoryChars,
+      foreshadowingChars: 0,
       directionChars: 0,
-      plotStructureChars: plotStructureText.length,
-      estimatedTokens: Math.ceil(totalChars / 2.5),
+      plotStructureChars: 0,
+      estimatedTokens: Math.ceil(memoryChars / 2.5),
     })
   }
   return assembled

@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>属性分配 · 第一轮候选 B · 属性卡片</title>
+  <style>
+    /* Purpose: Static interactive prototype: attribute-alloc page (06) round-01 candidate B: budget card on top (not pinned) and each of the four attributes in its own independent card (name / semantic / stepper / axis in the same card), with tools finishing the section. Warm paper/ink language matching the settled talent-draw / talent-select pages; runtime AttributeAlloc.module.css has no animations, so none are added. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page::-webkit-scrollbar {
+      display: none;
+    }
+
+    .paper {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      align-content: start;
+      padding: 20px 20px 96px;
+    }
+
+    .runningHead {
+      display: flex;
+      height: 16px;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a0907a;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    .titleCopy {
+      text-align: center;
+      padding: 4px 0 0;
+    }
+    .titleCopy h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .titleCopy p {
+      margin: 5px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.4;
+      letter-spacing: 0.02em;
+    }
+
+    /* 预算卡片：置顶但不吸顶 */
+    .budgetCard {
+      padding: 14px 16px 13px;
+      border: 1px solid #e5e1d6;
+      border-radius: 18px;
+      background: #fffdf8;
+    }
+
+    .budgetRow {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .budgetScore {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid #d8c9a8;
+      border-radius: 50%;
+      background: #faf4e8;
+      text-align: center;
+    }
+    .budgetScore b { color: #6b4d1d; font-size: 15px; line-height: 1; }
+    .budgetScore span { color: #a0907a; font-size: 9px; line-height: 1.2; }
+
+    .budgetCopy { min-width: 0; }
+    .budgetCopy strong { color: #241f18; font-size: 12px; font-weight: 650; }
+    .budgetCopy strong span { color: #96783f; }
+    .budgetCopy p { margin: 3px 0 0; color: #8a7f6e; font-size: 10px; line-height: 1.45; }
+
+    .meter {
+      display: grid;
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      gap: 2px;
+      margin-top: 7px;
+    }
+    .meter i {
+      display: block;
+      height: 4px;
+      border-radius: 999px;
+      background: #e5dfd1;
+    }
+    .meter i.isOn { background: #96783f; }
+
+    /* 属性卡片：每项独立一卡，数值与步进同卡 */
+    .attributeCard {
+      padding: 14px 16px 13px;
+      border: 1px solid #e5e1d6;
+      border-radius: 18px;
+      background: #fffdf8;
+    }
+
+    .attributeCardHead {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .attributeCardHead strong { color: #241f18; font-size: 13px; font-weight: 700; }
+    .attributeCardHead strong .semantic-emoji { margin-right: 5px; font-size: 12px; }
+    .attributeCardHead span { color: #8a7f6e; font-size: 10px; line-height: 1.4; text-align: right; }
+
+    .attributeStepper {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: 34px 44px 34px;
+      gap: 4px;
+      align-items: center;
+    }
+    .stepper button {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #e5e1d6;
+      border-radius: 9px;
+      background: #fff;
+      color: #7a7160;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .stepper button:disabled { cursor: not-allowed; opacity: 0.36; }
+    .stepper b {
+      min-width: 44px;
+      color: #241f18;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .effectiveBadge {
+      display: grid;
+      width: 44px;
+      height: 34px;
+      place-items: center;
+      border: 1px solid #d8c9a8;
+      border-radius: 9px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .axis {
+      display: grid;
+      grid-template-columns: repeat(15, minmax(0, 1fr));
+      gap: 2px;
+      margin-top: 10px;
+    }
+    .axis i {
+      height: 4px;
+      align-self: center;
+      border-radius: 999px;
+      background: #e5dfd1;
+    }
+    .axis i.isMid { height: 3px; opacity: 0.65; }
+    .axis i.isFar { height: 2px; opacity: 0.35; }
+    .axis i.isOn { background: #96783f; opacity: 1; }
+
+    .tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .secondaryButton {
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 12px;
+      background: #fff;
+      color: #7a7160;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* 双文字等宽纯白同底按钮（与角色塑造定版一致） */
+    .bottomBar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .confirmButton {
+      border: 1px solid #d8c9a8;
+      background: #fff;
+    }
+
+    .confirmButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small { display: block; }
+
+    .backButton strong,
+    .confirmButton strong { font-size: 14px; font-weight: 650; }
+    .backButton small,
+    .confirmButton small { margin-top: 2px; color: #8a7f6e; font-size: 11px; font-weight: 500; }
+
+    /* 未使用点数对话框（照抄运行时 dialog 结构） */
+    .dialogBackdrop {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      display: grid;
+      align-items: end;
+      padding: 18px;
+      background: rgba(46 41 34 / 28%);
+    }
+    .dialog {
+      width: 100%;
+      max-width: 30rem;
+      margin: 0 auto;
+      padding: 16px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+    }
+    .dialog h3 { margin: 0; color: #241f18; font-size: 14px; font-weight: 700; }
+    .dialog p { margin: 8px 0 14px; color: #8a7f6e; font-size: 12px; line-height: 1.55; }
+    .dialog p strong { color: #6b4d1d; }
+    .dialogActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dialogActions .isPrimary { border-color: #96783f; background: #96783f; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <main class="paper">
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>
+
+          <header class="titleCopy">
+            <h1>属性分配</h1>
+            <p>塑造这段人生的先天起点。</p>
+          </header>
+
+          <section class="budgetCard" aria-labelledby="budget-title">
+            <div class="budgetRow">
+              <div class="budgetScore" aria-hidden="true">
+                <b id="usedPoints">0</b>
+                <span>/ 15</span>
+              </div>
+              <div class="budgetCopy">
+                <strong id="budget-title">剩余 <span id="remainingPoints">15</span> 点</strong>
+                <p>0 是普通人基准，10 是人类顶尖；命格加成不占预算。</p>
+                <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0" aria-label="已使用属性点" id="meter"></div>
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="attribute-list-title" id="attributeCards"></section>
+
+          <div class="tools">
+            <button type="button" class="secondaryButton" id="resetButton">重置</button>
+            <button type="button" class="secondaryButton" id="averageButton">平均分配</button>
+          </div>
+        </main>
+      </div>
+
+      <div class="bottomBar">
+        <a class="backButton" href="../talent-select/candidates/candidate-round-04-01-pill-clean.html" title="返回命格选择">
+          <strong>返回</strong>
+          <small>返回命格选择</small>
+        </a>
+        <button type="button" class="confirmButton" id="confirmButton" title="确认属性">
+          <strong>确认属性</strong>
+          <small id="confirmHint">尚余 15 点 · 下一步核对命运</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var TOTAL_POINTS = 15
+      var attributes = [
+        { key: 'physique', name: '体魄', icon: '💪', description: '体力与恢复', bonus: 2 },
+        { key: 'mind', name: '心智', icon: '🧠', description: '学习与谋略', bonus: 1 },
+        { key: 'talentAptitude', name: '悟性', icon: '✨', description: '理解与修炼', bonus: 1 },
+        { key: 'charisma', name: '魅力', icon: '💫', description: '关系与说服', bonus: 0 }
+      ]
+      var values = { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+      var confirmed = false
+
+      var cardsEl = document.getElementById('attributeCards')
+      var meterEl = document.getElementById('meter')
+      var usedEl = document.getElementById('usedPoints')
+      var remainingEl = document.getElementById('remainingPoints')
+      var confirmButton = document.getElementById('confirmButton')
+      var confirmHint = document.getElementById('confirmHint')
+
+      var cards = attributes.map(function (attribute) {
+        var article = document.createElement('article')
+        article.className = 'attributeCard'
+        article.innerHTML =
+          '<div class="attributeCardHead">' +
+            '<strong><span class="semantic-emoji" aria-hidden="true">' + attribute.icon + '</span>' + attribute.name + '</strong>' +
+            '<span id="semantic-' + attribute.key + '">' + attribute.description + '</span>' +
+          '</div>' +
+          '<div class="attributeStepper">' +
+            '<div class="stepper">' +
+              '<button type="button" data-delta="-1" aria-label="降低' + attribute.name + '">−</button>' +
+              '<b id="value-' + attribute.key + '">0</b>' +
+              '<button type="button" data-delta="1" aria-label="提高' + attribute.name + '">＋</button>' +
+            '</div>' +
+            '<div class="effectiveBadge" id="base-' + attribute.key + '">基础 0</div>' +
+          '</div>' +
+          '<div class="axis" aria-hidden="true"></div>'
+        cardsEl.appendChild(article)
+        return article
+      })
+
+      function axisEls(card) {
+        var axis = card.querySelector('.axis')
+        while (axis.firstChild) axis.removeChild(axis.firstChild)
+        for (var i = 0; i < 15; i++) {
+          var cell = document.createElement('i')
+          axis.appendChild(cell)
+        }
+        return axis.children
+      }
+
+      function used() {
+        return attributes.reduce(function (total, attribute) { return total + values[attribute.key] }, 0)
+      }
+
+      function effective(attribute) {
+        return values[attribute.key] + attribute.bonus
+      }
+
+      function tierPosition(effectiveValue) {
+        return Math.max(0, Math.min(14, Math.round(effectiveValue / 10 * 14)))
+      }
+
+      function render() {
+        var usedPoints = used()
+        var remaining = Math.max(0, TOTAL_POINTS - usedPoints)
+        usedEl.textContent = usedPoints
+        remainingEl.textContent = remaining
+        meterEl.setAttribute('aria-valuenow', String(usedPoints))
+        while (meterEl.firstChild) meterEl.removeChild(meterEl.firstChild)
+        for (var m = 0; m < TOTAL_POINTS; m++) {
+          var seg = document.createElement('i')
+          if (m < usedPoints) seg.className = 'isOn'
+          meterEl.appendChild(seg)
+        }
+
+        cards.forEach(function (card, index) {
+          var attribute = attributes[index]
+          var value = values[attribute.key]
+          var eff = effective(attribute)
+          card.querySelector('#base-' + attribute.key).textContent = '基础 ' + value + ' · 有效 ' + eff
+          card.querySelector('#value-' + attribute.key).textContent = eff
+          card.querySelectorAll('.stepper button').forEach(function (button) {
+            if (button.getAttribute('data-delta') === '1') button.disabled = remaining <= 0
+          })
+          var cells = axisEls(card)
+          var pos = tierPosition(eff)
+          for (var a = 0; a < 15; a++) {
+            var distance = Math.abs(a - pos)
+            if (a === pos) cells[a].className = 'isOn'
+            else if (distance > 5) cells[a].className = 'isFar'
+            else if (distance > 2) cells[a].className = 'isMid'
+          }
+        })
+
+        if (confirmed) {
+          confirmHint.textContent = '已确认 · 进入命运预览'
+          confirmButton.disabled = true
+        } else {
+          confirmHint.textContent = (remaining > 0 ? '尚余 ' + remaining + ' 点 · ' : '预算已分配 · ') + '下一步核对命运'
+          confirmButton.disabled = false
+        }
+      }
+
+      attributes.forEach(function (attribute, index) {
+        var card = cards[index]
+        card.querySelectorAll('.stepper button').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var delta = Number(button.getAttribute('data-delta'))
+            var nextValue = values[attribute.key] + delta
+            var nextUsed = attributes.reduce(function (total, item) {
+              return total + (item.key === attribute.key ? nextValue : values[item.key])
+            }, 0)
+            if (delta > 0 && nextUsed > TOTAL_POINTS) return
+            values[attribute.key] = nextValue
+            render()
+          })
+        })
+      })
+
+      document.getElementById('resetButton').addEventListener('click', function () {
+        values = { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+        render()
+      })
+
+      document.getElementById('averageButton').addEventListener('click', function () {
+        values = { physique: 4, mind: 4, talentAptitude: 4, charisma: 3 }
+        render()
+      })
+
+      var backdrop = null
+      function openDialog() {
+        var remaining = Math.max(0, TOTAL_POINTS - used())
+        backdrop = document.createElement('div')
+        backdrop.className = 'dialogBackdrop'
+        backdrop.setAttribute('role', 'presentation')
+        backdrop.innerHTML =
+          '<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="unused-points-title">' +
+            '<h3 id="unused-points-title">仍有属性点未使用</h3>' +
+            '<p>剩余 <strong>' + remaining + '</strong> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p>' +
+            '<div class="dialogActions">' +
+              '<button type="button" class="secondaryButton" id="dialogContinue">继续分配</button>' +
+              '<button type="button" class="secondaryButton isPrimary" id="dialogConfirm">确认并继续</button>' +
+            '</div>' +
+          '</div>'
+        backdrop.addEventListener('click', function () { closeDialog() })
+        backdrop.querySelector('.dialog').addEventListener('click', function (event) { event.stopPropagation() })
+        backdrop.querySelector('#dialogContinue').addEventListener('click', function () { closeDialog() })
+        backdrop.querySelector('#dialogConfirm').addEventListener('click', function () { confirmed = true; closeDialog(); render() })
+        document.querySelector('.viewport').appendChild(backdrop)
+        backdrop.querySelector('button').focus()
+      }
+      function closeDialog() {
+        if (backdrop) { backdrop.remove(); backdrop = null }
+      }
+
+      confirmButton.addEventListener('click', function () {
+        if (confirmed) return
+        if (Math.max(0, TOTAL_POINTS - used()) > 0) openDialog()
+        else { confirmed = true; render() }
+      })
+
+      render()
+    })()
+  </script>
+</body>
+</html>

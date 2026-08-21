@@ -6,7 +6,7 @@
   align-items: stretch;
   justify-content: center;
   padding: 0;
-  background: #f2f4f3;
+  background: var(--flow-canvas);
   color: #17191d;
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
 }
@@ -20,7 +20,7 @@
   padding: calc(14 * var(--final-flow-density-px)) calc(15 * var(--final-flow-density-px));
   border: 0;
   border-radius: 0;
-  background: #fff;
+  background: var(--flow-paper);
   box-shadow: none;
   font-size: calc(10 * var(--final-flow-density-px));
 }
@@ -31,7 +31,7 @@
   bottom: calc(2.2 * var(--final-flow-density-rem));
   left: calc(8 * var(--final-flow-density-px));
   width: calc(1 * var(--final-flow-density-px));
-  background: linear-gradient(180deg, transparent, #e5e7ea 8% 90%, transparent);
+  background: linear-gradient(180deg, transparent, var(--flow-line) 8% 90%, transparent);
   content: "";
 }
 
@@ -43,7 +43,7 @@
   gap: calc(0.75 * var(--final-flow-density-rem));
   margin-bottom: calc(1 * var(--final-flow-density-rem));
   padding-bottom: calc(0.8 * var(--final-flow-density-rem));
-  border-bottom: calc(1 * var(--final-flow-density-px)) solid #e5e7ea;
+  border-bottom: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
 }
 
 .title {
@@ -62,10 +62,10 @@
   place-items: center;
   padding: 0;
   overflow: hidden;
-  border: calc(1 * var(--final-flow-density-px)) solid #e1e5e9;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: 50%;
-  background: #fff;
-  color: #626870;
+  background: var(--flow-paper);
+  color: var(--flow-muted);
   font-size: 0;
   cursor: pointer;
 }
@@ -77,14 +77,14 @@
 
 .backButton:hover,
 .backButton:focus-visible {
-  border-color: #6d7f94;
-  color: #53677e;
+  border-color: var(--color-border-focus);
+  color: var(--flow-muted);
 }
 
 .backButton:focus-visible,
 .slotRow:focus-visible,
 .deleteBtn:focus-visible {
-  outline: calc(2 * var(--final-flow-density-px)) solid rgb(109 127 148 / 48%);
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 48%, transparent);
   outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
@@ -94,7 +94,7 @@
   min-height: min(calc(55 * var(--final-flow-block-unit)), calc(28 * var(--final-flow-density-rem)));
   place-items: center;
   margin: 0;
-  color: #969ba2;
+  color: var(--flow-faint);
   font-size: calc(0.82 * var(--final-flow-density-rem));
   text-align: center;
 }
@@ -108,25 +108,25 @@
   position: relative;
   min-height: calc(4.6 * var(--final-flow-density-rem));
   padding: calc(0.65 * var(--final-flow-density-rem)) calc(3.9 * var(--final-flow-density-rem)) calc(0.65 * var(--final-flow-density-rem)) calc(0.85 * var(--final-flow-density-rem));
-  border: calc(1 * var(--final-flow-density-px)) solid #e5e7ea;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: calc(0.75 * var(--final-flow-density-rem));
-  background: #fff;
+  background: var(--flow-paper);
   transition: border-color 150ms ease, background-color 150ms ease;
 }
 
 .slot:hover {
-  border-color: #d8e0e8;
-  background: #f8fafb;
+  border-color: var(--flow-line-strong);
+  background: var(--flow-paper);
 }
 
 .slotAuto {
-  border-color: #d8e0e8;
-  background: #f0f3f6;
+  border-color: var(--flow-line-strong);
+  background: var(--color-bg-tertiary);
 }
 
 .slotDeleteConfirm {
-  border-color: #b67a72;
-  background: #fff8f7;
+  border-color: var(--flow-line-strong);
+  background: var(--color-error-bg);
 }
 
 .slotRow {
@@ -148,18 +148,18 @@
 }
 
 .nameAuto {
-  color: #53677e;
+  color: var(--flow-muted);
 }
 
 .meta {
   margin-top: calc(0.28 * var(--final-flow-density-rem));
-  color: #626870;
+  color: var(--flow-muted);
   font-size: calc(0.72 * var(--final-flow-density-rem));
 }
 
 .time {
   margin-top: calc(0.2 * var(--final-flow-density-rem));
-  color: #969ba2;
+  color: var(--flow-faint);
   font-size: calc(0.64 * var(--final-flow-density-rem));
 }
 
@@ -172,19 +172,19 @@
   border: calc(1 * var(--final-flow-density-px)) solid transparent;
   border-radius: calc(0.5 * var(--final-flow-density-rem));
   background: transparent;
-  color: #969ba2;
+  color: var(--flow-faint);
   font-size: calc(0.68 * var(--final-flow-density-rem));
   cursor: pointer;
   transform: translateY(-50%);
 }
 
 .deleteBtn:hover {
-  border-color: #e5e7ea;
-  color: #626870;
+  border-color: var(--flow-line);
+  color: var(--flow-muted);
 }
 
 .deleteConfirmColor {
-  border-color: #d6aaa5;
+  border-color: var(--flow-line-strong);
   color: #9a5149;
 }
 

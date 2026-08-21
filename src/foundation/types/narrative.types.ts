@@ -36,6 +36,16 @@ export interface CharacterState {
   destinyPatterns?: CharacterDestinyPatternSummary[]
 }
 
+export interface NarrativeTalentPromptView {
+  名称: string
+  效果: string
+}
+
+export interface NarrativeDetailedStoryPromptView {
+  时间: string
+  正文: string
+}
+
 /** Prompt 构建上下文；代码生成器从本入口读取字段，不能移动到下级文件。 */
 export interface PromptContext {
   worldNarrativeView: Record<string, unknown>
@@ -50,7 +60,9 @@ export interface PromptContext {
   narrativeGuidanceText?: string
   worldTagsText?: string
   worldRules?: string
-  timelineMemory?: string
+  timelineMemory?: string[]
+  recentDetailedStories?: NarrativeDetailedStoryPromptView[]
+  currentRegion?: string
   narrativeStyle?: string
   narrativeToneHint?: string
   modWorldRules?: string
@@ -60,9 +72,11 @@ export interface PromptContext {
   calibrationSummary?: string
   causalChainHint?: string
   currentTime?: string
-  talents?: string
+  /** 当前上下文已经到期、仍可供本轮正文处理的历史事项；不含内部候选编号或审计信息。 */
+  currentDueEvents?: string[]
+  talents?: NarrativeTalentPromptView[]
   timeGuideText?: string
-  powerFramework?: string
+  powerFramework?: Record<string, string>
 }
 
 export interface PromptTemplate<TOutput = unknown> {
@@ -91,7 +105,6 @@ export type {
   DeathCause,
   LongTermMemory,
   NarrativeDirection,
-  SummaryLevel,
   WorldDirectionRecord,
   YearEvent,
   YearEventKeyEvent,

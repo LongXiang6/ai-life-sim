@@ -24,24 +24,21 @@ import {
 import type { CompressedSummaries, } from '@/foundation'
 import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
 
-export type PendingNarrativeStatus = 'pending' | 'committing' | 'failed'
+export type PendingNarrativeStatus = 'pending' | 'committing'
 
-/** 故事已返回但整轮尚未原子提交的非持久化页面投影。 */
+/** 主故事准备与故事后分析收束期间的非持久化进度状态。 */
 export interface PendingNarrative {
   executionId: string
   roundSequence: number
-  text: string
-  timestamp: number
   status: PendingNarrativeStatus
   statusCode: string
-  error?: string
 }
 
 interface EngineStore extends EngineState {
   /** 整轮叙事或结算错误信息 */
   narrativeError: string | null
 
-  /** 正文即时展示投影；不进入存档或 Zustand 持久化。 */
+  /** 主故事准备与故事后分析收束进度；不进入 Zustand 持久化。 */
   pendingNarrative: PendingNarrative | null
 
   setStatus: (status: SimulationStatus) => void
@@ -59,7 +56,6 @@ interface EngineStore extends EngineState {
     executionId: string,
     status: PendingNarrativeStatus,
     statusCode: string,
-    error?: string,
   ) => void
   clearPendingNarrative: (executionId?: string) => void
 
@@ -103,7 +99,7 @@ const initialState = {
   totalRounds: 0,
   narrativeHistory: [] as NarrativeChunk[],
   currentNarrative: '',
-  compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, lastAt: 0, },
+  compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastCompletedAt: 0 },
   compressedSummaries: { summaries: [], } as CompressedSummaries,
   lastAutoSaveRound: 0,
   narrativeError: null as string | null,
@@ -116,7 +112,7 @@ const initialState = {
   legendaryEncounterCheckedForLifeRunId: undefined,
 }
 
-export const ENGINE_STORE_SCHEMA_VERSION = 6
+export const ENGINE_STORE_SCHEMA_VERSION = 7
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -138,6 +134,12 @@ export function migrateEnginePersistedState(
       ? old.lifeRunId
       : createNarrativeLifeRunId()
     old.storyRepetitionStats = summarizeNarrativeHistoryRepetition(history)
+    old.compressedSummaries = { summaries: [] }
+    old.compressionStats = {
+      compressedRoundCount: 0,
+      lastSourceRound: null,
+      lastCompletedAt: 0,
+    }
   }
 
   delete old.coreMemoryNpcMap
@@ -177,15 +179,13 @@ export const useEngineStore = create<EngineStore>()(
 
       setPendingNarrative: (pending) => set({ pendingNarrative: { ...pending } }),
 
-      updatePendingNarrative: (executionId, status, statusCode, error) => set((state) => {
+      updatePendingNarrative: (executionId, status, statusCode) => set((state) => {
         if (state.pendingNarrative?.executionId !== executionId) return {}
-        const { error: _previousError, ...pending } = state.pendingNarrative
         return {
           pendingNarrative: {
-            ...pending,
+            ...state.pendingNarrative,
             status,
             statusCode,
-            ...(error ? { error } : {}),
           },
         }
       }),

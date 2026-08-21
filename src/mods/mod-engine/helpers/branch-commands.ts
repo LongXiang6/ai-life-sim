@@ -1,21 +1,18 @@
 /**
- * Purpose: Expose branch commands that update the engine-owned round input and invalidate stale pre-generation.
+ * Purpose: Expose branch commands that update the engine-owned round input.
  * Owner: mod-engine
  * Responsibility: Route branch commands only; branch history and one-shot action state remain in Orchestrator.
  *
  * @module branch-commands.ts
- * @description 命运分支公开命令 —— 分支历史、一次性行动与预生成失效由引擎统一维护
+ * @description 命运分支公开命令 —— 分支历史与一次性行动由引擎统一维护
  * @mod mod-engine
  */
 
 import { useEngineStore } from '../store'
 import { orchestrator } from '../subsystems/orchestrator-system'
-import { clearPreGenQueue } from './pre-gen-queue'
-
-/** 切换“下轮强制分支”；分支请求变化会使已有预生成失效。 */
+/** 切换“下轮强制分支”。 */
 export function setForceBranchNextRound(value: boolean): void {
   useEngineStore.getState().setForceBranchNext(value)
-  clearPreGenQueue()
 }
 
 /** 解决当前叙事分支，并把玩家选择交给 orchestrator 注入下一轮 Prompt。 */
@@ -41,7 +38,6 @@ export function resolveNarrativeBranchChoice(
 
   store.resolveBranch(branchId, trimmed)
   orchestrator.resolveBranchChoice(branchId, trimmed)
-  clearPreGenQueue()
   useEngineStore.getState().setForceBranchNext(false)
   return { ok: true }
 }

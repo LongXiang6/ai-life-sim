@@ -1,10 +1,23 @@
 /**
+ * Purpose: Verify world-calibration Prompt contracts and clamped AI-path fixtures.
+ * Owner: quality:calibration.
+ * Responsibility: Mocked calibration schema, Prompt-directory, and clamp assertions only.
+ *
  * @module world-calibration-ai-path-runner.ts
  * @description Step 0 AI 路径测试 —— mock JSON + Zod + clampCalibration（不调用 AI API）
  */
 
 import assert from 'node:assert/strict'
 
+import {
+  worldDimensionCalibrationPrompt,
+} from '@/mods/mod-world/prompts/world-dimension-calibration-prompt'
+import {
+  WORLD_CONFIG_AI_FIELD_KEYS,
+  WORLD_CONFIG_PARAMETER_CATALOG,
+  worldConfigPrompt,
+} from '@/mods/mod-world/prompts/world-config-prompt'
+import { worldCalibrationOutputSchema } from '@/mods/mod-world/prompts/world-calibration-prompt'
 import { MODIFIER_MAX, MODIFIER_MIN } from '@/mods/mod-world/utils/calibration-clamp'
 
 import {
@@ -242,6 +255,51 @@ function testPhase4CDevotionAndCausal() {
   assert.equal(formula(clamped, 'devotionGainModifier'), 1.5)
 }
 
+function testWorldPromptContracts() {
+  const combinedPrompt = JSON.parse(worldDimensionCalibrationPrompt.systemPrompt) as {
+    responsibilities?: { aiDetailedParameters?: { fields?: unknown } }
+  }
+  assert.deepEqual(
+    combinedPrompt.responsibilities?.aiDetailedParameters?.fields,
+    WORLD_CONFIG_PARAMETER_CATALOG,
+    '合并 Prompt 必须复用含单位与范围的完整 aiDetailedParameters 字段目录',
+  )
+  const catalogKeys = Object.values(WORLD_CONFIG_PARAMETER_CATALOG)
+    .flatMap((group) => Object.keys(group.fields))
+  assert.deepEqual(catalogKeys, WORLD_CONFIG_AI_FIELD_KEYS, '字段目录必须与 Schema 键顺序完全一致')
+  assert.equal(catalogKeys.length, 43, 'aiDetailedParameters 必须保持 43 个字段')
+
+  const configPrompt = JSON.parse(worldConfigPrompt.systemPrompt) as {
+    parameters?: {
+      civilization?: {
+        fields?: {
+          populationScale?: {
+            minimum?: unknown
+            referenceValues?: unknown
+            unit?: unknown
+          }
+        }
+      }
+    }
+  }
+  const populationScale = configPrompt.parameters?.civilization?.fields?.populationScale
+  assert.equal(populationScale?.unit, '人')
+  assert.equal(populationScale?.minimum, 0)
+  assert.ok(
+    Array.isArray(populationScale?.referenceValues)
+      && populationScale.referenceValues.every((value) => typeof value === 'number'),
+    'populationScale 参考值必须全部为数值',
+  )
+
+  const calibration = worldCalibrationOutputSchema.parse({
+    timeline: { eraStartYear: 1, impactDistribution: 'mystical' },
+    scale: {},
+    formulas: { eventDistributionStrategy: 'political' },
+  })
+  assert.equal('impactDistribution' in (calibration.timeline ?? {}), false)
+  assert.equal(calibration.formulas?.eventDistributionStrategy, 'political')
+}
+
 function main() {
   testSparseMergeRetainsDefaults()
   testModifierClampWhenZodRejects()
@@ -256,7 +314,8 @@ function main() {
   testPhase4BIncomeModifier()
   testPhase4CConflictEscalationModifier()
   testPhase4CDevotionAndCausal()
-  console.log('[OK] world-calibration AI path — 16 cases passed')
+  testWorldPromptContracts()
+  console.log('[OK] world-calibration AI path — 17 cases passed')
 }
 
 main()

@@ -1,0 +1,131 @@
+<!-- Purpose: Record the fourth UI iteration round for the attribute-alloc page (06). Owner: Interface system. Responsibility: Compare confirmed allocation-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>属性分配 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">ATTRIBUTE-ALLOC / ROUND-04</p>
+      <h1>属性分配 · 第四轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以第三轮候选 03（仪式铭文）为基线继续迭代属性分配（06），三个候选统一修正属性档位语义映射并处理预算说明 p：语义映射必须照抄运行时 attr-tiers.ts 的 getAttrSemantic（有效值 ≥ 0 的可见属性用 VISIBLE_ATTR_VALUE_DESCRIPTIONS 凡人语义表，负值回退 ATTR_TIER_DESCRIPTIONS 档位表；「 · 命格 +N」后缀照抄 formatSigned）；预算说明 p 分向处理——候选 01 去掉（预算信息由区头「命格加成不占预算」与数字自明）、候选 02 沉浸化（保留 0 基准 / 10 顶尖 / 命格另算口径，改命书口吻）、候选 03 仪式化（命书铭文口吻 + 装饰符号包裹）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（06 / 08）、标题「属性分配」+ 副句、基础点数（15 点预算，命格加成不占预算，0 是普通人基准 / 10 人类顶尖 / 超过 10 超凡）、四项基础属性（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫，步进器与 15 格倾向轴）、重置与平均分配、底部返回（返回命格选择）与确认（07 确认属性 / 尚余 X 点 · 下一步核对命运）、未使用点数对话框（继续分配 / 确认并继续）。语义描述文案与映射口径完全照抄运行时 attr-tiers.ts（本轮修正第三轮错用 ATTR_TIER_DESCRIPTIONS 仙侠表的问题）；数值口径不变。运行时 AttributeAlloc.module.css 无动画，候选不加动画。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>描述正确性（语义映射与运行时 getAttrSemantic 完全一致）、沉浸感（预算说明去留与命书口吻）、装饰符号（与抽取 / 选取定版语言的连贯、不喧宾夺主）、数值可读性、精简协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>去掉预算说明</strong></header>
+          <p>仪式铭文结构保持：删除预算说明 p 行，预算信息由区头「命格加成不占预算」与 15 格表自明；语义映射照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-no-budget-copy.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>预算说明沉浸</strong></header>
+          <p>仪式铭文结构保持：预算说明 p 改为命书口吻沉浸文案（保留 0 基准 / 10 顶尖 / 命格另算口径）；语义映射照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-budget-immersive.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>预算铭文</strong></header>
+          <p>仪式铭文结构保持：预算说明 p 改为命书铭文口吻并装饰符号包裹（最仪式化）；语义映射照抄运行时。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-budget-script.html" target="_blank" rel="noopener">
+            属性分配 06 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 去掉预算说明</span><span role="columnheader">02 预算说明沉浸</span><span role="columnheader">03 预算铭文</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯属性分配界面</span><span role="cell">纯属性分配界面</span><span role="cell">纯属性分配界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">描述正确性</strong><span role="cell">语义照抄 getAttrSemantic</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">预算说明</strong><span role="cell">删除 p 行</span><span role="cell">命书口吻沉浸文案</span><span role="cell">命书铭文 + 符号包裹</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">沉浸感</strong><span role="cell">依赖区头与数字自明</span><span role="cell">文案叙事增强</span><span role="cell">铭文仪式最完整</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值可读性</strong><span role="cell">p 删除更简洁</span><span role="cell">口径不变</span><span role="cell">口径不变</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">运行时无动画，照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取 / 选取定版连贯</span><span role="cell">与抽取 / 选取定版连贯</span><span role="cell">与抽取 / 选取定版连贯</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（预算说明沉浸）。用户确认「定版02」。要点：预算说明 p 改为命书口吻「❖ 凡胎以零为基、以十为巅，逾十即入超凡之境；命格所赠，不占此数。」，保留 0 基准 / 10 顶尖 / 命格另算口径，既有必要信息又有沉浸感，与仪式铭文装饰语言连贯。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（去掉预算说明）：删除 p 后「0 是普通人基准 / 10 是人类顶尖 / 超过 10 即为超凡」这一关键数值口径失去文字载体，新玩家仅靠数字与区头难以理解数值含义；候选 03（预算铭文）：与候选 02 信息等价，但铭文句式 + ❖ 包裹装饰最重，与属性区的 ❖ 语义符号重复，诵读感略拗口，候选 02 的信息与沉浸平衡更优。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 02（预算说明沉浸）为定版基线；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

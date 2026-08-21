@@ -1,0 +1,127 @@
+<!-- Purpose: Record the fifth UI iteration round for the character-create sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第五轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CHARACTER-CREATE / ROUND-05</p>
+      <h1>角色塑造 · 第五轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 02（同行图标钮）基础上按用户指示缩短 runningHead（顶部「AI LIFE SIM · 命书 / 03 · 08」行）高度、消除页面大片空白。已定位根因：`.paper` 为 `display: grid; min-height: 100%`，grid 默认 `align-content: normal` 会把所有 auto 行等量拉伸填满视口——视口高于内容时 runningHead 由自然高度 14px 被拉高至 80px+，三个 section 底部也各留空白；本轮的三个候选围绕运行头高度与空白消除方式差异。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（03 / 08）、去 header 后角色摘要（头像/名字/性别·种族·背景/寿命·起始·世界）、核心身份（姓名·随机、性别、种族）、寿命与起始（单行句 + 🔄 图标钮同行、结果行排序一致）、人生背景（背景输入/预设/保存预设、textarea 自适应增高）、底部双文字等宽返回与确认角色（04，下一页面为命格抽取）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>运行头高度稳定性（各视口是否恒定）、空白消除（行拉伸是否消失）、结构改动量（是否引入绝对定位等机制）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>顶部对齐</strong></header>
+          <p>最小改动：`.paper` 加 `align-content: start`，grid 行恢复自然高度，runningHead 回到 14px、各 section 底部不再拉伸，空白集中到页面底部被底栏区域吸收。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-01-align-start.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>内容定高</strong></header>
+          <p>`.paper` 去掉 `min-height: 100%` 改为随内容定高，runningHead 显式固定行高 16px；页面高度完全由内容决定，任何视口下运行头恒定、无任何拉伸空白。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-02-content-height.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>最小运行头</strong></header>
+          <p>同候选 01 顶部对齐，且运行头本身压至最矮：字号 10px、`line-height: 1`、定高 12px、去掉 letter-spacing；运行头高度最小化，整页最紧凑。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-03-min-head.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 顶部对齐</span><span role="columnheader">02 内容定高</span><span role="columnheader">03 最小运行头</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">运行头高度</strong><span role="cell">恢复自然 14px</span><span role="cell">固定 16px 恒定</span><span role="cell">压至 12px 最矮</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">空白消除</strong><span role="cell">行不拉伸，收到底部</span><span role="cell">内容定高无空白</span><span role="cell">行不拉伸，收到底部</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">结构改动</strong><span role="cell">仅加一行属性</span><span role="cell">去 min-height + 定行高</span><span role="cell">压缩运行头样式</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（内容定高）。用户确认：`.paper` 去掉 `min-height: 100%` 随内容定高、runningHead 显式固定 16px 行高，任何视口下运行头恒定、无拉伸空白，为角色塑造第五轮定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（顶部对齐）：仅 `align-content: start` 保留 min-height，高视口下底部仍有空白被底栏吸收，不够彻底。候选 03（最小运行头）：运行头压至 12px 过小，辨识度下降。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留内容定高 + 固定运行头 + 单行寿命句 + 图标钮 + 结果行排序 + textarea 自适应；按用户指示：去掉种族 groupCaption 说明行、去掉重新检测按钮改为自动检测（注释说明）、角色摘要卡增加表情装饰符号（不要纯文字），进入第六轮。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -5,7 +5,7 @@
  */
 
 import type { AccountProfile, CloudGameRecord } from '@/core/account/account-contract'
-import type { MythicPattern } from '@/mods/mod-character'
+import type { ReincarnationTalent } from '@/mods/mod-character'
 
 import styles from './Account.module.css'
 
@@ -23,7 +23,7 @@ interface AccountDataPanelProps {
   deleteOpen: boolean
   deletePassword: string
   gameRecords: CloudGameRecord[]
-  mythicTalents: MythicPattern[]
+  reincarnationTalents: ReincarnationTalent[]
   qqLinkBusy: boolean
   qqLinkCode: string
   qqLinkExpiresAt: number
@@ -34,7 +34,7 @@ interface AccountDataPanelProps {
   onDeletePasswordChange: (value: string) => void
   onRefreshAccount: () => void
   onRemoveGameRecord: (recordId: string) => void
-  onRemoveMythicTalent: (talentId: string) => void
+  onRemoveReincarnationTalent: (talentId: string) => void
   onSetDeleteOpen: (open: boolean) => void
   onSetSaveApiKey: (save: boolean) => void
   onUnlinkQq: () => void
@@ -49,7 +49,7 @@ export function AccountDataPanel({
   deleteOpen,
   deletePassword,
   gameRecords,
-  mythicTalents,
+  reincarnationTalents,
   qqLinkBusy,
   qqLinkCode,
   qqLinkExpiresAt,
@@ -60,7 +60,7 @@ export function AccountDataPanel({
   onDeletePasswordChange,
   onRefreshAccount,
   onRemoveGameRecord,
-  onRemoveMythicTalent,
+  onRemoveReincarnationTalent,
   onSetDeleteOpen,
   onSetSaveApiKey,
   onUnlinkQq,
@@ -81,14 +81,14 @@ export function AccountDataPanel({
           <div><strong>角色设定</strong><small>{characterDraft.name.trim() || '未填写姓名'} · {characterDraft.race.trim() || '未填写种族'}</small></div>
           <span>{authenticated ? syncLabel : '本地'}</span>
         </div>
-        <div className={styles.sectionLine}><strong>轮回天赋</strong><span>{mythicTalents.length} / 10</span></div>
-        {mythicTalents.map((talent) => (
+        <div className={styles.sectionLine}><strong>轮回天赋</strong><span>{reincarnationTalents.length} / 36</span></div>
+        {reincarnationTalents.map((talent) => (
           <div key={talent.id} className={styles.dataRow}>
-            <div><strong>{talent.name}</strong><small>{talent.concept}</small></div>
-            <button type="button" className={styles.textAction} onClick={() => onRemoveMythicTalent(talent.id)}>删除</button>
+            <div><strong>{talent.name}</strong><small>{talent.description}</small></div>
+            <button type="button" className={styles.textAction} onClick={() => onRemoveReincarnationTalent(talent.id)}>删除</button>
           </div>
         ))}
-        {mythicTalents.length === 0 ? <p className={styles.empty}>暂无已封存天赋</p> : null}
+        {reincarnationTalents.length === 0 ? <p className={styles.empty}>暂无轮回天赋</p> : null}
         <div className={styles.sectionLine}><strong>每局战绩</strong><span>{gameRecords.length} / 10</span></div>
         {gameRecords.map((record) => (
           <div key={record.recordId} className={styles.dataRow}>

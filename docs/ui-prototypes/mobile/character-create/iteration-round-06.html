@@ -1,0 +1,127 @@
+<!-- Purpose: Record the sixth UI iteration round for the character-create sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第六轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CHARACTER-CREATE / ROUND-06</p>
+      <h1>角色塑造 · 第六轮</h1>
+    </div>
+    <span class="status status-selected">已选择 01</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 02（内容定高）基础上按用户指示：① 去掉种族下的 groupCaption 说明行（`p#raceCaption`「人类 · 基础寿命 78 年」）；② 去掉寿命区的重新检测按钮（`button#detectButton` 🔄），寿命改为随输入自动检测（在注释中说明）；③ 角色摘要卡（`section.profileSummary`）增加表情装饰符号、不要纯文字。三个候选围绕摘要卡表情装饰的强弱差异。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（03 / 08）固定 16px、内容定高无空白、去 header 后角色摘要（头像/名字/性别·种族·背景/寿命·起始·世界）、核心身份（姓名·随机、性别、种族）、寿命与起始（单行句 + 结果行排序一致 + 自动检测）、人生背景（背景输入/预设/保存预设、textarea 自适应增高）、底部双文字等宽返回与确认角色（04，下一页面为命格抽取）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>摘要卡表情装饰强度（头像/meta/facts 是否均有符号）、语义贴合（表情与寿命/起始/世界/性别种族对应）、整体统一（与核心身份/寿命/背景 section 的 emoji 标题风格一致）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>徽标式</strong></header>
+          <p>摘要卡仅三个 facts 小格加语义 emoji（⏳ 寿命 / 🌅 起始 / 🌌 世界），头像保持「人」字形；去 caption、去按钮改自动检测。</p>
+          <a class="candidate-open" href="candidates/candidate-round-06-01-badge.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>头像式</strong></header>
+          <p>头像「人」替换为角色表情「🧑」，facts 三项也加 emoji；meta 行「男性 · 人类 · 尚未填写背景」前加性别表情；去 caption、去按钮改自动检测。</p>
+          <a class="candidate-open" href="candidates/candidate-round-06-02-avatar.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>全卡式</strong></header>
+          <p>头像「🧑」+ 名字前加「🪪」+ meta 行加性别表情 + facts 三项加 emoji，整卡表情装饰最丰富；去 caption、去按钮改自动检测。</p>
+          <a class="candidate-open" href="candidates/candidate-round-06-03-full.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 徽标式</span><span role="columnheader">02 头像式</span><span role="columnheader">03 全卡式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">头像</strong><span role="cell">「人」字</span><span role="cell">🧑 表情</span><span role="cell">🧑 表情</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">meta / 名字</strong><span role="cell">纯文字</span><span role="cell">meta 前加性别表情</span><span role="cell">名字🪪 + meta 性别表情</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">facts</strong><span role="cell">⏳🌅🌌</span><span role="cell">⏳🌅🌌</span><span role="cell">⏳🌅🌌</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（徽标式）。用户确认：去种族说明行、去重新检测按钮改自动检测（注释说明）、摘要卡 facts 三项加语义 emoji（⏳ 寿命 / 🌅 起始 / 🌌 世界）而头像保留「人」字形，为角色塑造第六轮定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（头像式）：头像替换为 🧑 表情与「不要头像」的方向冲突。候选 03（全卡式）：名字/meta/facts 全部加 emoji 装饰过重，与精简定版风格不符。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留徽标式 facts + 去 caption + 自动检测 + 内容定高 + 固定运行头；按用户指示：摘要卡头像区改为其他图标（不要头像）、沉浸式寿命句描述需优化、去掉 meta 行「尚未填写/已填写背景」状态文字，进入第七轮。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

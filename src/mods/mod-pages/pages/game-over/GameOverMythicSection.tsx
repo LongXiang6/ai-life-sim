@@ -1,74 +1,114 @@
 /**
- * Purpose: Render mythic candidates, selection, sealing state, and generation feedback.
+ * Purpose: Render the optional settlement reincarnation-promotion selection and result.
  * Owner: mod-pages/game-over
- * Responsibility: Mythic-result presentation only; generation and persistence remain in the page.
+ * Responsibility: Promotion-result presentation only; promotion execution and persistence remain in the page.
  */
 
-import styles from './GameOver.module.css'
+import {
+  DESTINY_PATTERN_RARITY_CONFIG,
+  getReincarnationPromotionTargetRarity,
+  type DestinyPatternRarity,
+} from '@/mods/mod-character'
 
-interface MythicView { name: string; concept: string; effect: string }
+import styles from './GameOver.module.css'
+import type { PromotionCandidate } from './useGameOverArtifacts'
+
+interface PromotedTalentView {
+  name: string
+  description: string
+  effect: string
+  rarity: DestinyPatternRarity
+  strengthenLevel: number
+}
+
+function getPromotionLabel(candidate: PromotionCandidate): string {
+  const currentLabel = DESTINY_PATTERN_RARITY_CONFIG[candidate.rarity].label
+  if (candidate.rarity === 'mythic') {
+    return `${currentLabel}强化 ${candidate.strengthenLevel} → ${candidate.strengthenLevel + 1}`
+  }
+  const targetRarity = getReincarnationPromotionTargetRarity(candidate.rarity)
+  return `${currentLabel} → ${DESTINY_PATTERN_RARITY_CONFIG[targetRarity].label}`
+}
 
 interface GameOverMythicSectionProps {
-  activeCandidate?: MythicView
-  candidates: MythicView[]
+  candidates: PromotionCandidate[]
   effectiveIndex: number
   error: string
-  generating: boolean
-  overallScore: number
-  sealedOutsideCandidates: boolean
-  sealedPattern?: MythicView | null
-  sealedPatternId: string | null
+  promoting: boolean
+  promotedTalent?: PromotedTalentView | null
   strengthLabel: string
-  onGenerate: () => void
-  onSeal: () => void
+  onPromote: () => void
   onSelect: (index: number) => void
 }
 
 export function GameOverMythicSection(props: GameOverMythicSectionProps) {
-  const { activeCandidate, candidates, sealedPattern } = props
+  const { candidates, effectiveIndex, promotedTalent } = props
+  const activeCandidate = candidates[effectiveIndex] ?? null
+  const displayedTalent = promotedTalent ?? activeCandidate
+  const promotionFailed = Boolean(
+    promotedTalent
+    && activeCandidate?.rarity === 'mythic'
+    && promotedTalent.strengthenLevel < activeCandidate.strengthenLevel,
+  )
   return (
-    <section className={`${styles.section} ${styles.mythicSection}`} aria-labelledby="mythic-title">
-      <div className={styles.sectionHeading}>
-        <div><span className={styles.sectionIndex}>04</span><h2 id="mythic-title">轮回天赋</h2></div>
-        <span className={styles.mythicBadge}>{props.overallScore} 分 · {props.strengthLabel}</span>
-      </div>
-      <p className={styles.mythicIntro}>系统先按完整人生评分，再由 AI 凝结三项匹配强度的跨世界概念规则。选择一项封存，供后来的人生携带。</p>
-      {candidates.length === 3 ? (
+    <section className={styles.mythicSection} aria-labelledby="mythic-title">
+      <p className={styles.ritualDivider} aria-hidden="true">✦</p>
+      <h2 id="mythic-title" className={styles.blockTitle}>轮回天赋</h2>
+      <p className={styles.mythicIntro}>从本局最终携带的四项词条中选择一项升一级，写入跨世界轮回天赋库。神话词条会继续强化，升阶可选。</p>
+      {candidates.length > 0 ? (
         <>
-          <div className={styles.mythicSelectors} role="list" aria-label="轮回天赋候选">
+          <div className={styles.mythicSelectors} role="list" aria-label="可升阶词条">
             {candidates.map((candidate, index) => (
               <button
                 type="button"
-                key={`${candidate.name}-${candidate.concept}`}
-                className={`${styles.mythicSelector} ${!props.sealedOutsideCandidates && props.effectiveIndex === index ? styles.mythicSelectorActive : ''}`}
-                aria-pressed={!props.sealedOutsideCandidates && props.effectiveIndex === index}
-                onClick={() => { if (!props.sealedPatternId) props.onSelect(index) }}
-                disabled={Boolean(props.sealedOutsideCandidates || (props.sealedPatternId && props.effectiveIndex !== index))}
+                key={candidate.id}
+                className={`${styles.mythicSelector} ${!promotedTalent && effectiveIndex === index ? styles.mythicSelectorActive : ''}`}
+                aria-pressed={!promotedTalent && effectiveIndex === index}
+                onClick={() => { if (!promotedTalent && !props.promoting) props.onSelect(index) }}
+                disabled={Boolean(promotedTalent || props.promoting)}
               >
-                <span aria-hidden="true">{candidate.concept.slice(0, 1)}</span><strong>{candidate.name}</strong>
+                <span aria-hidden="true">{candidate.name.slice(0, 1)}</span>
+                <strong>{candidate.name}</strong>
               </button>
             ))}
           </div>
-          {activeCandidate ? (
+          {displayedTalent && activeCandidate ? (
             <div className={styles.mythicFocus} aria-live="polite">
-              <span className={styles.mythicGlyph} aria-hidden="true">{activeCandidate.concept.slice(0, 1)}</span>
-              <div><small>{activeCandidate.concept} · 纯概念</small><h3>{activeCandidate.name}</h3><p>{activeCandidate.effect}</p></div>
+              <span className={styles.mythicGlyph} aria-hidden="true">{displayedTalent.name.slice(0, 1)}</span>
+              <div>
+                <small>{promotedTalent
+                  ? `${DESTINY_PATTERN_RARITY_CONFIG[promotedTalent.rarity].label}${promotedTalent.rarity === 'mythic' ? ` · 强化 ${promotedTalent.strengthenLevel}` : ''}`
+                  : getPromotionLabel(activeCandidate)} · {displayedTalent.description}</small>
+                <h3>{displayedTalent.name}</h3>
+                <p>{displayedTalent.effect}</p>
+              </div>
             </div>
           ) : null}
-          <div className={styles.mythicCurrent}><span>{sealedPattern ? '已封存' : '当前选择'}</span><strong>{sealedPattern?.name ?? activeCandidate?.name ?? '尚未选择'}</strong></div>
-          <button type="button" className={styles.mythicStore} onClick={props.onSeal} disabled={!activeCandidate || Boolean(props.sealedPatternId)}>
-            <span>{sealedPattern ? '已封存至轮回天赋库' : '封存至轮回天赋库'}</span>
-            <small>{sealedPattern ? '下一局可在独立轮回槽携带' : '封存后不可在本局改选'}</small>
+          <div className={styles.mythicCurrent}>
+            <span>{promotedTalent ? promotionFailed ? '强化失败并异变' : '已升阶' : '当前选择'}</span>
+            <strong>{promotedTalent?.name ?? activeCandidate?.name ?? '尚未选择'}</strong>
+          </div>
+          <button
+            type="button"
+            className={styles.mythicStore}
+            onClick={props.onPromote}
+            disabled={!activeCandidate || Boolean(promotedTalent) || props.promoting}
+            aria-busy={props.promoting}
+          >
+          <span>{promotedTalent ? promotionFailed ? '异变结果已写入轮回天赋库' : '已写入轮回天赋库' : props.promoting ? '正在升阶…' : '升阶为轮回天赋'}</span>
+          <small>{promotedTalent ? promotionFailed ? `强化等级退至 +${promotedTalent.strengthenLevel}，异变不可逆` : '下一局可在携带槽中选用' : `按「${props.strengthLabel}」档位强化，写入跨世界轮回库`}</small>
           </button>
         </>
       ) : (
         <div className={styles.mythicLoadingCard} aria-live="polite">
-          <span className={styles.mythicLoadingGlyph} aria-hidden="true">转</span>
-          <div><h3>{props.generating ? '正在凝结轮回天赋' : '尚未生成轮回天赋'}</h3><p>{props.generating ? '正在读取整局摘要与关键人生记录，请稍候。' : '生成失败时不会使用本地词条冒充 AI 结果。'}</p></div>
+          <span className={styles.mythicLoadingGlyph} aria-hidden="true">升</span>
+          <div>
+            <h3>{promotedTalent ? promotionFailed ? '强化失败并异变' : '已升阶' : '没有可升阶的词条'}</h3>
+            <p>{promotedTalent ? '轮回天赋已写入跨世界总库。' : '本局没有可升阶的最终携带词条，可直接开启新人生。'}</p>
+          </div>
         </div>
       )}
       {props.error ? <p className={styles.mythicError} role="alert">{props.error}</p> : null}
-      {candidates.length !== 3 && !props.generating ? <button type="button" className={styles.mythicRetry} onClick={props.onGenerate}>重新生成三项轮回天赋</button> : null}
     </section>
   )
 }

@@ -1,0 +1,136 @@
+<!-- Purpose: Record the tenth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第十轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-10</p>
+      <h1>游戏故事 · 第十轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-09 定版候选 A（🎲 骰子 · 浅色白板微暖）为基线，方向「分叉底色 · 浅白迭代」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：branchPending 背景色一律限于浅色或白色（不用深色，分向核心）；h3 标题保留 🎲 装饰（🎲 命运分叉点 🎲 居中）；「写下自己的做法」输入框 auto-grow 保留；「前世武骨」流光胶囊独立第二行保留。其余共同基线全部继承：删 kicker、条目间顶部细线 + 居中菱形精确骑线、entryMeta 只保留「X 岁」、描边单选圆、chip 米白、网页底色 #fdf9f1。分向为 branchPending 背景色（全部在浅色/白色范围）：候选 A 纯白 #fff（最纯净白板）、候选 B 浅米白 #fffdf8（微暖白基准）、候选 C 极浅暖渐变 linear-gradient(180deg,#ffffff,#fdf9f1)（白→米纸底极浅渐变）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行）、章节头单行化结构（第 1 回 · 故事进程 / 故事进行中 / 等待你的选择 / 三步 01 生成正文 02 完成本轮 03 继续人生）、长篇时间线五轮 + 暮年 70 岁待抉择编辑器（圆形单选选项 + textarea「写下你的做法……」+ 清空 / 请先选择禁用）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、写下你的做法切换与输入框自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>branchPending 背景色在浅色/白色范围内的层次与暖纸墨语言协调度（纯白 / 微暖白 / 极浅渐变）、白底上 🎲 emoji 与金棕描边的点缀度、白板与页面 #fdf9f1 的边界区分度（避免同底无界）、输入框 auto-grow 自适应流畅度、前世武骨独立第二行与已选命格的区分度、菱形分隔两端对齐、单选圆识别度、chip 白底、长篇时间线滚动节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>纯白白板</strong></header>
+          <p>branchPending 背景纯白 #fff——最纯净白板，与页面米纸底 #fdf9f1 形成最清晰边界；🎲 装饰、输入框自适应、前世武骨独立第二行全部保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-10-01-pure-white.html" target="_blank" rel="noopener">
+            游戏故事 10 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>浅米白白板</strong></header>
+          <p>branchPending 背景浅米白 #fffdf8——微暖白基准（当前定版值），与页面暖纸墨最贴近的浅色；🎲 装饰、输入框自适应、前世武骨独立第二行全部保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-10-02-warm-white.html" target="_blank" rel="noopener">
+            游戏故事 10 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>极浅暖渐变</strong></header>
+          <p>branchPending 背景极浅暖渐变 linear-gradient(180deg,#ffffff,#fdf9f1)——白到米纸底的极浅渐变，层次最丰富但仍属浅色；🎲 装饰、输入框自适应、前世武骨独立第二行全部保持。</p>
+          <a class="candidate-open" href="candidates/candidate-round-10-03-white-gradient.html" target="_blank" rel="noopener">
+            游戏故事 10 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 纯白</span><span role="columnheader">B 浅米白</span><span role="columnheader">C 极浅渐变</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">网页底色</strong><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span><span role="cell">#fdf9f1（全库统一）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 背景</strong><span role="cell">纯白 #fff</span><span role="cell">浅米白 #fffdf8</span><span role="cell">极浅渐变 #fff→#fdf9f1</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨</strong><span role="cell">独立第二行（flex-basis 100%）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选圆形</strong><span role="cell">1.5px 描边空心圆 + 选中实心填充</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性变化 chip</strong><span role="cell">米白 #fffdf8 + 细边框</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A 纯白白板——背景 #fff 最纯净，与页面米纸底 #fdf9f1 边界最清晰，白板上 🎲 装饰 + 金棕描边 + 选项层次最干净。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B 浅米白白板——#fffdf8 微暖与页面 #fdf9f1 色差过小，白板纯净度不如纯白；候选 C 极浅暖渐变——渐变在白板与页面之间层次略暧昧，边界感知弱于纯白 + 描边。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 指示「单选样式改为黑白中心原点」进入 ROUND-11（黑白原点 · 单选样式），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

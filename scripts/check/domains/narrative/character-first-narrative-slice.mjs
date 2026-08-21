@@ -91,14 +91,14 @@ check(
 check(
   'V3',
   'Product/OpeningFlow/DestinyPatternSelection',
-  'Can the local preset path produce five candidates, select exactly three, write the owner, and navigate?',
-  () => requireFragments('src/mods/mod-pages/pages/talent-draw/page.tsx', [
-    'generateFromPresets(100)',
-    'DESTINY_PATTERN_SELECT_COUNT',
-    'destinySystem.selectPatterns(selectedIds, committedPool)',
-    'store.setDestinyPatterns({',
-    'patterns: selectedPatterns,',
-    "router.push('/attribute-alloc')",
+  'Can the local preset path produce six classified candidates, fill four shared slots, write the owner, and navigate?',
+  () => requireModuleFragments('src/mods/mod-pages/pages/talent-draw/page.tsx', [
+    'useTalentDrawGeneration',
+    'DESTINY_PATTERN_DISPLAY_COUNT',
+    'PATTERN_LOADOUT_SLOT_COUNT',
+    'selection.handleConfirm()',
+    'router.prefetch(\'/attribute-alloc\')',
+    'TalentDrawSelectionView',
   ]),
 )
 
@@ -107,9 +107,10 @@ check(
   'Product/OpeningFlow/AttributeAllocation',
   'Does the player allocate the four owned base attributes before fate preview?',
   () => requireFragments('src/mods/mod-pages/pages/attribute-alloc/page.tsx', [
-    'const TOTAL_POINTS = 15',
+     'const TOTAL_POINTS = 4',
     'const effectiveValue = value + bonus',
-    'nextUsedPoints > TOTAL_POINTS',
+     'nextUsedPoints > TOTAL_POINTS',
+     'setCharacterBase({ base: normalizeAttributes(attributes) })',
     'setCharacterBase({',
     "router.push('/fate-preview')",
   ]),
@@ -119,20 +120,22 @@ check(
   'V5',
   'Product/OpeningFlow/FatePreviewHandoff',
   'Does fate preview gate complete creation, restore the engine-owned context, commit owner state, and navigate?',
-  () => requireFragments('src/mods/mod-pages/pages/fate-preview/page.tsx', [
-    'const characterConfirmed = hasConfirmedCharacter',
-    'selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT',
-    "worldInitAIStatus?.status === 'complete'",
-    'const allModsLoaded = useGlobalStore',
-    'ensureOrchestratorContextFromStores()',
-    'const commitResult = orchestrator.applyRoundChanges([',
-    'commitResult.rejected.length > 0',
-    'const confirmedBase = { ...characterBase.base }',
-    "id: 'character-base'",
-    "id: 'destiny-pattern'",
-    "id: 'lifespan'",
-    "router.push('/game-story')",
-  ]),
+  () => {
+    requireFragments('src/mods/mod-pages/pages/fate-preview/page.tsx', [
+      'const characterConfirmed = hasConfirmedCharacter',
+      'const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)',
+       'const worldReady = worldInitialized && !!worldConfig && worldCode > 0',
+      'useFatePreviewStart',
+      'const runtimeGateReason = allModsLoaded ? null',
+    ])
+    return requireFragments('src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts', [
+      'ensureOrchestratorContextFromStores()',
+      'orchestrator.applyRoundChanges([',
+      'MAX_CREATION_COMMIT_ATTEMPTS',
+      "setGamePhase('simulation')",
+      "router.push('/game-story')",
+    ])
+  },
 )
 
 check(
@@ -150,25 +153,27 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-  'Does the live narrative path use the proxy and the strict five-call protocol?',
+  'Does the live narrative path use the proxy and the strict 01 plus parallel 02/03 protocol?',
   () => {
-    requireModuleFragments('src/core/ai-service/ai-client.ts', ["fetchWithDeadline('/api/proxy'"])
+    requireModuleFragments('src/core/ai-service/ai-client/http-transport.ts', ["fetchWithDeadline('/api/proxy'"])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
-      'narrativeParser.parse(content)',
-      'parseNarrativeAIJson(input.content)',
-      'translateNarrativeAIDataAnalysis(',
-      'translateNarrativeAIBasicAttributeAnalysis(',
-      'translateNarrativeAIEventRecognition(',
-      'translateNarrativeMacroImpact({',
-      'validateNarrativeEventMetadataForNarrative(input.narrative, result.metadata)',
+      'narrativeParser.parse(content, { terminalGuidance })',
+      'parseNarrativeAIJson(content)',
+      'NarrativeAITalentGrowthDataSchema.parse(',
+      'NarrativeAIStoryContinuityMemorySchema.parse(',
+      'NarrativeAIStoryContinuityFutureEventsSchema.parse(',
     ])
-    return requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
-      'export const NarrativeAIDataAnalysisDataSchema',
-      'export const NarrativeAIBasicAttributeAnalysisDataSchema',
-      'export const NarrativeAIEventRecognitionDataSchema',
-      'export const NarrativeAISystemInstructionSchema',
-      '语义信号: NarrativeAISemanticSignalsSchema.optional()',
-      '新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional()',
+    requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
+      'export const NarrativeAIStoryResultSchema',
+      'export const NarrativeAIStoryContinuityDataSchema',
+      'export const NarrativeAITalentGrowthDataSchema',
+    ])
+    return requireFragments('src/mods/mod-engine/campaigns/default/index.ts', [
+      "name: 'ai-narration'",
+      "name: 'prepare-narrative'",
+      "name: 'ai-story-continuity'",
+      "name: 'ai-talent-growth'",
+      "name: 'commit-round'",
     ])
   },
 )
@@ -178,18 +183,17 @@ check(
   'Product/Simulation/VisibleNarrative',
   'Does committed narrativeHistory reach the visible timeline and preserve paragraph boundaries?',
   () => {
-    requireFragments('src/mods/mod-pages/pages/game-story/page.tsx', [
-      'const { narrativeHistory } = useNarrative()',
-      '<NarrativeTimeline',
-      'entries={narrativeEntries}',
-      'onAdvance={handleNarrativeAdvance}',
-      'advanceText={narrativeAdvanceText}',
-      'advanceHint={narrativeAdvanceHint}',
+    requireModuleFragments('src/mods/mod-pages/pages/game-story/page.tsx', [
+      'useGameStoryPresentation',
+      'narrativeEntries',
+      'onAdvance: handleNarrativeAdvance',
+      'advanceText: narrativeAdvanceText',
+      'advanceHint: narrativeAdvanceHint',
     ])
-    return requireFragments('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx', [
-      'function splitNarrativeParagraphs',
-      'entries[i]',
-      'splitNarrativeParagraphs(entry.text).map',
+    return requireModuleFragments('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx', [
+      'const eventElements = useMemo',
+      'const entry = entries[index]!',
+      'NarrativeTimelineEntryView',
     ])
   },
 )
@@ -201,9 +205,9 @@ check(
   () => {
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
-      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 12'],
-      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 5'],
-      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 5'],
+      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 14'],
+      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 9'],
+      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 7'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])
     return `${stores.length} persisted store contracts present`

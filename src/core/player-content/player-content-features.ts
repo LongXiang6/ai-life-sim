@@ -1,13 +1,13 @@
+/**
+ * Purpose: Expose player-content feature availability and provider configuration.
+ * Owner: core:player-content
+ * Responsibility: Feature and configuration projection only; generation remains with its owning service.
+ */
+
 import 'server-only'
 
-function enabled(name: string, defaultValue = false): boolean {
-  const configured = process.env[name]?.trim()
-  if (configured === undefined || configured === '') return defaultValue
-  return configured === '1'
-}
-
 export function isPortraitImageEnabled(): boolean {
-  return enabled('PORTRAIT_IMAGE_ENABLED')
+  return false
 }
 
 export function getPortraitImageConfiguration(): {

@@ -1,0 +1,72 @@
+<!-- Purpose: Middle layer for the talent-select creation-flow logical interface: register each page's iteration entries and states. Owner: Interface system. Responsibility: Index templates only; do not define runtime UI behavior or product visual authority. -->
+<!doctype html>
+<html lang="zh-CN" data-flow-purpose="talent-select-flow">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>创建流程 · 命格选取 · UI 迭代</title>
+  <base href="/talent-select/">
+  <link rel="stylesheet" href="../assets/library.css">
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CREATE FLOW / TALENT SELECT</p>
+      <h1>创建流程 · 命格选取 · UI 迭代</h1>
+    </div>
+    <a class="primary-command" href="../template/iteration.html">
+      打开迭代模板
+      <span aria-hidden="true">→</span>
+    </a>
+  </header>
+
+  <main class="template-main">
+    <section class="library-section pages-grid" aria-labelledby="pages-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="pages-title">页面迭代</h2>
+        </div>
+      </div>
+      <div class="page-board">
+        <header class="page-board-head">
+          <div class="page-board-title">
+            <h3>命格选取</h3>
+            <code>talent-select</code>
+          </div>
+        </header>
+        <div class="iteration-branches">
+          <div class="iteration-branch iteration-branch-current">
+            <span class="branch-label">当前迭代</span>
+            <a class="branch-link" href="iteration-round-04.html">
+              <span>ROUND-04</span>
+              <small>已定版 01 · 胶囊去徽标</small>
+            </a>
+          </div>
+          <div class="iteration-branch iteration-branch-history">
+            <span class="branch-label">历史迭代</span>
+            <a class="branch-link" href="iteration-round-03.html">
+              <span>ROUND-03</span>
+              <small>进度胶囊 · 迭代基础</small>
+            </a>
+            <a class="branch-link" href="iteration-round-02.html">
+              <span>ROUND-02</span>
+              <small>布局重构 · 迭代基础</small>
+            </a>
+            <a class="branch-link" href="iteration-round-01.html">
+              <span>ROUND-01</span>
+              <small>已淘汰 · 三段堆叠</small>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="library-footer">
+    <span>Library state: ready</span>
+    <span>Runtime authority: none</span>
+  </footer>
+</body>
+</html>

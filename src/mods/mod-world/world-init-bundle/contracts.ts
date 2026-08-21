@@ -33,7 +33,6 @@ export interface WorldInitBundleResult {
   tagsGenerated: boolean
   configGenerated: boolean
   regionProfilesGenerated: boolean
-  scoringProfileGenerated: boolean
   errors: string[]
   rawTags?: string[]
 }

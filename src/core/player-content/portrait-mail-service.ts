@@ -1,3 +1,9 @@
+/**
+ * Purpose: Process persisted portrait-mail jobs and their operational lifecycle.
+ * Owner: core:player-content
+ * Responsibility: Portrait job execution only; feature eligibility remains in player-content features.
+ */
+
 import 'server-only'
 
 import { createHash, randomUUID } from 'node:crypto'
@@ -79,7 +85,7 @@ function buildPortraitPrompt(record: CloudGameRecord, lifeSummary: string): stri
     `人生总结：${record.endingReview?.review ?? lifeSummary}`,
     `重要经历：${achievements.length > 0 ? achievements.join('；') : '没有单独登记的大事，以人生总结为准。'}`,
     `世界适配维度：${record.dimensions.map((item) => `${item.label}${Math.round(item.value)}分`).join('、') || '未登记'}。`,
-    `人生特征：${record.destinyNames.join('、') || '未命名'}；道德评价：${record.moralityLabel}。`,
+    `人生特征：${record.destinyNames.join('、') || '未命名'}。`,
     '人物外貌、服饰、气质与环境线索必须来自上述人生事实，突出这段人生最重要的选择与成就。',
     '画面只出现一位清晰主角，不添加标题、分数、界面、边框、水印或可读文字。',
   ].join('\n')
@@ -97,8 +103,8 @@ export async function processPortraitMailRequest(
   const record = readOwnedRecord(accountId, parsed.recordId)
   if (record.overallScore !== 100
     || !verifyStoredLifeScore(record).valid
-    || record.scoring?.integrity.passed !== true
-    || record.scoring.integrity.perfectGatePassed !== true
+    || record.scoring?.version !== 2
+    || record.scoring.integrity.passed !== true
     || !record.endingReview?.review.trim()) {
     throw new PlayerContentServiceError('只有满分人生可以生成画像', 403, 'portrait_not_eligible')
   }
@@ -171,8 +177,8 @@ async function processPortraitMailJob(
     const record = readOwnedRecord(accountId, recordId)
     if (record.overallScore !== 100
       || !verifyStoredLifeScore(record).valid
-      || record.scoring?.integrity.passed !== true
-      || record.scoring.integrity.perfectGatePassed !== true
+      || record.scoring?.version !== 2
+      || record.scoring.integrity.passed !== true
       || !record.endingReview?.review.trim()) {
       throw new PlayerContentServiceError('只有满分人生可以生成画像', 403, 'portrait_not_eligible')
     }

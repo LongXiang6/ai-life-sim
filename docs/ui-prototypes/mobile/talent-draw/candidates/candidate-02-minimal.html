@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命格抽取 · 第一轮候选 02 · 定版语言</title>
+  <style>
+    /* Purpose: Static interactive prototype: talent-draw DRAW page (04) with the confirmed warm-paper/ink language. Page frame, cards, running head, and bottom bar reuse the character-create settled .page/.paper structure so interface switches stay visually continuous; no phone-shell screen border. Motion copied from runtime TalentDraw.module.css (draw-wave / layer-glow / seal-reveal / finish-wave / complete-glow and drawStageDrawing / drawStageComplete transitions). Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    /* 与角色塑造定版一致的页面框架：滚动页 + 纸面网格，无手机壳边框 */
+    .page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page::-webkit-scrollbar {
+      display: none;
+    }
+
+    .paper {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      align-content: start;
+      padding: 20px 20px 96px;
+    }
+
+    .runningHead {
+      display: flex;
+      height: 16px;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a0907a;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    .titleCopy {
+      text-align: center;
+      padding: 4px 0 0;
+    }
+    .titleCopy h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .titleCopy h1 .semantic-emoji {
+      margin-right: 6px;
+      font-size: 17px;
+      vertical-align: -1px;
+    }
+
+    /* 仪式区：无边框无底色，像 03 版直接融入页面，不形成板块 */
+    .ritualCard {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      height: 660px;
+    }
+
+    .aura {
+      position: absolute;
+      z-index: 2;
+      top: 117.6px;
+      left: 50%;
+      width: 264px;
+      height: 264px;
+      transform: translateX(-50%);
+      transition: top 0.72s cubic-bezier(0.2, 0.75, 0.2, 1), transform 0.72s cubic-bezier(0.2, 0.75, 0.2, 1);
+    }
+
+    .wave {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5.28rem;
+      aspect-ratio: 1;
+      border: 1.2px solid rgb(150 120 64 / 22%);
+      border-radius: 50%;
+      opacity: 0;
+      transform: translate(-50%, -50%);
+    }
+
+    .drawStageDrawing .wave { animation: draw-wave 4.8s ease-out infinite; }
+    .drawStageDrawing .wave:nth-child(1) { animation-delay: 0s; }
+    .drawStageDrawing .wave:nth-child(2) { animation-delay: 0.8s; }
+    .drawStageDrawing .wave:nth-child(3) { animation-delay: 1.6s; }
+    .drawStageDrawing .wave:nth-child(4) { animation-delay: 2.4s; }
+    .drawStageDrawing .wave:nth-child(5) { animation-delay: 3.2s; }
+    .drawStageDrawing .wave:nth-child(6) { animation-delay: 4s; }
+
+    @keyframes draw-wave {
+      0% { opacity: 0.34; transform: translate(-50%, -50%) scale(0.8); }
+      68% { opacity: 0.11; }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(6.8); }
+    }
+
+    .sun { position: absolute; inset: 0; display: grid; place-items: center; isolation: isolate; }
+    .sun i { position: absolute; z-index: -1; border-radius: 50%; background: rgb(150 120 64 / 7%); }
+    .layerOne { width: 50%; aspect-ratio: 1; background: radial-gradient(circle, #fffdf8 0%, #faf4e8 68%, rgb(214 194 156 / 26%) 100%) !important; }
+    .layerTwo { width: 63%; aspect-ratio: 1; }
+    .layerThree { width: 76%; aspect-ratio: 1; opacity: 0.8; }
+    .layerFour { width: 88%; aspect-ratio: 1; opacity: 0.62; }
+    .layerFive { width: 100%; aspect-ratio: 1; opacity: 0.42; }
+
+    .drawStageDrawing .sun i { animation: layer-glow 3.8s ease-in-out infinite; }
+    .drawStageDrawing .layerOne { animation-delay: 0s; }
+    .drawStageDrawing .layerTwo { animation-delay: 0.26s; }
+    .drawStageDrawing .layerThree { animation-delay: 0.52s; }
+    .drawStageDrawing .layerFour { animation-delay: 0.78s; }
+    .drawStageDrawing .layerFive { animation-delay: 1.04s; }
+
+    @keyframes layer-glow {
+      0%, 62%, 100% { filter: brightness(1); }
+      22%, 38% { filter: brightness(1.12); }
+    }
+
+    .sun b {
+      color: #6b4d1d;
+      font-family: "Songti SC", "STSong", serif;
+      font-size: 2.4rem;
+      font-weight: 500;
+      text-shadow: 0 0 1.05rem rgb(150 120 64 / 18%);
+    }
+
+    .drawStageComplete .aura { top: 268.8px; transform: translateX(-50%) scale(1.02); }
+    .drawStageComplete .wave { border-color: rgb(150 120 64 / 36%); animation: finish-wave 5.6s cubic-bezier(0.2, 0.62, 0.28, 1) infinite; }
+    .drawStageComplete .wave:nth-child(1) { animation-delay: 0s; }
+    .drawStageComplete .wave:nth-child(2) { animation-delay: 1.4s; }
+    .drawStageComplete .wave:nth-child(3) { animation-delay: 2.8s; }
+    .drawStageComplete .wave:nth-child(4) { animation-delay: 4.2s; }
+    .drawStageComplete .wave:nth-child(n + 5) { display: none; }
+    .drawStageComplete .sun i { animation: complete-glow 3.2s ease-in-out infinite alternate; }
+    .drawStageComplete .sealWrap { opacity: 0; filter: blur(6px); pointer-events: none; transform: translateY(38.4px) scale(0.94); }
+    .drawStageComplete .ritualCopy { opacity: 0; pointer-events: none; }
+
+    @keyframes finish-wave {
+      0%, 15% { opacity: 0.03; transform: translate(-50%, -50%) scale(0.78); }
+      25% { opacity: 0.42; }
+      72% { opacity: 0.14; }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(7.4); }
+    }
+
+    @keyframes complete-glow {
+      to { filter: brightness(1.08); }
+    }
+
+    .ritualCopy {
+      position: absolute;
+      z-index: 4;
+      top: 391.2px;
+      right: 18px;
+      left: 18px;
+      text-align: center;
+      transition: opacity 0.45s ease;
+    }
+
+    .ritualCopy strong { display: block; color: #241f18; font-family: "Songti SC", "STSong", serif; font-size: 1.05rem; font-weight: 600; }
+    .ritualCopy p { margin: 0.42rem 0 0; color: #8a7f6e; font-size: 0.78rem; line-height: 1.5; }
+
+    /* 命印面板：去掉外边框，白底半透明，与前面页面的 facts 卡片一致 */
+    .sealWrap {
+      position: absolute;
+      z-index: 4;
+      top: 469.2px;
+      right: 18px;
+      left: 18px;
+      padding: 0.75rem 0.625rem 0.625rem;
+      border-radius: 0.96rem;
+      background: rgb(255 255 255 / 82%);
+      transition: opacity 0.58s ease, filter 0.58s ease, transform 0.58s ease;
+    }
+
+    .sealHead { display: flex; justify-content: space-between; color: #a0907a; font-size: 0.75rem; font-weight: 650; }
+    .seals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.42rem; margin-top: 0.6rem; }
+
+    .seal {
+      display: grid;
+      min-height: 2.4rem;
+      place-items: center;
+      border: 1.2px solid #e5e1d6;
+      border-radius: 0.6rem;
+      background: rgb(255 255 255 / 92%);
+      color: #a0907a;
+      transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .seal i,
+    .seal b { grid-area: 1 / 1; font-size: 0.72rem; font-style: normal; }
+    .seal b { opacity: 0; }
+
+    /* 命印点亮辉光照抄运行时（稀有度配色） */
+    .sealLit { animation: seal-reveal 0.24s ease-out both; transform: translateY(-1.2px); }
+    .sealLit i { opacity: 0; }
+    .sealLit b { opacity: 1; }
+    .sealLit[data-rarity="普通"] { border-color: #94a3b8; background: #f1f4f7; color: #64748b; box-shadow: 0 0 0.48rem rgb(148 163 184 / 45%); }
+    .sealLit[data-rarity="精良"] { border-color: #22c55e; background: #edf9f1; color: #198a43; box-shadow: 0 0 0.6rem rgb(34 197 94 / 38%); }
+    .sealLit[data-rarity="稀有"] { border-color: #3b82f6; background: #edf4ff; color: #2563b9; box-shadow: 0 0 0.9rem rgb(59 130 246 / 38%); }
+    .sealLit[data-rarity="史诗"] { border-color: #a855f7; background: #f7efff; color: #8038c0; box-shadow: 0 0 1.2rem rgb(168 85 247 / 36%); }
+    .sealLit[data-rarity="传说"] { border-color: #f59e0b; background: #fff7e8; color: #a96708; box-shadow: 0 0 1.5rem rgb(245 158 11 / 40%); }
+
+    @keyframes seal-reveal {
+      from { opacity: 0.35; transform: translateY(2.4px) scale(0.9); }
+      to { opacity: 1; transform: translateY(-1.2px) scale(1); }
+    }
+
+    /* 双文字等宽纯白同底按钮（与角色塑造定版一致） */
+    .bottomBar {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .confirmButton {
+      border: 1px solid #d8c9a8;
+      background: #fff;
+    }
+
+    .confirmButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small { display: block; }
+
+    .backButton strong,
+    .confirmButton strong { font-size: 14px; font-weight: 650; }
+    .backButton small,
+    .confirmButton small { margin-top: 2px; color: #8a7f6e; font-size: 11px; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <div class="page">
+        <main class="paper">
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>04 / 08</span></div>
+
+          <header class="titleCopy">
+            <h1><span class="semantic-emoji" aria-hidden="true">🔮</span>命格抽取</h1>
+            <p>十二道命印，静待天命。</p>
+          </header>
+
+          <section class="ritualCard" id="drawStage" aria-busy="false">
+            <div class="aura" aria-hidden="true">
+              <i class="wave"></i><i class="wave"></i><i class="wave"></i><i class="wave"></i><i class="wave"></i><i class="wave"></i>
+              <div class="sun">
+                <i class="layerFive"></i><i class="layerFour"></i><i class="layerThree"></i><i class="layerTwo"></i><i class="layerOne"></i>
+                <b>命</b>
+              </div>
+            </div>
+            <div class="ritualCopy">
+              <strong id="ritualTitle">让命运揭示你的命格</strong>
+              <p id="ritualCopy">准备就绪后开始抽取，十二条命格会依次归位。</p>
+            </div>
+            <div class="sealWrap">
+              <div class="sealHead">
+                <span>十二道命印</span>
+                <span id="sealCount">0 / 12</span>
+              </div>
+              <div class="seals" id="seals" aria-label="十二道命印"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <div class="bottomBar">
+        <a class="backButton" href="../iteration-round-01.html" title="返回角色创建">
+          <strong>返回</strong>
+          <small>返回角色创建</small>
+        </a>
+        <button type="button" class="confirmButton" id="drawButton" title="开始抽取">
+          <strong id="confirmTitle">开始抽取</strong>
+          <small id="confirmHint">十二道命印 · 准备就绪</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var patterns = [
+        { name: '喜欢运动', rarity: '普通' }, { name: '讲信用', rarity: '普通' },
+        { name: '善于观察', rarity: '普通' }, { name: '心态好', rarity: '普通' },
+        { name: '完美主义', rarity: '精良' }, { name: '夜猫子', rarity: '精良' },
+        { name: '天生灵觉', rarity: '稀有' }, { name: '将门虎子', rarity: '稀有' },
+        { name: '慧眼识人', rarity: '稀有' }, { name: '天命眷顾', rarity: '史诗' },
+        { name: '凤凰血脉', rarity: '史诗' }, { name: '万古第一', rarity: '传说' }
+      ]
+      var stage = document.getElementById('drawStage')
+      var sealEls = document.getElementById('seals')
+      var sealNodes = []
+      var busyDrawing = false
+
+      patterns.forEach(function (pattern, index) {
+        var seal = document.createElement('span')
+        seal.className = 'seal'
+        seal.innerHTML = '<i>' + String(index + 1).padStart(2, '0') + '</i><b>待定</b>'
+        sealEls.appendChild(seal)
+        sealNodes.push(seal)
+      })
+
+      function revealSeal(index) {
+        var pattern = patterns[index]
+        var seal = sealNodes[index]
+        seal.setAttribute('data-rarity', pattern.rarity)
+        seal.querySelector('b').textContent = pattern.rarity
+        seal.classList.add('sealLit')
+        document.getElementById('sealCount').textContent = (index + 1) + ' / 12'
+      }
+
+      var button = document.getElementById('drawButton')
+      button.addEventListener('click', function () {
+        if (busyDrawing) return
+        busyDrawing = true
+        stage.classList.add('drawStageDrawing')
+        stage.setAttribute('aria-busy', 'true')
+        button.disabled = true
+        document.getElementById('confirmTitle').textContent = '正在生成'
+        document.getElementById('confirmHint').textContent = '已完成 0 / 12 · 正在连接命盘'
+        document.getElementById('ritualTitle').textContent = '命格正在归位'
+        document.getElementById('ritualCopy').textContent = '正在生成第 1 条有效命格。'
+
+        var i = 0
+        var revealTimer = window.setInterval(function () {
+          revealSeal(i)
+          i++
+          document.getElementById('confirmHint').textContent = '已完成 ' + i + ' / 12 · ' + patterns[i - 1].name
+          document.getElementById('ritualCopy').textContent =
+            i < 12
+              ? patterns[i - 1].name + '已显现，正在生成第 ' + (i + 1) + ' 条有效命格。'
+              : patterns[i - 1].name + '已显现，正在等待其余命印归位。'
+          if (i >= patterns.length) {
+            window.clearInterval(revealTimer)
+            window.setTimeout(function () {
+              stage.classList.remove('drawStageDrawing')
+              stage.classList.add('drawStageComplete')
+              stage.setAttribute('aria-busy', 'false')
+              document.getElementById('ritualTitle').textContent = '十二道命印已归位'
+              document.getElementById('ritualCopy').textContent = '十二道命印已全部归位。'
+              document.getElementById('confirmTitle').textContent = '进入命格选择'
+              document.getElementById('confirmHint').textContent = '十二道命印已归位'
+              button.disabled = false
+              button.onclick = function () { window.location.href = '../talent-select/candidates/candidate-02-minimal.html' }
+            }, 260)
+          }
+        }, 240)
+      })
+    })()
+  </script>
+</body>
+</html>

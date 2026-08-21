@@ -29,7 +29,6 @@ import {
 import { useWorldStore } from '@/mods/mod-world/world-runtime-api'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
-import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, waitForPreGenQueueItem, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
 import { resolveMvpRuntimeReadiness } from './helpers/mvp-runtime-policy'
 import { ensureOrchestratorContextFromStores } from './helpers/save-restore'
 import { syncSubsystemStoresFromStates } from './helpers/subsystem-store-sync'
@@ -230,9 +229,8 @@ export function useEngine() {
  */
 export function useSimulationAdvance() {
   const [isAdvancing, setIsAdvancing] = useState(false)
-  // Claim the mutex before any asynchronous wait. Branch confirmation and
-  // automatic retries can otherwise queue behind finalization and start a
-  // second real round after the first request releases the lock.
+  // Claim the mutex before any asynchronous wait so two explicit player
+  // commands cannot submit the same real round concurrently.
   const isAdvancingRef = useRef(false)
   const allModsLoaded = useGlobalStore((s) => s.allModsLoaded)
   const [runtimeReadiness, setRuntimeReadiness] = useState(getSimulationRuntimeReadiness)
@@ -276,17 +274,10 @@ export function useSimulationAdvance() {
         useEngineStore.getState().setNarrativeError('核心模拟系统未完整加载，请刷新页面后重试。')
         return
       }
+      if (orchestrator.hasPendingDestinyPatternGrowth()) return
 
       useEngineStore.getState().clearPendingNarrative()
       useEngineStore.setState({ narrativeError: null })
-
-      if (orchestrator.isCompressionGateBlocked()) {
-        await orchestrator.ensureCompressionGate()
-        syncOrchestratorToEngineStore()
-        await orchestrator.triggerAutoSave()
-      }
-      // 预生成关闭时也要等待上一轮摘要压缩提交，避免两个真实回合并发改写同一压缩器。
-      await orchestrator.waitForBackgroundCompression()
 
       const {
         customModel,
@@ -302,30 +293,15 @@ export function useSimulationAdvance() {
         reasoningEffort,
       }
 
-      // 检测时间步长变化，变化时清空旧粒度的预生成队列
-      checkAndClearPreGenOnTimeStepChange(useEngineStore.getState().timeStep)
-
-      const forceBranch = useEngineStore.getState().forceBranchNext
-      let cached = !forceBranch ? shiftPreGenQueue(narrativePrompt) : undefined
-      const shouldWaitForActivePreGen = !cached && !forceBranch && getPreGenQueueStatus().isActive
-      if (shouldWaitForActivePreGen) {
-        cached = await waitForPreGenQueueItem(narrativePrompt)
-        if (!cached) clearPreGenQueue()
-      }
-
       // orchestrator 是运行时单例；同步上下文和步长后直接执行当前真实回合。
       ensureOrchestratorContextFromStores()
       if (!orchestrator.getPendingNarrativeRoundPreparation()) {
         orchestrator.setTimeStep(useEngineStore.getState().timeStep)
       }
+      const narrativeCountBeforeExecution = orchestrator.getState().narrativeHistory.length
       try {
         // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
         orchestrator.start()
-
-        if (cached?.fullContent) {
-          orchestrator.setPrefetchedNarrative(cached.fullContent, cached.luckGuidance)
-          if (cached.isBranchPoint) clearPreGenQueue()
-        }
 
         await orchestrator.executeRoundV2(
           narrativePrompt,
@@ -342,48 +318,39 @@ export function useSimulationAdvance() {
           reportStoryRepetitionMetric(completedState.lifeRunId, repetition)
         }
         queueRoundFinalization(async () => {
-          await orchestrator.waitForBackgroundCompression()
           syncOrchestratorToEngineStore()
           await orchestrator.triggerAutoSave()
           const report = orchestrator.getLastRoundDiagnostic()
           if (report) await postNarrativeRoundOutcome(report)
-          void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
         })
       } catch (err) {
-        const compressionGateFailure = err instanceof Error && err.name === 'CompressionGateError'
         const expectedQualityRejection = err instanceof Error
           && (
             err.name === 'NarrativeGenerationRejectedError'
-            || err.name === 'NarrativeBackgroundAnalysisRejectedError'
-            || err.name === 'NarrativeBasicAttributeAnalysisRejectedError'
-            || err.name === 'NarrativeDataAnalysisRejectedError'
-            || err.name === 'NarrativeEventRecognitionRejectedError'
-            || err.name === 'NarrativeMacroImpactRejectedError'
+            || err.name === 'NarrativeStoryContinuityRejectedError'
+            || err.name === 'NarrativeTalentGrowthRejectedError'
           )
         const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
         logRoundFailure('simulation', '回合执行失败', err)
+        const storyWasPublished = orchestrator.getState().narrativeHistory.length > narrativeCountBeforeExecution
+        syncOrchestratorToEngineStore()
+        useEngineStore.getState().clearPendingNarrative()
         const failedReport = orchestrator.getLastRoundDiagnostic()
-        if (failedReport) {
+        if (storyWasPublished) {
+          queueRoundFinalization(async () => {
+            syncOrchestratorToEngineStore()
+            await orchestrator.triggerAutoSave()
+            if (failedReport) await postNarrativeRoundOutcome(failedReport)
+          })
+        } else if (failedReport) {
           queueRoundFinalization(async () => {
             await postNarrativeRoundOutcome(failedReport)
           })
         }
-        const errorMessage = compressionGateFailure
-          ? `故事已保留，但压缩首次调用及两路并发重试均失败，下一轮已阻塞：${err.message}`
-          : err instanceof Error ? err.message : '叙事生成失败'
-        const executionError = err as Error & {
-          executionCode?: string
-          executionId?: string
-        }
-        const pendingNarrative = useEngineStore.getState().pendingNarrative
-        if (pendingNarrative) {
-          useEngineStore.getState().updatePendingNarrative(
-            pendingNarrative.executionId,
-            'failed',
-            executionError.executionCode ?? 'narrative-round:failed',
-            errorMessage,
-          )
-        }
+        const errorDetail = err instanceof Error ? err.message : '叙事生成失败'
+        const errorMessage = storyWasPublished
+          ? `正文已发布，附加分析未完成：${errorDetail}`
+          : errorDetail
         useEngineStore.getState().setNarrativeError(errorMessage)
       } finally {
         if (!orchestrator.getPendingNarrativeRoundPreparation()) {
@@ -408,19 +375,6 @@ export function useSimulationAdvance() {
     isRuntimeReady: runtimeReadiness.ready,
     runtimeReadiness,
   }
-}
-
-/** 订阅预生成队列状态（UI 指示器） */
-export function usePreGenQueueStatus(): PreGenQueueStatus {
-  const [status, setStatus] = useState(getPreGenQueueStatus)
-
-  useEffect(() => {
-    return subscribePreGenQueue(() => {
-      setStatus(getPreGenQueueStatus())
-    })
-  }, [])
-
-  return status
 }
 
 /**

@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized character background section. Owner: mod-pages. Responsibility: Background inputs and presentation only. */
+
 import type { UseCharacterCreateLogicReturn } from './useCharacterCreateLogic'
 
 import styles from './CharacterCreateMobile.module.css'
@@ -5,7 +7,7 @@ import styles from './CharacterCreateMobile.module.css'
 export function CharacterBackgroundSection({ logic }: { logic: UseCharacterCreateLogicReturn }) {
   return (
     <section className={`${styles.section} ${styles.backgroundSection}`}>
-      <div className={styles.sectionHeading}><h2><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">📜</span>人生背景</h2><span>03 / 03 · {logic.background.length} 字</span></div>
+      <div className={styles.sectionHeading}><h2><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">📜</span>人生背景</h2><span>{logic.background.length} 字</span></div>
       {Object.keys(logic.bgPresets).length > 0 && (
         <div className={styles.backgroundPresets}>
           {Object.entries(logic.bgPresets).map(([name, content]) => (

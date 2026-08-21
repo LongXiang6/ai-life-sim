@@ -4,7 +4,7 @@
  * @mod mod-world
  */
 
-import type { WorldCalibration, WorldCalibrationFormulas, FormulaModifierKey } from '../types'
+import type { WorldCalibration, WorldCalibrationFormulas } from '../types'
 
 import { useWorldStore } from '../store'
 import { clampModifier } from './calibration-clamp'
@@ -16,7 +16,7 @@ export function getWorldCalibration(): WorldCalibration | null {
   return getState().calibration
 }
 
-/** 读取 L2 公式 modifier（默认 1.0，已 clamp；叠加命格 runtime modifier） */
+/** 读取 L2 公式 modifier（默认 1.0，已 clamp）。 */
 export function getFormulaModifier(
   key: keyof WorldCalibrationFormulas,
   defaultValue = 1.0,
@@ -31,9 +31,5 @@ export function getFormulaModifier(
     base = clampModifier(raw)
   }
 
-  const patternMod = (contextId ? context?.destinyPatternModifiers : state.destinyPatternModifiers)?.[key as FormulaModifierKey]
-  if (typeof patternMod === 'number' && Number.isFinite(patternMod)) {
-    return clampModifier(base * patternMod)
-  }
   return base
 }

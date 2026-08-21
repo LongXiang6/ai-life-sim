@@ -16,20 +16,26 @@
     {
       "path": "src/mods/mod-character/subsystems/character-base-system.ts",
       "owner": "mod-character",
-      "reviewedLines": 321,
-      "reason": "角色状态的唯一运行所有者，基础属性、生命阶段、健康、气运、道德、死亡和持久化共享同一状态契约。"
+      "reviewedLines": 316,
+      "reason": "角色基础数值的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
     },
     {
       "path": "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
       "owner": "mod-character",
-      "reviewedLines": 342,
+      "reviewedLines": 359,
       "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
     },
     {
       "path": "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts",
       "owner": "mod-character",
-      "reviewedLines": 401,
-      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+      "reviewedLines": 395,
+      "reason": "四类首批与后台补池共享同一请求、逐项解析、候选发布和缓存生命周期。"
+    },
+    {
+      "path": "src/mods/mod-character/utils/character-state-migration.ts",
+      "owner": "mod-character",
+      "reviewedLines": 351,
+      "reason": "角色状态版本迁移的单一状态所有者，旧格式判定、迁移和幂等回写共享同一版本升级不变式。"
     }
   ]
 }

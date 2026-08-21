@@ -1,15 +1,15 @@
 'use client'
 
 /**
- * @module SettingsTabModel.tsx
- * @description "模型设置" Tab —— 只展示真实接入运行时的 AI 行为设置
- * @mod mod-settings
+ * Purpose: Render model and AI runtime settings that are active in the application.
+ * Owner: mod-settings
+ * Responsibility: Model-settings UI only; persisted values remain owned by the settings store.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
-import { useSettingsStore } from '../store'
+import { MAX_TEMPERATURE, useSettingsStore } from '../store'
 import type { ReasoningEffort } from '../store'
 import { SettingsParamCard } from './SettingsParamCard'
 import { SettingsHelpTooltip } from './SettingsHelpTooltip'
@@ -21,7 +21,6 @@ const HELP_DATA: Record<string, string> = {
   'ai-talent': '开启后调用 AI 实时生成随机命格，带来完全不可预测的角色背景。关闭后从本地预设命格库中抽取，响应即时无需等待 AI。',
   thinking: '关闭不启用推理；自动由模型决定深度；深入和最大分别要求更高推理强度。全局推理影响叙事等常规对话，命格生成专用推理仅在 AI 生成命格时使用。',
   temperature: '控制 AI 生成文本的随机性。值越低回答越保守、越一致，值越高越有创造力但可能不稳定。推荐 0.7-1.2。',
-  'pregen-rounds': '开启后只提前生成下一轮叙事，以减少下一次推进的等待。选择分支或改变时间步长后，未使用内容会被丢弃。',
 }
 
 const THINKING_OPTIONS: Array<{ value: ReasoningEffort; label: string; desc: string }> = [
@@ -56,9 +55,9 @@ function getAnchoredDropdownPosition(button: HTMLButtonElement, dropdownWidth: n
 export function SettingsTabModel() {
   const {
     aiTalentGeneration, reasoningEffort, talentThinkingIntensity,
-    temperature, preGenerateRounds,
+    temperature,
     setAiTalentGeneration, setReasoningEffort, setTalentThinkingIntensity,
-    setTemperature, setPreGenerateRounds,
+    setTemperature,
   } = useSettingsStore()
 
   // Help tooltip state
@@ -111,8 +110,6 @@ export function SettingsTabModel() {
     }
   }, [thinkOpen, talentThinkOpen])
 
-  const effectivePreGenerateRounds = preGenerateRounds > 0 ? 1 : 0
-
   return (
     <div className={styles.modelSettings}>
       <p className={styles.panelIntro}>所有修改都会自动保存，并用于后续 AI 请求。</p>
@@ -140,6 +137,26 @@ export function SettingsTabModel() {
               <button type="button" role="switch" aria-checked={aiTalentGeneration} onClick={() => setAiTalentGeneration(!aiTalentGeneration)}
                 title={aiTalentGeneration ? '点击关闭 AI 命格生成' : '点击开启 AI 命格生成'}
                 className={styles.toggleTrack}>
+                <div className={styles.toggleThumb} />
+              </button>
+            </div>
+          </div>
+          <div className={styles.sectionRow}>
+            <div>
+              <div className={styles.controlTitle}>预生成下一轮（已停用）</div>
+              <p className={styles.descText}>核心模拟固定执行一次故事与两次并行后调用，不再额外请求下一轮正文。</p>
+            </div>
+            <div className={styles.toggleLabel}>
+              <span className={styles.toggleStatus}>已停用</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={false}
+                aria-disabled={true}
+                disabled={true}
+                title="下一轮预生成已停用"
+                className={styles.toggleTrack}
+              >
                 <div className={styles.toggleThumb} />
               </button>
             </div>
@@ -215,36 +232,11 @@ export function SettingsTabModel() {
       <div className={styles.advancedGrid}>
         <SettingsParamCard title="温度（Temperature）" helpKey="temperature" helpOpen={helpOpen} helpData={HELP_DATA} toggleHelp={toggleHelp}
           enabled={true} toggleable={false} activeLabel="始终生效"
-          value={temperature} onValueChange={setTemperature} min={0} max={2} step={0.05} isInteger={false}
+          value={temperature} onValueChange={setTemperature} min={0} max={MAX_TEMPERATURE} step={0.05} isInteger={false}
           recommendEnabled={true} recommendText="自动保存" recommendDescription="调整后会用于后续 AI 请求"
-          enabledDescription="控制 AI 生成文本的随机性。值越低回答越保守，值越高越有创造力（范围 0-2，推荐 0.7-1.2）。"
-          footerText={`当前值：${temperature.toFixed(2)} · 太高可能导致回复不稳定`} />
+          enabledDescription={`控制 AI 生成文本的随机性。值越低回答越保守，值越高越有创造力（范围 0-${MAX_TEMPERATURE.toFixed(1)}，推荐 0.7-1.2）。`}
+          footerText={`当前值：${temperature.toFixed(2)} · 上限 ${MAX_TEMPERATURE.toFixed(1)}`} />
       </div>
-
-      {/* ===== 下一轮预生成 ===== */}
-      <section className={styles.settingsSection}>
-        <div className={styles.sectionLabel}>
-          <span>下一轮预生成</span>
-          <span className={styles.sectionMeta}>减少下一次等待</span>
-        </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.sectionBody}>
-            <p className={styles.descParagraph}>最多提前准备下一轮叙事；选择分支后未使用内容会被丢弃。
-              <SettingsHelpTooltip helpKey="pregen-rounds" helpOpen={helpOpen} helpData={HELP_DATA} toggleHelp={toggleHelp} width={300} />
-            </p>
-            <div className={styles.flexRowSm}>
-              {[
-                { value: 0, label: '关闭' }, { value: 1, label: '预生成下一轮' },
-              ].map(opt => (
-                <button key={opt.value} onClick={() => setPreGenerateRounds(opt.value)} className={styles.optionBtn}
-                  aria-pressed={effectivePreGenerateRounds === opt.value}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
     </div>
   )

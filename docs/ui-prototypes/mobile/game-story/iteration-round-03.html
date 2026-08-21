@@ -1,0 +1,133 @@
+<!-- Purpose: Record the third UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-03</p>
+      <h1>游戏故事 · 第三轮</h1>
+    </div>
+    <span class="status status-selected">已选择 B</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-02 定版候选 C（章节头单行化）为基线，方向「条目外框与长篇叙事」。共同基线（三个候选全部应用）：属性变化 chip（span）加标签外框；时间线多添加几个轮次展示长篇效果；命运分叉回显（div）加外框且外框背景与页面背景协调、不形成明显色差；命运分叉需同时呈现已抉择回显与未选择编辑器（编辑器照抄运行时：kicker「命运分叉」+ 标题「命运分叉点」+ 01/02 选项单选 + textarea「写下你的做法……」+ 清空 / 请先选择，禁用态）；轮回胶囊去掉「轮回」二字（胶囊只留「前世武骨」）、「轮回」标签放轮回天赋区第一行、胶囊移第二行。分向为外框风格：候选 A 细线透明外框、候选 B 浅底卡片外框、候选 C 仪式装饰外框（回显与编辑器同款外框）。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（身份「林晚 · 女」+「沧澜界 · 18 岁 · 春」、推进步长下拉、命运分叉按钮、当前信息按钮）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、命格胶囊最多 3 个、轮回天赋流光胶囊——仅文本结构按用户指示调整（标签第一行、胶囊第二行））、章节头单行化结构（第 1 回 · 故事进程 / 故事进行中 / 等待你的选择 / 三步 01 生成正文 02 完成本轮 03 继续人生）、advanceDock 流末推进（idle「轻触，让岁月流转 / 下一段故事已经准备好」）、信息面板（当前信息 / 更多·当前章节 / 世界与角色账簿全部内容）。候选不含 localStorage/sessionStorage/fetch（步长下拉与面板为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（轮回流光，nth-child(2) 延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>chip 与命运分叉（回显 + 编辑器）外框的层级强度（细线 / 浅底卡 / 仪式装饰三档）、外框背景与页面背景的协调性（是否形成明显色差）、长篇时间线的滚动节奏（多轮次下的条目节奏与分隔）、命运分叉已选择 / 未选择两状态的呈现区分、轮回标签重组后的可读性、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>细线透明外框</strong></header>
+          <p>chip 与命运分叉（回显 + 未选择编辑器）统一细线外框：1px 细边框 + 透明底，最轻量；回显与编辑器均为透明底细线卡片、背景与页面几乎无差；轮回标签第一行小字、胶囊第二行。长篇时间线五轮 + 待抉择编辑器。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-thin-line.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>浅底卡片外框</strong></header>
+          <p>chip 改小胶囊浅底、命运分叉（回显 + 编辑器）改圆角浅底卡片（#fffdf8 底 + 细边框，与页面背景差异小，参照信息面板账簿卡片语言）；轮回标签第一行金棕小字、胶囊第二行。长篇时间线五轮 + 待抉择编辑器。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-card-frames.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>仪式装饰外框</strong></header>
+          <p>chip 与命运分叉（回显 + 编辑器）融入 ✦ 命书仪式语言：细边框 + ✦ 两侧小装饰、回显与编辑器加虚线金棕描边与题词小字；轮回标签第一行「✦ 轮回」、胶囊第二行。长篇时间线五轮 + 待抉择编辑器。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-ritual-frames.html" target="_blank" rel="noopener">
+            游戏故事 08 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 细线透明外框</span><span role="columnheader">B 浅底卡片外框</span><span role="columnheader">C 仪式装饰外框</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性变化 chip</strong><span role="cell">1px 细线胶囊（透明底）</span><span role="cell">浅底小胶囊（#faf4e8）</span><span role="cell">细线胶囊 + ✦ 装饰</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">命运分叉回显</strong><span role="cell">细线卡片（透明底）</span><span role="cell">圆角浅底卡片（#fffdf8）</span><span role="cell">虚线金棕描边 + 题词小字</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">命运分叉编辑器（未选择）</strong><span role="cell">同款细线透明外框：01/02 选项 + textarea + 清空 / 请先选择</span><span role="cell">同款浅底卡片外框：同上结构</span><span role="cell">同款虚线金棕描边 + ✦ 题词 kicker：同上结构</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">轮回标签</strong><span role="cell">第一行小字「轮回」</span><span role="cell">第一行金棕「轮回」</span><span role="cell">第一行「✦ 轮回」</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">时间线</strong><span role="cell">五轮长篇 + 待抉择编辑器</span><span role="cell">五轮长篇 + 待抉择编辑器</span><span role="cell">五轮长篇 + 待抉择编辑器</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 B</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 B 浅底卡片外框。chip 改浅底小胶囊（#faf4e8 + 细边框）、命运分叉回显与编辑器统一圆角浅底卡（#fffdf8 + 细边框，背景与页面差异最小且边界清晰），外框语言一致、层级适中；轮回标签第一行金棕小字、去字胶囊「前世武骨」第二行可读性最佳；五轮时间线 + 暮年 70 岁待抉择编辑器完整呈现已选/未选两状态长篇效果。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A 细线透明外框——1px 细线透明底层级最弱、分叉区块边界感不足；候选 C 仪式装饰外框——✦ 与虚线金棕描边装饰最重，与章节头单行化的克制风格略冲突、装饰喧宾夺主。</dd></div>
+        <div><dt>下一轮继承</dt><dd>按用户所选 B 方向进入第四轮（单选圆形 · 背景统一 · 标签白底）；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

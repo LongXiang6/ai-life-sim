@@ -72,7 +72,6 @@ try {
         reasoningEffort: 'level-2',
         talentThinkingIntensity: 'level-2',
         aiTalentGeneration: true,
-        preGenerateRounds: 0,
         storySeed: '',
         narrativeStyle: 'default',
         wordCountTarget: 1200,
@@ -84,7 +83,7 @@ try {
       saveApiKey: false,
       apiKey: null,
       characterDraft: accountContract.DEFAULT_CLOUD_CHARACTER_DRAFT,
-      mythicTalents: [],
+      reincarnationTalents: [],
       gameRecords: [],
     },
   })

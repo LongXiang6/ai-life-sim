@@ -90,7 +90,7 @@ function accountStatusByQq(database: Database.Database, qq: string): QqBotAccoun
   `).get(qq) as (AccountIdentityRow & { linked_at: number }) | undefined
   if (!row) return null
   const talents = database.prepare(
-    'SELECT COUNT(*) AS count FROM account_mythic_talents WHERE account_id = ?',
+    'SELECT COUNT(*) AS count FROM account_reincarnation_talents WHERE account_id = ?',
   ).get(row.id) as { count: number }
   const records = database.prepare(
     'SELECT COUNT(*) AS count FROM account_game_records WHERE account_id = ?',

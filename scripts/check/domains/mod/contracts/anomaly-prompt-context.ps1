@@ -72,18 +72,3 @@ foreach ($v in $narrativeTemplateVars) {
     Fail "A5-VAR-MISSING" "mods/mod-engine/prompts/narrative-prompt.ts" "" "Template variable '{{$v}}' is in variables[] but '$v' does not exist in PromptContext interface - will always resolve to empty string in narrative prompt"
   }
 }
-
-# A5b: summary-prompt template variables must appear in userPromptTemplate
-$summaryPromptPath = [System.IO.Path]::Combine($SrcDir, "mods", "mod-engine", "prompts", "summary-prompt.ts")
-if (Test-Path $summaryPromptPath) {
-  $spContent = Get-FileContent $summaryPromptPath
-  if ($spContent -match "variables\s*:\s*\[([^\]]+)\]") {
-    $spVarBlock = $Matches[1]
-    $spVars = @([regex]::Matches($spVarBlock, "'(\w+)'") | ForEach-Object { $_.Groups[1].Value })
-    foreach ($sv in $spVars) {
-      if ($spContent -notmatch "\{\{$([regex]::Escape($sv))\}\}") {
-        Fail "A5-SUMMARY-VAR" "mods/mod-engine/prompts/summary-prompt.ts" "" "summaryPrompt variables[] declares '$sv' but userPromptTemplate has no {{$sv}}"
-      }
-    }
-  }
-}

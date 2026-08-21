@@ -1,16 +1,16 @@
 /**
- * @module attr-tiers.ts
- * @description 属性语义映射表，将属性数值转换为自然语言描述（对齐废弃项目 attr-tiers.ts）
- * @mod mod-character
+ * Purpose: Project character attribute values into stable narrative semantics.
+ * Owner: mod-character
+ * Responsibility: Read-only semantic mapping only; attribute owners retain calculation and state.
  */
 
 import { clamp } from '@/core/shared'
 import { TRANSCENDENT_ATTR_KEYS, TRANSCENDENT_TIER_THRESHOLDS } from '../constants'
 
-type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck' | 'morality' | 'health'
+type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck' | 'health'
 
 /** 隐藏属性列表（传给 AI 但不展示给用户） */
-export const HIDDEN_ATTRS: AttrKey[] = ['luck', 'morality', 'health']
+export const HIDDEN_ATTRS: AttrKey[] = ['luck', 'health']
 
 /** 可见属性 */
 export const VISIBLE_ATTR_KEYS: AttrKey[] = ['physique', 'mind', 'talentAptitude', 'charisma']
@@ -140,19 +140,6 @@ export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
     '鸿运当头，逢凶化吉，绝处逢生',
     '气运加身，遇难成祥，天上掉馅饼的好事总能碰上',
     '天命之子，心想事成，整个世界的运转都在为你铺路',
-  ],
-  morality: [
-    '十恶不赦，人神共愤，天下人人得而诛之',
-    '恶贯满盈，丧尽天良，走到哪都被唾弃',
-    '心狠手辣，无恶不作，周围人敢怒不敢言',
-    '自私自利，不择手段，为了目的什么都干得出来',
-    '有点自私，偶尔占点小便宜，不算好人也不算坏人',
-    '平平无奇',
-    '心地善良，乐于助人，会顺手帮一把',
-    '为人正直，行侠仗义，路见不平一声吼',
-    '大善之人，仁心济世，名声响亮受人敬重',
-    '万家生佛，救苦救难，走到哪都有人感恩戴德',
-    '圣人出世，感化众生，天地为之动容',
   ],
   health: [
     '濒临死亡，命悬一线，器官全面衰竭，随时可能死去',

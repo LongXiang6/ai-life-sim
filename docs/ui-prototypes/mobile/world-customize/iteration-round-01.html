@@ -1,0 +1,127 @@
+<!-- Purpose: Record the first UI iteration round for the world-customize sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界配置 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WORLD-CUSTOMIZE / ROUND-01</p>
+      <h1>世界配置 · 第一轮</h1>
+    </div>
+    <span class="status status-selected">已选择 03</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>建立世界配置子界面第一轮：候选 01 还原运行时当前基线作为对照；候选 02 应用已定版语言（暖纸墨、卡片化、金强调、双文字等宽底栏）；候选 03 聚焦式。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（02 / 08）、标题「世界创作工坊」副句「确认这段人生的底层规则。」、世界摘要（来源/难度/世界名/年代/规则摘要/来源·年代·难度）、世界规则预览（四项规则）、世界描述输入、节日范围（仅中国/中国及国际）、世界规则四维度卡片（AI/选择/自定）、底部返回世界选择与确认世界（03）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（摘要与维度主次）、操作效率（难度/模式/选择）、精简协调性（与已定版基线的统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前基线</strong></header>
+          <p>还原运行时：蓝白纸面、宋体标题、蓝紫强调、难度按钮、规则摘要灰底、维度卡片分隔线、三胶囊模式。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>精简单列</strong></header>
+          <p>暖纸墨全页、世界摘要卡片化 20px 圆角、维度卡片白卡、金强调、双文字等宽纯白同底按钮。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>聚焦式</strong></header>
+          <p>同暖纸墨，标题与副句居中、世界摘要聚焦（大世界名 + 年代 + 一句话）、维度聚焦当前调整。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focused.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 当前基线</span><span role="columnheader">02 精简单列</span><span role="columnheader">03 聚焦式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">蓝白纸面堆叠</span><span role="cell">卡片化分区</span><span role="cell">摘要聚焦主导</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">胶囊与按钮齐备</span><span role="cell">金强调选中</span><span role="cell">聚焦当前调整</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版不一致</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（聚焦式）。用户确认：暖纸墨、标题与副句居中、世界摘要聚焦（大世界名 + 年代 + 一句话引语）、维度聚焦当前调整、双文字等宽纯白同底栏为世界配置第一轮定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前基线）：蓝白纸面未应用定版语言。候选 02（精简单列）：结构保守，聚焦度不足。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留聚焦式结构与定版语言；按用户指示移除世界摘要 section（世界名/引语/难度并入标题区），规则摘要与 facts 元信息删除，进入第二轮。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

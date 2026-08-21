@@ -15,6 +15,7 @@ import { isNarrativeWordCountTarget } from '@/foundation'
 
 import {
   DEFAULT_SETTINGS_VALUES,
+  MAX_TEMPERATURE,
   normalizeImportedModelSettings,
   useSettingsStore,
 } from '../store'
@@ -34,8 +35,9 @@ export function SettingsDataManagement() {
   const handleExport = useCallback(() => {
     const {
       provider, customKey, customUrl, customModel, temperature, topP,
-      reasoningEffort, talentThinkingIntensity, aiTalentGeneration, preGenerateRounds,
-      storySeed, narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
+      reasoningEffort, talentThinkingIntensity, aiTalentGeneration,
+      preGenerateRounds,
+      narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
       streamingMode, comfortableParagraphs, reduceMotion,
     } = settingsState
     const data = {
@@ -43,8 +45,9 @@ export function SettingsDataManagement() {
       exportedAt: Date.now(),
       settings: {
         provider, customKey, customUrl, customModel, temperature, topP,
-        reasoningEffort, talentThinkingIntensity, aiTalentGeneration, preGenerateRounds,
-        storySeed, narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
+        reasoningEffort, talentThinkingIntensity, aiTalentGeneration,
+        preGenerateRounds,
+        narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
         streamingMode, comfortableParagraphs, reduceMotion, fontFamily,
       },
     }
@@ -81,6 +84,7 @@ export function SettingsDataManagement() {
             store.setCustomKey(DEFAULT_SETTINGS_VALUES.customKey)
             store.setCustomUrl(DEFAULT_SETTINGS_VALUES.customUrl)
             store.setCustomModel(DEFAULT_SETTINGS_VALUES.customModel)
+            useSettingsStore.setState({ customModelProfiles: [] })
             store.setTemperature(DEFAULT_SETTINGS_VALUES.temperature)
             store.setTopP(DEFAULT_SETTINGS_VALUES.topP)
             store.setReasoningEffort(DEFAULT_SETTINGS_VALUES.reasoningEffort)
@@ -105,14 +109,15 @@ export function SettingsDataManagement() {
           store.setCustomKey(importedModel.customKey)
           store.setCustomUrl(importedModel.customUrl)
           store.setCustomModel(importedModel.customModel)
-          if (typeof imported.temperature === 'number') store.setTemperature(clamp(imported.temperature, 0, 2))
+          if (typeof imported.temperature === 'number') store.setTemperature(clamp(imported.temperature, 0, MAX_TEMPERATURE))
           if (typeof imported.topP === 'number') store.setTopP(clamp(imported.topP, 0, 1))
           if (typeof imported.reasoningEffort === 'string') store.setReasoningEffort(imported.reasoningEffort)
           if (typeof imported.talentThinkingIntensity === 'string') store.setTalentThinkingIntensity(imported.talentThinkingIntensity)
           if (typeof imported.aiTalentGeneration === 'boolean') store.setAiTalentGeneration(imported.aiTalentGeneration)
-          if (typeof imported.preGenerateRounds === 'number') store.setPreGenerateRounds(clamp(imported.preGenerateRounds, 0, 3))
-          if (typeof imported.storySeed === 'string') store.setStorySeed(imported.storySeed)
-          if (typeof imported.narrativeStyle === 'string') store.setNarrativeStyle(imported.narrativeStyle as NarrativeStyle)
+          if (imported.preGenerateRounds === 0 || imported.preGenerateRounds === 1) {
+            store.setPreGenerateRounds(imported.preGenerateRounds)
+          }
+            if (typeof imported.narrativeStyle === 'string') store.setNarrativeStyle(imported.narrativeStyle as NarrativeStyle)
           if (typeof imported.narrativeStyleText === 'string') {
             useSettingsStore.setState({
               narrativeStyleText: imported.narrativeStyleText,

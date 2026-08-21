@@ -1,0 +1,136 @@
+/* Purpose: Present the public player-feedback list. Owner: mod-pages/feedback. Responsibility: Read-only list, status markers, and paging controls only. */
+
+.feedbackList {
+  display: grid;
+  gap: calc(8 * var(--final-flow-density-px));
+}
+
+.listToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--flow-muted);
+  font-size: calc(8.5 * var(--final-flow-density-px));
+}
+
+.refreshButton,
+.loadMoreButton {
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+  background: var(--flow-accent-soft);
+  color: var(--flow-ink);
+  cursor: pointer;
+  font-size: calc(9 * var(--final-flow-density-px));
+  font-weight: 650;
+}
+
+.refreshButton {
+  min-height: calc(25 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border-radius: calc(12.5 * var(--final-flow-density-px));
+}
+
+.refreshButton:disabled,
+.loadMoreButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.error {
+  margin: 0;
+  padding: calc(8.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+  border-radius: calc(11.667 * var(--final-flow-density-px));
+  background: var(--color-error-bg);
+  color: #936875;
+  font-size: calc(9.167 * var(--final-flow-density-px));
+  line-height: 1.5;
+}
+
+.feedbackItem {
+  padding: calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(10 * var(--final-flow-density-px));
+  background: var(--flow-paper);
+}
+
+.feedbackItemHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(6 * var(--final-flow-density-px));
+}
+
+.feedbackCategory,
+.feedbackStatus {
+  display: inline-flex;
+  min-height: calc(20 * var(--final-flow-density-px));
+  align-items: center;
+  padding: 0 calc(6 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid currentColor;
+  border-radius: calc(999 * var(--final-flow-density-px));
+  font-size: calc(7.5 * var(--final-flow-density-px));
+  font-weight: 700;
+}
+
+.feedbackCategory {
+  background: var(--flow-accent-soft);
+  color: var(--flow-ink);
+}
+
+.status_new {
+  background: var(--color-bg-secondary);
+  color: #6576b2;
+}
+
+.status_resolved {
+  background: var(--color-success-bg);
+  color: #4f7658;
+}
+
+.status_rejected,
+.status_duplicate {
+  background: var(--color-error-bg);
+  color: #936875;
+}
+
+.status_in_progress,
+.status_reopened {
+  background: var(--color-primary-light);
+  color: #876e36;
+}
+
+.feedbackItem h3 {
+  margin: calc(7 * var(--final-flow-density-px)) 0 calc(4 * var(--final-flow-density-px));
+  color: var(--flow-ink);
+  font-size: calc(10 * var(--final-flow-density-px));
+}
+
+.feedbackItem p {
+  margin: 0;
+  color: var(--flow-muted);
+  font-size: calc(9 * var(--final-flow-density-px));
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.feedbackItem footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(5 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
+  color: var(--flow-faint);
+  font-size: calc(7.5 * var(--final-flow-density-px));
+}
+
+.emptyState {
+  margin: 0;
+  padding: calc(18 * var(--final-flow-density-px)) 0;
+  color: var(--flow-faint);
+  font-size: calc(9 * var(--final-flow-density-px));
+  text-align: center;
+}
+
+.loadMoreButton {
+  min-height: calc(32 * var(--final-flow-density-px));
+  border-radius: calc(999 * var(--final-flow-density-px));
+}

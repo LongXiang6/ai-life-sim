@@ -1,0 +1,130 @@
+<!-- Purpose: Record the second UI iteration round for the fate-preview page (07). Owner: Interface system. Responsibility: Compare confirmed preview-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命运预览 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">FATE-PREVIEW / ROUND-02</p>
+      <h1>命运预览 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-01 定版候选 C（运行时结构：世界与角色 → 属性与命格 → 模拟种子 → 世界初始化）为基线，第二轮迭代方向「板块区分折中」——B 版（核对卡片分组）世界区拆 3 子卡 + 属性与命格区拆 3 子卡共 6 子卡，板块区分过多、同屏层级过碎；C 版完全无内部分区。本轮三候选取中间程度的分区强度——候选 A 轻分隔（不拆卡，区内用虚线分段）；候选 B 双卡折中（世界区 2 子卡 + 属性与命格区 2 子卡）；候选 C 属性区分隔线（贴近定版，仅属性与命格区内一处细线分区）。结构与数值口径全部照抄运行时 fate-preview 页面。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（07 / 08）、标题「核对命书」+ 副句「确认所有起点，然后开启人生。」、世界与角色（已确认世界 · 描述原文、世界名与描述、姓名 · 性别 · 种族、起始年龄、预期寿命 ⏳ / 力量体系 ⚡ / 世界空间 🗺️ 三格）、属性与命格（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫 四格基础值 + 独立修正、命格行名称 + 稀有度 · 极性 + 描述、轮回天赋行；不含角色天赋 pill——运行时 setTalents 无调用点、talents 恒为空数组、该区块永不渲染）、模拟种子（最多 8 位数字输入 + 随机按钮 + 提示）、世界初始化（4 步：校准 / 标签 / 参数 / 区域，完成 ✓ / 调用中 spinner / 等待 / 失败 ×，进度 X / 4 完成、底部说明与门禁提示）、底部返回（返回确认属性 / 返回确认角色）与确认（开始人生，确认号 08）。运行时 FatePreview.module.css 仅世界初始化 spinner（loading149Spin 0.8s linear infinite，reduced-motion 2s）一处动画，候选照抄该参数，不加其他动画。候选不含 localStorage/sessionStorage/fetch（种子输入为纯 DOM 状态，不持久化）。</dd></div>
+        <div><dt>比较维度</dt><dd>板块区分度（分区强度是否适中：信息可分组又不碎）、信息层级（世界 / 属性 / 种子 / 初始化四区主次）、数值可读性（基础值 + 修正的合并显示）、精简协调性（与抽取 / 选取 / 属性分配定版语言的连贯统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>轻分隔</strong></header>
+          <p>保持运行时四区单卡连续结构，不拆子卡；世界与角色区内以虚线分段（世界描述 → 角色身份 → 核心数据），属性与命格区内以虚线分隔四属性网格与命格行，分区最轻。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-light-dividers.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>双卡折中</strong></header>
+          <p>世界区拆 2 子卡（世界资料 / 角色身份与核心数据），属性与命格区拆 2 子卡（四项属性 / 命格与轮回天赋），比 B 版六子卡减半，分组适度。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-two-group-cards.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>属性区分隔线</strong></header>
+          <p>最贴近定版：四区单卡连续，仅属性与命格区内四属性网格与命格行之间加一条细线分区，其余保持运行时原样。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-attr-line.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 轻分隔</span><span role="columnheader">B 双卡折中</span><span role="columnheader">C 属性区分隔线</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">板块区分度</strong><span role="cell">区内虚线分段，不拆卡</span><span role="cell">世界 2 卡 + 属性 2 卡</span><span role="cell">仅属性区一处细线</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">分组不碎，滚动连续</span><span role="cell">分组适度，层级清晰</span><span role="cell">最贴近定版连续流</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">数值可读性</strong><span role="cell">基础值 + 修正同格</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">spinner 0.8s 照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">与抽取/选取/属性定版统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A（轻分隔）。用户确认「A继续迭代」。要点：不拆子卡，保持运行时四区单卡连续结构，世界与角色区内以虚线分段（世界描述 → 角色身份 → 核心数据）、属性与命格区内以虚线分隔四属性网格与命格行——分区最轻且不碎，兼顾折中意图。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B（双卡折中）：世界区 2 子卡 + 属性与命格区 2 子卡仍带卡片底，同屏层级仍偏多，先不采纳；候选 C（属性区分隔线）：仅属性区一处细线分区，分区强度低于折中意图，世界区无任何分段，先不采纳。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 A（轻分隔）为基线开始第三轮迭代；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

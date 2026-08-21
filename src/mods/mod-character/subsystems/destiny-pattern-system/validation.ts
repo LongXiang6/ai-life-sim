@@ -1,30 +1,59 @@
 /**
- * Purpose: Parse, normalize, deduplicate, and quality-check destiny-pattern AI values.
+ * Purpose: Parse, normalize, deduplicate, and structurally validate destiny-pattern values.
  * Owner: mod-character
- * Responsibility: Provide pure validation helpers without calling AI or mutating character state.
+ * Responsibility: Pure protocol validation without AI calls or character-state mutation.
  */
 
-import { clamp } from '@/core/shared'
-
+import { parseAIJSONCandidates } from '@/core'
 import {
-  DESTINY_PATTERN_DESC_MIN,
-  DESTINY_PATTERN_EFFECT_MIN,
-} from '../../prompts/destiny-pattern-context'
-import { translateDestinyPatternAIResponse } from '../../prompts/destiny-pattern-prompt'
+  DESTINY_PATTERN_CATEGORY_CONFIG,
+  DESTINY_PATTERN_ID_PREFIX,
+} from '../../constants'
 import type {
   DestinyPattern,
-  DestinyPatternPolarity,
+  DestinyPatternCategory,
   DestinyPatternRarity,
 } from '../../types'
-import {
-  rejectsBirthStateDestinyPatternContent,
-  rejectsFutureDestinyPatternContent,
-} from '../../utils/destiny-pattern-content-quality'
-import { DESTINY_PATTERN_ID_PREFIX } from '../../constants'
 import type { DestinyPatternAIItem } from './contracts'
+import { validateDestinyPatternAttrBonusForRarity } from '../../destiny-pattern-growth'
+
+const CATEGORY_BY_LABEL = Object.fromEntries(
+  Object.entries(DESTINY_PATTERN_CATEGORY_CONFIG).map(([category, config]) => [config.label, category]),
+) as Record<string, DestinyPatternCategory>
+
+const ATTRIBUTE_BY_LABEL: Record<string, string> = {
+  体魄: 'physique',
+  力量: 'physique',
+  体质: 'physique',
+  心智: 'mind',
+  智力: 'mind',
+  智慧: 'mind',
+  悟性: 'talentAptitude',
+  天赋: 'talentAptitude',
+  资质: 'talentAptitude',
+  魅力: 'charisma',
+  容貌: 'charisma',
+  气质: 'charisma',
+  气运: 'luck',
+  physique: 'physique',
+  mind: 'mind',
+  talentaptitude: 'talentAptitude',
+  talent: 'talentAptitude',
+  charisma: 'charisma',
+  luck: 'luck',
+}
+
+const FIELD_ALIASES = {
+  category: ['类别', '分类', '方向', 'category', 'type'],
+  name: ['名称', '名字', '命格名称', 'name', 'title'],
+  description: ['设定描述', '描述', '背景', '详细介绍', 'description', 'detail'],
+  effect: ['效果', '作用', '效果描述', '影响', 'effect', 'result'],
+  attrBonus: ['属性加成', '属性', '属性变化', '加成', 'attrBonus', 'attributes'],
+  items: ['天赋', '命格', '候选', '候选命格', 'patterns', 'talents', 'candidates', 'items'],
+} as const
 
 export function destinyPatternNameKey(name: string): string {
-  return name.trim().toLocaleLowerCase()
+  return name.normalize('NFKC').trim().replace(/\s+/gu, '').toLocaleLowerCase()
 }
 
 export function dedupeDestinyPatterns(patterns: DestinyPattern[]): DestinyPattern[] {
@@ -46,111 +75,151 @@ export function isAIGeneratedDestinyPattern(pattern: DestinyPattern): boolean {
   return pattern.id.startsWith(`${DESTINY_PATTERN_ID_PREFIX.AI}-`) || pattern.id.startsWith('ai_')
 }
 
-export function passesDestinyPatternContentQuality(item: DestinyPatternAIItem, startingAge = 0): boolean {
-  const descLen = item.description?.length ?? 0
-  if (descLen < DESTINY_PATTERN_DESC_MIN) return false
-  if ((item.effect?.length ?? 0) < DESTINY_PATTERN_EFFECT_MIN) return false
-  if (rejectsFutureDestinyPatternContent(item, startingAge)) return false
-  if (rejectsBirthStateDestinyPatternContent(item)) return false
-  if (item.rarity === 'common' && item.attrBonus) {
-    const nonZero = Object.values(item.attrBonus).filter((v) => Number(v) !== 0).length
-    if (nonZero > 1) return false
-  }
-  return true
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-export function parseDestinyPatternAIResponse(response: string): Array<{
-  name: string
-  description: string
-  rarity: string
-  polarity: string
-  effect: string
-  attrBonus: Record<string, number>
-  systemModifiers?: Record<string, number>
-}> {
-  try {
-    let jsonText = response.trim()
-    const jsonMatch = jsonText.match(/```json\s*([\s\S]*?)```/) || jsonText.match(/```\s*([\s\S]*?)```/)
-    if (jsonMatch) {
-      jsonText = jsonMatch[1].trim()
-    }
+function pickField(record: Record<string, unknown>, aliases: readonly string[]): unknown {
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(record, alias)) return record[alias]
+  }
+  const normalized = new Map(Object.entries(record).map(([key, value]) => [key.normalize('NFKC').toLocaleLowerCase(), value]))
+  for (const alias of aliases) {
+    const value = normalized.get(alias.normalize('NFKC').toLocaleLowerCase())
+    if (value !== undefined) return value
+  }
+  return undefined
+}
 
-    const parsed = JSON.parse(jsonText)
-    let list: unknown[] = []
-    if (Array.isArray(parsed)) {
-      list = parsed
-    } else if (parsed && typeof parsed === 'object' && parsed.name) {
-      list = [parsed]
-    } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { patterns?: unknown }).patterns)) {
-      list = (parsed as { patterns: unknown[] }).patterns
-    } else if (parsed && typeof parsed === 'object') {
-      for (const val of Object.values(parsed)) {
-        if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
-          list = val
-          break
-        }
+function textValue(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim()
+}
+
+function normalizeCategory(value: unknown, fallback?: DestinyPatternCategory): DestinyPatternCategory | null {
+  const text = textValue(value)
+  const english: Record<string, DestinyPatternCategory> = {
+    battle: 'battle', combat: 'battle', exploration: 'exploration', explore: 'exploration',
+    social: 'social', production: 'production', manufacture: 'production',
+  }
+  return CATEGORY_BY_LABEL[text] ?? english[text.toLocaleLowerCase()] ?? fallback ?? null
+}
+
+function normalizeAttributeKey(value: string): string | null {
+  const compact = value.normalize('NFKC').trim().replace(/[\s_-]+/gu, '').toLocaleLowerCase()
+  return ATTRIBUTE_BY_LABEL[compact] ?? ATTRIBUTE_BY_LABEL[value.trim()] ?? null
+}
+
+function addAttribute(result: Record<string, number>, label: unknown, rawValue: unknown): void {
+  const key = normalizeAttributeKey(textValue(label))
+  const value = Number(rawValue)
+  if (!key || !Number.isInteger(value) || value === 0) return
+  result[key] = (result[key] ?? 0) + value
+}
+
+function normalizeAttrBonus(value: unknown): Record<string, number> {
+  const result: Record<string, number> = {}
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (isRecord(entry)) {
+        addAttribute(result, pickField(entry, ['属性', '名称', 'attribute', 'name', 'key']), pickField(entry, ['数值', '值', 'value', 'amount', 'bonus']))
+      } else if (typeof entry === 'string') {
+        Object.assign(result, normalizeAttrBonus(entry))
       }
     }
-
-    // 执行中文键值对底层英文契约翻译映射转译
-    return translateDestinyPatternAIResponse(list) as Array<{
-      name: string
-      description: string
-      rarity: string
-      polarity: string
-      effect: string
-      attrBonus: Record<string, number>
-      systemModifiers?: Record<string, number>
-    }>
-  } catch {
-    return []
+    return result
   }
+  if (isRecord(value)) {
+    for (const [label, rawValue] of Object.entries(value)) addAttribute(result, label, rawValue)
+    return result
+  }
+  if (typeof value !== 'string') return result
+  if (/^(无|没有|无属性|无加成|none|none\s*bonus)$/iu.test(value.trim())) return result
+  const pattern = /(体魄|力量|体质|心智|智力|智慧|悟性|天赋|资质|魅力|容貌|气质|气运|physique|mind|talentaptitude|talent|charisma|luck)\s*[:：=]?\s*([+-]?\d+)/giu
+  for (const match of value.matchAll(pattern)) addAttribute(result, match[1], match[2])
+  return result
+}
+
+function looksLikePattern(value: Record<string, unknown>): boolean {
+  return FIELD_ALIASES.name.some((key) => Object.prototype.hasOwnProperty.call(value, key))
+    || FIELD_ALIASES.description.some((key) => Object.prototype.hasOwnProperty.call(value, key))
+    || FIELD_ALIASES.effect.some((key) => Object.prototype.hasOwnProperty.call(value, key))
+}
+
+function collectPatternItems(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value.flatMap((entry) => collectPatternItems(entry))
+  if (!isRecord(value)) return []
+  const nested = pickField(value, FIELD_ALIASES.items)
+  if (nested !== undefined) return collectPatternItems(nested)
+  if (looksLikePattern(value)) return [value]
+  return Object.values(value).flatMap((entry) => (
+    Array.isArray(entry) || isRecord(entry) ? collectPatternItems(entry) : []
+  ))
+}
+
+function normalizePatternItem(value: unknown, fallbackCategory?: DestinyPatternCategory): DestinyPatternAIItem | null {
+  if (!isRecord(value)) return null
+  const name = textValue(pickField(value, FIELD_ALIASES.name))
+  let description = textValue(pickField(value, FIELD_ALIASES.description))
+  let effect = textValue(pickField(value, FIELD_ALIASES.effect))
+  if (!description && effect) description = effect
+  if (!effect && description) effect = description
+  const category = normalizeCategory(pickField(value, FIELD_ALIASES.category), fallbackCategory)
+  if (!category || !name || !description || !effect) return null
+  return {
+    category,
+    name,
+    description,
+    effect,
+    attrBonus: normalizeAttrBonus(pickField(value, FIELD_ALIASES.attrBonus)),
+  }
+}
+
+export function parseDestinyPatternAIResponse(
+  response: string,
+  expectedCategory?: DestinyPatternCategory,
+): DestinyPatternAIItem[] {
+  const candidates = parseAIJSONCandidates<unknown>(response)
+  const items = candidates.flatMap((candidate) => collectPatternItems(candidate.value))
+  const normalized: DestinyPatternAIItem[] = []
+  for (const item of items) {
+    const parsed = normalizePatternItem(item, expectedCategory)
+    if (parsed) normalized.push(parsed)
+  }
+  return normalized
+}
+
+export function validateDestinyPatternCategory(category: string): DestinyPatternCategory | null {
+  const valid: DestinyPatternCategory[] = ['battle', 'exploration', 'social', 'production']
+  return valid.includes(category as DestinyPatternCategory) ? category as DestinyPatternCategory : null
 }
 
 export function validateDestinyPatternRarity(rarity: string): DestinyPatternRarity | null {
   const valid: DestinyPatternRarity[] = ['common', 'fine', 'rare', 'epic', 'legendary']
-  return valid.includes(rarity as DestinyPatternRarity) ? (rarity as DestinyPatternRarity) : null
-}
-
-export function validateDestinyPatternPolarity(polarity: string): DestinyPatternPolarity | null {
-  const valid: DestinyPatternPolarity[] = ['positive', 'mixed']
-  return valid.includes(polarity as DestinyPatternPolarity) ? (polarity as DestinyPatternPolarity) : null
+  return valid.includes(rarity as DestinyPatternRarity) ? rarity as DestinyPatternRarity : null
 }
 
 export function validateDestinyPatternAttrBonus(
   bonus: Record<string, number> | undefined,
-  rarity: string,
+  rarity: DestinyPatternRarity,
 ): Partial<Record<string, number>> {
   if (!bonus || typeof bonus !== 'object') return {}
 
-  const validKeys = ['physique', 'mind', 'talentAptitude', 'charisma']
+  const validKeys = ['physique', 'mind', 'talentAptitude', 'charisma', 'luck']
   const result: Record<string, number> = {}
-  const maxTotal = rarity === 'legendary' ? 7 : rarity === 'epic' ? 5 : rarity === 'rare' ? 4 : rarity === 'fine' ? 3 : 1
-
-  let total = 0
   for (const key of validKeys) {
-    const val = Number(bonus[key])
-    if (isNaN(val) || val === 0) continue
-    const clamped = clamp(val, -4, 4)
-    result[key] = clamped
-    total += Math.abs(clamped)
+    const value = Number(bonus[key])
+    if (!Number.isInteger(value) || value === 0) continue
+    result[key] = value
   }
-
-  // 总和超限则按比例缩放
-  if (total > maxTotal && total > 0) {
-    const scale = maxTotal / total
-    for (const key of Object.keys(result)) {
-      result[key] = Math.round((result[key] ?? 0) * scale)
-    }
+  if (!validateDestinyPatternAttrBonusForRarity(result, rarity)) {
+    throw new Error(`${getDestinyPatternRarityLabel(rarity)}天赋属性加成超过等级边界或包含无效值`)
   }
-
   return result
 }
 
 export function getDestinyPatternRarityLabel(rarity: DestinyPatternRarity): string {
   const labels: Record<DestinyPatternRarity, string> = {
-    common: '普通', fine: '精良', rare: '稀有', epic: '史诗', legendary: '传说',
+    common: '普通', fine: '精良', rare: '稀有', epic: '史诗', legendary: '传说', mythic: '神话',
   }
-  return labels[rarity] ?? rarity
+  return labels[rarity]
 }
-

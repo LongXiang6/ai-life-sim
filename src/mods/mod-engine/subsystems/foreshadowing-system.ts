@@ -19,9 +19,14 @@ import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundatio
 import { getRoundSequence } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 
-import { memoryLifecycle } from './memory-lifecycle-system'
-import { summaryCompressor } from './summary-compressor-system'
-import { toNarrativeAIForeshadowingId } from '../helpers/narrative-ai-protocol'
+import {
+  MemoryLifecycleSystem,
+  memoryLifecycle,
+} from './memory-lifecycle-system'
+import {
+  SummaryCompressorSystem,
+  summaryCompressor,
+} from './summary-compressor-system'
 import { clampNumber } from '../helpers/system-safety'
 
 // ============================================================
@@ -92,6 +97,10 @@ function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
   return [...new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))]
 }
 
+function formatForeshadowingDisplayId(internalId: string): string {
+  return internalId.startsWith('fs_') ? `伏笔_${internalId.slice(3)}` : internalId
+}
+
 /** 伏笔系统状态 */
 export interface ForeshadowingState {
   enabled: boolean
@@ -121,6 +130,13 @@ export class ForeshadowingSystem extends BaseSubsystem {
   readonly mod = 'mod-engine' as const
   readonly label = '伏笔追踪' as const
   readonly description = '检测/追踪/回收 AI 叙事中的伏笔，引导长线叙事（可选子系统）' as const
+
+  constructor(
+    private readonly memoryLifecycleRuntime: MemoryLifecycleSystem = memoryLifecycle,
+    private readonly summaryCompressorRuntime: SummaryCompressorSystem = summaryCompressor,
+  ) {
+    super()
+  }
 
   private state: ForeshadowingState = {
     enabled: true,
@@ -185,7 +201,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     this._lastProcessedRound = -1
   }
 
-  /** 预生成会临时推进伏笔计时；结束后必须完整恢复真实时间线。 */
+  /** 导出伏笔计时的完整持久状态。 */
   capturePersistenceState(): unknown {
     return structuredClone({
       state: this.state,
@@ -299,7 +315,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
       this.state.active = this.state.active.filter((item) => item.id !== record.id)
       this.state.resolved.push(record)
       this.state.stats.totalResolved++
-      memoryLifecycle.resolveForeshadowMark(record.plantedRound, record.contextId)
+      this.memoryLifecycleRuntime.resolveForeshadowMark(record.plantedRound, record.contextId)
       resolved.push(record)
     }
 
@@ -328,7 +344,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     for (const { record, score } of scored) {
       const typeLabel = FORESHADOWING_TYPE_LABELS[record.type]
       const hint = this.buildResolutionHint(record, score)
-      lines.push(`\n▪ [编号=${toNarrativeAIForeshadowingId(record.id)}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
+      lines.push(`\n▪ [编号=${formatForeshadowingDisplayId(record.id)}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
 
       const context = this.getPlantedContext(record.plantedRound, record.contextId)
       if (context) {
@@ -346,15 +362,12 @@ export class ForeshadowingSystem extends BaseSubsystem {
 
   /** 从压缩摘要中获取指定轮次的上下文（用于伏笔注入时附带种植背景） */
   private getPlantedContext(round: number, contextId?: string): string | null {
-    const summaries = summaryCompressor.getSummaries()
-    // 查找覆盖该轮次的 L1 摘要（最详细）
-    const l1 = summaries.summaries.find(
-      (s) => s.level === 1
-        && s.startRound <= round
-        && s.endRound >= round
-        && (!contextId || !s.contextIds || s.contextIds.includes(contextId)),
+    const summaries = this.summaryCompressorRuntime.getSummaries()
+    const memory = summaries.summaries.find(
+      (summary) => summary.sourceRound === round
+        && (!contextId || !summary.contextId || summary.contextId === contextId),
     )
-    if (l1) return l1.content
+    if (memory) return memory.content
     return null
   }
 
@@ -421,7 +434,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     this.state.stats.totalPlanted++
 
     // 标记为不可遗忘事件
-    memoryLifecycle.markForeshadowEvent(record.plantedRound, record.description, record.contextId)
+    this.memoryLifecycleRuntime.markForeshadowEvent(record.plantedRound, record.description, record.contextId)
   }
 
   /** 计算伏笔的"接近触发"分数 (0-10) */

@@ -5,52 +5,61 @@
  */
 
 import type { RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
-import type { DestinyPattern, DestinyPatternInput, DestinyPatternRarity, DestinyPatternState } from '../types'
+import type {
+  DestinyPattern,
+  DestinyPatternGrowthHistoryEntry,
+  PendingDestinyPatternGrowth,
+  DestinyPatternInput,
+  DestinyPatternRarity,
+  DestinyPatternState,
+} from '../types'
 import { BaseSubsystem } from '@/core'
 
 import {
   PRESET_DESTINY_PATTERNS,
-  DESTINY_PATTERN_RARITY_WEIGHTS,
-  DESTINY_PATTERN_RARITY_LIMITS,
+  DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_DISPLAY_COUNT,
-  DESTINY_PATTERN_SELECT_COUNT,
+  PATTERN_LOADOUT_SLOT_COUNT,
   DESTINY_PATTERN_ID_PREFIX,
+  PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME,
 } from '../constants'
 
 import type { BuildDestinyPatternContextInput } from '../prompts/destiny-pattern-context'
 import { useCharacterStore } from '../store'
-import { validatePatternSystemModifiers } from '../utils/destiny-pattern-modifiers'
 import { sanitizeDestinyPatternState } from '../utils/character-state-migration'
+import {
+  registerPendingDestinyPatternGrowthInState,
+  resolvePendingDestinyPatternGrowthInState,
+  withInitialDestinyPatternGrowthIdentity,
+} from '../destiny-pattern-growth'
 
-export type {
-  DestinyPatternAIGenerateOptions,
-  DestinyPatternPoolFillStatus,
-} from './destiny-pattern-system/contracts'
+export type { DestinyPatternPoolFillStatus } from './destiny-pattern-system/contracts'
 import type {
-  DestinyPatternAIGenerateOptions,
   DestinyPatternAiCaller,
+  DestinyPatternPoolListener,
   DestinyPatternPoolFillStatus,
 } from './destiny-pattern-system/contracts'
 import { DestinyPatternAiPoolService } from './destiny-pattern-system/ai-pool-service'
 import {
   getDestinyPatternRarityLabel,
   validateDestinyPatternAttrBonus,
-  validateDestinyPatternPolarity,
-  validateDestinyPatternRarity,
+  validateDestinyPatternCategory,
 } from './destiny-pattern-system/validation'
 
 export class DestinyPatternSystem extends BaseSubsystem {
   readonly id = 'destiny-pattern' as const
   readonly mod = 'mod-character' as const
   readonly label = '命格' as const
-  readonly description = '管理角色命格池，支持抽12选3、首屏五条早交接 + AI 流式生成 + 内置预设双模式' as const
+  readonly description = '管理四类命格候选与选中结果，支持四路首批生成和分类后台补充' as const
 
   private idCounter = 0
 
   private state: DestinyPatternState = {
     candidates: [],
     patterns: [],
-    rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 },
+    rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+    pendingGrowth: null,
+    growthHistory: [],
   }
 
   private readonly aiPool = new DestinyPatternAiPoolService((patterns) => {
@@ -72,6 +81,8 @@ export class DestinyPatternSystem extends BaseSubsystem {
         candidates: s.candidates,
         patterns: s.patterns,
         rarityCount: s.rarityCount,
+        pendingGrowth: s.pendingGrowth,
+        growthHistory: s.growthHistory,
       }),
     }
   }
@@ -92,7 +103,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     // 设置完整命格列表
     if (Array.isArray(ch.patterns)) {
       this.state.patterns = []
-      this.state.rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 }
+      this.state.rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 }
       for (const p of ch.patterns as DestinyPattern[]) {
         this.addPattern(p)
       }
@@ -105,49 +116,51 @@ export class DestinyPatternSystem extends BaseSubsystem {
     this.state = {
       candidates: [],
       patterns: [],
-      rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 },
+      rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+      pendingGrowth: null,
+      growthHistory: [],
     }
   }
 
   /** 将创建流程已确认的候选与命格写入运行时单例。 */
   hydrateFromStore(): void {
-    this.restoreCollectedState(useCharacterStore.getState().destinyPatterns)
+    const store = useCharacterStore.getState()
+    this.state = sanitizeDestinyPatternState(store.destinyPatterns, store.age)
+    this.idCounter = Math.max(this.idCounter, this.state.candidates.length + this.state.patterns.length)
+    useCharacterStore.setState({ destinyPatterns: structuredClone(this.state) })
   }
 
   /** 从 orchestrator collectState().data 恢复命格运行态。 */
   restoreCollectedState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    this.state = sanitizeDestinyPatternState(snapshot)
+    this.state = sanitizeDestinyPatternState(snapshot, useCharacterStore.getState().age)
     this.idCounter = Math.max(this.idCounter, this.state.candidates.length + this.state.patterns.length)
   }
 
   // -------- 公共方法 --------
 
-  /** 内置模式：从预设池随机生成候选命格（展示 12 条，暂存 candidates，不直接写入 patterns） */
+  /** 内置模式：按与 AI 相同的四类首批配额生成普通候选。 */
   generateFromPresets(count = DESTINY_PATTERN_DISPLAY_COUNT): DestinyPattern[] {
-    const pool = PRESET_DESTINY_PATTERNS.filter((pattern) => pattern.polarity !== 'negative')
+    const assignments = DESTINY_PATTERN_CATEGORY_ORDER.flatMap((category) => (
+      Array.from({ length: Math.ceil(count / DESTINY_PATTERN_CATEGORY_ORDER.length) }, () => category)
+    )).slice(0, count)
     const result: DestinyPattern[] = []
-
-    // 加权随机抽取
-    while (result.length < count && pool.length > 0) {
-      const weighted = this.buildWeightedPool(pool, result)
-      const idx = this.weightedRandomIndex(weighted)
-      const template = weighted[idx]
-      if (!template) continue
-
-      const pattern: DestinyPattern = {
-        id: `${DESTINY_PATTERN_ID_PREFIX.PRESET}-${this.idCounter++}`,
+    const usedNames = new Set<string>()
+    for (const category of assignments) {
+      const pool = PRESET_DESTINY_PATTERNS.filter((pattern) => (
+        PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME[pattern.name] === category
+        && !usedNames.has(pattern.name)
+      ))
+      const template = pool[Math.floor(Math.random() * pool.length)]
+      if (!template) throw new Error(`内置命格缺少 ${category} 分类候选`)
+      usedNames.add(template.name)
+      const id = `${DESTINY_PATTERN_ID_PREFIX.PRESET}-${this.idCounter++}`
+      result.push(withInitialDestinyPatternGrowthIdentity({
+        id,
         ...template,
-      }
-
-      // 检查稀有度上限
-      const limit = DESTINY_PATTERN_RARITY_LIMITS[pattern.rarity]
-      const currentCount = result.filter((p) => p.rarity === pattern.rarity).length
-      if (limit !== undefined && currentCount >= limit) {
-        continue
-      }
-
-      result.push(pattern)
+        category,
+        rarity: 'common',
+      }, id))
     }
 
     this.state.candidates = result
@@ -164,36 +177,43 @@ export class DestinyPatternSystem extends BaseSubsystem {
     const result: DestinyPattern[] = []
 
     for (const input of aiGeneratedPatterns) {
-      const rarity = validateDestinyPatternRarity(input.rarity)
-      const polarity = validateDestinyPatternPolarity(input.polarity)
-      if (!rarity || !polarity) continue
+      try {
+        const category = validateDestinyPatternCategory(input.category)
+        if (!category) continue
 
-      const pattern: DestinyPattern = {
-        id: `ai_${this.idCounter++}`,
-        name: input.name,
-        description: input.description,
-        rarity,
-        polarity,
-        effect: input.effects,
-        attrBonus: input.attrBonus
-          ? validateDestinyPatternAttrBonus(input.attrBonus as Record<string, number>, rarity)
-          : {},
-        systemModifiers: validatePatternSystemModifiers(input.systemModifiers, rarity),
+        const id = `ai_${this.idCounter++}`
+        const pattern = withInitialDestinyPatternGrowthIdentity({
+          id,
+          name: input.name,
+          description: input.description,
+          category,
+          rarity: 'common',
+          effect: input.effects,
+          attrBonus: input.attrBonus
+            ? validateDestinyPatternAttrBonus(input.attrBonus as Record<string, number>, 'common')
+            : {},
+        }, id)
+
+        result.push(pattern)
+      } catch {
+        // 单条 AI 候选越界时丢弃整条候选，不截断或改写其属性。
       }
-
-      result.push(pattern)
     }
 
     this.state.candidates.push(...result)
     return result
   }
 
-  /** 后台命格池填充进度（与页面生命周期解耦） */
+  /** 当前四类首批或后台补充请求状态。 */
   getPoolFillStatus(): DestinyPatternPoolFillStatus {
     return this.aiPool.getPoolFillStatus()
   }
 
-  /** 中止正在运行的后台池填充（页面离开或重新抽取时调用） */
+  subscribePool(listener: DestinyPatternPoolListener): () => void {
+    return this.aiPool.subscribe(listener)
+  }
+
+  /** 中止当前仍在运行的首批或后台补充请求；已接纳候选不会被清空。 */
   abortPoolFill(): void {
     this.aiPool.abortPoolFill()
   }
@@ -203,42 +223,43 @@ export class DestinyPatternSystem extends BaseSubsystem {
     this.aiPool.setAIService(callAI)
   }
 
-  /**
-   * AI 生成命格池（首屏三路并发、每路 10 条，随后后台续填至约 100 条）
-   */
-  async generateWithAI(
-    contextInput: BuildDestinyPatternContextInput,
-    onProgress?: (count: number, patterns: DestinyPattern[]) => void,
-    onEarlyReady?: (patterns: DestinyPattern[]) => void,
-    onBatchStart?: (batchIndex: number) => void,
-    options?: DestinyPatternAIGenerateOptions,
-  ): Promise<DestinyPattern[]> {
-    return this.aiPool.generateWithAI(
-      contextInput,
-      onProgress,
-      onEarlyReady,
-      onBatchStart,
-      options,
-    )
+  /** 将已有缓存候选恢复到命格池的瞬态运行状态。 */
+  hydratePool(patterns: DestinyPattern[]): void {
+    this.aiPool.hydratePool(patterns)
   }
 
-  /**
-   * 从候选命格中选择指定 ID 的命格（选3，对齐废弃项目 validateTalentSelection）
-   * 返回选中的命格数组，写入 state.patterns 并更新 rarityCount
-   */
+  /** AI 四路并发生成首批分类命格候选。 */
+  async generateWithAI(
+    contextInput: BuildDestinyPatternContextInput,
+  ): Promise<DestinyPattern[]> {
+    return this.aiPool.generateWithAI(contextInput)
+  }
+
+  /** 进入选择页后按分类静默补充候选，直到每类达到目标数量。 */
+  startBackgroundFill(
+    contextInput?: BuildDestinyPatternContextInput,
+    initialPatterns: DestinyPattern[] = [],
+  ): Promise<DestinyPattern[]> {
+    return this.aiPool.startBackgroundFill(contextInput, initialPatterns)
+  }
+
+  /** 从候选池提交占用共享携带槽的普通命格。 */
   selectPatterns(
     selectedIds: string[],
     candidatePool?: DestinyPattern[],
   ): DestinyPattern[] {
-    if (selectedIds.length !== DESTINY_PATTERN_SELECT_COUNT) {
-      throw new Error(`必须选择正好 ${DESTINY_PATTERN_SELECT_COUNT} 个命格（当前 ${selectedIds.length} 个）`)
+    if (selectedIds.length > PATTERN_LOADOUT_SLOT_COUNT) {
+      throw new Error(`普通命格不能超过 ${PATTERN_LOADOUT_SLOT_COUNT} 个（当前 ${selectedIds.length} 个）`)
+    }
+    if (new Set(selectedIds).size !== selectedIds.length) {
+      throw new Error('普通命格选择包含重复项')
     }
 
     const pool = candidatePool?.length ? candidatePool : this.state.candidates
     const idSet = new Set(selectedIds)
     const selected = pool.filter((p) => idSet.has(p.id))
 
-    if (selected.length !== DESTINY_PATTERN_SELECT_COUNT) {
+    if (selected.length !== selectedIds.length) {
       const foundIds = new Set(selected.map((p) => p.id))
       const missing = selectedIds.filter((id) => !foundIds.has(id))
       throw new Error(`选择了无效的命格 ID: ${missing.join(', ')}`)
@@ -269,6 +290,33 @@ export class DestinyPatternSystem extends BaseSubsystem {
     return [...this.state.patterns]
   }
 
+  registerPendingGrowth(pending: PendingDestinyPatternGrowth): void {
+    this.state = registerPendingDestinyPatternGrowthInState(
+      this.state,
+      pending,
+      useCharacterStore.getState().age,
+    )
+  }
+
+  resolvePendingGrowth(optionId: string, committedAt = Date.now(), totalDays = 0): DestinyPatternGrowthHistoryEntry {
+    const resolved = resolvePendingDestinyPatternGrowthInState(this.state, optionId, committedAt, totalDays)
+    this.state = resolved.state
+    return resolved.historyEntry
+  }
+
+  getStateSnapshot(): DestinyPatternState {
+    return structuredClone(this.state)
+  }
+
+  captureTransactionState(): DestinyPatternState {
+    return this.getStateSnapshot()
+  }
+
+  restoreTransactionState(snapshot: unknown): void {
+    this.state = sanitizeDestinyPatternState(snapshot, useCharacterStore.getState().age)
+    useCharacterStore.setState({ destinyPatterns: structuredClone(this.state) })
+  }
+
   /** 获取命格属性加成汇总 */
   getAttrBonuses(): Partial<Record<string, number>> {
     const bonuses: Record<string, number> = {}
@@ -292,30 +340,10 @@ export class DestinyPatternSystem extends BaseSubsystem {
   }
 
   private recountRarity(): void {
-    this.state.rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 }
+    this.state.rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 }
     for (const p of this.state.patterns) {
       this.state.rarityCount[p.rarity] = (this.state.rarityCount[p.rarity] ?? 0) + 1
     }
-  }
-
-  private buildWeightedPool(pool: typeof PRESET_DESTINY_PATTERNS, already: DestinyPattern[]): typeof PRESET_DESTINY_PATTERNS {
-    return pool.filter((t) => {
-      const limit = DESTINY_PATTERN_RARITY_LIMITS[t.rarity]
-      if (limit === undefined) return true
-      const current = already.filter((p) => p.rarity === t.rarity).length
-      return current < limit
-    })
-  }
-
-  private weightedRandomIndex(pool: typeof PRESET_DESTINY_PATTERNS): number {
-    const weights = pool.map((t) => DESTINY_PATTERN_RARITY_WEIGHTS[t.rarity] ?? 10)
-    const totalWeight = weights.reduce((a, b) => a + b, 0)
-    let r = Math.random() * totalWeight
-    for (let i = 0; i < pool.length; i++) {
-      r -= weights[i] ?? 0
-      if (r <= 0) return i
-    }
-    return pool.length - 1
   }
 
   private summarizeAttrBonuses(): string {

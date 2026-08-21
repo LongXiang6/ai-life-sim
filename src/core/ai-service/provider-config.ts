@@ -1,7 +1,7 @@
 /**
- * @module provider-config.ts
- * @description 玩家自有 API 配置与 DeepSeek 预设填充权威
- * @mod core
+ * Purpose: Define player-owned API defaults and validate compatible provider targets.
+ * Owner: core / ai-service
+ * Responsibility: Provider identifiers, presets, and base-URL classification only.
  */
 
 export const DEFAULT_AI_PROVIDER_ID = 'custom'
@@ -28,8 +28,17 @@ function normalizeProviderBaseUrl(baseUrl: string): string | undefined {
   }
 }
 
-/** 受保护 Prompt 目前只允许发送到 DeepSeek 官方兼容接口。 */
+/**
+ * 玩家自有 API 的目标必须是无凭据、无查询参数的 HTTPS 基地址。
+ * 受保护 Prompt 也沿用同一目标校验，避免核心模拟绕过玩家配置。
+ */
 export function isRegisteredProviderBaseUrl(baseUrl: string): boolean {
+  const normalized = normalizeProviderBaseUrl(baseUrl)
+  return normalized !== undefined
+}
+
+/** 只有官方 DeepSeek 目标需要切换到其 beta 工具端点。 */
+export function isDeepSeekOfficialBaseUrl(baseUrl: string): boolean {
   const normalized = normalizeProviderBaseUrl(baseUrl)
   return normalized !== undefined
     && normalized === normalizeProviderBaseUrl(DEEPSEEK_PRESET_BASE_URL)

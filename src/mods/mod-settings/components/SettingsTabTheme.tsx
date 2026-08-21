@@ -43,13 +43,7 @@ export function SettingsTabTheme() {
 
   return (
     <div className={styles.tabRoot}>
-      <p className={styles.preferenceIntro}>阅读与动效偏好只调整呈现方式。</p>
-
-      <section className={styles.section} aria-labelledby="settings-reading-comfort-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-reading-comfort-heading">阅读排版</h3>
-          <span>阅读体验</span>
-        </div>
+      <section className={styles.section} aria-label="段落排版">
         <div className={styles.sectionCard}>
           <div className={styles.settingRow}>
             <div className={styles.settingCopy}>
@@ -68,11 +62,7 @@ export function SettingsTabTheme() {
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="settings-motion-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-motion-heading">动态表现</h3>
-          <span>即时生效</span>
-        </div>
+      <section className={styles.section} aria-label="动态表现">
         <div className={styles.sectionCard}>
           <div className={styles.settingRow}>
             <div className={styles.settingCopy}>
@@ -91,11 +81,7 @@ export function SettingsTabTheme() {
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="settings-appearance-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-appearance-heading">阅读排版</h3>
-          <span>当前字体：{currentFontLabel}</span>
-        </div>
+      <section className={styles.section} aria-label="字体选择">
         <div className={styles.sectionCard}>
           <div className={styles.optionGroup}>
             <div className={styles.groupHeading}>
@@ -121,11 +107,7 @@ export function SettingsTabTheme() {
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="settings-narrative-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-narrative-heading">叙事显示</h3>
-          <span>{streamingMode === 'off' ? '完整显示' : '流式显示'}</span>
-        </div>
+      <section className={styles.section} aria-label="叙事显示方式">
         <div className={styles.sectionCard}>
           <div className={styles.optionGroup}>
             <div className={styles.groupHeading}>

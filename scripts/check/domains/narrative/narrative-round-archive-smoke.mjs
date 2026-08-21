@@ -68,7 +68,6 @@ try {
         styleVersion: 3,
         initialValid: false,
         finalValid: true,
-        repairAttempts: 1,
         narrativeChars: 321,
       },
       compression: { status: 'completed', l1Count: 1, l2Count: 0, l3Count: 0 },
@@ -80,11 +79,11 @@ try {
     requestId: 'request-2',
     providerId: 'test-provider',
     model: 'test-model',
-    attempt: 2,
-    status: 502,
+    attempt: 1,
+    status: 200,
     requestBody: requestTwo,
     responseBody: responseTwo,
-    transportError: 'retry fixture',
+    transportError: undefined,
     styleFingerprint: 'fixture-sha256',
   })
 
@@ -113,7 +112,7 @@ try {
   }
 
   assert.deepEqual(extract(0), { request: requestOne, response: responseOne }, 'first payload must round-trip byte-for-byte')
-  assert.deepEqual(extract(1), { request: requestTwo, response: responseTwo }, 'retry payload must round-trip byte-for-byte')
+  assert.deepEqual(extract(1), { request: requestTwo, response: responseTwo }, 'second independent payload must round-trip byte-for-byte')
   assert.equal((text.match(/===== STYLE SNAPSHOT BEGIN =====/g) ?? []).length, 1, 'one real narrative round must store the active style exactly once')
   const styleLength = Number(text.match(/style_utf8_bytes: (\d+)/)?.[1])
   const styleMarker = '----- STYLE TEXT BEGIN -----\n'
@@ -127,7 +126,7 @@ try {
   assert(text.includes('style_fingerprint_sha256: fixture-sha256'), 'style snapshot must include its full trace fingerprint')
   assert(text.includes('life_run_id: life-exact-smoke'), 'archive must identify the save without altering payloads')
   assert(text.includes('"finalValid": true'), 'the same round archive must retain final style quality results')
-  assert(text.includes('"repairAttempts": 1'), 'the same round archive must retain quality repair counts')
+  assert(!text.includes('repairAttempts'), 'the same round archive must not retain removed repair counters')
   const diagnosticPath = archive.getNarrativeRoundDiagnosticPath(trace.lifeRunId, trace.round)
   const diagnostic = await fs.readFile(diagnosticPath, 'utf8')
   assert.equal(JSON.parse(diagnostic.trim()).quality.styleVersion, 3, 'development diagnostics must link the exact style version to final quality')

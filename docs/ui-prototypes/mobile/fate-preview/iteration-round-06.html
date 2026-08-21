@@ -1,0 +1,131 @@
+<!-- Purpose: Record the sixth UI iteration round for the fate-preview page (07). Owner: Interface system. Responsibility: Compare confirmed preview-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>命运预览 · 第六轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">FATE-PREVIEW / ROUND-06</p>
+      <h1>命运预览 · 第六轮</h1>
+    </div>
+    <span class="status status-selected">已选择 B</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-05 定版候选 A（命书叙事）为基线，第六轮迭代方向「区头标题去出戏」——用户指正 sectionHead 的 strong 功能化区名（世界与角色 / 属性与命格 / 模拟种子 / 世界初始化）出戏，去掉改为 small 命书化。三候选区头均去掉 strong 区名、只保留一行 small 命书描述，分向在区头呈现方式——候选 A 纯描述区头（单行 small 左对齐，最简洁）、候选 B 装饰题词区头（small 居中 + ✦ 两侧装饰，呼应属性分配 ✦基础点数✦）、候选 C 叙事句区头（区头 small 改为第二人称叙事句，延续命书叙事声音）。结构与数值口径照抄运行时 fate-preview 页面。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（07 / 08）、标题「核对命书」+ 副句「确认所有起点，然后开启人生。」、世界与角色（已确认世界 · 描述原文、世界名与描述、姓名 · 性别 · 种族、起始年龄、预期寿命 ⏳ / 力量体系 ⚡ / 世界空间 🗺️ 三格）、属性与命格（体魄 💪 / 心智 🧠 / 悟性 ✨ / 魅力 💫 四格最终值直显 4 / 4 / 5 / 5、命格行名称 + 稀有度 · 极性 + 描述、轮回天赋行；不含角色天赋 pill——运行时 setTalents 无调用点、talents 恒为空数组、该区块永不渲染）、模拟种子（最多 8 位数字输入 + 随机按钮 + 提示）、世界初始化（4 步：校准 / 标签 / 参数 / 区域，完成 ✓ / 调用中 spinner / 等待 / 失败 ×，进度 X / 4 完成、底部说明与门禁提示）、底部返回（返回确认属性 / 返回确认角色）与确认（开始人生，确认号 08）。属性值显示保持最终值直显，✦ 装饰分隔不拆卡保持。区头 aria-labelledby 从 strong 移到 small 上（区头标题语义随 strong 迁移）。运行时 FatePreview.module.css 仅世界初始化 spinner（loading149Spin 0.8s linear infinite，reduced-motion 2s）一处动画，候选照抄该参数，不加其他动画。候选不含 localStorage/sessionStorage/fetch（种子输入为纯 DOM 状态，不持久化）。</dd></div>
+        <div><dt>比较维度</dt><dd>区头呈现方式（左对齐 / 居中装饰 / 叙事句三者的沉浸感与辨识度）、去出戏彻底度（功能化区名移除后区头是否仍是命书声音）、信息可读性（区头描述是否仍能提示各区内容，种子区 / 初始化区是否失去功能提示）、分区强度（保持不拆卡）、精简协调性（与抽取 / 选取 / 属性分配定版语言的连贯统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>纯描述区头</strong></header>
+          <p>strong 功能化区名去掉，区头仅一行 small 命书描述（命书所载 · 此界此身 / 根基既定 · 命格相赠 / 同因同果 · 命途自循 / 世界已备 · 序幕将启），左对齐，最简洁；正文描述保持定版 A 你-voice 叙事。</p>
+          <a class="candidate-open" href="candidates/candidate-round-06-01-description-head.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>装饰题词区头</strong></header>
+          <p>strong 功能化区名去掉，区头 small 居中 + ✦ 两侧装饰（✦ 命书所载 · 此界此身 ✦），呼应属性分配定版 ✦基础点数✦ 的仪式语言；正文描述保持定版 A。</p>
+          <a class="candidate-open" href="candidates/candidate-round-06-02-ornament-head.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>叙事句区头</strong></header>
+          <p>strong 功能化区名去掉，区头 small 改为第二人称叙事句（此界此身，命书已为你载明 / 根基既定，命格自当相赠 / 同因同果，命途由你自循 / 世界已备，序幕将启），区头延续命书叙事声音；正文描述保持定版 A。</p>
+          <a class="candidate-open" href="candidates/candidate-round-06-03-narrative-head.html" target="_blank" rel="noopener">
+            命运预览 07 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 纯描述区头</span><span role="columnheader">B 装饰题词区头</span><span role="columnheader">C 叙事句区头</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span><span role="cell">纯命运预览界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">区头呈现</strong><span role="cell">一行 small 左对齐</span><span role="cell">一行 small 居中 + ✦ 装饰</span><span role="cell">一行 small 叙事句</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">去出戏彻底度</strong><span role="cell">区名移除，纯命书描述</span><span role="cell">区名移除，题词化</span><span role="cell">区名移除，叙事化</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息可读性</strong><span role="cell">对仗短句直接</span><span role="cell">对仗短句居中 + 装饰</span><span role="cell">叙事句略长，氛围强</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">分区强度</strong><span role="cell">✦ 装饰分隔不拆卡</span><span role="cell">✦ 装饰分隔不拆卡</span><span role="cell">✦ 装饰分隔不拆卡</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">spinner 0.8s 照抄</span><span role="cell">同上</span><span role="cell">同上</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与抽取/选取/属性定版统一</span><span role="cell">呼应属性分配 ✦基础点数✦</span><span role="cell">延续命书叙事声音</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 B</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 B（装饰题词区头）。用户确认「B」。要点：strong 功能化区名去掉，区头 small 居中 + ✦ 两侧装饰（✦ 命书所载 · 此界此身 ✦），呼应属性分配定版 ✦基础点数✦ 的仪式语言；正文描述保持定版 A 你-voice 叙事，最终值直显（体魄 4 / 心智 4 / 悟性 5 / 魅力 5），✦ 装饰分隔不拆卡。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 A（纯描述区头）：区头仅一行 small 左对齐，区头视觉单薄、缺仪式收束，先不采纳；候选 C（叙事句区头）：区头叙事句略长，与正文你-voice 描述叠读信息重复，先不采纳。</dd></div>
+        <div><dt>下一轮继承</dt><dd>以候选 B（装饰题词区头）为基线开始第七轮迭代，方向「描述去符号 + 区头间距居中」——用户指正正文 p/span 详细内容介绍中的 ❖ 符号去掉、区头 small 文字与下方分界线的距离改为中间不要靠下；候选不含任何运行时状态与持久化。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

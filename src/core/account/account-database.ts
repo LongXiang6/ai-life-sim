@@ -43,7 +43,7 @@ function initializeSchema(database: Database.Database): void {
   `).get() as { value: string } | undefined
   if (schemaRow) {
     const schemaVersion = Number(schemaRow.value)
-    if (!Number.isInteger(schemaVersion) || schemaVersion < 1 || schemaVersion > 5) {
+    if (!Number.isInteger(schemaVersion) || schemaVersion < 1 || schemaVersion > 6) {
       throw new Error(`不支持的账号数据库 Schema 版本：${schemaRow.value}`)
     }
   }
@@ -76,9 +76,11 @@ function initializeSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS account_sessions_expiry_idx
       ON account_sessions(expires_at);
 
-    CREATE TABLE IF NOT EXISTS account_mythic_talents (
+    DROP TABLE IF EXISTS account_mythic_talents;
+
+    CREATE TABLE IF NOT EXISTS account_reincarnation_talents (
       account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-      slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 10),
+      slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 36),
       talent_id TEXT NOT NULL,
       data_json TEXT NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -199,7 +201,7 @@ function initializeSchema(database: Database.Database): void {
   }
 
   database.prepare(`
-    INSERT INTO account_meta(key, value) VALUES ('schema_version', '5')
+    INSERT INTO account_meta(key, value) VALUES ('schema_version', '6')
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
   `).run()
 }

@@ -1,396 +1,399 @@
 /**
- * Purpose: Run the destiny-pattern AI pool lifecycle, retries, streaming ingestion, and background fill.
+ * Purpose: Coordinate four category-scoped destiny-pattern requests and their background fill.
  * Owner: mod-character
- * Responsibility: Own transient AI call state while publishing candidate snapshots to the character subsystem.
+ * Responsibility: Own request coordination, item-level parsing, candidate publication, and pool-cache writes.
  */
 
-import { isAiCredentialError } from '@/core/ai-service'
 import {
-  AI_DESTINY_PATTERN_BATCH_COUNT,
-  AI_DESTINY_PATTERN_BATCH_SIZE,
-  AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY,
-  DESTINY_PATTERN_EARLY_READY_COUNT,
+  DESTINY_PATTERN_CATEGORY_ORDER,
+  DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
   DESTINY_PATTERN_ID_PREFIX,
 } from '../../constants'
+import { buildDestinyPatternSystemPrompt } from '../../prompts/destiny-pattern-prompt'
 import {
   buildDestinyPatternUserPromptKv,
   type BuildDestinyPatternContextInput,
 } from '../../prompts/destiny-pattern-context'
-import { destinyPatternPrompt } from '../../prompts/destiny-pattern-prompt'
-import type { DestinyPattern } from '../../types'
+import type { DestinyPattern, DestinyPatternCategory } from '../../types'
+import { withInitialDestinyPatternGrowthIdentity } from '../../destiny-pattern-growth'
 import { buildFateKvSessionId } from '../../utils/fate-kv'
 import { saveDestinyPatternPool } from '../../utils/destiny-pattern-pool-cache'
-import { StreamingJsonArrayParser } from '../../utils/streaming-json-array-parser'
-import { validatePatternSystemModifiers } from '../../utils/destiny-pattern-modifiers'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import type {
-  DestinyPatternAIGenerateOptions,
   DestinyPatternAIItem,
   DestinyPatternAiCaller,
+  DestinyPatternCategoryFillStatus,
   DestinyPatternPoolFillStatus,
+  DestinyPatternPoolListener,
 } from './contracts'
 import {
   dedupeDestinyPatterns,
   destinyPatternNameKey,
-  isAIGeneratedDestinyPattern,
   parseDestinyPatternAIResponse,
-  passesDestinyPatternContentQuality,
   validateDestinyPatternAttrBonus,
-  validateDestinyPatternPolarity,
-  validateDestinyPatternRarity,
+  validateDestinyPatternCategory,
 } from './validation'
 
-const POOL_FILL_BATCH_RETRIES = 2
-const POOL_FILL_RETRY_DELAY_MS = 1000
+function createCategoryStatus(category: DestinyPatternCategory): DestinyPatternCategoryFillStatus {
+  return {
+    category,
+    count: 0,
+    initialReady: false,
+    inProgress: false,
+    status: 'idle',
+  }
+}
+
+function createPoolStatus(): DestinyPatternPoolFillStatus {
+  return {
+    phase: 'idle',
+    inProgress: false,
+    count: 0,
+    target: DESTINY_PATTERN_CATEGORY_ORDER.length * DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
+    initialReady: false,
+    categories: Object.fromEntries(
+      DESTINY_PATTERN_CATEGORY_ORDER.map((category) => [category, createCategoryStatus(category)]),
+    ) as Record<DestinyPatternCategory, DestinyPatternCategoryFillStatus>,
+  }
+}
 
 export class DestinyPatternAiPoolService {
   private callAI: DestinyPatternAiCaller | null = null
-  private poolFillPromise: Promise<void> | null = null
-  private poolFillAbortController: AbortController | null = null
-  private poolFillStatus: DestinyPatternPoolFillStatus = {
-    inProgress: false,
-    count: 0,
-    target: AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT,
-    completedBatches: 0,
-    totalBatches: AI_DESTINY_PATTERN_BATCH_COUNT,
-  }
+  private activeAbortController: AbortController | null = null
+  private backgroundPromise: Promise<DestinyPattern[]> | null = null
+  private currentContext: BuildDestinyPatternContextInput | null = null
+  private currentPatterns: DestinyPattern[] = []
+  private readonly listeners = new Set<DestinyPatternPoolListener>()
+  private poolFillStatus: DestinyPatternPoolFillStatus = createPoolStatus()
 
   constructor(private readonly setCandidates: (patterns: DestinyPattern[]) => void) {}
 
   getPoolFillStatus(): DestinyPatternPoolFillStatus {
-    return { ...this.poolFillStatus }
+    return structuredClone(this.poolFillStatus)
+  }
+
+  subscribe(listener: DestinyPatternPoolListener): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
   }
 
   abortPoolFill(): void {
-    this.poolFillAbortController?.abort()
-    this.poolFillAbortController = null
-    this.poolFillPromise = null
-    this.poolFillStatus = { ...this.poolFillStatus, inProgress: false }
+    this.activeAbortController?.abort()
+    this.activeAbortController = null
+    this.backgroundPromise = null
+    const next = structuredClone(this.poolFillStatus)
+    next.inProgress = false
+    next.phase = 'idle'
+    for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
+      const state = next.categories[category]
+      if (state.inProgress) {
+        state.inProgress = false
+        state.status = 'cancelled'
+      }
+    }
+    this.poolFillStatus = next
+    this.publish()
   }
 
   setAIService(callAI: DestinyPatternAiCaller): void {
     this.callAI = callAI
   }
 
-async generateWithAI(
-  contextInput: BuildDestinyPatternContextInput,
-  onProgress?: (count: number, patterns: DestinyPattern[]) => void,
-  onEarlyReady?: (patterns: DestinyPattern[]) => void,
-  onBatchStart?: (batchIndex: number) => void,
-  options?: DestinyPatternAIGenerateOptions,
-): Promise<DestinyPattern[]> {
-  if (!this.callAI) {
-    throw new Error('[destiny-pattern] AI 服务未就绪，请重试')
-  }
+  /** Restore a cached candidate pool into the transient runtime lifecycle. */
+  hydratePool(patterns: DestinyPattern[]): void {
+    if (patterns.length === 0) return
 
-  // 中止旧的后台填充，防止并发状态污染
-  this.abortPoolFill()
-
-  const targetCount = Math.max(
-    DESTINY_PATTERN_EARLY_READY_COUNT,
-    options?.targetCount ?? AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT,
-  )
-  const seededPatterns = dedupeDestinyPatterns(options?.initialPatterns ?? [])
-    .filter((pattern) => isAIGeneratedDestinyPattern(pattern))
-    .slice(0, targetCount)
-  const allPatterns: DestinyPattern[] = [...seededPatterns]
-  const existingNames: string[] = seededPatterns.map((p) => p.name)
-  const existingNameKeys = new Set(existingNames.map(destinyPatternNameKey))
-  let earlyReadyFired = false
-  const startingAge = contextInput.character.startingAge ?? 0
-
-  const abortController = new AbortController()
-  this.poolFillAbortController = abortController
-  this.poolFillStatus = {
-    inProgress: true,
-    count: allPatterns.length,
-    target: targetCount,
-    completedBatches: 0,
-    totalBatches: AI_DESTINY_PATTERN_BATCH_COUNT,
-  }
-  this.setCandidates([...allPatterns])
-
-  const syncPoolStatus = () => {
-    this.poolFillStatus.count = allPatterns.length
-  }
-
-  const persistPoolToLocal = () => {
-    saveDestinyPatternPool(useWorldStore.getState().worldCode, [...allPatterns])
-  }
-
-  let resolveEarlyReady: (() => void) | null = null
-  const earlyReadyPromise = new Promise<void>((resolve) => {
-    resolveEarlyReady = resolve
-  })
-  let terminalCredentialError: unknown = null
-  let resolveTerminalCredentialError: (() => void) | null = null
-  const terminalCredentialErrorPromise = new Promise<void>((resolve) => {
-    resolveTerminalCredentialError = resolve
-  })
-
-  const stopForCredentialError = (error: unknown): void => {
-    if (terminalCredentialError) return
-    terminalCredentialError = error
-    abortController.abort()
-    resolveTerminalCredentialError?.()
-    resolveTerminalCredentialError = null
-  }
-
-  const fireEarlyReady = (): void => {
-    if (earlyReadyFired || allPatterns.length < DESTINY_PATTERN_EARLY_READY_COUNT) return
-    earlyReadyFired = true
-    onEarlyReady?.([...allPatterns])
-    resolveEarlyReady?.()
-    resolveEarlyReady = null
-  }
-
-  const ingestItem = (item: DestinyPatternAIItem) => {
-    const normalizedName = item?.name?.trim()
-    const nameKey = normalizedName ? destinyPatternNameKey(normalizedName) : ''
-    if (!normalizedName || existingNameKeys.has(nameKey)) return
-    if (allPatterns.length >= targetCount) return
-    if (!passesDestinyPatternContentQuality(item, startingAge)) return
-
-    const rarity = validateDestinyPatternRarity(item.rarity)
-    const polarity = validateDestinyPatternPolarity(item.polarity)
-    if (!rarity || !polarity) return
-    const pattern: DestinyPattern = {
-      id: `${DESTINY_PATTERN_ID_PREFIX.AI}-${Date.now()}-${allPatterns.length}`,
-      name: normalizedName,
-      description: item.description,
-      rarity,
-      polarity,
-      effect: item.effect,
-      attrBonus: validateDestinyPatternAttrBonus(item.attrBonus, item.rarity),
-      systemModifiers: validatePatternSystemModifiers(
-        item.systemModifiers != null && typeof item.systemModifiers === 'object'
-          ? (item.systemModifiers as Record<string, unknown>)
-          : undefined,
-        rarity,
-      ),
-    }
-
-    allPatterns.push(pattern)
-    existingNames.push(normalizedName)
-    existingNameKeys.add(nameKey)
-    this.setCandidates([...allPatterns])
-    syncPoolStatus()
-    onProgress?.(allPatterns.length, [...allPatterns])
-    persistPoolToLocal()
-
-    fireEarlyReady()
-  }
-
-  const runBatch = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
-    onBatchStart?.(batch)
-    const t0 = performance.now()
-    const kvPrepared = buildDestinyPatternUserPromptKv({
-      ...contextInput,
-      existingNames,
-      includePresetNames: batch === 0,
-    })
-    const userPrompt = kvPrepared.userPrompt
-    const fateSessionId = buildFateKvSessionId(useWorldStore.getState().worldCode)
-
-    const useStream = forceStream === true || useSettingsStore.getState().streamingMode === 'stream'
-    const streamParser = useStream ? new StreamingJsonArrayParser<DestinyPatternAIItem>() : null
-    const countBefore = allPatterns.length
-
-    const ingestResponse = (response: string): { parsedCount: number; addedCount: number } => {
-      let added = 0
-      let parsedCount = 0
-      const parsed = parseDestinyPatternAIResponse(response)
-      parsedCount += parsed.length
-      for (const item of parsed) {
-        const before = allPatterns.length
-        ingestItem(item)
-        if (allPatterns.length > before) added++
-      }
-      if (useStream && streamParser) {
-        const finalized = streamParser.finalize(response)
-        parsedCount += finalized.length
-        for (const item of finalized) {
-          const before = allPatterns.length
-          ingestItem(item)
-          if (allPatterns.length > before) added++
-        }
-      }
-      return { parsedCount, addedCount: added }
-    }
-
-    const callOpts = {
-      pool: 'fate',
-      sessionId: fateSessionId,
-      userSegments: kvPrepared.userSegments,
-      jsonMode: !useStream,
-      stream: useStream,
-      onChunk: useStream
-        ? (chunk: string) => {
-            for (const item of streamParser!.feed(chunk)) {
-              ingestItem(item)
-            }
-          }
-        : undefined,
-      stablePrefixChars: kvPrepared.stablePrefixChars,
-      storySeed: seed,
-      signal: abortController.signal,
-      outputSchema: destinyPatternPrompt.outputSchema,
-      logContext: {
-        callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
-        batchIndex: batch + 1,
-        totalBatches: AI_DESTINY_PATTERN_BATCH_COUNT,
-      },
-    }
-
-    let response = await this.callAI!(
-      destinyPatternPrompt.systemPrompt,
-      userPrompt,
-      callOpts,
+    this.currentPatterns = dedupeDestinyPatterns(
+      this.poolFillStatus.inProgress
+        ? [...this.currentPatterns, ...patterns]
+        : patterns,
     )
-    if (!response?.trim()) {
-      throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} API 返回空结果`)
+    this.poolFillStatus.count = this.currentPatterns.length
+    for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
+      const state = this.poolFillStatus.categories[category]
+      state.count = this.countCategory(category)
+      if (this.poolFillStatus.inProgress) continue
+      state.initialReady = state.count > 0
+      state.status = state.initialReady ? 'complete' : 'idle'
     }
-    const firstIngest = ingestResponse(response)
+    if (!this.poolFillStatus.inProgress) {
+      this.poolFillStatus.initialReady = DESTINY_PATTERN_CATEGORY_ORDER.every(
+        (category) => this.poolFillStatus.categories[category].initialReady,
+      )
+    }
+    this.publish()
+  }
 
-    console.info(
-      `[destiny-pattern] 批次 ${batch + 1} 首响应 ${((performance.now() - t0) / 1000).toFixed(1)}s` +
-      ` | 解析 ${firstIngest.parsedCount} 条 采纳 ${firstIngest.addedCount} 条` +
-      ` | 当前池 ${allPatterns.length} 条`,
+  async generateWithAI(contextInput: BuildDestinyPatternContextInput): Promise<DestinyPattern[]> {
+    if (!this.callAI) throw new Error('[destiny-pattern] AI 服务未就绪')
+
+    this.abortPoolFill()
+    const abortController = new AbortController()
+    this.activeAbortController = abortController
+    this.currentContext = contextInput
+    this.currentPatterns = []
+    this.poolFillStatus = createPoolStatus()
+    this.poolFillStatus.phase = 'initial'
+    this.poolFillStatus.inProgress = true
+    for (const category of DESTINY_PATTERN_CATEGORY_ORDER) this.poolFillStatus.categories[category].inProgress = true
+    this.publish()
+
+    const settings = useSettingsStore.getState()
+    const model = settings.customModel
+    const sessionId = buildFateKvSessionId(useWorldStore.getState().worldCode)
+    const generationId = Date.now()
+    const results = await Promise.allSettled(
+      DESTINY_PATTERN_CATEGORY_ORDER.map((category, categoryIndex) => this.callCategory(
+        contextInput,
+        category,
+        'initial',
+        categoryIndex,
+        generationId,
+        abortController.signal,
+        model,
+        sessionId,
+      )),
     )
 
-    const responseComplete = response.trim().endsWith('}') || response.trim().endsWith(']')
-    const looksTruncated = !responseComplete && firstIngest.parsedCount < AI_DESTINY_PATTERN_BATCH_SIZE / 2
-    if (looksTruncated) {
-      response = await this.callAI!(
-        destinyPatternPrompt.systemPrompt,
-        userPrompt,
-        {
-          ...callOpts,
-        },
-      )
-      if (!response?.trim()) {
-        throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 续写 API 返回空结果`)
+    if (abortController.signal.aborted) throw new Error('命格生成已取消')
+
+    const failures: string[] = []
+    const terminalErrors: unknown[] = []
+    for (const [categoryIndex, result] of results.entries()) {
+      const category = DESTINY_PATTERN_CATEGORY_ORDER[categoryIndex]
+      if (result.status === 'rejected') {
+        terminalErrors.push(result.reason)
+        this.failCategory(category, result.reason instanceof Error ? result.reason.message : '分类调用失败')
+        failures.push(`${category}分类调用失败`)
+        continue
       }
-      ingestResponse(response)
+      const parsed = parseDestinyPatternAIResponse(result.value, category)
+      this.mergeItems(parsed, category, generationId, categoryIndex)
+      const state = this.poolFillStatus.categories[category]
+      state.count = this.countCategory(category)
+      state.initialReady = state.count > 0
+      state.inProgress = false
+      state.status = state.initialReady ? 'complete' : 'failed'
+      if (!state.initialReady) failures.push(`${category}分类没有可用命格`)
     }
 
-    if (allPatterns.length === countBefore) {
-      throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 解析结果为空`)
-    }
-
-    this.setCandidates([...allPatterns])
-    syncPoolStatus()
-    onProgress?.(allPatterns.length, [...allPatterns])
-    this.poolFillStatus.completedBatches = Math.max(this.poolFillStatus.completedBatches, batch + 1)
-  }
-
-  const runBatchWithRetry = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
-    for (let attempt = 0; attempt < POOL_FILL_BATCH_RETRIES; attempt++) {
-      if (abortController.signal.aborted) return
-      try {
-        await runBatch(batch, seed, forceStream)
-        console.info(`[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 完成，当前池 ${allPatterns.length} 条`)
-        return
-      } catch (err) {
-        if (isAiCredentialError(err)) {
-          stopForCredentialError(err)
-          throw terminalCredentialError
-        }
-        // 页面离开或流程取消时，AbortController 触发的是预期的清理路径，
-        // 不应把它记录成 API 失败警告或让用户误以为命格生成出错。
-        if (abortController.signal.aborted) return
-        const msg = err instanceof Error ? err.message : String(err)
-        console.warn(
-          `[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 第 ${attempt + 1} 次失败: ${msg}`,
-        )
-        if (attempt < POOL_FILL_BATCH_RETRIES - 1 && !abortController.signal.aborted) {
-          await new Promise((resolve) => setTimeout(resolve, POOL_FILL_RETRY_DELAY_MS * (attempt + 1)))
-        }
-      }
-    }
-  }
-
-  try {
-    // 首屏同时发起三路独立的 10 项流式请求。任一路或任意组合累计出 5 条
-    // 有效去重命格就立即触发页面交接；其余请求不阻塞交接，继续由后台收集。
-    let nextBackgroundBatch = 0
-    const parallelPromises: Promise<void>[] = []
-    fireEarlyReady()
-
-    if (!earlyReadyFired && !abortController.signal.aborted) {
-      const parallelSeeds = [42, 137, 256].slice(0, AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY)
-      parallelPromises.push(
-        ...parallelSeeds.map((seed, index) => runBatchWithRetry(index, seed, true)),
-      )
-      nextBackgroundBatch = parallelSeeds.length
-
-      const allParallelSettled = Promise.allSettled(parallelPromises).then(() => undefined)
-      await Promise.race([earlyReadyPromise, allParallelSettled, terminalCredentialErrorPromise])
-      if (terminalCredentialError) throw terminalCredentialError
-      fireEarlyReady()
-    }
-
-    // 三路都结束但仍未达到 5 条时，继续单路请求；不设置人为批次数上限。
-    // 401/403 是配置终止错误，会中止并退出；其余单次失败仍按原规则继续等待。
-    while (!earlyReadyFired && !abortController.signal.aborted) {
-      await runBatchWithRetry(
-        nextBackgroundBatch,
-      )
-      nextBackgroundBatch += 1
-      fireEarlyReady()
-    }
-
-    const fillRemainingBatches = async (): Promise<void> => {
-      try {
-        // 首屏可选后再串行填充后续批次；先等仍在运行的首屏请求写入共享池。
-        if (parallelPromises.length > 0) {
-          await Promise.allSettled(parallelPromises)
-        }
-        for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
-          if (abortController.signal.aborted) break
-          if (allPatterns.length >= targetCount) break
-          await runBatchWithRetry(batch)
-        }
-
-        // AI 模式下不混入预设，有多少 AI 结果就保留多少
-        this.setCandidates([...allPatterns])
-        console.info(`[destiny-pattern] 命格池填充完成: ${allPatterns.length}/${this.poolFillStatus.target} 条`)
-      } catch (error) {
-        if (!isAiCredentialError(error)) throw error
-        console.warn('[destiny-pattern] 凭据或权限错误，已停止后台命格池填充')
-      } finally {
-        if (this.poolFillAbortController === abortController) {
-          this.poolFillStatus.inProgress = false
-          this.poolFillStatus.count = allPatterns.length
-          this.poolFillAbortController = null
-          persistPoolToLocal()
-        }
-      }
-    }
-
-    const backgroundFillPromise = fillRemainingBatches()
-    this.poolFillPromise = backgroundFillPromise
-    void backgroundFillPromise.finally(() => {
-      if (this.poolFillPromise === backgroundFillPromise) {
-        this.poolFillPromise = null
-      }
-      if (this.poolFillAbortController === abortController) {
-        this.poolFillAbortController = null
-      }
-    })
-
-    return [...allPatterns]
-  } catch (error) {
-    abortController.abort()
+    this.poolFillStatus.count = this.currentPatterns.length
+    this.poolFillStatus.initialReady = DESTINY_PATTERN_CATEGORY_ORDER.every(
+      (category) => this.poolFillStatus.categories[category].initialReady,
+    ) && failures.length === 0
     this.poolFillStatus.inProgress = false
-    this.poolFillStatus.count = allPatterns.length
-    if (this.poolFillAbortController === abortController) {
-      this.poolFillAbortController = null
+    this.poolFillStatus.phase = 'idle'
+    this.publish()
+
+    if (!this.poolFillStatus.initialReady) {
+      if (terminalErrors.length === DESTINY_PATTERN_CATEGORY_ORDER.length && terminalErrors[0]) {
+        throw terminalErrors[0]
+      }
+      throw new Error(`命格首批生成未完成：${failures.join('；') || '缺少可用分类'}`)
     }
-    persistPoolToLocal()
-    throw error
+    return [...this.currentPatterns]
   }
-}
+
+  startBackgroundFill(
+    contextInput = this.currentContext,
+    initialPatterns: DestinyPattern[] = [],
+  ): Promise<DestinyPattern[]> {
+    if (!this.callAI) return Promise.reject(new Error('[destiny-pattern] AI 服务未就绪'))
+    if (this.backgroundPromise) return this.backgroundPromise
+    if (!contextInput) return Promise.resolve([...this.currentPatterns])
+
+    if (initialPatterns.length > 0) {
+      this.currentPatterns = dedupeDestinyPatterns([...this.currentPatterns, ...initialPatterns])
+      for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
+        const state = this.poolFillStatus.categories[category]
+        state.count = this.countCategory(category)
+        state.initialReady = state.count > 0
+      }
+      this.poolFillStatus.count = this.currentPatterns.length
+      this.poolFillStatus.initialReady = DESTINY_PATTERN_CATEGORY_ORDER.every(
+        (category) => this.poolFillStatus.categories[category].initialReady,
+      )
+      this.publish()
+    }
+
+    const abortController = new AbortController()
+    this.activeAbortController = abortController
+    this.currentContext = contextInput
+    this.poolFillStatus.phase = 'background'
+    this.poolFillStatus.inProgress = true
+    for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
+      const state = this.poolFillStatus.categories[category]
+      state.inProgress = state.count < DESTINY_PATTERN_CATEGORY_TARGET_COUNT
+      state.status = state.inProgress ? 'running' : 'complete'
+    }
+    this.publish()
+
+    const settings = useSettingsStore.getState()
+    const model = settings.customModel
+    const sessionId = buildFateKvSessionId(useWorldStore.getState().worldCode)
+    const generationId = Date.now()
+    this.backgroundPromise = Promise.all(
+      DESTINY_PATTERN_CATEGORY_ORDER.map((category, categoryIndex) => this.fillCategory(
+        contextInput,
+        category,
+        categoryIndex,
+        generationId,
+        abortController.signal,
+        model,
+        sessionId,
+      )),
+    ).then(() => {
+      this.poolFillStatus.count = this.currentPatterns.length
+      this.poolFillStatus.inProgress = false
+      this.poolFillStatus.phase = 'idle'
+      this.publish()
+      return [...this.currentPatterns]
+    }).finally(() => {
+      if (this.activeAbortController === abortController) this.activeAbortController = null
+      this.backgroundPromise = null
+    })
+    return this.backgroundPromise
+  }
+
+  private async fillCategory(
+    contextInput: BuildDestinyPatternContextInput,
+    category: DestinyPatternCategory,
+    categoryIndex: number,
+    generationId: number,
+    signal: AbortSignal,
+    model: string,
+    sessionId: string,
+  ): Promise<void> {
+    let batchIndex = 0
+    while (!signal.aborted && this.countCategory(category) < DESTINY_PATTERN_CATEGORY_TARGET_COUNT) {
+      const state = this.poolFillStatus.categories[category]
+      state.inProgress = true
+      state.status = 'running'
+      const before = this.countCategory(category)
+      try {
+        const response = await this.callCategory(
+          contextInput,
+          category,
+          'background',
+          batchIndex,
+          generationId + batchIndex + 1,
+          signal,
+          model,
+          sessionId,
+        )
+        const parsed = parseDestinyPatternAIResponse(response, category)
+        this.mergeItems(parsed, category, generationId + batchIndex + 1, categoryIndex)
+        state.count = this.countCategory(category)
+        this.publish()
+        if (state.count === before) {
+          this.failCategory(category, '补充响应没有新增可用命格')
+          return
+        }
+        batchIndex += 1
+      } catch (error) {
+        if (signal.aborted) return
+        this.failCategory(category, error instanceof Error ? error.message : '后台补充失败')
+        return
+      }
+    }
+    const state = this.poolFillStatus.categories[category]
+    state.count = this.countCategory(category)
+    state.inProgress = false
+    state.status = signal.aborted ? 'cancelled' : state.count >= DESTINY_PATTERN_CATEGORY_TARGET_COUNT ? 'complete' : state.status
+    this.publish()
+  }
+
+  private async callCategory(
+    contextInput: BuildDestinyPatternContextInput,
+    category: DestinyPatternCategory,
+    phase: 'initial' | 'background',
+    batchIndex: number,
+    generationId: number,
+    signal: AbortSignal,
+    model: string,
+    sessionId: string,
+  ): Promise<string> {
+    const promptInput = buildDestinyPatternUserPromptKv({
+      ...contextInput,
+      existingNames: this.currentPatterns.map((pattern) => pattern.name),
+    })
+    return this.callAI!(
+      buildDestinyPatternSystemPrompt(category),
+      promptInput.userPrompt,
+      {
+        pool: 'fate',
+        sessionId,
+        userSegments: promptInput.userSegments,
+        jsonMode: true,
+        stream: false,
+        signal,
+        outputSchema: undefined,
+        stablePrefixChars: promptInput.stablePrefixChars,
+        logContext: {
+          callKind: `talent-generate-${phase}-${category}-${generationId}-${batchIndex + 1}`,
+          pool: 'fate',
+          model,
+          sessionId,
+        },
+      },
+    )
+  }
+
+  private mergeItems(
+    parsed: DestinyPatternAIItem[],
+    expectedCategory: DestinyPatternCategory,
+    generationId: number,
+    categoryIndex: number,
+  ): number {
+    const names = new Set(this.currentPatterns.map((pattern) => destinyPatternNameKey(pattern.name)))
+    const additions: DestinyPattern[] = []
+    for (const [slotIndex, item] of parsed.entries()) {
+      try {
+        const category = validateDestinyPatternCategory(item.category)
+        const name = item.name.trim()
+        if (category !== expectedCategory || !name || names.has(destinyPatternNameKey(name))) continue
+        const id = `${DESTINY_PATTERN_ID_PREFIX.AI}-${generationId}-${categoryIndex}-${slotIndex}`
+        const attrBonus = validateDestinyPatternAttrBonus(item.attrBonus, 'common')
+        names.add(destinyPatternNameKey(name))
+        additions.push(withInitialDestinyPatternGrowthIdentity({
+          id,
+          name,
+          description: item.description.trim(),
+          category,
+          rarity: 'common',
+          effect: item.effect.trim(),
+          attrBonus,
+        }, id))
+      } catch {
+        // 保留批次中其余合规候选；越界条目不做点数截断。
+      }
+    }
+    if (additions.length === 0) return 0
+    this.currentPatterns = dedupeDestinyPatterns([...this.currentPatterns, ...additions])
+    this.poolFillStatus.count = this.currentPatterns.length
+    saveDestinyPatternPool(useWorldStore.getState().worldCode, this.currentPatterns)
+    this.publish()
+    return additions.length
+  }
+
+  private countCategory(category: DestinyPatternCategory): number {
+    return this.currentPatterns.filter((pattern) => pattern.category === category).length
+  }
+
+  private failCategory(category: DestinyPatternCategory, error: string): void {
+    const state = this.poolFillStatus.categories[category]
+    state.inProgress = false
+    state.status = 'failed'
+    state.error = error
+    state.count = this.countCategory(category)
+    this.publish()
+  }
+
+  private publish(): void {
+    this.setCandidates([...this.currentPatterns])
+    const status = this.getPoolFillStatus()
+    for (const listener of this.listeners) listener([...this.currentPatterns], status)
+  }
 }

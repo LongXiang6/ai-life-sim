@@ -8,7 +8,6 @@ import type { DifficultyLevel } from '@/foundation'
 
 import type { PresetWorld, WorldCategory } from '../constants/presets'
 import type { WorldConfig } from '../types'
-import { isWorldInitAIAvailable } from './world-init-fallback'
 import { createDefaultPowerFramework } from './power-framework'
 
 const CATEGORY_ESSENCE: Record<WorldCategory, string> = {
@@ -66,18 +65,6 @@ export interface CustomWorldInput {
   eraName?: string
   /** 纪元起始年份。0 表示无自定义纪年 */
   eraStartYear?: number
-}
-
-function inferEssenceFromText(text: string): string {
-  const lower = text.toLowerCase()
-  if (/修仙|仙侠|灵气|宗门|渡劫/.test(text)) return 'cultivation'
-  if (/武侠|江湖|内力|门派/.test(text)) return 'wuxia'
-  if (/科幻|星际|太空|赛博|2077|40k|战锤/.test(text) || lower.includes('scifi')) return 'scifi'
-  if (/末世|废土|丧尸|核战/.test(text)) return 'post-apocalyptic'
-  if (/魔法|巫师|奇幻|龙|精灵/.test(text)) return 'western-fantasy'
-  if (/恐怖|克苏鲁|scp|异常/.test(text)) return 'dark-fantasy'
-  if (/现代|都市|2000|2020|2077/.test(text)) return 'modern'
-  return 'modern'
 }
 
 function inferCivilizationFromPreset(preset: PresetWorld): string {
@@ -152,20 +139,6 @@ export function buildWorldConfigFromCustom(
   } else if (wv === 'survival_horror') {
     essenceTag = 'dark-fantasy'
     powerSystemTag = 'magic'
-  } else {
-    if (isWorldInitAIAvailable()) {
-      essenceTag = 'modern'
-      powerSystemTag = 'none'
-    } else {
-      essenceTag = inferEssenceFromText(input.description)
-      if (essenceTag === 'cultivation' || essenceTag === 'wuxia') {
-        powerSystemTag = essenceTag === 'wuxia' ? 'martial' : 'cultivation'
-      } else if (essenceTag === 'scifi') {
-        powerSystemTag = 'technology'
-      } else if (essenceTag === 'western-fantasy' || essenceTag === 'dark-fantasy') {
-        powerSystemTag = 'magic'
-      }
-    }
   }
 
   const spatialForm = essenceTag === 'scifi' ? 'universe' : 'plane'

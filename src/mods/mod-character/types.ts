@@ -1,7 +1,7 @@
 /**
- * @module types.ts
- * @description MOD 类型定义 —— 角色系统（基础属性、命格、UI 投影与善恶值）
- * @mod mod-character
+ * Purpose: Define character identity, attributes, destiny patterns, and reincarnation talent contracts.
+ * Owner: mod-character
+ * Responsibility: Type declarations only; runtime validation and persistence remain with their owners.
  */
 
 import type {
@@ -18,8 +18,6 @@ export type {
   CharacterFortuneState,
   CharacterHealthState,
   CharacterLifeStageDefinition,
-  CharacterMoralityLevel,
-  CharacterMoralityState,
   CharacterNarrativeStatus,
   PendingCharacterDeath,
 } from '@/foundation'
@@ -28,7 +26,7 @@ export type {
 // 基础属性（4 项）
 // ============================================================
 
-/** 4 项基础属性（luck -> LuckSystem, reputation -> ReputationSystem, health -> HealthSystem, morality -> MoralitySystem） */
+/** 4 项基础属性；气运由角色状态独立持有。 */
 export interface BaseAttributes {
   /** 体魄：影响生命恢复、体力上限、抗病 */
   physique: number
@@ -46,6 +44,8 @@ export interface AttributeModifiers {
   mind: number
   talentAptitude: number
   charisma: number
+  /** 天赋可提供的稀有气运修正；不参与四项基础属性聚合。 */
+  luck?: number
 }
 
 /** 基础属性子系统状态 */
@@ -68,82 +68,125 @@ export interface CharacterBaseState {
 // 命格（对齐废弃项目 Talent -> 重命名为 DestinyPattern）
 // ============================================================
 
-/** 稀有度等级（对齐废弃项目 TalentRarity） */
-export type DestinyPatternRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary'
+/** 稀有度等级（对齐废弃项目 TalentRarity；`mythic` 仅由结算升阶产生，局内成长仍封顶 `legendary`） */
+export type DestinyPatternRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
 
-/** 命格极性 */
-export type DestinyPatternPolarity = 'positive' | 'negative' | 'mixed'
+/** 命格所属的玩法领域。 */
+export type DestinyPatternCategory = 'battle' | 'exploration' | 'social' | 'production'
+
+/** 命格成长路线。 */
+export type DestinyPatternGrowthRoute = '深度强化' | '广度强化' | '转变强化'
 
 /** 单条命格 */
 export interface DestinyPattern {
+  /** 跨改名与升级保持不变的本地成长身份。 */
+  lineageId: string
+  /** 当前血脉版本；开局为 1，每次玩家确认升级后递增。 */
+  version: number
   id: string
   name: string
   description: string
+  category: DestinyPatternCategory
   rarity: DestinyPatternRarity
-  polarity: DestinyPatternPolarity
   /** 效果描述文本（语义约束，注入叙事 Prompt 确保 AI 描述匹配） */
   effect: string
-  /** 属性加成（钳制 [-4, 4]） */
-  attrBonus: Partial<AttributeModifiers>,
-  /** 模拟系统系数微调（乘法叠加，默认 1.0；稀有度越高可携带越多） */
-  systemModifiers?: Partial<Record<string, number>>,
+  /** 属性加成；等级总量由 Prompt 提议并由 mod-character 在本地提交前校验。 */
+  attrBonus: Partial<AttributeModifiers>
+}
+
+/** 天赋成长 AI 只负责提供的内容方向。 */
+export interface DestinyPatternGrowthDirection {
+  route: DestinyPatternGrowthRoute
+  name: string
+  description: string
+  effect: string
+  attrBonus: Partial<AttributeModifiers>
+}
+
+/** 已由本地补齐等级、身份与版本的单个下一阶方向。 */
+export interface DestinyPatternGrowthOption {
+  optionId: string
+  route: DestinyPatternGrowthRoute
+  pattern: DestinyPattern
+}
+
+/** 玩家必须处理的单次命格成长三选一。 */
+export interface PendingDestinyPatternGrowth {
+  choiceId: string
+  narrativeId: string
+  roundSequence: number
+  lineageId: string
+  source: DestinyPattern
+  options: [DestinyPatternGrowthOption, DestinyPatternGrowthOption, DestinyPatternGrowthOption]
+}
+
+/** 已确认的命格成长路线记录。 */
+export interface DestinyPatternGrowthHistoryEntry {
+  choiceId: string
+  narrativeId: string
+  roundSequence: number
+  lineageId: string
+  selectedOptionId: string
+  source: DestinyPattern
+  result: DestinyPattern
+  committedAt: number
+  /** 本次成长确认时的模拟总天数，用于程序冷却判定。 */
+  totalDays: number
 }
 
 /** AI 命格输入（供外部 AI 数据传入 generateFromAI 方法） */
 export interface DestinyPatternInput {
   name: string
   description: string
-  rarity: DestinyPatternRarity
-  polarity: DestinyPatternPolarity
+  category: DestinyPatternCategory
   /** 效果描述文本 */
   effects: string
   /** 属性加成（可选） */
-  attrBonus?: Partial<AttributeModifiers>,
-  /** 模拟系统系数微调（可选，运行时仍按白名单与稀有度裁剪） */
-  systemModifiers?: Partial<Record<string, number>>,
-}
-
-export type ReincarnationTalentStrengthTier = 'echo' | 'deep' | 'legacy' | 'immortal'
-
-/** 一生结算时由 AI 生成的轮回天赋候选。纯概念规则，不携带属性或模拟系数。 */
-export interface MythicPatternCandidate {
-  /** 轮回天赋名称，如“未熄之诺” */
-  name: string
-  /** 概念标签，如“承诺” */
-  concept: string
-  /** 下一局叙事持续遵守的非数值概念规则 */
-  effect: string
-  /** 由本地结算评分确定，AI 只按档位塑造效果。 */
-  strengthTier?: ReincarnationTalentStrengthTier
-  /** 生成本候选时使用的人生评分。 */
-  sourceScore?: number
+  attrBonus?: Partial<AttributeModifiers>
 }
 
 /** 轮回天赋的来源元数据；只用于总库追溯，不参与效果判定。 */
-export interface MythicPatternSource {
+export interface ReincarnationTalentSource {
   worldName: string
   characterName: string
   finalAge?: number
-  /** 当前人生的稳定标识，用于保证同一人生最多封存一个轮回天赋。 */
+  /** 当前人生的稳定标识，用于追溯升阶来源。 */
   runId?: string
 }
 
-/** 已封存到跨局总库的轮回天赋。 */
-export interface MythicPattern extends MythicPatternCandidate {
-  /** 由本地内容身份生成的稳定 ID，AI 不负责生成。 */
+/** 结算升阶后写入跨世界轮回库的命格式词条；同一 lineageId 只保留最新版本。 */
+export interface ReincarnationTalent {
+  /** 由本地 lineageId 稳定派生的词条 ID。 */
   id: string
+  /** 与来源命格一致的稳定成长身份，用于替换旧版本。 */
+  lineageId: string
+  /** 血脉版本；每次升阶 +1。 */
+  version: number
+  name: string
+  description: string
+  category: DestinyPatternCategory
+  rarity: DestinyPatternRarity
+  /** 跨局持续生效的非数值概念规则。 */
+  effect: string
+  attrBonus: Partial<AttributeModifiers>
+  /** 强化等级；非 mythic 为 0，首次升到 mythic 仍为 0，神话强化后按程序结果变化。 */
+  strengthenLevel: number
   acquiredAt: number
-  source: MythicPatternSource
+  source: ReincarnationTalentSource
 }
 
 /** 命格子系统状态 */
 export interface DestinyPatternState {
-  /** 候选命格列表（定版展示 12 个，首屏达到 5 个即可先交接） */
+  /** 当前命格抽取候选池；首批为四类各四条，后台最多补充到每类十二条。 */
   candidates: DestinyPattern[]
-  /** 角色持有的命格列表（选3后确认） */
+  /** 角色在四个共享携带槽中选择的普通命格。 */
   patterns: DestinyPattern[]
   /** 稀有度统计 */
   rarityCount: Record<DestinyPatternRarity, number>,
+  /** 当前等待玩家选择的下一阶方向。 */
+  pendingGrowth: PendingDestinyPatternGrowth | null
+  /** 本局完整命格成长路线。 */
+  growthHistory: DestinyPatternGrowthHistoryEntry[]
 }
 
 // ============================================================

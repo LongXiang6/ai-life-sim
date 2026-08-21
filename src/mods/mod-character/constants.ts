@@ -1,18 +1,17 @@
 /**
- * @module constants.ts
- * @description 角色系统常量定义
- * @mod mod-character
+ * Purpose: Define shared character-system constants and static configuration.
+ * Owner: mod-character
+ * Responsibility: Immutable character defaults, labels, and limits only.
  */
 
 import type {
   BaseAttributes,
   DestinyPattern,
-  DestinyPatternPolarity,
+  DestinyPatternCategory,
   DestinyPatternRarity,
   RaceLifespanConfig,
 } from './types'
 
-export { TRANSMIGRATOR_KEYWORDS } from '@/core/shared'
 
 // ============================================================
 // 基础属性
@@ -38,14 +37,14 @@ export const MAX_ATTRIBUTE_VALUE = 10
 //
 // 设计（design-2026-07-06-compression-attributes.md 想法2）：
 //   ±10 是凡人（人类物种）的极限区间。体魄/心智/悟性/魅力 4 项可突破此界限
-//   向上（或向下）无限堆叠，进入超凡领域；隐藏属性气运(luck)/善恶(morality)
+//   向上（或向下）无限堆叠，进入超凡领域；气运由状态系统独立管理。
 //   永久锁定在 ±10，不参与超凡堆叠。
 //   下游系统（战力/寿命等）直接读取放开后的数值自行换算，无需额外「是否超凡」布尔字段。
 
 /** 可超凡属性：突破 ±10 后无上限堆叠 */
 export const TRANSCENDENT_ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-/** 当前没有凡人锁定属性；气运/善恶由独立隐藏子系统锁定。 */
+/** 当前没有凡人锁定属性；气运由角色状态独立管理。 */
 export const MORTAL_LOCKED_ATTR_KEYS = [] as const
 
 /**
@@ -108,52 +107,44 @@ export const ROUND_DECIMALS = 4
 // 命格（对齐废弃项目 TalentRarity + TALENT_PRESETS_SHARED）
 // ============================================================
 
-/** 稀有度权重（用于随机抽取，对齐废弃项目 distribution） */
-export const DESTINY_PATTERN_RARITY_WEIGHTS: Record<DestinyPatternRarity, number> = {
-  common: 60,
-  fine: 25,
-  rare: 10,
-  epic: 4,
-  legendary: 1,
+/** 首批四类普通候选总数：每类各四条。 */
+export const DESTINY_PATTERN_DISPLAY_COUNT = 16
+
+/** 默认候选数量。 */
+export const DEFAULT_DESTINY_PATTERN_COUNT = DESTINY_PATTERN_DISPLAY_COUNT
+
+/** 普通命格与轮回天赋共用的每局携带槽位数。 */
+export const PATTERN_LOADOUT_SLOT_COUNT = 4
+
+/** 每个分类 AI 请求生成的命格数。 */
+export const AI_DESTINY_PATTERN_BATCH_SIZE = 4
+
+/** 普通命格的固定分类顺序。 */
+export const DESTINY_PATTERN_CATEGORY_ORDER: readonly DestinyPatternCategory[] = [
+  'battle',
+  'exploration',
+  'social',
+  'production',
+] as const
+
+/** 每个分类的后台候选目标数。 */
+export const DESTINY_PATTERN_CATEGORY_TARGET_COUNT = 12
+
+/** 一批命格生成的四个独立分类任务。 */
+export const AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS: readonly (readonly DestinyPatternCategory[])[] = [
+  ['battle'],
+  ['exploration'],
+  ['social'],
+  ['production'],
+] as const
+
+/** 命格类别名称与说明。 */
+export const DESTINY_PATTERN_CATEGORY_CONFIG: Record<DestinyPatternCategory, { label: string; guidance: string }> = {
+  battle: { label: '战斗', guidance: '直接影响对抗、攻防、临场判断、承压或战斗方式。' },
+  exploration: { label: '探索', guidance: '直接影响观察、求知、追踪、远行、发现或环境适应。' },
+  social: { label: '社交', guidance: '直接影响交往、协作、说服、关系建立或群体位置。' },
+  production: { label: '生产', guidance: '直接影响制作、经营、劳动、创造、维护或资源转化。' },
 }
-
-/** 稀有度硬限制（单角色持有上限） */
-export const DESTINY_PATTERN_RARITY_LIMITS: Partial<Record<DestinyPatternRarity, number>> = {
-  legendary: 2,
-  epic: 6,
-}
-
-/** 首屏交接所需的有效命格数；达到后剩余候选在后台静默补齐。 */
-export const DESTINY_PATTERN_EARLY_READY_COUNT = 5
-
-/** 定版命格选择页展示的普通候选数。 */
-export const DESTINY_PATTERN_DISPLAY_COUNT = 12
-
-/** 旧调用方兼容别名：默认值仍表示首屏交接门槛，不代表展示槽位数。 */
-export const DEFAULT_DESTINY_PATTERN_COUNT = DESTINY_PATTERN_EARLY_READY_COUNT
-
-/** 玩家选择数量（选3，对齐废弃项目 TALENT_SELECT_COUNT） */
-export const DESTINY_PATTERN_SELECT_COUNT = 3
-
-/** 每局最多携带的轮回天赋数量。 */
-export const MYTHIC_PATTERN_SELECT_COUNT = 2
-
-/** 结算页一次生成的轮回天赋候选数。 */
-export const MYTHIC_PATTERN_CANDIDATE_COUNT = 3
-
-/** AI 批量生成：每路请求正好 10 条，后台最多 10 批填满约 100 条本地池。 */
-export const AI_DESTINY_PATTERN_BATCH_SIZE = 10
-export const AI_DESTINY_PATTERN_BATCH_COUNT = 10
-
-/** AI 命格首屏并发路数：任一路先产出有效命格即可尽快完成首屏。 */
-export const AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY = 3
-
-/** 批量数量 + 满池数量（对齐废弃项目 TALENT_BULK_COUNT / TALENT_FULL_POOL_COUNT） */
-export const DESTINY_PATTERN_BULK_COUNT = 50
-export const DESTINY_PATTERN_FULL_POOL_COUNT = 100
-
-/** 快速抽取阈值（池 ≥90 条时跳过 AI 生成，对齐废弃项目 TALENT_POOL_FAST_DRAW_THRESHOLD） */
-export const DESTINY_PATTERN_FAST_DRAW_THRESHOLD = 90
 
 /** 自定义世界编码起始偏移（对齐废弃项目 CUSTOM_WORLD_CODE_START） */
 export const CUSTOM_WORLD_CODE_START = 10000
@@ -175,127 +166,74 @@ export const DESTINY_PATTERN_RARITY_CONFIG: Record<DestinyPatternRarity, { label
   rare: { label: '稀有', color: '#3b82f6', glow: '0 0 12px #3b82f6', },
   epic: { label: '史诗', color: '#a855f7', glow: '0 0 16px #a855f7', },
   legendary: { label: '传说', color: '#f59e0b', glow: '0 0 20px #f59e0b', },
+  mythic: { label: '神话', color: '#e879f9', glow: '0 0 24px #e879f9', },
 }
 
 /** 稀有度排序值（用于 UI 列表排序） */
 export const DESTINY_PATTERN_RARITY_RANK: Record<DestinyPatternRarity, number> = {
-  common: 0, fine: 1, rare: 2, epic: 3, legendary: 4,
+  common: 0, fine: 1, rare: 2, epic: 3, legendary: 4, mythic: 5,
 }
 
-/** 极性 UI 颜色（对齐废弃项目 TALENT_POLARITY_CONFIG） */
-export const DESTINY_PATTERN_POLARITY_CONFIG: Record<DestinyPatternPolarity, { label: string; color: string }> = {
-  positive: { label: '正面', color: '#22c55e', },
-  negative: { label: '负面', color: '#ef4444', },
-  mixed: { label: '双刃', color: '#f59e0b', },
-}
+/** 内置预设命格库（AI 不可用时的降级池）。 */
+export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id' | 'category' | 'lineageId' | 'version'>[] = [
+  { name: '负重耐行', description: '你耐住奔走、负重与对抗的时间略长，体力恢复也更稳；连续透支后，仍会如常人一般力竭。', rarity: 'common', effect: '长时行动与体力恢复略占优势', attrBonus: { physique: 1, }, },
+  { name: '守诺如山', description: '你答应的事会尽力办成，旁人因此更愿意托付；承诺过多时，仍须付出时间与精力。', rarity: 'common', effect: '更容易取得他人信任', attrBonus: { charisma: 1, }, },
+  { name: '观微知著', description: '你能更早察觉人、物与环境的细微变化，常可从小处找到线索；信息不足时，仍不可凭直觉断定全貌。', rarity: 'common', effect: '察觉变化与发现线索略占优势', attrBonus: { mind: 1, }, },
+  { name: '手稳工细', description: '你做手上功夫时更稳更细，重复工序不易出错；遇到陌生技艺，仍需从头练起。', rarity: 'common', effect: '重复制作与操作更稳定', attrBonus: { physique: 1, }, },
+  { name: '静心守势', description: '你在受挫和对抗中更能稳住判断，不易被一时情绪带偏；惊变连至时，仍需靠经验应对。', rarity: 'common', effect: '压力下较易保持判断', attrBonus: { mind: 1, }, },
+  { name: '食火知味', description: '你能较快掌握火候与调味，把寻常食材做得妥帖；食材与器具不足时，成品仍受限制。', rarity: 'common', effect: '烹饪与日常制作略占优势', attrBonus: { talentAptitude: 1, }, },
+  { name: '知礼有度', description: '你能分辨场合与分寸，说话做事较少失礼；遇到陌生规矩时，仍需先观察学习。', rarity: 'common', effect: '初次相处更容易留下好印象', attrBonus: { charisma: 1, }, },
+  { name: '洁身有序', description: '你习惯把住处、器具和流程收拾清楚，做事较少遗漏；环境长期混乱时，仍需花时间维持。', rarity: 'common', effect: '日常整理与卫生维护略占优势', attrBonus: { physique: 1, }, },
+  { name: '持见不移', description: '你能在众说纷纭时保住自己的判断，不易轻易改口；若先入为主，也可能错过他人的提醒。', rarity: 'common', effect: '不易受外界言语左右', attrBonus: { charisma: 1, }, },
+  { name: '过目留痕', description: '你对见过的人事与路径记得更牢，复述要点时较少遗漏；久远细节仍会随时间淡去。', rarity: 'common', effect: '记忆与复述略占优势', attrBonus: { mind: 1, }, },
+  { name: '晨行识路', description: '你在清晨精神较清明，辨路、观察和整理线索更有效率；作息被打乱时，这份优势会减弱。', rarity: 'common', effect: '清晨探索与观察更有效率', attrBonus: { physique: 1, }, },
+  { name: '耐心守成', description: '你能耐住重复与等待，把细小事务做完做好；进展过慢时，仍可能错过需要果断的时机。', rarity: 'common', effect: '耐心事务更容易完成', attrBonus: { mind: 1, }, },
+  { name: '恻隐存心', description: '你能较快体会他人的难处，也愿意伸手相助；心软过度时，容易被他人的处境牵住。', rarity: 'common', effect: '更容易获得他人好感', attrBonus: { charisma: 1, }, },
 
-/**
- * 命格模拟系数元数据 —— 含显示名 + 收益方向
- *
- * benefitDirection:
- *   'higher' → 数值越大对玩家/世界越有利（绿色=好，红色=坏）
- *   'lower'  → 数值越小越有利（红色=好，绿色=坏）—— 如伤病进展、修炼瓶颈、死亡率、灾害频率等
- */
+  { name: '审慎决断', description: '你会多看一层后果再作决定，因此较少犯轻率的错；局势骤变时，判断也会比旁人慢半步。', rarity: 'common', effect: '复杂选择较少轻率失误', attrBonus: { mind: -1, }, },
+  { name: '旧物留情', description: '你能从旧物与旧事中记住关系和线索，熟人相处更有分寸；过分执着旧事时，脚步会慢下来。', rarity: 'common', effect: '旧关系与旧物线索更易被记起', attrBonus: { mind: -1, }, },
+  { name: '慢熟重情', description: '你与人熟识较慢，但一旦建立信任便较能长久相处；初见时不善主动，关系推进会更慢。', rarity: 'common', effect: '长期关系更稳定，初期较慢', attrBonus: {}, },
+  { name: '精工细作', description: '你愿意反复校正细节，让成品更完整可靠；追求周全会多耗时间，急事中未必占优。', rarity: 'common', effect: '作品更完整，但耗时更长', attrBonus: { talentAptitude: 1, mind: -1, }, },
+  { name: '夜读凝神', description: '你在夜深人静时更易集中精神，处理细事更有耐性；若缺少休息，次日的体力与反应会受影响。', rarity: 'common', effect: '夜间专注较强，白日恢复较慢', attrBonus: { mind: 1, physique: -1, }, },
 
-/** 个人向模拟系数元数据 */
-export const DESTINY_PATTERN_PERSONAL_MODIFIER_META: Record<string, { label: string; benefitDirection: 'higher' | 'lower' }> = {
-  luckPointModifier: { label: '气运获取', benefitDirection: 'higher' },
-  vitalityRecoveryModifier: { label: '生命恢复', benefitDirection: 'higher' },
-  staminaRecoveryModifier: { label: '体力恢复', benefitDirection: 'higher' },
-  spiritRecoveryModifier: { label: '精神恢复', benefitDirection: 'higher' },
-  conditionProgressionModifier: { label: '伤病进展', benefitDirection: 'lower' },
-  cultivationSpeedModifier: { label: '修炼/战力成长', benefitDirection: 'higher' },
-  bottleneckModifier: { label: '修炼瓶颈', benefitDirection: 'lower' },
-  incomeModifier: { label: '职业收入', benefitDirection: 'higher' },
-  fertilityModifier: { label: '家族生育', benefitDirection: 'higher' },
-  devotionGainModifier: { label: '虔诚获取', benefitDirection: 'higher' },
-  lifespanModifier: { label: '寿命上限', benefitDirection: 'higher' },
-} as const
-
-/** 个人向 label 映射（向后兼容） */
-export const DESTINY_PATTERN_PERSONAL_MODIFIERS: Record<string, string> = Object.fromEntries(
-  Object.entries(DESTINY_PATTERN_PERSONAL_MODIFIER_META).map(([k, v]) => [k, v.label]),
-) as Record<string, string>
-
-export type DestinyPatternPersonalModifierKey = keyof typeof DESTINY_PATTERN_PERSONAL_MODIFIER_META
-
-export const DESTINY_PATTERN_PERSONAL_MODIFIER_KEYS = Object.keys(
-  DESTINY_PATTERN_PERSONAL_MODIFIER_META,
-) as DestinyPatternPersonalModifierKey[]
-
-/** 世界向模拟系数元数据 */
-export const DESTINY_PATTERN_WORLD_MODIFIER_META: Record<string, { label: string; benefitDirection: 'higher' | 'lower' }> = {
-  birthRateModifier: { label: '宏观人口出生', benefitDirection: 'higher' },
-  deathRateModifier: { label: '宏观死亡率', benefitDirection: 'lower' },
-  warFrequencyModifier: { label: '战争频率', benefitDirection: 'lower' },
-  techProgressModifier: { label: '科技进度', benefitDirection: 'higher' },
-  disasterFrequencyModifier: { label: '灾害频率', benefitDirection: 'lower' },
-  monsterThreatModifier: { label: '怪物威胁', benefitDirection: 'lower' },
-  socialMobilityModifier: { label: '阶层流动', benefitDirection: 'higher' },
-  migrationRateModifier: { label: '人口迁移', benefitDirection: 'higher' },
-  economyModifier: { label: '宏观经济', benefitDirection: 'higher' },
-  factionEmergenceModifier: { label: '势力涌现', benefitDirection: 'higher' },
-} as const
-
-/** 世界向 label 映射（向后兼容） */
-export const DESTINY_PATTERN_WORLD_MODIFIERS: Record<string, string> = Object.fromEntries(
-  Object.entries(DESTINY_PATTERN_WORLD_MODIFIER_META).map(([k, v]) => [k, v.label]),
-) as Record<string, string>
-
-export type DestinyPatternWorldModifierKey = keyof typeof DESTINY_PATTERN_WORLD_MODIFIER_META
-
-export const DESTINY_PATTERN_WORLD_MODIFIER_KEYS = Object.keys(
-  DESTINY_PATTERN_WORLD_MODIFIER_META,
-) as DestinyPatternWorldModifierKey[]
-
-/** 合并所有修饰符的收益方向查找表 */
-export const DESTINY_PATTERN_MODIFIER_BENEFIT_DIRECTION: Record<string, 'higher' | 'lower'> = Object.fromEntries(
-  [
-    ...Object.entries(DESTINY_PATTERN_PERSONAL_MODIFIER_META).map(([k, v]) => [k, v.benefitDirection] as const),
-    ...Object.entries(DESTINY_PATTERN_WORLD_MODIFIER_META).map(([k, v]) => [k, v.benefitDirection] as const),
-  ],
-)
-
-/** 内置预设命格库（AI 不可用时的降级池，对齐废弃项目 TALENT_PRESETS_SHARED 31 条）
- *  所有 description 须在 40–60 汉字之间，对齐 AI 生成质量 */
-export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id'>[] = [
-  // ===================== 正面命格 =====================
-  { name: '喜欢运动', description: '球场上总能看到你奔跑的身影，流汗对你来说是种享受；体育课是你最期待的时光，跑跳投掷样样在行，精力仿佛永远用不完。', rarity: 'common', effect: '基础体质略好', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '讲信用', description: '答应别人的事哪怕再麻烦也会做到，不轻易许诺但一旦承诺便全力以赴；周围人都知道找你办事靠得住，这份信任是日积月累攒下来的。', rarity: 'common', effect: '更容易获得他人信任', polarity: 'positive', attrBonus: { charisma: 1, }, },
-  { name: '善于观察', description: '旁人注意不到的细节你总能一眼捕捉——谁今天情绪不对、桌上少了什么东西、路面的细微变化；这些信息在你脑中自动拼合成完整的图景。', rarity: 'common', effect: '察觉变化的能力略强', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '手脚麻利', description: '做事从不拖泥带水，同样的任务你总是最快完成的那一个；动作干净利落，收拾东西、完成工作都比别人快上半拍，效率惊人。', rarity: 'common', effect: '任务完成速度略快', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '心态好', description: '遇到不顺心的事很少钻牛角尖，睡一觉就能翻篇；考试考砸了、被批评了都能坦然面对，这种不内耗的性格让你比同龄人轻松许多。', rarity: 'common', effect: '情绪波动较少', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '会做饭', description: '锅碗瓢盆在你手中如同乐器，简单的食材也能做出让人眼前一亮的味道；调味全凭手感，菜谱看一遍就能还原八九不离十。', rarity: 'common', effect: '生活质量略高', polarity: 'positive', attrBonus: { talentAptitude: 1, }, },
-  { name: '懂礼貌', description: '见到长辈主动问好，接过东西会说谢谢，公共场所懂得排队和低声交谈；这些看似不起眼的习惯让认识你的人都觉得这孩子教养好。', rarity: 'common', effect: '初次印象更好', polarity: 'positive', attrBonus: { charisma: 1, }, },
-  { name: '爱干净', description: '书桌永远整整齐齐，衣服就算旧也洗得干干净净；周围稍微乱一点就浑身不自在，这个习惯让你远离了很多小病小痛。', rarity: 'common', effect: '生病概率略低', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '有主见', description: '面对选择时心里自有一杆秤，不会因为别人说什么就轻易改变想法；买什么东西、走哪条路、信谁的话，你都有自己的判断标准。', rarity: 'common', effect: '不容易被别人影响决定', polarity: 'positive', attrBonus: { charisma: 1, }, },
-  { name: '记性不错', description: '见过一面的人名和脸能对上号，读过的文章过一阵还能复述大意；亲戚的生日、老师交代的事都记得清清楚楚，不需要特意记笔记。', rarity: 'common', effect: '记忆类任务略占优势', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '早起习惯', description: '天刚蒙蒙亮就自然醒来，从不赖床；清晨的时光对你来说是一天中最清醒高效的时段，别人还在睡梦中时你已经做了不少事。', rarity: 'common', effect: '每日精力充沛', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '有耐心', description: '钓鱼能坐一整天，拼图能反复试错直到完成最后一块；别人觉得枯燥的事你觉得很有意思，这份耐性让你在很多事上比别人做得更精细。', rarity: 'common', effect: '需要耐心的任务更容易完成', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '有同情心', description: '看到别人受伤或难过时你心里也会跟着难受，忍不住想上前帮忙；路边的小猫小狗受伤了你也会心疼，这份柔软让你身边聚拢了不少真心朋友。', rarity: 'common', effect: '更容易获得他人好感', polarity: 'positive', attrBonus: { charisma: 1, }, },
-
-  // ===================== 中立命格（mixed） =====================
-  { name: '选择困难', description: '面对两个选项时脑子里会有两种声音打架，从午饭吃什么到买哪件衣服都能犹豫半天；虽然耗时，但你很少后悔自己的最终决定。', rarity: 'common', effect: '选择时耗时更久，但错误概率略低', polarity: 'mixed', attrBonus: { mind: -1, }, },
-  { name: '怀旧', description: '旧照片、老玩具、儿时去过的那个小卖部——这些东西总能让你陷入回忆；你喜欢留着手边的东西不舍得扔，每件旧物都连着一段忘不掉的时光。', rarity: 'common', effect: '老物件相关事件有加成，但容易沉迷', polarity: 'mixed', attrBonus: { mind: -1, }, },
-  { name: '慢热', description: '刚到新环境时总是安静地待在角落，不会主动和陌生人攀谈；但一旦相处久了、认定你是朋友了，就会变得格外真诚和热络，那份交情往往很长久。', rarity: 'common', effect: '长期关系更稳定，但初期稍难', polarity: 'mixed', attrBonus: {}, },
-  { name: '完美主义', description: '作业里的一个字写歪了也要擦掉重写，做一件事不做到自己满意绝不罢休；这份追求极致的心让你的作品总是精良，但也常常把自己累得够呛。', rarity: 'common', effect: '作品质量高，但耗时更长', polarity: 'mixed', attrBonus: { talentAptitude: 1, mind: -1, }, },
-  { name: '夜猫子', description: '白天昏昏沉沉提不起劲，但一到深夜就精神抖擞；万籁俱寂时是你最专注的时刻，效率比白天高出几倍，尽管第二天早起总是个挑战。', rarity: 'common', effect: '夜晚效率高，但白天精神差', polarity: 'mixed', attrBonus: { mind: 1, physique: -1, }, },
-
-  // ===================== 负面命格 =====================
-  { name: '容易忘事', description: '出门走到半路才想起忘了带钥匙，交代的事情转头就记不清细节；备忘录写了又写还是丢三落四，记性差这件事本身倒是记得很清楚。', rarity: 'common', effect: '经常忘记重要事情', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '路痴', description: '在地图上看懂路线是一回事，走着走着又是另一回事了；明明来过的地方换个方向就不认识了，导航是你出门最离不开的东西。', rarity: 'common', effect: '容易迷路', polarity: 'negative', attrBonus: {}, },
-  { name: '拖延症', description: '作业和任务总是等到截止日期前才开始动手，前期各种磨蹭找理由，后期疯狂赶工；虽然最后总能完成，但过程中的焦虑一点也没少受。', rarity: 'common', effect: '经常赶工', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '粗心大意', description: '做题时思路是对的但计算总出错，写字一不留神就多一笔少一画；出门忘关灯、洗完忘拔插头，这些小失误在你的生活中频繁上演。', rarity: 'common', effect: '容易出错', polarity: 'negative', attrBonus: {}, },
-  { name: '脾气急躁', description: '一遇到不顺心的事火气就往上蹿，说话声音跟着变大，脸也沉了下来；虽然发完火很快就消气了，但那些被你不经意伤到的话却收不回来了。', rarity: 'common', effect: '人际关系容易出问题', polarity: 'negative', attrBonus: { charisma: -1, }, },
-  { name: '运气一般', description: '抽奖永远抽不到大奖，排队总是排到最慢的那一队，赶公交总是差那么几步；不是特别倒霉，但好事也很少自己落到你头上。', rarity: 'common', effect: '随机事件略差', polarity: 'negative', attrBonus: {}, },
-  { name: '反应慢', description: '别人说完笑话大家都笑了你才反应过来，遇到突发情况总会愣一下才行动；运动场上球飞过来时你的身体总比脑子慢半拍，错过了不少好机会。', rarity: 'common', effect: '紧急情况容易出错', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '挑食', description: '盘子里不喜欢的菜会一根根挑出来放边上，味道奇怪的东西尝一口就不肯再碰了；吃饭这件事上你有一套自己的规矩，换个地方吃饭经常吃不惯。', rarity: 'common', effect: '容易吃不好', polarity: 'negative', attrBonus: { physique: -1, }, },
-  { name: '坐不住', description: '在椅子上坐不到二十分钟就想站起来走一走，看书看一会儿就忍不住摸手机；让你长时间安安静静地做同一件事简直是一种折磨，屁股像长了刺。', rarity: 'common', effect: '需要专注的任务困难', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '胆子小', description: '一个人走夜路总觉得身后有脚步声，看恐怖片会好几天不敢关灯睡觉；遇到冲突和争吵时第一反应是想躲开，心跳加速手心冒汗是常态。', rarity: 'common', effect: '容易害怕', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '不爱运动', description: '体育课跑两圈就喘不上气，能坐着绝不站着、能躺着绝不坐着；运动对你来说不是享受而是受罪，宁愿多走几步去近的地方也不愿意跑起来。', rarity: 'common', effect: '体质略差', polarity: 'negative', attrBonus: { physique: -1, }, },
-  { name: '脸皮薄', description: '在众人面前说话脸会红到耳根，被老师点名回答问题声音小得像蚊子叫；向陌生人求助或者跟人讨价还价对你来说尤其艰难，宁可不做也不愿开口。', rarity: 'common', effect: '社交困难', polarity: 'negative', attrBonus: { charisma: -1, }, },
-  { name: '丢三落四', description: '钥匙、钱包、学生证——这三样东西你轮流丢，每学期至少补办一次；明明出门时还记得带上的东西，到地方一摸口袋发现不知什么时候弄丢了。', rarity: 'common', effect: '经常找不到东西', polarity: 'negative', attrBonus: {}, },
+  // ===================== 其余备用命格 =====================
+  { name: '容易忘事', description: '出门走到半路才想起忘了带钥匙，交代的事情转头就记不清细节；备忘录写了又写还是丢三落四，记性差这件事本身倒是记得很清楚。', rarity: 'common', effect: '经常忘记重要事情', attrBonus: { mind: -1, }, },
+  { name: '路痴', description: '在地图上看懂路线是一回事，走着走着又是另一回事了；明明来过的地方换个方向就不认识了，导航是你出门最离不开的东西。', rarity: 'common', effect: '容易迷路', attrBonus: {}, },
+  { name: '拖延症', description: '作业和任务总是等到截止日期前才开始动手，前期各种磨蹭找理由，后期疯狂赶工；虽然最后总能完成，但过程中的焦虑一点也没少受。', rarity: 'common', effect: '经常赶工', attrBonus: { mind: -1, }, },
+  { name: '粗心大意', description: '做题时思路是对的但计算总出错，写字一不留神就多一笔少一画；出门忘关灯、洗完忘拔插头，这些小失误在你的生活中频繁上演。', rarity: 'common', effect: '容易出错', attrBonus: {}, },
+  { name: '脾气急躁', description: '一遇到不顺心的事火气就往上蹿，说话声音跟着变大，脸也沉了下来；虽然发完火很快就消气了，但那些被你不经意伤到的话却收不回来了。', rarity: 'common', effect: '人际关系容易出问题', attrBonus: { charisma: -1, }, },
+  { name: '运气一般', description: '抽奖永远抽不到大奖，排队总是排到最慢的那一队，赶公交总是差那么几步；不是特别倒霉，但好事也很少自己落到你头上。', rarity: 'common', effect: '随机事件略差', attrBonus: {}, },
+  { name: '反应慢', description: '别人说完笑话大家都笑了你才反应过来，遇到突发情况总会愣一下才行动；运动场上球飞过来时你的身体总比脑子慢半拍，错过了不少好机会。', rarity: 'common', effect: '紧急情况容易出错', attrBonus: { mind: -1, }, },
+  { name: '挑食', description: '盘子里不喜欢的菜会一根根挑出来放边上，味道奇怪的东西尝一口就不肯再碰了；吃饭这件事上你有一套自己的规矩，换个地方吃饭经常吃不惯。', rarity: 'common', effect: '容易吃不好', attrBonus: { physique: -1, }, },
+  { name: '坐不住', description: '在椅子上坐不到二十分钟就想站起来走一走，看书看一会儿就忍不住摸手机；让你长时间安安静静地做同一件事简直是一种折磨，屁股像长了刺。', rarity: 'common', effect: '需要专注的任务困难', attrBonus: { mind: -1, }, },
+  { name: '胆子小', description: '一个人走夜路总觉得身后有脚步声，看恐怖片会好几天不敢关灯睡觉；遇到冲突和争吵时第一反应是想躲开，心跳加速手心冒汗是常态。', rarity: 'common', effect: '容易害怕', attrBonus: { mind: -1, }, },
+  { name: '不爱运动', description: '体育课跑两圈就喘不上气，能坐着绝不站着、能躺着绝不坐着；运动对你来说不是享受而是受罪，宁愿多走几步去近的地方也不愿意跑起来。', rarity: 'common', effect: '体质略差', attrBonus: { physique: -1, }, },
+  { name: '脸皮薄', description: '在众人面前说话脸会红到耳根，被老师点名回答问题声音小得像蚊子叫；向陌生人求助或者跟人讨价还价对你来说尤其艰难，宁可不做也不愿开口。', rarity: 'common', effect: '社交困难', attrBonus: { charisma: -1, }, },
+  { name: '丢三落四', description: '钥匙、钱包、学生证——这三样东西你轮流丢，每学期至少补办一次；明明出门时还记得带上的东西，到地方一摸口袋发现不知什么时候弄丢了。', rarity: 'common', effect: '经常找不到东西', attrBonus: {}, },
 ]
+
+/** 非 AI 模式使用的人工分类；未列入的旧预设不进入新分类抽取。 */
+export const PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME: Readonly<Record<string, DestinyPatternCategory>> = {
+  负重耐行: 'battle',
+  静心守势: 'battle',
+  夜读凝神: 'battle',
+  不爱运动: 'battle',
+  观微知著: 'exploration',
+  过目留痕: 'exploration',
+  晨行识路: 'exploration',
+  持见不移: 'exploration',
+  旧物留情: 'exploration',
+  守诺如山: 'social',
+  知礼有度: 'social',
+  恻隐存心: 'social',
+  慢熟重情: 'social',
+  手稳工细: 'production',
+  食火知味: 'production',
+  洁身有序: 'production',
+  耐心守成: 'production',
+  精工细作: 'production',
+  审慎决断: 'production',
+}
 
 // ============================================================
 // 健康初值

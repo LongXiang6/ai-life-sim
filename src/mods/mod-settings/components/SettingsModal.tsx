@@ -1,3 +1,5 @@
+/** Purpose: Render the finalized settings workspace. Owner: mod-settings. Responsibility: Settings navigation and public store wiring only. */
+
 'use client'
 
 /**
@@ -23,10 +25,10 @@ import styles from './SettingsModal.module.css'
 type TabId = 'appearance' | 'narrative' | 'model-call' | 'statistics'
 
 const TABS: { id: TabId; label: string; index: string }[] = [
-  { id: 'appearance', label: '阅读与界面', index: '01' },
-  { id: 'narrative', label: '叙事偏好', index: '02' },
-  { id: 'model-call', label: '模型与调用', index: '03' },
-  { id: 'statistics', label: '数据统计', index: '04' },
+  { id: 'appearance', label: '📖 阅读与界面', index: '01' },
+  { id: 'narrative', label: '📝 叙事偏好', index: '02' },
+  { id: 'model-call', label: '🔌 模型与调用', index: '03' },
+  { id: 'statistics', label: '📊 数据统计', index: '04' },
 ]
 
 function areSettingsDefault(state: ReturnType<typeof useSettingsStore.getState>): boolean {
@@ -176,79 +178,77 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
     >
       <span className={styles.spine} aria-hidden="true" />
 
-      <header className={styles.header}>
+      <div className={styles.screen}>
         <div className={styles.metaRow} aria-hidden="true">
           <span>AI LIFE SIM · 命书</span>
           <span>附 · {activeTabIndex}</span>
         </div>
-        <div className={styles.titleRow}>
+
+        <header className={styles.header}>
           <div>
-            <h2 id="settings-dialog-title" className={styles.title}>设置</h2>
+            <h2 id="settings-dialog-title" className={styles.title}>⚙️ 设置</h2>
             <p>偏好即时生效，不改变已经发生的模拟事实。</p>
           </div>
-          <span className={styles.titleMark} aria-hidden="true"><span>设</span></span>
-        </div>
-        <div className={styles.divider} aria-hidden="true"><span /></div>
-      </header>
+        </header>
 
-      {/* Tab 栏 */}
-      <div ref={tabBarRef} className={styles.tabBar} role="tablist" aria-label="设置分类">
-        {TABS.map((tab, index) => (
+        <div ref={tabBarRef} className={styles.tabBar} role="tablist" aria-label="设置分类">
+          {TABS.map((tab, index) => (
+            <button
+              type="button"
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
+              className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
+              role="tab"
+              id={`settings-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={activeTab === tab.id ? `settings-panel-${tab.id}` : undefined}
+              tabIndex={activeTab === tab.id ? 0 : -1}
+            >
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.settingsTools}>
+          <small>{allSettingsAreDefault ? '当前为默认设置' : '已有调整 · 即时生效'}</small>
           <button
             type="button"
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            onKeyDown={(event) => handleTabKeyDown(event, index)}
-            className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-            role="tab"
-            id={`settings-tab-${tab.id}`}
-            aria-selected={activeTab === tab.id}
-            aria-controls={activeTab === tab.id ? `settings-panel-${tab.id}` : undefined}
-            tabIndex={activeTab === tab.id ? 0 : -1}
+            className={styles.restoreAction}
+            disabled={allSettingsAreDefault}
+            onClick={handleRestoreDefaults}
           >
-            <small>{tab.index}</small>
-            <span>{tab.label}</span>
+            恢复默认
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className={styles.settingsTools}>
-        <small>{allSettingsAreDefault ? '当前为默认设置' : '已有调整 · 即时生效'}</small>
-        <button
-          type="button"
-          className={styles.restoreAction}
-          disabled={allSettingsAreDefault}
-          onClick={handleRestoreDefaults}
+        <div
+          id={`settings-panel-${activeTab}`}
+          className={styles.tabContent}
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${activeTab}`}
         >
-          恢复默认
-        </button>
-      </div>
-
-      {/* Tab 内容 */}
-      <div
-        id={`settings-panel-${activeTab}`}
-        className={styles.tabContent}
-        role="tabpanel"
-        aria-labelledby={`settings-tab-${activeTab}`}
-      >
-        {activeTab === 'appearance' && <SettingsTabTheme />}
-        {activeTab === 'narrative' && <SettingsTabNarrative />}
-        {activeTab === 'model-call' && (
-          <>
-            <SettingsTabPresets key={settingsRevision} />
-            <SettingsTabModel />
-          </>
-        )}
-        {activeTab === 'statistics' && <SettingsTabStats />}
+          {activeTab === 'appearance' && <SettingsTabTheme />}
+          {activeTab === 'narrative' && <SettingsTabNarrative />}
+          {activeTab === 'model-call' && (
+            <>
+              <SettingsTabPresets key={settingsRevision} />
+              <SettingsTabModel />
+            </>
+          )}
+          {activeTab === 'statistics' && <SettingsTabStats />}
+        </div>
       </div>
 
       {!isPage && (
         <footer className={styles.footer}>
-          <button type="button" onClick={onClose} className={styles.closeBtn} aria-label="关闭设置">×</button>
-          <button type="button" onClick={onClose} className={styles.doneBtn}>
-            <span className={styles.doneIndex}>返</span>
-            <span className={styles.doneCopy}><strong>完成设置</strong><small>所有调整已即时生效</small></span>
-            <span className={styles.doneArrow} aria-hidden="true">→</span>
+          <button type="button" onClick={onClose} className={styles.footerButton}>
+            <strong>返回上一页</strong>
+            <small>退出设置</small>
+          </button>
+          <button type="button" onClick={onClose} className={styles.footerButton}>
+            <strong>完成</strong>
+            <small>返回欢迎界面</small>
           </button>
         </footer>
       )}

@@ -1,0 +1,127 @@
+<!-- Purpose: Record the second UI iteration round for the world-customize sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界配置 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WORLD-CUSTOMIZE / ROUND-02</p>
+      <h1>世界配置 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 03（聚焦式）基础上移除世界摘要 section：世界名/引语/难度并入标题区，规则摘要与 facts（来源·年代·难度）元信息删除；三个候选围绕摘要并入方式差异，其余沿用聚焦式结构与定版语言。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（02 / 08）、标题「世界创作工坊」副句「确认这段人生的底层规则。」、世界名「星际纪元」、年代「公元 2200 年」、引语「星海无涯，此身终抵。」、难度循环（普通/困难/噩梦/地狱）、世界规则预览（四项规则联动）、节日范围（仅中国/中国及国际）、世界规则四维度卡片（AI/选择/自定）、底部双文字等宽返回世界选择与确认世界（03）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>标题区整合（世界名/引语/难度并排的紧凑度）、摘要去留（元信息是否彻底移除）、整体沉浸（是否仍有卡片/横幅割裂感）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>标题行式</strong></header>
+          <p>世界名 + 年代并入标题下方一行，引语宋体小字一行，难度微型金圆钮在标题行右侧，无任何摘要卡片。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-header-line.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>轻量横幅式</strong></header>
+          <p>标题下一条浅米底横幅条（无卡片边框）承载世界名 + 引语，难度微型钮在横幅右端。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-banner.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>引语突出式</strong></header>
+          <p>引语宋体放大突出（大引号），世界名 + 年代 + 难度一行，无横幅无卡片，最贴近定版世界选择。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-quote.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 标题行式</span><span role="columnheader">02 轻量横幅式</span><span role="columnheader">03 引语突出式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">标题区整合</strong><span role="cell">一行并排</span><span role="cell">横幅承载</span><span role="cell">引语主 + 一行</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">摘要去留</strong><span role="cell">元信息全删</span><span role="cell">元信息全删</span><span role="cell">元信息全删</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">整体沉浸</strong><span role="cell">无卡片割裂</span><span role="cell">横幅轻量</span><span role="cell">最轻量</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（轻量横幅式）。用户确认：标题下浅米底横幅条（无卡片边框）承载世界名 + 引语、难度微型钮在横幅右端、无摘要卡片，为世界配置第二轮定版基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（标题行式）：世界名/年代/引语并排行略显局促。候选 03（引语突出式）：引语先入眼与配置页的操作节奏不符。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留横幅式结构与定版语言；按用户指示：难度按钮改为不可切换（只读展示前面设置的结果），main 板块精简去除介绍说明文字（副句、section 副标题、维度描述），增强沉浸感并减少信息压力，进入第三轮。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

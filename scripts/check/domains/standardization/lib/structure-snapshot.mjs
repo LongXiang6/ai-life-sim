@@ -21,6 +21,7 @@ const compactEntryFiles = new Set(structureConfig.compactEntryFiles)
 const headerExtensions = new Set(structureConfig.headerExtensions)
 const ignoredPaths = new Set(structureConfig.ignoredPaths)
 const generatedPattern = new RegExp(standardizationConfig.generatedFilePattern)
+const budgetTolerance = Math.min(Number(structureConfig.budgetTolerance) || 1.2, 1.2)
 
 function countLines(text) {
   if (!text) return 0
@@ -61,6 +62,10 @@ function preferredBudget(file) {
   return structureConfig.preferredLineBudget
 }
 
+function allowedBudgetLines(budget) {
+  return Math.ceil(budget * budgetTolerance)
+}
+
 function collectFiles() {
   const files = structureConfig.scanRoots.flatMap((root) => (
     walkFiles(resolveProjectPath(root), structureConfig.ignoredDirectories)
@@ -77,15 +82,19 @@ export function buildStructureSnapshot() {
     const ownership = resolveOwner(relativePath)
     const generated = generatedPattern.test(path.basename(file))
     const budget = preferredBudget(file)
+    const lines = countLines(text)
+    const exceedsPreferredBudget = budget !== null && lines > budget
+    const exceedsAllowedBudget = budget !== null && lines > allowedBudgetLines(budget)
     const requiresHeader = headerExtensions.has(path.extname(file)) && !generated
     return {
       path: relativePath,
       owner: ownership?.owner ?? null,
       responsibility: ownership?.responsibility ?? null,
       directory: path.posix.dirname(relativePath),
-      lines: countLines(text),
+      lines,
       budget,
-      overBudget: budget !== null && !generated && countLines(text) > budget,
+      exceedsPreferredBudget,
+      overBudget: budget !== null && !generated && exceedsAllowedBudget,
       generated,
       requiresHeader,
       hasHeader: !requiresHeader || hasStandardHeader(file, text),

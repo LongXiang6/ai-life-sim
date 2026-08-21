@@ -1,0 +1,146 @@
+<!-- Purpose: Record the twenty-seventh UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第二十七轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-27</p>
+      <h1>游戏故事 · 第二十七轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-25 定版候选 A（阶梯放大）为基线（ROUND-26 三档 svg 线稿全淘汰，用户「都不行，甚至都不如这个⚖️、✨、📜」），方向「命运分叉按钮图标 emoji 化」。共同基线（三个候选全部应用，用户硬性要求）：顶栏命运分叉按钮（forceButton「请求下一轮命运分叉」）图标改为 emoji 文本字形——用 span.forceIcon（aria-hidden）承载，font-size 19px、line-height 1（与原 19px svg 尺寸一致），彩色 emoji 与面板标题 🎲 装饰同风格；forceButton 金棕 #6b4d1d、aria-label/title、40px 按钮不变；forceButtonActive 颜色规则保留（彩色 emoji 不随颜色变化）。分向为 emoji 三档：候选 A 天平权衡（⚖️——权衡两条路的古典意象，呼应分叉抉择）、候选 B 星芒祈愿（✨——星芒预示命运转折，呼应命格/星命语境）、候选 C 命运卷轴（📜——命书卷轴翻向下一条目，呼应命书/卷宗语境）。其余共同基线全部继承：identity small 15px 金棕 #6b4d1d 600「沧澜历 · 18 年 · 春」、vitalsIdentity 身份两行 14px（13→14 阶梯放大，行高 1.3，align-self start 靠顶）、infoPanel 月白暖白 #fffdf8 + 内部纯白 #fff 卡（identityIndex 已删、五格单行属性卡 生命 96/100 + 体魄 4 + 心智 4 + 悟性 5 + 魅力 5）、branchPending 纯白 #fff + 极淡光晕 + 🎲 装饰标题 14px + 米纸选项块、branchResolved 回声块月白暖白 #fffdf8 + 1px 边框 #eadfce、前世武骨独立第二行左对齐（紧凑胶囊行）、chip 纯白 #fff + 1px 细灰边框 #e5e1d6、墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、单选与输入联动、输入框 auto-grow、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（顶栏：身份信息 + 推进步长下拉 + 骰子命运分叉按钮 + 当前信息按钮；barTop grid minmax(0,1fr) auto 40px）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行，barVitals grid minmax(0,1fr) auto 两行）、章节头单行化结构、长篇时间线五轮 + 暮年 70 岁待抉择编辑器、advanceDock 流末推进、信息面板（展开/收起、更多操作三按钮文字「手动存档 / 反馈与建议 / 返回主界面」、世界与角色账簿 summary + 词条/世界/纪元季节/修为/心境/叙事重复观测行 + 近五轮 0.42/0.36 峰值 0.55 平稳，全部信息内容不变，仅按钮图标调整）。命运分叉编辑器业务契约（branchPending 卡片 + 🎲 命运分叉点标题 + 单选选项 + 「写下自己的做法」切换按钮 + textarea + 「清空 / 请先选择」按钮；点切换按钮单选自动取消、选单选输入框自动收起内容保留）全部不变，面板标题 🎲 装饰符号不变。前世武骨流光动画参数照抄运行时（bar-rebirth-flow 13s ease-in-out infinite，延迟 -3.1s，reduced-motion 停）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。本轮仅静态图形替换（svg → emoji 字形），不新增任何动画。</dd></div>
+        <div><dt>比较维度</dt><dd>三种 emoji 语义与按钮动作「请求下一轮命运分叉」的贴合度（权衡 ⚖️ / 星芒 ✨ / 卷轴 📜）、19px 下的清晰度与色彩观感、与面板标题 🎲 装饰的同风格程度、与右侧信息按钮（圆形 ℹ️ svg）的邻位区分度、彩色 emoji 与暖纸墨金棕体系的协调性、整体暖纸墨体系一致性、identity small 15px 顶栏层次保持、墨黑单选与单选/输入联动不变、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>天平权衡</strong></header>
+          <p>⚖️ 天平 emoji——权衡两条路的古典意象，呼应分叉抉择，与用户点名字符一致。</p>
+          <a class="candidate-open" href="candidates/candidate-round-27-01-scale-emoji.html" target="_blank" rel="noopener">
+            游戏故事 27 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>星芒祈愿</strong></header>
+          <p>✨ 星芒 emoji——星芒预示命运转折，呼应命格/星命语境。</p>
+          <a class="candidate-open" href="candidates/candidate-round-27-02-sparkle-emoji.html" target="_blank" rel="noopener">
+            游戏故事 27 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>命运卷轴</strong></header>
+          <p>📜 卷轴 emoji——命书卷轴翻向下一条目，呼应命书/卷宗语境。</p>
+          <a class="candidate-open" href="candidates/candidate-round-27-03-scroll-emoji.html" target="_blank" rel="noopener">
+            游戏故事 27 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 天平权衡</span><span role="columnheader">B 星芒祈愿</span><span role="columnheader">C 命运卷轴</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">按钮图形</strong><span role="cell">⚖️ emoji 字形（span.forceIcon）</span><span role="cell">✨ emoji 字形（span.forceIcon）</span><span role="cell">📜 emoji 字形（span.forceIcon）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">图标语义</strong><span role="cell">权衡两条路（抉择）</span><span role="cell">星芒命运转折（祈愿）</span><span role="cell">命书卷轴（卷宗）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">尺寸/承载</strong><span role="cell">19px · line-height 1 · aria-hidden</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">按钮色/激活</strong><span role="cell">金棕 #6b4d1d · Active 规则保留（emoji 不变色）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">身份两行字号</strong><span role="cell">14px（阶梯放大，行高 1.3）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">identityIndex</strong><span role="cell">已删除（信息去重）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">属性栏</strong><span role="cell">五格单行：❤️ 96/100 + 💪 4 + 🧠 4 + ✨ 5 + 💫 5</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">infoPanel 底色</strong><span role="cell">月白暖白 #fffdf8 + 内部纯白 #fff 卡</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 底色</strong><span role="cell">纯白 #fff（选项块米纸 #fdf9f1）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">vitalsIdentity 对齐</strong><span role="cell">align-self start 靠顶</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏 small</strong><span role="cell">15px 金棕 #6b4d1d 600</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">面板标题装饰</strong><span role="cell">🎲 命运分叉点 🎲（不变）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchResolved 底色</strong><span role="cell">月白暖白 #fffdf8 + #eadfce 边框</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">右栏行尾表情</strong><span role="cell">🪪 林晚 · 女 / 18 岁 ⏳</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨行</strong><span role="cell">独立第二行左对齐（紧凑胶囊行）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">chip 属性变化</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea #fffdf8 auto-grow</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数、不新增</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A · 天平权衡（⚖️）：权衡两条路的古典意象与「请求下一轮命运分叉」的动作语义贴合度最高——面对分叉正是权衡两条路，⚖️ 也是用户点名字符中语义最贴切的；天平字形在 19px 下清晰完整（立柱/横梁/托盘轮廓分明），与面板标题 🎲 的装饰语言同风格；暖纸墨语境里天平带命书「权衡」意象，与叙事流一致。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B · 星芒祈愿（✨）：星芒预示命运转折、语义偏「祈愿/闪亮」而非「抉择」，与按钮动作的指向性弱于天平；候选 C · 命运卷轴（📜）：命书卷轴呼应命书/卷宗语境，但卷轴是「记录」意象而非「选择」意象，与分叉抉择的动作语义距离最远。</dd></div>
+        <div><dt>下一轮继承</dt><dd>游戏故事（08）迭代完成（ROUND-27 定版 A ⚖️）。本次界面迭代不再新建轮次，进入下一个逻辑界面的迭代。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

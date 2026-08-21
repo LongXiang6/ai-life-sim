@@ -1,0 +1,138 @@
+<!-- Purpose: Record the fifteenth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第十五轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-15</p>
+      <h1>游戏故事 · 第十五轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A · 等权两行</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-14 定版候选 A（姓名右栏）为基线，方向「身份拆分 · 世界时间 vs 姓名年龄」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：顶栏 identity 的 small 显示世界的名称 + 时间（世界名「沧澜界」+ 季节「春」，年龄移到右栏，如「沧澜界 · 春」）；barVitals 右栏 vitalsIdentity 的 strong 第一行显示姓名性别「林晚 · 女」、第二行显示年龄「18 岁」；顶栏与右栏不残留重复信息。分向为右栏 strong 两行的呈现：候选 A 等权两行（两行同 serif 大字层级）、候选 B 主次两行（姓名性别大字 + 年龄小字次要层级）、候选 C 细线两行（两行之间 1px 细线分隔）。其余共同基线全部继承：前世武骨独立第二行左对齐（紧凑胶囊行）、chip 纯白 #fff + 1px 细灰边框 #e5e1d6、墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、单选与输入联动、branchPending 纯白 #fff + 1px 金棕描边、🎲 装饰标题居中、输入框 auto-grow、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（顶栏：身份信息 + 推进步长下拉 + 命运分叉按钮 + 当前信息按钮；barTop grid minmax(0,1fr) auto 40px）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行，barVitals grid minmax(0,1fr) auto 两行）、章节头单行化结构、长篇时间线五轮 + 暮年 70 岁待抉择编辑器、advanceDock 流末推进、信息面板。身份信息口径（姓名性别「林晚 · 女」、世界「沧澜界」、季节「春」、年龄「18 岁」）全部保留，仅改变摆放位置与行层次。前世武骨流光动画参数照抄运行时（bar-rebirth-flow 13s ease-in-out infinite，延迟 -3.1s，reduced-motion 停）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>右栏 strong 两行的层级与可读性（姓名性别 / 年龄主次是否分明）、顶栏 small「世界名 · 时间」是否足够清晰不单薄、右栏两行与左侧四维/命格及前世武骨第二行的高度协调、窄屏下右栏是否挤压左侧命格胶囊、chip 纯白细线与白板的协调、墨黑中心原点与白板金棕描边的搭配、菱形分隔两端对齐、entryMeta 岁数精简节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>等权两行</strong></header>
+          <p>右栏 strong 两行同 serif 大字层级：第一行「林晚 · 女」姓名性别、第二行「18 岁」年龄；顶栏 small「沧澜界 · 春」世界名 + 时间。</p>
+          <a class="candidate-open" href="candidates/candidate-round-15-01-peer-lines.html" target="_blank" rel="noopener">
+            游戏故事 15 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>主次两行</strong></header>
+          <p>右栏 strong 第一行「林晚 · 女」姓名性别大字，第二行「18 岁」年龄小字（次要层级）；顶栏 small「沧澜界 · 春」。</p>
+          <a class="candidate-open" href="candidates/candidate-round-15-02-primary-secondary.html" target="_blank" rel="noopener">
+            游戏故事 15 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>细线两行</strong></header>
+          <p>右栏 strong 两行「林晚 · 女」/「18 岁」之间加 1px 细线分隔（呼应 chip 细灰边框 #e5e1d6）；顶栏 small「沧澜界 · 春」。</p>
+          <a class="candidate-open" href="candidates/candidate-round-15-03-divider-lines.html" target="_blank" rel="noopener">
+            游戏故事 15 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 等权两行</span><span role="columnheader">B 主次两行</span><span role="columnheader">C 细线两行</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">右栏 strong</strong><span role="cell">第一行「林晚 · 女」+ 第二行「18 岁」同 serif 大字</span><span role="cell">第一行「林晚 · 女」serif 大字 + 第二行「18 岁」小字</span><span role="cell">两行 serif 大字 + 行间 1px 细线分隔</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏 small</strong><span role="cell">「沧澜界 · 春」世界名 + 时间</span><span role="cell">「沧澜界 · 春」世界名 + 时间</span><span role="cell">「沧澜界 · 春」世界名 + 时间</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨行</strong><span role="cell">独立第二行左对齐（紧凑胶囊行）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">chip 属性变化</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选样式</strong><span role="cell">墨黑 #241f18 描边 + 中心原点</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 背景</strong><span role="cell">纯白 #fff + 金棕描边</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A · 等权两行</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A 等权两行——右栏 strong 两行同 serif 大字层级，姓名性别与年龄等权平视、信息一目了然，与右侧强信息位匹配；顶栏 small「沧澜界 · 春」保持次要小字不抢。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B 主次两行——年龄降为 8px 小字后与顶栏 small 层级重复、年龄信息被弱化、右栏主位只用一半；候选 C 细线两行——行间细线与 chip 细灰边框 #e5e1d6 重复、右栏两行被分隔线切断成两个独立块、打破身份整体性。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 指示「`small` 这个文字太小了，需要加大，表明重要性，还有几几年的时间怎么不见了，需要补充。`span` `span` 这两个能不能加个彩色的表情装饰之类的，太单调了」——顶栏 small 字号加大（体现重要性）、补充时间信息（年龄「18 岁」）、右栏 strong 两个 span（姓名性别 / 年龄）加彩色表情装饰。进入 ROUND-16（顶栏时间增强 · 表情装饰），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

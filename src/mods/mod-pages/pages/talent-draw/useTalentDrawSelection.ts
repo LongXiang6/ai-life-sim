@@ -1,222 +1,206 @@
 /**
- * Purpose: Manage ordinary destiny-pattern selection, redraw, and final commit.
+ * Purpose: Manage the shared four-slot destiny and mythic loadout, redraw, and final commit.
  * Owner: mod-pages/talent-draw
- * Responsibility: Selection commands and navigation handoff only; generation and mythic selection live elsewhere.
+ * Responsibility: Selection commands and navigation handoff only; character systems own committed state.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import {
-  DESTINY_PATTERN_DISPLAY_COUNT,
-  DESTINY_PATTERN_SELECT_COUNT,
-  aggregatePatternSystemModifiers,
+  PATTERN_LOADOUT_SLOT_COUNT,
+  assertPatternLoadout,
   useCharacterStore,
+  useReincarnationLibraryStore,
 } from '@/mods/mod-character'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
-import { useSettingsStore } from '@/mods/mod-settings'
-import { useWorldStore } from '@/mods/mod-world'
 
-import type { Dispatch, RefObject, SetStateAction } from 'react'
-import type { DestinyPattern } from '@/mods/mod-character'
-import type { TalentDrawSlots } from './talent-draw.types'
-import {
-  createSelectedUiSlots,
-  patternNameKey,
-} from './talent-draw-patterns'
-import { loadCachedPool, persistTalentDrawState } from './talent-draw-storage'
+import type { RefObject } from 'react'
+import type { DestinyPattern, ReincarnationTalent } from '@/mods/mod-character'
+import type {
+  ResolvedTalentLoadoutEntry,
+  TalentDrawSlots,
+  TalentLoadoutEntry,
+  TalentLoadoutSlots,
+} from './talent-draw.types'
+import { createLoadoutSlots } from './talent-draw-patterns'
 
 interface UseTalentDrawSelectionOptions {
   abortRef: RefObject<boolean>
+  candidatePool: DestinyPattern[]
   fullPoolRef: RefObject<DestinyPattern[]>
-  initialSelectedSlotIndices: number[]
-  localPoolSize: number
+  initialLoadoutSlots: TalentLoadoutSlots
   navigate: (path: string) => void
+  regenerateAll: () => void
   notify: (message: string) => void
-  setErrorMsg: Dispatch<SetStateAction<string>>
-  setSlots: Dispatch<SetStateAction<TalentDrawSlots>>
+  setErrorMsg: (message: string) => void
   slots: TalentDrawSlots
+}
+
+function entryKey(entry: TalentLoadoutEntry): string {
+  return `${entry.kind}:${entry.patternId}`
 }
 
 export function useTalentDrawSelection({
   abortRef,
+  candidatePool,
   fullPoolRef,
-  initialSelectedSlotIndices,
-  localPoolSize,
+  initialLoadoutSlots,
   navigate,
+  regenerateAll,
   notify,
   setErrorMsg,
-  setSlots,
   slots,
 }: UseTalentDrawSelectionOptions) {
-  const [selectedUiSlots, setSelectedUiSlots] = useState<Array<number | null>>(
-    () => createSelectedUiSlots(initialSelectedSlotIndices),
+  const mythicLibrary = useReincarnationLibraryStore((state) => state.talents)
+  const [loadoutSlots, setLoadoutSlots] = useState<TalentLoadoutSlots>(
+    () => createLoadoutSlots(initialLoadoutSlots.filter((entry): entry is TalentLoadoutEntry => entry !== null)),
   )
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
-  const navigationFallbackTimerRef = useRef<number | null>(null)
   const confirmationRef = useRef(false)
-  const selectedSlotIndices = useMemo(
-    () => selectedUiSlots.filter((index): index is number => index !== null),
-    [selectedUiSlots],
+
+  const destinyById = useMemo(() => new Map(
+    candidatePool.map((pattern) => [pattern.id, pattern] as const),
+  ), [candidatePool])
+  const mythicById = useMemo(() => new Map(
+    mythicLibrary.map((pattern) => [pattern.id, pattern] as const),
+  ), [mythicLibrary])
+  const resolvedLoadoutSlots = useMemo(
+    () => loadoutSlots.map((entry): ResolvedTalentLoadoutEntry | null => {
+      if (!entry) return null
+      if (entry.kind === 'destiny') {
+        const pattern = destinyById.get(entry.patternId)
+        return pattern ? { kind: 'destiny', pattern } : null
+      }
+      const pattern = mythicById.get(entry.patternId)
+      return pattern ? { kind: 'mythic', pattern } : null
+    }),
+    [destinyById, loadoutSlots, mythicById],
   )
   const selectedData = useMemo(
-    () => selectedSlotIndices.map((index) => slots[index]).filter((pattern): pattern is DestinyPattern => pattern !== null),
-    [selectedSlotIndices, slots],
+    () => resolvedLoadoutSlots.filter((entry): entry is ResolvedTalentLoadoutEntry => entry !== null),
+    [resolvedLoadoutSlots],
   )
+  const selectedDestinyIds = useMemo(() => new Set(
+    loadoutSlots.flatMap((entry) => entry?.kind === 'destiny' ? [entry.patternId] : []),
+  ), [loadoutSlots])
+  const selectedMythicIds = useMemo(() => new Set(
+    loadoutSlots.flatMap((entry) => entry?.kind === 'mythic' ? [entry.patternId] : []),
+  ), [loadoutSlots])
 
   const resetSelectionForGeneration = useCallback(() => {
     confirmationRef.current = false
     setIsConfirming(false)
-    setSelectedUiSlots(createSelectedUiSlots([]))
+    setLoadoutSlots(Array(PATTERN_LOADOUT_SLOT_COUNT).fill(null))
   }, [])
 
-  const handleSlotClick = useCallback((index: number) => {
-    if (selectedSlotIndices.includes(index)) {
-      const pattern = slots[index]
-      if (pattern) notify(`${pattern.name}已在星契中`)
-      return
-    }
-    const targetSlot = selectedUiSlots.findIndex((slotIndex) => slotIndex === null)
-    if (targetSlot < 0) {
-      notify('三个普通命格槽已满')
-      return
-    }
-    setSelectedUiSlots((current) => current.map((value, slotIndex) => (
-      slotIndex === targetSlot ? index : value
-    )))
-  }, [notify, selectedSlotIndices, selectedUiSlots, slots])
+  const toggleEntry = useCallback((entry: TalentLoadoutEntry, label: string) => {
+    setLoadoutSlots((current) => {
+      const currentIndex = current.findIndex((item) => item && entryKey(item) === entryKey(entry))
+      if (currentIndex >= 0) {
+        notify(`已移除${label}`)
+        return current.map((item, index) => index === currentIndex ? null : item)
+      }
+      const targetIndex = current.findIndex((item) => item === null)
+      if (targetIndex < 0) {
+        notify(`四个携带槽已满`)
+        return current
+      }
+      return current.map((item, index) => index === targetIndex ? entry : item)
+    })
+  }, [notify])
 
-  const handleCandidateClick = useCallback((index: number) => {
-    if (!slots[index] || selectedSlotIndices.includes(index)) return
-    handleSlotClick(index)
-  }, [handleSlotClick, selectedSlotIndices, slots])
+  const handleCandidateClick = useCallback((patternId: string) => {
+    const pattern = candidatePool.find((item) => item.id === patternId)
+    if (!pattern) return
+    toggleEntry({ kind: 'destiny', patternId: pattern.id }, pattern.name)
+  }, [candidatePool, toggleEntry])
 
-  const handleDeselect = useCallback((uiSlotIndex: number) => {
-    const patternIndex = selectedUiSlots[uiSlotIndex]
-    const pattern = patternIndex === null ? null : slots[patternIndex]
-    if (patternIndex === null || !pattern) return
-    setSelectedUiSlots((current) => current.map((value, index) => (
-      index === uiSlotIndex ? null : value
-    )))
-    notify(`已移除${pattern.name}`)
-  }, [notify, selectedUiSlots, slots])
+  const handleMythicClick = useCallback((pattern: ReincarnationTalent) => {
+    toggleEntry({ kind: 'mythic', patternId: pattern.id }, pattern.name)
+  }, [toggleEntry])
+
+  const handleDeselect = useCallback((slotIndex: number) => {
+    const entry = resolvedLoadoutSlots[slotIndex]
+    if (!entry) return
+    setLoadoutSlots((current) => current.map((item, index) => index === slotIndex ? null : item))
+    notify(`已移除${entry.pattern.name}`)
+  }, [notify, resolvedLoadoutSlots])
 
   const handleConfirm = useCallback(() => {
-    if (confirmationRef.current || selectedData.length !== DESTINY_PATTERN_SELECT_COUNT) return
+    if (confirmationRef.current || selectedData.length !== PATTERN_LOADOUT_SLOT_COUNT) return
     confirmationRef.current = true
     setIsConfirming(true)
     setErrorMsg('')
 
     try {
-      const destinySystem = getDestinyPatternSystem()
-      const selectedIds = selectedSlotIndices
-        .map((index) => slots[index])
-        .filter((pattern): pattern is DestinyPattern => pattern !== null)
-        .map((pattern) => pattern.id)
       const poolById = new Map<string, DestinyPattern>()
       for (const pattern of fullPoolRef.current) poolById.set(pattern.id, pattern)
-      for (const pattern of slots) {
-        if (pattern) poolById.set(pattern.id, pattern)
-      }
+      for (const pattern of slots) if (pattern) poolById.set(pattern.id, pattern)
       const committedPool = [...poolById.values()]
-      destinySystem.selectPatterns(selectedIds, committedPool)
-
-      const selectedPatterns = destinySystem.getPatterns()
-      useWorldStore.getState().setDestinyPatternModifiers(
-        aggregatePatternSystemModifiers(selectedPatterns),
-      )
-      const store = useCharacterStore.getState()
-      store.setDestinyPatterns({
-        candidates: committedPool,
-        patterns: selectedPatterns,
-        rarityCount: destinySystem.getRarityCount(),
+      const selectedPatterns = loadoutSlots.flatMap((entry) => {
+        if (entry?.kind !== 'destiny') return []
+        const pattern = poolById.get(entry.patternId)
+        if (!pattern) throw new Error(`普通命格已失效：${entry.patternId}`)
+        return [pattern]
       })
-      if (useCharacterStore.getState().destinyPatterns.patterns.length !== DESTINY_PATTERN_SELECT_COUNT) {
-        throw new Error('命格状态提交失败，请重试')
-      }
+      const selectedMythicPatterns = loadoutSlots.flatMap((entry) => {
+        if (entry?.kind !== 'mythic') return []
+        const pattern = mythicById.get(entry.patternId)
+        if (!pattern) throw new Error(`轮回天赋已失效：${entry.patternId}`)
+        return [pattern]
+      })
+      assertPatternLoadout(selectedPatterns, selectedMythicPatterns, true)
 
-      persistTalentDrawState('selecting', slots, selectedSlotIndices)
+      const destinySystem = getDestinyPatternSystem()
+      destinySystem.selectPatterns(selectedPatterns.map((pattern) => pattern.id), committedPool)
+      useCharacterStore.getState().setPatternLoadout(
+        destinySystem.getPatterns(),
+        selectedMythicPatterns,
+        committedPool,
+      )
+
       abortRef.current = true
       navigate('/attribute-alloc')
-      navigationFallbackTimerRef.current = window.setTimeout(() => {
-        navigationFallbackTimerRef.current = null
-        const stillOnTalentFlow = window.location.pathname.endsWith('/talent-draw')
-          || window.location.pathname.endsWith('/mythic-inheritance')
-        if (!stillOnTalentFlow) return
-        if (useCharacterStore.getState().destinyPatterns.patterns.length === DESTINY_PATTERN_SELECT_COUNT) {
-          window.location.assign('/attribute-alloc')
-          return
-        }
-        abortRef.current = false
-        confirmationRef.current = false
-        setIsConfirming(false)
-        setErrorMsg('命格状态未能保存，请重新确认')
-      }, 450)
     } catch (error) {
-      if (navigationFallbackTimerRef.current !== null) {
-        window.clearTimeout(navigationFallbackTimerRef.current)
-        navigationFallbackTimerRef.current = null
-      }
       abortRef.current = false
       confirmationRef.current = false
       setIsConfirming(false)
-      setErrorMsg(error instanceof Error ? error.message : '选择无效，请重试')
+      setErrorMsg(error instanceof Error ? error.message : '选择无效，请重新确认')
     }
-  }, [abortRef, fullPoolRef, navigate, selectedData.length, selectedSlotIndices, setErrorMsg, slots])
+  }, [
+    abortRef,
+    fullPoolRef,
+    loadoutSlots,
+    mythicById,
+    navigate,
+    selectedData.length,
+    setErrorMsg,
+    slots,
+  ])
 
   const handleRedraw = useCallback(() => {
-    const { aiTalentGeneration } = useSettingsStore.getState()
-    const cached = aiTalentGeneration ? loadCachedPool() : []
-    const pool = cached.length > 0 ? cached : fullPoolRef.current
-    if (pool.length < DESTINY_PATTERN_DISPLAY_COUNT) return
-
+    if (isRegenerating) return
     setIsRegenerating(true)
-    const nextSlots = [...slots]
-    const currentSelected = [...selectedSlotIndices]
-    const usedIds = new Set<string>()
-    const usedNames = new Set<string>()
-    for (const index of currentSelected) {
-      const pattern = nextSlots[index]
-      if (!pattern) continue
-      usedIds.add(pattern.id)
-      usedNames.add(patternNameKey(pattern))
-    }
-    for (let index = 0; index < DESTINY_PATTERN_DISPLAY_COUNT; index++) {
-      if (currentSelected.includes(index)) continue
-      nextSlots[index] = null
-      const available = pool.filter((pattern) => (
-        !usedIds.has(pattern.id) && !usedNames.has(patternNameKey(pattern))
-      ))
-      if (available.length === 0) continue
-      const pattern = available[Math.floor(Math.random() * available.length)]
-      usedIds.add(pattern.id)
-      usedNames.add(patternNameKey(pattern))
-      nextSlots[index] = pattern
-    }
-    setSlots(nextSlots)
-    notify(currentSelected.length > 0
-      ? `已保留${currentSelected.length}条星契，重新抽取其余命格`
-      : '十二条普通命格已重新抽取')
+    regenerateAll()
     window.requestAnimationFrame(() => setIsRegenerating(false))
-  }, [fullPoolRef, notify, selectedSlotIndices, setSlots, slots])
-
-  useEffect(() => () => {
-    if (navigationFallbackTimerRef.current !== null) {
-      window.clearTimeout(navigationFallbackTimerRef.current)
-    }
-  }, [])
+  }, [isRegenerating, regenerateAll])
 
   return {
     handleCandidateClick,
     handleConfirm,
     handleDeselect,
+    handleMythicClick,
     handleRedraw,
     isConfirming,
     isRegenerating,
-    reDrawDisabled: isRegenerating || localPoolSize <= DESTINY_PATTERN_DISPLAY_COUNT,
+    loadoutSlots,
+    mythicLibrary,
+    reDrawDisabled: isRegenerating,
     resetSelectionForGeneration,
+    resolvedLoadoutSlots,
     selectedData,
-    selectedSlotIndices,
-    selectedUiSlots,
+    selectedDestinyIds,
+    selectedMythicIds,
   }
 }

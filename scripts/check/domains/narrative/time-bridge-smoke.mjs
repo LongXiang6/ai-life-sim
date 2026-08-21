@@ -32,10 +32,10 @@ if (!bridge.includes('buildTimeBridgeSummary')) {
   failed++
 }
 if (
-  !builder.includes('context.timeBridgeSummary') ||
-  !builder.includes("'时间跨度摘要'")
+  !builder.includes('buildCurrentTimeInstruction')
+  || builder.includes('context.timeBridgeSummary')
 ) {
-  console.error('FAIL: prompt-builder missing timeBridgeSummary key')
+  console.error('FAIL: prompt-builder must use one current-time guidance sentence without a standalone timeBridgeSummary field')
   failed++
 }
 if (!promptContextRuntime.includes('buildTimeBridgeSummary')) {

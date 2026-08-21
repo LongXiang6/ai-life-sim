@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-08-07",
+  "reviewedAt": "2026-08-11",
   "reviewIntervalDays": 90,
   "requiredFlowIds": [
+    "life-settlement",
     "mod-configuration-change",
     "mod-initialization",
     "mod-state-load",

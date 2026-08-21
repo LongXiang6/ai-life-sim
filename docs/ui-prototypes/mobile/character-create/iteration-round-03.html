@@ -1,0 +1,127 @@
+<!-- Purpose: Record the third UI iteration round for the character-create sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>角色塑造 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">CHARACTER-CREATE / ROUND-03</p>
+      <h1>角色塑造 · 第三轮</h1>
+    </div>
+    <span class="status status-selected">已选择 02</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在定版 02（双行标题式）基础上按用户指示改造寿命区：sectionHeading 右侧不添加叙述 span（沉浸式不是旁注文字）；沉浸式体现为「于 {输入框} 岁开始人生，预计寿命 {输入框} 岁」这类输入框嵌入句子的表达；寿命区高度收紧、消除下半部分空白。三个候选围绕寿命句的布局方式差异。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：runningHead（03 / 08）、去 header 后角色摘要（头像/名字/性别·种族·背景/寿命·起始·世界）、核心身份（姓名·随机、性别、种族）、人生背景（背景输入/预设/保存预设）、寿命与起始（寿命上限/起始年龄/重新检测）、底部双文字等宽返回与确认角色（04，下一页面为命格抽取）。候选不含 localStorage/sessionStorage/fetch。</dd></div>
+        <div><dt>比较维度</dt><dd>寿命句沉浸度（输入框与句子融合）、高度紧凑（空白消除）、整体协调（与定版语言与摘要/底栏统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>双行句</strong></header>
+          <p>寿命区两行句子：「于 [起始年龄] 岁开始人生」「预计寿命 [寿命上限] 岁」，输入框嵌入句中；重新检测按钮置于右下；保留一行结果。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-life-lines.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>单行句</strong></header>
+          <p>整句「于 [起始年龄] 岁开始人生，预计寿命 [寿命上限] 岁」一行嵌入两个输入框，最贴近用户原话；重新检测按钮独立一行；保留一行结果。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-life-sentence.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>并列句</strong></header>
+          <p>两列并排：「于 [起始年龄] 岁开始人生」｜「预计寿命 [寿命上限] 岁」，输入框最小化；重新检测按钮右下；无结果行，高度最紧凑。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-life-compact.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 双行句</span><span role="columnheader">02 单行句</span><span role="columnheader">03 并列句</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">寿命句沉浸度</strong><span role="cell">两行句嵌输入框</span><span role="cell">整句嵌两输入框</span><span role="cell">两列句嵌输入框</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">高度紧凑</strong><span role="cell">两行紧凑</span><span role="cell">单行最矮</span><span role="cell">两列最窄</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">整体协调</strong><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span><span role="cell">定版语言统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（单行句）。用户确认：选择 02，进入第四轮微调（寿命区单行不换行、按钮放句子同一行、结果行排序与句子一致、背景输入框随内容自适应高度）。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（双行句）：句子两行仍占高度。候选 03（并列句）：两列句表达未采用。</dd></div>
+        <div><dt>下一轮继承</dt><dd>单行句「于 {输入框} 岁开始人生，预计寿命 {输入框} 岁」+ 定版语言；按用户指示：lifespanFields 句子单行不换行（消除高度）、重新检测按钮放句子同一行、lifespanResult 段落排序与句子一致（于 X 开始人生在前，预计寿命在后）、背景 textarea 随内容自动换行并自动增高。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

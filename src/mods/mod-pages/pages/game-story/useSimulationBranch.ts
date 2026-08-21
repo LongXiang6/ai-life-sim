@@ -13,9 +13,13 @@ import { useEngineStore } from '@/mods/mod-engine'
 
 interface UseSimulationBranchDeps {
   advanceRound: () => Promise<void>
+  holdAdvanceAfterConfirm?: boolean
 }
 
-export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
+export function useSimulationBranch({
+  advanceRound,
+  holdAdvanceAfterConfirm = false,
+}: UseSimulationBranchDeps) {
   const narrativeHistory = useEngineStore((s) => s.narrativeHistory)
   const forceBranchNext = useEngineStore((s) => s.forceBranchNext)
 
@@ -100,6 +104,7 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
     }
     setBranchCustomText('')
     setSelectedBranchOptionId(null)
+    if (holdAdvanceAfterConfirm) return { ok: true }
 
     try {
       await advanceRound()
@@ -120,6 +125,7 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
     selectedBranchOptionId,
     branchCustomText,
     advanceRound,
+    holdAdvanceAfterConfirm,
   ])
 
   const handleBranchCancel = useCallback(() => {

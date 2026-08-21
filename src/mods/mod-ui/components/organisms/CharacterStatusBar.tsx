@@ -1,3 +1,9 @@
+/**
+ * Purpose: Render the sticky character status bar, including all selected talents and rarity styling.
+ * Owner: mod-ui
+ * Responsibility: Present character identity, attributes, and selected talent projections without owning game state.
+ */
+
 'use client'
 
 /**
@@ -126,7 +132,7 @@ export function CharacterStatusBar({
           {/* 天赋标签 */}
           {talents.length > 0 && (
             <div className="flex items-center gap-1">
-              {talents.slice(0, 3).map((talent) => (
+              {talents.map((talent) => (
                 <TalentBadge
                   key={talent.name}
                   name={talent.name}

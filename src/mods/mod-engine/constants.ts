@@ -92,7 +92,6 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
 // ============================================================
 
 export {
-  USE_AI_SUMMARY_COMPRESSION,
   OMIT_EMPTY_PROMPT_FIELDS,
   BRIDGE_SUMMARY_MIN_TICKS,
   EXPERIMENTAL_TIME_STEPS_UI,
@@ -112,35 +111,7 @@ export const STORAGE_KEYS = {
   NARRATIVE_HISTORY: 'mod-engine:save:narrative',
 } as const
 
-// ============================================================
-// Summary Compressor 压缩系统常量
-// 来源: summary-compressor-spec.md §6 依赖的配置常量
-// ============================================================
-
-/** 每个 L1 摘要块包含 4 轮完整叙事。 */
-export const SUMMARY_INTERVAL = 4
-
-/** L1 延迟一个完整块：完成第 8 轮后才压缩 1~4 轮，供第 9 轮使用。 */
-export const COMPRESS_L1_DELAY_BLOCKS = 1
-
 /**
- * 主叙事 Prompt 保留的最近事实投影轮数。
- *
- * 最近 4 轮从摘要账本投影结构化事实；完整正文只在叙事历史、反馈和归档中保留。
+ * 主故事 Prompt 保留的最近完整故事轮数；更早内容读取逐轮压缩派生记忆。
  */
-export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL
-
-/** 每个高层节点固定合并 4 个直接子节点。 */
-export const SUMMARY_LEVEL_MULTIPLIER = 4
-
-/** 合并 4 个 L1 为一个 L2（16轮）。 */
-export const COMPRESS_L2_MERGE_COUNT = SUMMARY_LEVEL_MULTIPLIER
-
-/** 合并 4 个 L2 为一个 L3（64轮）。 */
-export const COMPRESS_L3_MERGE_COUNT = SUMMARY_LEVEL_MULTIPLIER
-
-/** L2 合并区间 = SUMMARY_INTERVAL × COMPRESS_L2_MERGE_COUNT */
-export const COMPRESS_L2_MERGE_INTERVAL = SUMMARY_INTERVAL * COMPRESS_L2_MERGE_COUNT
-
-/** L3 合并区间 = COMPRESS_L2_MERGE_INTERVAL × COMPRESS_L3_MERGE_COUNT */
-export const COMPRESS_L3_MERGE_INTERVAL = COMPRESS_L2_MERGE_INTERVAL * COMPRESS_L3_MERGE_COUNT
+export const RECENT_NARRATIVE_WINDOW = 3

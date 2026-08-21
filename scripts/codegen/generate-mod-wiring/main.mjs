@@ -14,12 +14,10 @@ import {
   generateModRegistry,
   generatePromptContextContract,
   generateRemoteContracts,
-  generateSubsystemFieldKeys,
   parseCampaignHooksFromManifest,
   parseCampaignStageNames,
   parseNarrativePromptVars,
   parsePromptContextFields,
-  parseSubsystemFieldRegistry,
   validateCampaignStages,
 } from './contract-generators.mjs'
 import { generateEngineSubsystems, generateSubsystemAliases } from './engine-generators.mjs'
@@ -127,10 +125,6 @@ export function main() {
     if (CHECK_ONLY) process.exit(1)
   }
 
-  const fieldRegistryPath = path.join(MODS_DIR, 'mod-engine', 'helpers', 'subsystem-field-registry.ts')
-  const fieldRegistryContent = readFile(fieldRegistryPath)
-  const { mapKeys, zodSchemas } = parseSubsystemFieldRegistry(fieldRegistryContent)
-
   const indexStages = parseCampaignStageNames()
   const engineManifestContent = readFile(path.join(MODS_DIR, 'mod-engine', 'manifest.ts'))
   const manifestStages = parseCampaignHooksFromManifest(engineManifestContent)
@@ -159,7 +153,6 @@ export function main() {
     [path.join(MODS_DIR, 'mod-engine', 'bootstrap', 'subsystem-aliases.generated.ts'), generateSubsystemAliases(allAliases)],
     [path.join(MODS_DIR, 'mod-engine', 'bootstrap', 'engine-subsystems.generated.ts'), generateEngineSubsystems(engineManifestClasses, engineSingletons)],
     [path.join(MODS_DIR, 'mod-engine', 'bootstrap', 'prompt-context-contract.generated.ts'), generatePromptContextContract(ctxFields, narrativeVars)],
-    [path.join(MODS_DIR, 'mod-engine', 'helpers', 'subsystem-field-keys.generated.ts'), generateSubsystemFieldKeys(mapKeys, zodSchemas)],
     [path.join(MODS_DIR, 'mod-engine', 'campaigns', 'default', 'stages.generated.ts'), generateCampaignStages(indexStages)],
     [path.join(ROOT, 'src', 'core', 'mod-loader', 'remote-contracts.generated.ts'), generateRemoteContracts(remoteContracts)],
     [path.join(ROOT, 'src', 'core', 'mod-loader', 'compat-importers.generated.ts'), generateCompatImporters(compatMap)],
@@ -181,4 +174,3 @@ export function main() {
 
   console.log(`[generate-mod-wiring] 完成: ${modDirs.length} MOD, ${Object.keys(allAliases).length} 别名, ${Object.keys(remoteContracts).length} Remote 契约`)
 }
-

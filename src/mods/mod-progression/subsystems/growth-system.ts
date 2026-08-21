@@ -344,6 +344,14 @@ export class GrowthSystem extends BaseSubsystem {
     return validatePersistenceState(clone(this.state))
   }
 
+  captureTransactionState(): GrowthSystemPersistenceState {
+    return this.capturePersistenceState()
+  }
+
+  restoreTransactionState(snapshot: unknown): void {
+    this.state = validatePersistenceState(snapshot)
+  }
+
   restorePersistenceState(snapshot: unknown): void {
     this.state = snapshot === undefined
       ? { schemaVersion: 1, skills: [], abilities: [], records: [] }

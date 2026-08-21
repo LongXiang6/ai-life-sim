@@ -4,7 +4,7 @@
     {
       "path": "scripts/check/domains/account/account-cloud-smoke.mjs",
       "owner": "quality:account",
-      "reviewedLines": 390,
+      "reviewedLines": 395,
       "reason": "单个账号领域端到端验收场景，夹具、步骤和断言按一个状态化测试生命周期执行。"
     },
     {
@@ -16,7 +16,7 @@
     {
       "path": "scripts/check/domains/account/player-content-smoke.mjs",
       "owner": "quality:account",
-      "reviewedLines": 573,
+      "reviewedLines": 607,
       "reason": "单个账号领域端到端验收场景，夹具、步骤和断言按一个状态化测试生命周期执行。"
     },
     {
@@ -26,33 +26,15 @@
       "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
     },
     {
-      "path": "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 507,
-      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
-    },
-    {
       "path": "scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
       "owner": "quality:narrative",
-      "reviewedLines": 340,
+      "reviewedLines": 356,
       "reason": "单个历史账本 Prompt 投影场景，作用域夹具、到期候选、接线桩和断言共享同一顺序生命周期。"
-    },
-    {
-      "path": "scripts/check/domains/narrative/kv-prompt-audit.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 878,
-      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
-    },
-    {
-      "path": "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 960,
-      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
     },
     {
       "path": "scripts/check/domains/narrative/playtest-quality-regression.mjs",
       "owner": "quality:narrative",
-      "reviewedLines": 1198,
+      "reviewedLines": 1223,
       "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
     },
     {
@@ -65,12 +47,6 @@
       "path": "scripts/check/domains/structural/execution-flow-contracts-runner.ts",
       "owner": "quality:structural",
       "reviewedLines": 415,
-      "reason": "单个结构或执行契约检查器，扫描上下文、诊断和确定性终态属于同一机械验收动作。"
-    },
-    {
-      "path": "scripts/check/domains/structural/scan-typescript-wiring.mjs",
-      "owner": "quality:structural",
-      "reviewedLines": 360,
       "reason": "单个结构或执行契约检查器，扫描上下文、诊断和确定性终态属于同一机械验收动作。"
     },
     {
@@ -88,7 +64,7 @@
     {
       "path": "scripts/check/domains/ui/character-first-narrative-browser.cjs",
       "owner": "quality:ui",
-      "reviewedLines": 324,
+      "reviewedLines": 331,
       "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
     },
     {
@@ -98,10 +74,16 @@
       "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
     },
     {
+      "path": "scripts/check/domains/ui/game-over-final-ui-browser.cjs",
+      "owner": "quality:ui",
+      "reviewedLines": 350,
+      "reason": "单个结算与排行榜浏览器验收场景，两次 AI 结算、导航、截图和公开投影断言共享同一隔离浏览器会话。"
+    },
+    {
       "path": "scripts/check/domains/ui/mobile-ui-regression.mjs",
       "owner": "quality:ui",
-      "reviewedLines": 1108,
-      "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
+      "reviewedLines": 1265,
+      "reason": "单个移动端 UI 契约回归场景，定版方案库登记、运行时结构、交互语义和响应式断言共同构成一份顺序证据。"
     },
     {
       "path": "scripts/ops/analyze-ai-logs.mjs",

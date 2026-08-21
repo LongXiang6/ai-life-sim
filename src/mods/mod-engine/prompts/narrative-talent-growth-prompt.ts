@@ -1,0 +1,24 @@
+/**
+ * Purpose: Declare the client contract for the protected destiny-pattern growth Prompt.
+ * Owner: mod-engine
+ * Responsibility: Bind asset identity, version, output mode, and Schema only.
+ */
+
+import type { PromptTemplate } from '@/foundation'
+import { z } from 'zod'
+
+export const NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID =
+  'mod-engine:narrative-talent-growth:3.2.0'
+
+export const narrativeTalentGrowthPrompt: PromptTemplate = {
+  name: 'narrative-talent-growth',
+  version: '3.2.0',
+  mod: 'mod-engine',
+  systemPrompt: '',
+  serverPromptAssetId: NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID,
+  userPromptTemplate: '天赋成长用户消息按顺序提供历史记忆、最近两轮详细记忆和程序筛选后的玩家已选天赋标准 JSON。',
+  variables: [],
+  outputFormat: 'json',
+  // Transport stays loose; the response-quality normalizer performs item-level recovery.
+  outputSchema: z.unknown(),
+}

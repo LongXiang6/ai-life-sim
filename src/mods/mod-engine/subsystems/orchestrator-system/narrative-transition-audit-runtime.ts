@@ -4,6 +4,7 @@
  * Responsibility: Transition-audit projection only; business commits remain with their owning runtimes.
  */
 
+import { useEngineStore } from '../../store'
 import type { OrchestratorSystem } from '../orchestrator-system'
 
 export function updateNarrativeTransitionAuditRuntime(
@@ -11,12 +12,25 @@ export function updateNarrativeTransitionAuditRuntime(
   narrativeId: string,
   counts: { requestedChangeCount: number; committedChangeCount: number },
 ): void {
-  const chunk = orchestrator['state'].narrativeHistory.find((entry) => entry.id === narrativeId)
-  if (!chunk?.transitionAudit) return
-  chunk.transitionAudit = {
-    ...chunk.transitionAudit,
+  const prepared = orchestrator['acceptedNarrativeRecords'].get(narrativeId)
+  if (!prepared) throw new Error(`找不到待更新审计的正文：${narrativeId}`)
+  prepared.transitionAudit = {
+    ...prepared.transitionAudit,
     structuredDataPresent: true,
-    requestedChangeCount: chunk.transitionAudit.requestedChangeCount + counts.requestedChangeCount,
-    committedChangeCount: chunk.transitionAudit.committedChangeCount + counts.committedChangeCount,
+    structuredDataAccepted: true,
+    historicalCommitPassed: true,
+    requestedChangeCount: prepared.transitionAudit.requestedChangeCount + counts.requestedChangeCount,
+    committedChangeCount: prepared.transitionAudit.committedChangeCount + counts.committedChangeCount,
+    trusted: true,
+    reasons: [],
   }
+  const projectAudit = (entry: (typeof orchestrator['state']['narrativeHistory'])[number]) => (
+    entry.id === narrativeId
+      ? { ...entry, transitionAudit: structuredClone(prepared.transitionAudit) }
+      : entry
+  )
+  orchestrator['state'].narrativeHistory = orchestrator['state'].narrativeHistory.map(projectAudit)
+  useEngineStore.setState((state) => ({
+    narrativeHistory: state.narrativeHistory.map(projectAudit),
+  }))
 }

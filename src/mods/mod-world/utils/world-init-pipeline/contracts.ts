@@ -11,8 +11,6 @@ import type {
 } from '@/foundation'
 import type { WorldConfig } from '../../types'
 
-export const MAX_AI_RETRIES = 3
-export const RETRY_DELAY_MS = 2000
 export const WORLD_INIT_OWNER = 'mod-world'
 export const WORLD_INIT_FAILURE_TARGET = 'mod-world'
 

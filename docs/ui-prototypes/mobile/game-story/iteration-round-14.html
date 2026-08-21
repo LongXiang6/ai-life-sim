@@ -1,0 +1,138 @@
+<!-- Purpose: Record the fourteenth UI iteration round for the game-story main simulation interface (08). Owner: Interface system. Responsibility: Compare confirmed story-page candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>游戏故事 · 第十四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">GAME-STORY / ROUND-14</p>
+      <h1>游戏故事 · 第十四轮</h1>
+    </div>
+    <span class="status status-selected">已选择 A · 姓名右栏</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以 ROUND-13 定版候选 A（紧凑胶囊行）为基线，方向「vitals 右栏 · 身份信息归位」。共同基线（三个候选全部应用，用户硬性要求，后续轮次不得改回）：barVitals 右侧空位（grid-column 2，当前整列空置）被顶栏 identity 的文字内容占用（右对齐），不再空白；顶栏 identity 中移走的内容同步从顶栏移除（或整段移除），不残留重复信息。分向为右栏放什么内容：候选 A 姓名右栏（只放「林晚 · 女」姓名性别，时间「沧澜界 · 18 岁 · 春」留顶栏）、候选 B 时间右栏（只放时间，姓名性别留顶栏）、候选 C 双行右栏（姓名性别 + 时间两行都放右栏，顶栏身份整段移除）。其余共同基线全部继承：前世武骨独立第二行左对齐（紧凑胶囊行）、chip 纯白 #fff + 1px 细灰边框 #e5e1d6、墨黑单选（#241f18 边缘黑框 + 外圈白底 + 选中中心实心原点）、单选与输入联动、branchPending 纯白 #fff + 1px 金棕描边、🎲 装饰标题居中、输入框 auto-grow、删 kicker、菱形骑线、entryMeta「X 岁」、网页底色 #fdf9f1。</dd></div>
+        <div><dt>保持不变</dt><dd>业务契约：readerBar（顶栏：身份信息 + 推进步长下拉 + 命运分叉按钮 + 当前信息按钮；barTop grid minmax(0,1fr) auto 40px）、vitals（四维 💪 4 / 🧠 4 / ✨ 5 / 💫 5 直显、已选命格胶囊「灵根淬体 / 慧心通明 / 笑靥如花」+ 前世武骨流光胶囊独立第二行，barVitals grid minmax(0,1fr) auto 两行）、章节头单行化结构、长篇时间线五轮 + 暮年 70 岁待抉择编辑器、advanceDock 流末推进、信息面板。身份信息口径（姓名性别「林晚 · 女」、世界/年龄/季节「沧澜界 · 18 岁 · 春」）全部保留，仅改变摆放位置。前世武骨流光动画参数照抄运行时（bar-rebirth-flow 13s ease-in-out infinite，延迟 -3.1s，reduced-motion 停）。候选不含 localStorage/sessionStorage/fetch（步长下拉、信息面板、单选联动、输入框收起/展开与自适应均为纯 DOM 交互，不持久化）。</dd></div>
+        <div><dt>动效清单</dt><dd>照抄运行时参数，不加其他动画：bar-rebirth-flow 13s ease-in-out infinite（前世武骨流光，延迟 -3.1s，reduced-motion 停）；reveal 0.18s ease both（信息面板滑出）；narrativeFadeIn 280ms ease-out（叙事条目入场）；blink 900ms step-end infinite（生成光标）；advancePulse 2.8s ease-in-out infinite（推进 idle 呼吸，generating/blocked 无动画，reduced-motion 停）；transition transform 0.16s ease（步长箭头）。</dd></div>
+        <div><dt>比较维度</dt><dd>右栏放姓名还是时间的信息层级合理性、右栏信息与左侧四维/命格的阅读节奏、顶栏剩余内容是否单薄、右栏两行（候选 C）与前世武骨第二行的高度协调、窄屏下右栏是否挤压左侧命格胶囊、前世武骨独立第二行左对齐保持、chip 纯白细线与白板的协调、墨黑中心原点与白板金棕描边的搭配、菱形分隔两端对齐、entryMeta 岁数精简节奏、动效照抄一致性、与创建流程已定版页面（暖纸墨 / 金棕 / 命书口吻）的协调性。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 A</span><strong>姓名右栏</strong></header>
+          <p>barVitals 右栏放「林晚 · 女」姓名性别（右对齐），顶栏 identity 只留时间「沧澜界 · 18 岁 · 春」。</p>
+          <a class="candidate-open" href="candidates/candidate-round-14-01-name-right.html" target="_blank" rel="noopener">
+            游戏故事 14 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 B</span><strong>时间右栏</strong></header>
+          <p>barVitals 右栏放时间「沧澜界 · 18 岁 · 春」（右对齐），顶栏 identity 只留「林晚 · 女」姓名性别。</p>
+          <a class="candidate-open" href="candidates/candidate-round-14-02-time-right.html" target="_blank" rel="noopener">
+            游戏故事 14 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 C</span><strong>双行右栏</strong></header>
+          <p>barVitals 右栏放「林晚 · 女」+「沧澜界 · 18 岁 · 春」两行（右对齐），顶栏 identity 整段移除。</p>
+          <a class="candidate-open" href="candidates/candidate-round-14-03-both-right.html" target="_blank" rel="noopener">
+            游戏故事 14 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">A 姓名右栏</span><span role="columnheader">B 时间右栏</span><span role="columnheader">C 双行右栏</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">界面边界</strong><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span><span role="cell">纯游戏故事主模拟界面</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">vitals 右栏</strong><span role="cell">「林晚 · 女」姓名性别（右对齐）</span><span role="cell">「沧澜界 · 18 岁 · 春」时间（右对齐）</span><span role="cell">姓名性别 + 时间两行（右对齐）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">顶栏 identity</strong><span role="cell">只留时间</span><span role="cell">只留姓名性别</span><span role="cell">整段移除（顶栏空位）</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">前世武骨行</strong><span role="cell">独立第二行左对齐（紧凑胶囊行）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">chip 属性变化</strong><span role="cell">纯白 #fff + 细灰边框 #e5e1d6</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选联动</strong><span role="cell">点按钮取消单选；选单选收起输入（内容保留）</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">单选样式</strong><span role="cell">墨黑 #241f18 描边 + 中心原点</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">branchPending 背景</strong><span role="cell">纯白 #fff + 金棕描边</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">表情装饰</strong><span role="cell">h3 两侧 🎲 骰子</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">输入框</strong><span role="cell">textarea 自动换行 + auto-grow 上下扩展</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">entryMeta</strong><span role="cell">单 span 只保留「X 岁」</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">菱形分隔</strong><span role="cell">顶部细线 + 菱形居中骑线对齐</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">动效</strong><span role="cell">全部照抄运行时参数</span><span role="cell">同 A</span><span role="cell">同 A</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 A · 姓名右栏</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 A 姓名右栏——姓名性别是身份核心信息，置于 barVitals 右栏大字（serif strong）层级清晰、一眼定位；顶栏只留时间「沧澜界 · 18 岁 · 春」小字，顶栏左侧不单薄不重复。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 B 时间右栏——时间本就是次要小字层级，放进右栏大字位会抬高时间权重、姓名性别留顶栏反而弱化身份信息；候选 C 双行右栏——姓名性别 + 时间两行全放右栏后顶栏 identity 整段移除，顶栏左部留空、信息密度集中于右栏一侧偏重。</dd></div>
+        <div><dt>下一轮继承</dt><dd>用户「A继续」+ 指示「`small` 这里显示世界的名称 + 时间；`strong` 这里第一行显示姓名性别、第二行显示年龄」——顶栏 small 显示世界名 + 时间（如「沧澜界 · 春」），右栏 strong 第一行「林晚 · 女」、第二行「18 岁」。进入 ROUND-15（身份拆分 · 世界时间 vs 姓名年龄），候选 A 为基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

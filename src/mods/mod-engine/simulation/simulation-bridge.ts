@@ -15,7 +15,11 @@ class SimulationBridge {
   publishSnapshot(snapshot: SimulationSnapshot): void {
     this.snapshot = snapshot
     for (const listener of this.listeners) {
-      listener(snapshot)
+      try {
+        listener(snapshot)
+      } catch (error) {
+        console.error('[SimulationBridge] 快照监听器异常:', error)
+      }
     }
   }
 
@@ -26,7 +30,11 @@ class SimulationBridge {
   subscribe(listener: SnapshotListener): () => void {
     this.listeners.add(listener)
     if (this.snapshot) {
-      listener(this.snapshot)
+      try {
+        listener(this.snapshot)
+      } catch (error) {
+        console.error('[SimulationBridge] 初始快照监听器异常:', error)
+      }
     }
     return () => this.listeners.delete(listener)
   }

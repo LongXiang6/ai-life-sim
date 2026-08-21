@@ -50,6 +50,35 @@ export interface EngineConfig {
   temperature: number
 }
 
+export type NarrativeDestinyPatternGrowthRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
+
+export interface NarrativeDestinyPatternGrowthPattern {
+  name: string
+  rarity: NarrativeDestinyPatternGrowthRarity
+  description: string
+  effect: string
+  attrBonus: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck', number>>
+}
+
+export interface NarrativeDestinyPatternGrowthOption extends NarrativeDestinyPatternGrowthPattern {
+  optionId: string
+  route: '深度强化' | '广度强化' | '转变强化'
+}
+
+/** 命格系统提交到故事条目中的只读成长展示投影。 */
+export interface NarrativeDestinyPatternGrowthProjection {
+  choiceId: string
+  lineageId: string
+  source: NarrativeDestinyPatternGrowthPattern
+  options: [
+    NarrativeDestinyPatternGrowthOption,
+    NarrativeDestinyPatternGrowthOption,
+    NarrativeDestinyPatternGrowthOption,
+  ]
+  selectedOptionId?: string
+  result?: NarrativeDestinyPatternGrowthPattern
+}
+
 /** 已提交的逐轮叙事记录 */
 export interface NarrativeChunk {
   /** 唯一标识（生成时用 timestamp + 随机数填充，用于 resolveBranch 索引漂移防御） */
@@ -71,6 +100,8 @@ export interface NarrativeChunk {
   isBranchPoint?: boolean,
   branchTitle?: string,
   branchOptions?: string[],
+  /** 故事 AI 确认当前人生不再存在任何操作空间时给出的四字结局。 */
+  endingTitle?: string,
   /** 玩家已确认的分支选择 */
   resolvedChoice?: string,
   /** 玩家实际确认该选择时的回合；旧存档缺失时回退到原分支条目轮次。 */
@@ -79,8 +110,8 @@ export interface NarrativeChunk {
   displayAge?: number,
   /** 该条叙事写入时的纪元/时间标签（快照） */
   displayTimeLabel?: string,
-  /** 该条叙事对应的属性变化（用于 UI 展示） */
-  attrChanges?: Array<{ icon: string; label: string; change: number }>,
+  /** 本轮天赋成长的三选一或已确认结果；业务真源仍属于 mod-character。 */
+  destinyPatternGrowth?: NarrativeDestinyPatternGrowthProjection,
   /** 本轮故事与最近完整历史的重复率观测；只用于质量统计，不裁剪正文。 */
   repetitionMetric?: NarrativeRepetitionMetric,
   /** 本轮状态迁移审计；用于结算复算，不进入 AI Prompt。 */
@@ -89,10 +120,9 @@ export interface NarrativeChunk {
 
 /** 压缩统计 */
 export interface CompressionStats {
-  l1Count: number
-  l2Count: number
-  l3Count: number
-  lastAt: number,
+  compressedRoundCount: number
+  lastSourceRound: number | null
+  lastCompletedAt: number
 }
 
 /** 角色创造追踪 — 防止 AI 将自创内容改写为遗迹来源 */

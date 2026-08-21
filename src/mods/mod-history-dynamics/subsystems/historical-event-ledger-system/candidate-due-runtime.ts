@@ -23,6 +23,9 @@ export interface TrustedHistoricalEventValidationContext extends HistoricalEvent
   reportedCharacterId?: unknown
 }
 
+/** Internal non-terminal marker used when a published story has already received a candidate. */
+export const NARRATIVE_DELIVERY_DISPOSITION_PREFIX = '[mod-engine:narrative-delivery]'
+
 export function toHistoricalValidationContext(
   context: RoundContext | HistoricalEventValidationContext,
 ): TrustedHistoricalEventValidationContext {
@@ -74,6 +77,7 @@ export function getDueCandidatesRuntime(
     .filter((audit) => {
       const candidate = audit.candidate
       return audit.status === 'available'
+        && !audit.reason.startsWith(NARRATIVE_DELIVERY_DISPOSITION_PREFIX)
         && isRelevantHistoricalScope(candidate.scope, context.contextId)
         && candidate.requiredCapabilities.every((capability) => currentCapabilities.has(capability))
         && isHistoricalScheduleDue(candidate.schedule, context)

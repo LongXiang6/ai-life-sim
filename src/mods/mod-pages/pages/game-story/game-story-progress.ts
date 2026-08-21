@@ -5,8 +5,8 @@
  */
 
 interface ResolveGameStoryProgressOptions {
-  autoRetryPending: boolean
   forceBranchNext: boolean
+  hasPendingDestinyPatternGrowth: boolean
   hasUnresolvedBranch: boolean
   hasVisiblePendingNarrative: boolean
   isAdvancing: boolean
@@ -22,8 +22,8 @@ const STORY_PROGRESS_STEPS = [
 ]
 
 export function resolveGameStoryProgress({
-  autoRetryPending,
   forceBranchNext,
+  hasPendingDestinyPatternGrowth,
   hasUnresolvedBranch,
   hasVisiblePendingNarrative,
   isAdvancing,
@@ -35,31 +35,31 @@ export function resolveGameStoryProgress({
     ? 0
     : isAdvancing
       ? hasVisiblePendingNarrative ? 1 : 0
-      : hasUnresolvedBranch || narrativeError ? 1 : 2
+      : hasUnresolvedBranch || hasPendingDestinyPatternGrowth || narrativeError ? 1 : 2
   const storyProgressLabel = !isRuntimeReady
     ? runtimeBlockedText
     : isAdvancing
       ? hasVisiblePendingNarrative ? '正文已生成，正在完成本轮' : '正在生成下一段'
       : hasUnresolvedBranch
         ? '等待你的选择'
+        : hasPendingDestinyPatternGrowth
+          ? '等待天赋成长选择'
         : narrativeError
-          ? '本轮未完成，可重试'
+          ? '本轮未完成，可手动重试'
           : forceBranchNext ? '已请求命运分叉' : '岁月流转'
-  const narrativeAdvanceText = narrativeError && !hasUnresolvedBranch
-    ? hasVisiblePendingNarrative ? '重新尝试本轮' : '立即重试，继续此段故事'
+  const narrativeAdvanceText = narrativeError && !hasUnresolvedBranch && !hasPendingDestinyPatternGrowth
+      ? hasVisiblePendingNarrative ? '手动重试本轮' : '手动重试，继续此段故事'
     : '轻触，让岁月流转'
-  const narrativeAdvanceHint = narrativeError && !hasUnresolvedBranch
+  const narrativeAdvanceHint = narrativeError && !hasUnresolvedBranch && !hasPendingDestinyPatternGrowth
     ? hasVisiblePendingNarrative
-      ? autoRetryPending
-        ? '正文已保留，正在自动重新尝试'
-        : '正文已保留，可再次尝试完成本轮'
-      : autoRetryPending
-        ? '正在自动重新尝试；轻触可立即重试'
-        : '自动重试未恢复；轻触可再次尝试'
+      ? '正文已保留，可手动再次尝试完成本轮'
+      : '本轮未完成，可手动再次尝试'
     : '下一段故事已经准备好'
 
   return {
-    narrativeAdvanceBlockedText: isRuntimeReady ? '完成分支后继续' : runtimeBlockedText,
+    narrativeAdvanceBlockedText: isRuntimeReady
+      ? hasPendingDestinyPatternGrowth ? '选择天赋成长后继续' : '完成分支后继续'
+      : runtimeBlockedText,
     narrativeAdvanceHint,
     narrativeAdvanceText,
     storyProgressActiveIndex,

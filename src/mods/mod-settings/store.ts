@@ -1,9 +1,7 @@
 /**
- * @module store.ts
- * @description 设置面板 Zustand Store —— 持久化所有设置到 localStorage
- * @mod mod-settings
- *
- * 规范来源：code-architecture-skill §10 存储方案
+ * Purpose: Persist application settings and expose their validated update commands.
+ * Owner: mod-settings
+ * Responsibility: Settings state, migration, and local persistence only.
  */
 
 import { create, } from 'zustand'
@@ -21,6 +19,14 @@ import {
   type NarrativeWordCountTarget,
   type ReasoningEffort,
 } from '@/foundation'
+
+import {
+  createCustomModelProfileId,
+  normalizeCustomModelProfiles,
+  type CustomModelProfile,
+} from './custom-model-profiles'
+
+export type { CustomModelProfile } from './custom-model-profiles'
 
 /** 叙事风格 */
 export type NarrativeStyle = 'default' | 'epic' | 'realistic' | 'poetic'
@@ -49,18 +55,22 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
     : 'disabled'
 }
 
+/** 玩家可配置的 AI 温度上限。 */
+export const MAX_TEMPERATURE = 1.2
+
 /** 新用户、恢复默认与覆盖导入共享的唯一默认值。 */
 export const DEFAULT_SETTINGS_VALUES = {
   provider: DEFAULT_AI_PROVIDER_ID,
   customKey: '',
   customUrl: DEFAULT_AI_BASE_URL,
   customModel: DEFAULT_AI_MODEL,
+  customModelProfiles: [] as CustomModelProfile[],
   temperature: 0.8,
   topP: 0.8,
   reasoningEffort: 'disabled' as ReasoningEffort,
   talentThinkingIntensity: 'disabled' as ReasoningEffort,
   aiTalentGeneration: true,
-  preGenerateRounds: 1,
+  preGenerateRounds: 1 as 0 | 1,
   storySeed: '',
   narrativeStyle: 'default' as NarrativeStyle,
   narrativeStyleText: '',
@@ -105,7 +115,9 @@ interface SettingsState {
   customUrl: string
   /** 自定义模型名 */
   customModel: string
-  /** 温度 0-2 */
+  /** 仅保存在当前浏览器的自定义模型配置档案 */
+  customModelProfiles: CustomModelProfile[]
+  /** 温度 0-1.2 */
   temperature: number
   /** Top P 0-1 */
   topP: number
@@ -115,8 +127,8 @@ interface SettingsState {
   talentThinkingIntensity: ReasoningEffort
   /** AI 命格生成开关 */
   aiTalentGeneration: boolean
-  /** 预生成轮数 0-3 */
-  preGenerateRounds: number
+  /** 下一轮主故事预生成开关；只允许关闭或预生成一轮。 */
+  preGenerateRounds: 0 | 1
   /** 剧情一致性种子（空=自动生成） */
   storySeed: string
 
@@ -145,12 +157,14 @@ interface SettingsState {
   setCustomKey: (key: string) => void
   setCustomUrl: (url: string) => void
   setCustomModel: (model: string) => void
+  saveCustomModelProfile: (name: string) => void
+  activateCustomModelProfile: (id: string) => void
   setTemperature: (temp: number) => void
   setTopP: (topP: number) => void
   setReasoningEffort: (effort: ReasoningEffort) => void
   setTalentThinkingIntensity: (effort: ReasoningEffort) => void
   setAiTalentGeneration: (enabled: boolean) => void
-  setPreGenerateRounds: (rounds: number) => void
+  setPreGenerateRounds: (rounds: 0 | 1) => void
   setStorySeed: (seed: string) => void
   setNarrativeStyle: (style: NarrativeStyle) => void
   saveNarrativeStyleText: (styleText: string) => void
@@ -173,7 +187,48 @@ export const useSettingsStore = create<SettingsState>()(
         setCustomKey: (customKey,) => set({ customKey, },),
         setCustomUrl: (customUrl,) => set({ customUrl, },),
         setCustomModel: (customModel,) => set({ customModel, },),
-        setTemperature: (temperature,) => set({ temperature, },),
+        saveCustomModelProfile: (name) => set((state) => {
+          const normalizedName = name.trim()
+          if (!normalizedName) throw new Error('请先填写配置名称')
+          if ([...normalizedName].length > 32) throw new Error('配置名称最多 32 个字符')
+          const customKey = state.customKey.trim()
+          const customUrl = state.customUrl.trim()
+          const customModel = state.customModel.trim()
+          if (!customKey || !customUrl || !customModel) {
+            throw new Error('请完整填写 API Key、网址和模型后再保存')
+          }
+          const existing = state.customModelProfiles.find((profile) => profile.name === normalizedName)
+          const profile: CustomModelProfile = {
+            id: existing?.id ?? createCustomModelProfileId(),
+            name: normalizedName,
+            customKey,
+            customUrl,
+            customModel,
+            updatedAt: Date.now(),
+          }
+          return {
+            provider: DEFAULT_AI_PROVIDER_ID,
+            customKey,
+            customUrl,
+            customModel,
+            customModelProfiles: existing
+              ? state.customModelProfiles.map((item) => item.id === existing.id ? profile : item)
+              : [profile, ...state.customModelProfiles],
+          }
+        }),
+        activateCustomModelProfile: (id) => set((state) => {
+          const profile = state.customModelProfiles.find((item) => item.id === id)
+          if (!profile) return state
+          return {
+            provider: DEFAULT_AI_PROVIDER_ID,
+            customKey: profile.customKey,
+            customUrl: profile.customUrl,
+            customModel: profile.customModel,
+          }
+        }),
+        setTemperature: (temperature,) => set({
+          temperature: Math.min(MAX_TEMPERATURE, Math.max(0, temperature)),
+        },),
         setTopP: (topP,) => set({ topP, },),
         setReasoningEffort: (reasoningEffort,) => set({ reasoningEffort, },),
         setTalentThinkingIntensity: (talentThinkingIntensity,) => set({ talentThinkingIntensity, },),
@@ -206,7 +261,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 12,
+        version: 14,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -236,12 +291,15 @@ export const useSettingsStore = create<SettingsState>()(
           migrated.customKey = modelSettings.customKey
           migrated.customUrl = modelSettings.customUrl
           migrated.customModel = modelSettings.customModel
+          migrated.customModelProfiles = normalizeCustomModelProfiles(state.customModelProfiles)
           migrated.theme = 'minimal-white'
+          migrated.preGenerateRounds = state.preGenerateRounds === 0 ? 0 : 1
+          migrated.storySeed = ''
           return migrated as SettingsState
         },
         // 不持久化 set 函数
         partialize: (state,) => {
-          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
+          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, saveCustomModelProfile: _scmp, activateCustomModelProfile: _acmp, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, storySeed: _seed, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
           return rest
         },
         merge: (persistedState, currentState) => {
@@ -251,6 +309,12 @@ export const useSettingsStore = create<SettingsState>()(
             ...currentState,
             ...persisted,
             ...modelSettings,
+            customModelProfiles: normalizeCustomModelProfiles(persisted.customModelProfiles),
+            storySeed: '',
+            preGenerateRounds: persisted.preGenerateRounds === 0 ? 0 : 1,
+            temperature: typeof persisted.temperature === 'number'
+              ? Math.min(MAX_TEMPERATURE, Math.max(0, persisted.temperature))
+              : currentState.temperature,
             wordCountTarget: resolveNarrativeWordCountTarget(persisted.wordCountTarget),
           }
         },

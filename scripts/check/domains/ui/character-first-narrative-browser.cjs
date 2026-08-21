@@ -16,28 +16,11 @@ const narrativeParagraphs = [
   '你收起启事，决定今天先熟悉街区，再在傍晚回来答复。第一步并不宏大，但这座城市已经给了你一个可以继续追寻的方向。',
 ]
 
-const eventMetadata = {
-  重要程度: '普通',
-  注册事件: [{ 内容: '你在旧书店发现招工启事并决定傍晚答复', 重要度: 60, 涉及实体: ['旧书店', '店主'] }],
-  情节状态: '开始',
-  语义信号: {
-    事件类型: '发现',
-    冲突强度: 8,
-    张力变化: 2,
-    行动规模: '小',
-    不可逆: false,
-    影响范围: '个人',
-    叙事语域: '生活',
-    语域理由: '开局生活事件建立角色与世界的第一条联系',
-    情节类型: '人生阶段',
-  },
-}
-
-const fixtureSummary = '你抵达陌生城市，在旧书店发现一份能连接生活与人际的工作机会。'
 const narrativeResponse = `⟦正文⟧${narrativeParagraphs.join('\n\n')}`
-const dataAnalysisResponse = JSON.stringify({ 系统操作: [] })
-const basicAttributeAnalysisResponse = JSON.stringify({ 系统操作: [] })
-const eventRecognitionResponse = JSON.stringify({ 回合事件: { 摘要: fixtureSummary, ...eventMetadata }, 待触发事件: [] })
+const specialistResponses = {
+  'mod-engine:narrative-story-continuity:': JSON.stringify({ 本轮记忆: [], 未来事件: [] }),
+  'mod-engine:narrative-talent-growth:': JSON.stringify({ 成长判定: { 需要成长: false } }),
+}
 
 function unavailable(message) {
   console.error(`[character-first-narrative-browser] UNAVAILABLE: ${message}`)
@@ -91,13 +74,8 @@ async function main() {
     const body = request.postDataJSON()
     const promptAsset = String(body.prompt_asset || '')
     promptAssets.push(promptAsset)
-    const fixtureResponse = promptAsset.includes('mod-engine:narrative-data-analysis:')
-      ? dataAnalysisResponse
-      : promptAsset.includes('mod-engine:narrative-basic-attribute-analysis:')
-        ? basicAttributeAnalysisResponse
-        : promptAsset.includes('mod-engine:narrative-event-recognition:')
-          ? eventRecognitionResponse
-          : narrativeResponse
+    const fixtureResponse = Object.entries(specialistResponses)
+      .find(([asset]) => promptAsset.includes(asset))?.[1] ?? narrativeResponse
     if (body.providerId === 'managed' && body.model === 'LongCat-2.0' && body.apiKey === undefined) {
       managedRequestWithoutClientKey = true
     }
@@ -151,9 +129,7 @@ async function main() {
           calibrationGenerated: true,
           tagsGenerated: true,
           configGenerated: true,
-          entitiesGenerated: true,
-          retryCount: 0,
-          maxRetries: 3,
+          regionProfilesGenerated: true,
           errors: [],
         },
       },
@@ -170,7 +146,6 @@ async function main() {
         reasoningEffort: 'disabled',
         talentThinkingIntensity: 'disabled',
         aiTalentGeneration: false,
-        preGenerateRounds: 0,
         storySeed: '20260718',
         narrativeStyle: 'default',
         wordCountTarget: 200,
@@ -180,23 +155,35 @@ async function main() {
         theme: 'minimal-white',
       },
     }))
-    localStorage.setItem('mod-character:persist:mythic-library', JSON.stringify({
-      version: 2,
+    localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({
+      version: 1,
       state: {
-        patterns: [
+        talents: [
           {
             id: 'fixture-mythic-1',
+            lineageId: 'fixture-mythic-1',
+            version: 1,
             name: '未熄之诺',
-            concept: '承诺',
+            description: '承诺',
+            category: 'social',
+            rarity: 'mythic',
             effect: '重要承诺会留下可追溯的行动方向。',
+            attrBonus: {},
+            strengthenLevel: 1,
             acquiredAt: 1,
             source: { worldName: '夹具世界', characterName: '旧角色' },
           },
           {
             id: 'fixture-mythic-2',
+            lineageId: 'fixture-mythic-2',
+            version: 1,
             name: '回声拾光',
-            concept: '记忆',
+            description: '记忆',
+            category: 'social',
+            rarity: 'mythic',
             effect: '重要关系会保留可回到现场的线索。',
+            attrBonus: {},
+            strengthenLevel: 1,
             acquiredAt: 2,
             source: { worldName: '夹具世界', characterName: '旧角色' },
           },
@@ -216,12 +203,9 @@ async function main() {
   await page.getByRole('button', { name: /进入命格选择/ }).click()
   await page.getByRole('heading', { name: '选择命格' }).waitFor()
 
-  await page.getByRole('button', { name: /轮回天赋槽1/ }).click()
-  await page.getByRole('button', { name: '未熄之诺' }).evaluate((button) => button.click())
-  await page.getByRole('dialog').waitFor({ state: 'detached' })
-  await page.getByRole('button', { name: /轮回天赋槽2/ }).click()
-  await page.getByRole('button', { name: '回声拾光' }).evaluate((button) => button.click())
-  await page.getByRole('dialog').waitFor({ state: 'detached' })
+  await page.getByRole('tab', { name: '轮回天赋' }).click()
+  await page.getByRole('button', { name: '未熄之诺，选择轮回天赋' }).click()
+  await page.getByRole('button', { name: '回声拾光，选择轮回天赋' }).click()
 
   for (let index = 0; index < 3; index += 1) {
     await page.getByRole('button', { name: /，选择普通命格$/ }).first().evaluate((button) => button.click())
@@ -268,6 +252,10 @@ async function main() {
   for (const paragraph of narrativeParagraphs) {
     await page.getByText(paragraph, { exact: true }).waitFor()
   }
+  const requestDeadline = Date.now() + 60000
+  while (proxyPostCount < 3 && Date.now() < requestDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
 
   const persistedState = await page.evaluate(() => {
     const parse = (key) => JSON.parse(localStorage.getItem(key) || '{}').state || {}
@@ -288,17 +276,16 @@ async function main() {
   if (persistedState.character.name !== '林序') failures.push('character name was not persisted')
   if (!managedRequestWithoutClientKey) failures.push('managed provider request without a browser API key was not observed')
   if (persistedState.character.destinyPatterns?.patterns?.length !== 3) failures.push('three destiny patterns were not persisted')
-  if (persistedState.character.equippedMythicPatterns?.length !== 2) failures.push('two equipped mythic patterns were not persisted')
+  if (persistedState.character.equippedReincarnationTalents?.length !== 2) failures.push('two equipped reincarnation talents were not persisted')
   const base = persistedState.character.characterBase?.base ?? {}
   if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '10,5,0,0') {
-    failures.push(`15-point base attributes were not persisted: ${JSON.stringify(base)}`)
+    failures.push(`base attributes were not persisted: ${JSON.stringify(base)}`)
   }
   if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
-  if (proxyPostCount !== 4) failures.push(`expected one narrative and three background-analysis proxy POSTs, observed ${proxyPostCount}`)
+  if (proxyPostCount !== 3) failures.push(`expected one narrative and two post-story proxy POSTs, observed ${proxyPostCount}`)
   if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative:')).length !== 1) failures.push('first narrative prompt asset was not requested exactly once')
-  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-data-analysis:')).length !== 1) failures.push('data-analysis prompt asset was not requested exactly once')
-  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-basic-attribute-analysis:')).length !== 1) failures.push('basic-attribute prompt asset was not requested exactly once')
-  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-event-recognition:')).length !== 1) failures.push('event-recognition prompt asset was not requested exactly once')
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-story-continuity:')).length !== 1) failures.push('story-continuity prompt asset was not requested exactly once')
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-talent-growth:')).length !== 1) failures.push('talent-growth prompt asset was not requested exactly once')
   if (consoleErrors.length > 0) failures.push(`console errors: ${consoleErrors.join(' | ')}`)
 
   console.log(JSON.stringify({

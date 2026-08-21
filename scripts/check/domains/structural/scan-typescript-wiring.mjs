@@ -9,7 +9,6 @@ import path from 'node:path'
 import { logOk, logFail, logRefactorHint, logDomainSummary } from '../../lib/quiet.mjs'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 import { readModuleSource } from '../../lib/read-module-source.mjs'
-import { parseSubsystemFieldContracts } from '../../../codegen/subsystem-field-contract-parser.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
 
@@ -20,7 +19,6 @@ const REQUIRED_GENERATED = [
   'src/core/mod-loader/mod-importers.generated.ts',
   'src/mods/mod-engine/bootstrap/mod-importers.generated.ts',
   'src/mods/mod-engine/bootstrap/prompt-context-contract.generated.ts',
-  'src/mods/mod-engine/helpers/subsystem-field-keys.generated.ts',
   'src/mods/mod-engine/campaigns/default/stages.generated.ts',
   'src/core/mod-loader/remote-contracts.generated.ts',
   'src/core/mod-loader/compat-importers.generated.ts',
@@ -28,11 +26,10 @@ const REQUIRED_GENERATED = [
 ]
 
 const ORCHESTRATOR_REQUIRED_CALLS = [
-  'buildCreationTimelineEntries',
-  'buildForeshadowingText',
-  'detectForeshadowing',
-  'buildNarrativeTimelineProjection',
   'assemblePromptContext',
+  'buildPromptTimelineMemory',
+  'prepareNarrativeStoryContinuity',
+  'prepareNarrativeStoryContinuityLedger',
 ]
 
 /** @param {string} rel */
@@ -43,17 +40,6 @@ function readRel(rel) {
 /** @param {string} content @param {string} constName */
 function parseJsonStringArray(content, constName) {
   const match = content.match(new RegExp(`export const ${constName}[\\s\\S]*?=\\s*(\\[[\\s\\S]*?\\])\\s*as const`))
-  if (!match) return null
-  try {
-    return JSON.parse(match[1])
-  } catch {
-    return null
-  }
-}
-
-/** @param {string} content @param {string} constName */
-function parseJsonObjectConst(content, constName) {
-  const match = content.match(new RegExp(`export const ${constName}[\\s\\S]*?=\\s*(\\{[\\s\\S]*?\\})\\s*as const`))
   if (!match) return null
   try {
     return JSON.parse(match[1])
@@ -74,55 +60,6 @@ for (const rel of REQUIRED_GENERATED) {
 }
 
 if (failed > 0) process.exit(1)
-
-const fieldKeysGen = readRel('src/mods/mod-engine/helpers/subsystem-field-keys.generated.ts')
-const fieldRegistry = readRel('src/mods/mod-engine/helpers/subsystem-field-registry.ts')
-const genKeys = parseJsonStringArray(fieldKeysGen, 'SUBSYSTEM_FIELD_REGISTRY_KEYS')
-const genZodFields = parseJsonObjectConst(fieldKeysGen, 'SUBSYSTEM_ZOD_FIELD_KEYS')
-let sourceFieldContracts = {}
-try {
-  sourceFieldContracts = parseSubsystemFieldContracts(fieldRegistry)
-  const inlineEmptyFieldsFixture = parseSubsystemFieldContracts(`
-    export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, unknown> = {
-      'read-only': { fields: {} },
-      writable: {
-        fields: {
-          delta: { schema: z.number() },
-        },
-      },
-    }
-  `, 'subsystem-field-contract-parser.fixture.ts')
-  if (JSON.stringify(inlineEmptyFieldsFixture) !== JSON.stringify({ 'read-only': [], writable: ['delta'] })) {
-    throw new Error('inline fields 解析回归：空字段契约吞并了后续子系统字段')
-  }
-  logOk('[OK] subsystem field contract AST parser 覆盖 inline 空 fields')
-} catch (error) {
-  logFail(`[FAIL] SUBSYSTEM_FIELD_CONTRACTS 无法可靠解析: ${error instanceof Error ? error.message : String(error)}`)
-  failed++
-}
-const sourceKeys = Object.keys(sourceFieldContracts)
-
-if (!genKeys || sourceKeys.length === 0 || genKeys.join('|') !== sourceKeys.join('|')) {
-  logFail('[FAIL] SUBSYSTEM_FIELD_REGISTRY_KEYS 与 SUBSYSTEM_FIELD_CONTRACTS 漂移')
-  failed++
-} else {
-  logOk('[OK] subsystem field keys 与字段契约一致')
-}
-
-if (!fieldRegistry.includes('buildSubsystemFieldMap(SUBSYSTEM_FIELD_CONTRACTS)')
-  || !fieldRegistry.includes('buildSubsystemChangeSchemas(SUBSYSTEM_FIELD_CONTRACTS)')) {
-  logFail('[FAIL] SUBSYSTEM_FIELD_MAP / SUBSYSTEM_CHANGE_SCHEMAS 未从 SUBSYSTEM_FIELD_CONTRACTS 派生')
-  failed++
-} else {
-  logOk('[OK] registry map/schema 由字段契约派生')
-}
-
-if (!genZodFields || JSON.stringify(genZodFields) !== JSON.stringify(sourceFieldContracts)) {
-  logFail('[FAIL] SUBSYSTEM_ZOD_FIELD_KEYS 与 SUBSYSTEM_FIELD_CONTRACTS 字段漂移')
-  failed++
-} else {
-  logOk('[OK] Zod 字段列表与字段契约一致')
-}
 
 const stagesGen = readRel('src/mods/mod-engine/campaigns/default/stages.generated.ts')
 const campaignIndex = readRel('src/mods/mod-engine/campaigns/default/index.ts')

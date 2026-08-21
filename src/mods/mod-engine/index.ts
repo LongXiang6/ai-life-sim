@@ -11,6 +11,10 @@ export type {
   SimulationStatus,
   EngineConfig,
   NarrativeChunk,
+  NarrativeDestinyPatternGrowthOption,
+  NarrativeDestinyPatternGrowthPattern,
+  NarrativeDestinyPatternGrowthProjection,
+  NarrativeDestinyPatternGrowthRarity,
   EngineState,
   RoundResult,
   CompressionStats,
@@ -30,12 +34,7 @@ export {
   DEFAULT_ENGINE_CONFIG,
   STORAGE_KEYS,
   AVAILABLE_TIME_STEPS,
-  SUMMARY_INTERVAL,
-  COMPRESS_L1_DELAY_BLOCKS,
   RECENT_NARRATIVE_WINDOW,
-  SUMMARY_LEVEL_MULTIPLIER,
-  COMPRESS_L2_MERGE_COUNT,
-  COMPRESS_L3_MERGE_COUNT,
 } from './constants'
 export {
   NARRATIVE_STYLE_PROMPTS,
@@ -44,20 +43,6 @@ export {
   buildWordCountInstruction,
   buildStyleInstruction,
 } from './constants/narrative-config'
-export {
-  PRE_GEN_CONFIG,
-  savePreGenResult,
-  loadPreGenResult,
-  clearPreGenResult,
-  getPreGenStatus,
-  setPreGenStatus,
-} from './constants/pre-gen-config'
-export type {
-  PreGenStatus,
-  PreGenCache,
-} from './constants/pre-gen-config'
-export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, fillPreGenQueue, getPreGenQueueLength, getPreGenQueueStatus, subscribePreGenQueue } from './helpers/pre-gen-queue'
-export type { PreGenCachedRound, PreGenQueueStatus } from './helpers/pre-gen-queue'
 export { applyGameSave, collectGameSavePayload, collectManualGameSavePayload, saveCurrentGameToSlot } from './helpers/save-restore'
 export {
   AVAILABLE_TIME_STEPS as ENGINE_AVAILABLE_TIME_STEPS,
@@ -71,7 +56,7 @@ export { resolveNarrativeBranchChoice, setForceBranchNextRound } from './helpers
 export { useEngineStore } from './store'
 
 // Hooks
-export { useEngine, useNarrative, useSimulationSnapshot, useSimulationAdvance, usePreGenQueueStatus, syncOrchestratorToEngineStore } from './hooks'
+export { useEngine, useNarrative, useSimulationSnapshot, useSimulationAdvance, syncOrchestratorToEngineStore } from './hooks'
 export { simulationBridge } from './simulation/simulation-bridge'
 export type { SimulationSnapshot } from './simulation/simulation-types'
 
@@ -85,4 +70,3 @@ export {
 
 // Prompts
 export { narrativePrompt, NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
-export { buildSummaryPrompt, buildSummarySystemPrompt, summaryPrompt } from './prompts/summary-prompt'

@@ -10,7 +10,7 @@
     {
       "path": "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts",
       "owner": "mod-history-dynamics",
-      "reviewedLines": 1925,
+      "reviewedLines": 1942,
       "reason": "历史事件账本唯一写入与持久化所有者；只读查询已下沉，剩余预检、提交和严格校验共享 append-only 不变式。"
     }
   ]

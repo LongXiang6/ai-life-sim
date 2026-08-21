@@ -125,7 +125,6 @@ export function buildWorldContextInstance(input: {
     eraStartYear: input.eraStartYear ?? input.config.eraStartYear ?? 0,
     eraName: input.eraName ?? input.config.eraName ?? '',
     calibration: structuredClone(input.calibration),
-    destinyPatternModifiers: {},
     worldInitAIStatus: structuredClone(input.worldInitAIStatus ?? null),
   }
 }
@@ -159,7 +158,6 @@ export function projectWorldContextInstance(instance: WorldContextInstance) {
     eraStartYear: instance.eraStartYear,
     eraName: instance.eraName,
     calibration: structuredClone(instance.calibration),
-    destinyPatternModifiers: { ...instance.destinyPatternModifiers },
     worldInitAIStatus: structuredClone(instance.worldInitAIStatus),
   }
 }

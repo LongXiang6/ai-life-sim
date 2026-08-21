@@ -1,3 +1,9 @@
+/**
+ * Purpose: Register the project's active cross-component execution flows.
+ * Owner: core:execution
+ * Responsibility: Stable flow identity and ownership metadata only.
+ */
+
 import type { ExecutionFlowRegistration } from '@/foundation'
 
 function registerFlow(
@@ -14,6 +20,13 @@ export const EXECUTION_FLOWS = Object.freeze({
     failureTarget: 'mod-engine',
     department: 'mod-engine',
     subsystem: 'orchestrator-system',
+  }),
+  lifeSettlement: registerFlow({
+    flowId: 'life-settlement',
+    owner: 'core-scoring',
+    failureTarget: 'core-scoring',
+    department: 'core',
+    subsystem: 'life-scoring',
   }),
   subsystemAdvance: registerFlow({
     flowId: 'subsystem-advance',
