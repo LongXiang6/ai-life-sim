@@ -855,15 +855,16 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(
-  destinyPromptSrc.includes('开局已成立的能力、感知、技艺、习惯或处境'),
-  'destiny prompt must positively require timeless traits',
+  destinyPromptSrc.includes('开局即可表现的能力倾向、感知方式、操作偏好、异常现象或限制')
+    && destinyPromptSrc.includes('能力来源、形成过程、过去经历和既定身份必须留白'),
+  'destiny prompt must require present traits while leaving biography open',
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.2\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.3\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 8.2.0',
+  'destiny prompt builder and cache version must share version 8.3.0',
 )
 assertOk(
   destinyPromptSrc.includes('已经被占用的天赋名称')
@@ -874,8 +875,13 @@ assertOk(
   destinyPromptSrc.includes('二至六个汉字')
     && destinyPromptSrc.includes('保留古典用词质感')
     && destinyPromptSrc.includes('比喻最多一处')
-    && destinyPromptSrc.includes('普通级只保持'),
+    && destinyPromptSrc.includes('普通级只提供局部、低强度、有限条件的开局优势'),
   'destiny prompt must keep direct classical wording and ordinary-tier boundaries',
+)
+assertOk(
+  destinyPromptSrc.includes('幻想、虚幻、神秘、象征')
+    && destinyPromptSrc.includes('输入事实封闭'),
+  'destiny prompt must allow varied speculative themes without inventing missing facts',
 )
 const makeDestinyPattern = (index, category) => ({
   类别: category,
@@ -933,7 +939,7 @@ assertOk(
 assertOk(
   destinyPromptSrc.includes('作用方式和现实边界')
     && destinyPromptSrc.includes('只有确实存在时才补充条件、代价或限制')
-    && destinyPromptSrc.includes('普通级只保持'),
+    && destinyPromptSrc.includes('普通级只提供局部、低强度、有限条件的开局优势'),
   'conceptual rules and ordinary-tier semantics must match the current prompt contract',
 )
 assertOk(/叙事与模拟长期遵守的作用方式/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')

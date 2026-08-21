@@ -78,7 +78,11 @@ generationSystem.setAIService(async (systemPrompt, userPrompt, options) => {
 
   const label = categoryLabels[category]
   assert.match(systemPrompt, new RegExp(label), 'system prompt must stay category-scoped')
-  assert.match(userPrompt, new RegExp(label), 'user prompt must stay category-scoped')
+  const userPayload = JSON.parse(userPrompt)
+  assert.ok(
+    !Object.hasOwn(userPayload, '生成方向') && !Object.hasOwn(userPayload, 'generationDirection'),
+    'user prompt must not duplicate the system-owned category field',
+  )
   return JSON.stringify({
     命格: Array.from({ length: 4 }, (_, itemIndex) => ({
       类别: label,
