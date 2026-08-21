@@ -49,4 +49,4 @@
 - 执行流与 MOD：`npm run check:execution`、`npm run check:mod`。
 - TypeScript 应用：`npm run lint`、`npx tsc --noEmit`。
 - 跨领域或持久化交付：`npm run gate-check`。
-- 暂存、提交、推送、发布和部署只在用户明确要求时执行。
+- 本项目用户已明确要求：每次版本更新或任务验收完成后，在验证通过并保留无关工作原状的前提下及时暂存、提交并推送 GitHub；优先使用仅在发布期间开启的服务器临时隧道，不保存代理配置。部署仍只在用户明确要求时执行。
