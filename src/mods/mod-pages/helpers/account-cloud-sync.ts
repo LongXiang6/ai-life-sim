@@ -101,6 +101,7 @@ function localSettings(): CloudSettings {
     narrativeStyle: state.narrativeStyle,
     narrativeStyleText: state.narrativeStyleText,
     narrativeStyleVersion: state.narrativeStyleVersion,
+    narrativeAddressing: state.narrativeAddressing,
     wordCountTarget: state.wordCountTarget,
     streamingMode: state.streamingMode,
     comfortableParagraphs: state.comfortableParagraphs,

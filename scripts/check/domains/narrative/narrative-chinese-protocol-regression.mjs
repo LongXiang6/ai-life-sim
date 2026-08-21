@@ -95,14 +95,16 @@ assertOk(
 )
 assertOk(
   JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['本轮引导'])
-    && storyMessages[2].本轮引导.length === 5
+    && storyMessages[2].本轮引导.length === 6
     && storyMessages[2].本轮引导[0].includes('317年4月')
     && storyMessages[2].本轮引导[1].startsWith('玩家行动：')
     && storyMessages[2].本轮引导[2].includes('角色当前19岁')
     && storyMessages[2].本轮引导[2].includes('故事保持合理挑战')
-    && storyMessages[2].本轮引导[4] === '字数要求：正文约300字。',
-  '01 第三条消息必须只含时间、行动、年龄与难度、文风和篇幅五项引导',
+    && storyMessages[2].本轮引导[3].includes('第二人称“你”')
+    && storyMessages[2].本轮引导[5] === '字数要求：正文约300字。',
+  '01 第三条消息必须只含时间、行动、年龄与难度、称呼、文风和篇幅六项引导',
 )
+for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '当前角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[2]).本轮引导[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
 const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
   characterStatusView: { 年龄: 1 },
@@ -318,7 +320,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.2.0'
+  narrativePrompt.version === '7.3.0'
     && narrativeStoryContinuityPrompt.version === '2.6.0'
     && narrativeTalentGrowthPrompt.version === '3.2.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -327,7 +329,7 @@ assertOk(
 )
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('把玩家行动视为已经选定的做法')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前时间、玩家行动、年龄边界、挑战与失败取向、叙述风格和字数要求')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前时间、玩家行动、年龄边界、挑战与失败取向、称呼方式、叙述风格和字数要求')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('角色当前身份、当前年龄、能力语义与天赋')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('0至2岁只写婴幼儿能够成立的感知')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前已生效天赋')

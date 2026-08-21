@@ -186,6 +186,7 @@ export function assemblePromptContextRuntime(
       orchestrator['getSubsystemBindings'](),
     ),
     narrativeStyle: orchestrator['getNarrativeStyle'](),
+    narrativeAddressing: useSettingsStore.getState().narrativeAddressing,
     talents,
     timelineMemory: orchestrator['buildPromptTimelineMemory'](),
     recentDetailedStories,

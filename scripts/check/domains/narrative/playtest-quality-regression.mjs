@@ -158,6 +158,7 @@ function loadPersistMigration(sourceText) {
     'DEFAULT_AI_PROVIDER_ID',
     'DEFAULT_AI_MODEL',
     'normalizeReasoningEffort',
+    'normalizeNarrativeAddressing',
     'normalizeImportedModelSettings',
     'normalizeCustomModelProfiles',
     transpiled,
@@ -180,6 +181,7 @@ function loadPersistMigration(sourceText) {
       high: 'high',
       max: 'max',
     })[value] ?? 'disabled',
+    (value) => (value === 'first-person' || value === 'character-name' ? value : 'second-person'),
     (value) => {
       const provider = typeof value.provider === 'string' ? value.provider : DEFAULT_AI_PROVIDER_ID
       const customKey = typeof value.customKey === 'string' ? value.customKey.trim() : ''
@@ -280,7 +282,7 @@ assertIncludes(oneYearHint, '二至三个彼此照应的代表性场景', 'one-y
 assertIncludes(oneYearHint, '旧主线只能作为承接背景，不能占据多数篇幅', 'one-year hint must move away from a repeated recent main line')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '根据世界事实、连续记忆和本轮引导', 'fixed prompt must use the approved 01 story sources')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '多个并列事项都要形成实际尝试', 'fixed prompt must cover every selected parallel action')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前时间、玩家行动、年龄边界、挑战与失败取向、叙述风格和字数要求', 'fixed prompt must map the approved age, challenge and failure guidance')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前时间、玩家行动、年龄边界、挑战与失败取向、称呼方式、叙述风格和字数要求', 'fixed prompt must map the approved age, challenge and failure guidance')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '角色当前身份、当前年龄、能力语义与天赋', 'fixed prompt must map age and talent under the character input')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '0至2岁只写婴幼儿能够成立的感知', 'fixed prompt must enforce infant capability boundaries')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前已生效天赋', 'fixed prompt must use the unified talent terminology')
@@ -1152,14 +1154,15 @@ assertOk(
     && narrativePromptComponentsSrc.includes('不同选择会改变后续走向'),
   'branch prompt must require a blocking choice with materially different futures',
 )
-assertOk(/version:\s*'7\.2\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 7.2.0')
+assertOk(/version:\s*'7\.3\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 7.3.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('以第二人称‘你’作为当前角色的叙事主语')
+  narrativePromptComponentsSrc.includes('默认以第二人称‘你’作为当前角色的叙事主语')
+    && narrativePromptComponentsSrc.includes('本轮引导提供称呼方式，则以该动态称呼方式为准')
     && narrativePromptComponentsSrc.includes('不得伪造证据、身份、秘密答案、过去言行或后续结果'),
   'narrative prompt must preserve the approved second-person and fact-boundary rules',
 )

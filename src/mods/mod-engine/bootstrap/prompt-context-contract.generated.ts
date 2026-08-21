@@ -23,6 +23,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "recentDetailedStories",
   "currentRegion",
   "narrativeStyle",
+  "narrativeAddressing",
   "narrativeToneHint",
   "modWorldRules",
   "plotStructureText",

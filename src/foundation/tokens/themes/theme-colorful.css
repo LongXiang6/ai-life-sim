@@ -1,0 +1,70 @@
+/**
+ * Purpose: Define the reading-based colorful theme.
+ * Owner: foundation / theme tokens
+ * Responsibility: Keep the warm paper baseline while adding restrained rainbow accents.
+ */
+
+[data-theme='colorful'] {
+  --color-scheme: light;
+
+  --color-primary: #9b6f55;
+  --color-primary-hover: #805541;
+  --color-primary-light: #fff1e6;
+  --color-secondary: #77736c;
+  --color-text-on-primary: #ffffff;
+
+  --color-success: #4d8667;
+  --color-warning: #b6813b;
+  --color-error: #b65d5c;
+  --color-info: #597f9d;
+  --color-success-bg: #eef7f0;
+  --color-warning-bg: #fff8e9;
+  --color-error-bg: #fff2f1;
+  --color-info-bg: #f0f6fb;
+
+  --color-bg: #fffdf7;
+  --color-bg-primary: #fffdf7;
+  --color-bg-secondary: #fffefa;
+  --color-bg-tertiary: #fffffd;
+  --color-bg-card: #ffffff;
+  --color-surface: rgba(255, 255, 255, 0.94);
+
+  --color-text-primary: #1a1a2e;
+  --color-text-secondary: #625f59;
+  --color-text-tertiary: #918d85;
+  --text-on-accent: #ffffff;
+
+  --color-border: rgba(110, 100, 82, 0.1);
+  --color-border-focus: #c29373;
+  --color-border-hover: rgba(110, 100, 82, 0.16);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.06);
+  --color-accent-glow: rgba(194, 147, 115, 0.12);
+
+  --flow-canvas: #fffdf7;
+  --flow-paper: #ffffff;
+  --flow-ink: #17191d;
+  --flow-muted: #716d66;
+  --flow-faint: #9b978f;
+  --flow-line: #f0ede6;
+  --flow-line-strong: #e6e1d7;
+  --flow-accent: #9b6f55;
+  --flow-accent-soft: #fff5ed;
+
+  --color-rainbow-red: #b65d5c;
+  --color-rainbow-orange: #c47d4c;
+  --color-rainbow-yellow: #b4933f;
+  --color-rainbow-green: #5f8d68;
+  --color-rainbow-cyan: #4f8f91;
+  --color-rainbow-blue: #5f7fa5;
+  --color-rainbow-purple: #806d9b;
+  --color-rainbow-red-bg: #fff2f1;
+  --color-rainbow-orange-bg: #fff5ec;
+  --color-rainbow-yellow-bg: #fff9e8;
+  --color-rainbow-green-bg: #f0f7f1;
+  --color-rainbow-cyan-bg: #eef8f8;
+  --color-rainbow-blue-bg: #f0f5fb;
+  --color-rainbow-purple-bg: #f5f1f9;
+}

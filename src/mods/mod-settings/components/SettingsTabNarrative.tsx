@@ -1,3 +1,5 @@
+/** Purpose: Render narrative preferences and their public controls. Owner: mod-settings. Responsibility: Narrative-tab presentation only. */
+
 'use client'
 
 import { useState } from 'react'
@@ -13,22 +15,54 @@ import styles from './SettingsTabNarrative.module.css'
 
 const STYLE_PLACEHOLDER = '例如：采用克制、具体的第二人称叙事；多写行动和对话，少用总结性评价；保持人物反应与既有事实连续。'
 
+const ADDRESSING_OPTIONS = [
+  { value: 'first-person' as const, label: '第一人称', description: '正文使用“我”' },
+  { value: 'second-person' as const, label: '第二人称', description: '正文使用“你”' },
+  { value: 'character-name' as const, label: '角色名称自适应', description: '随当前角色姓名叙述' },
+]
+
 export function SettingsTabNarrative() {
   const {
     narrativeStyleText,
     narrativeStyleVersion,
+    narrativeAddressing,
     wordCountTarget,
     saveNarrativeStyleText,
     restoreDefaultNarrativeStyle,
+    setNarrativeAddressing,
     setWordCountTarget,
   } = useSettingsStore()
   const [styleDraft, setStyleDraft] = useState<string | null>(null)
 
   const currentStyleDraft = styleDraft ?? narrativeStyleText
   const styleDirty = styleDraft !== null && styleDraft !== narrativeStyleText
+  const currentAddressingLabel = ADDRESSING_OPTIONS.find((option) => option.value === narrativeAddressing)?.label ?? '第二人称'
 
   return (
     <div className={styles.tabRoot}>
+      <section className={styles.section} aria-labelledby="settings-addressing-heading">
+        <div className={styles.sectionLabel}>
+          <h3 id="settings-addressing-heading">叙事称呼</h3>
+          <span>当前：{currentAddressingLabel}</span>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.addressingGrid} role="group" aria-label="叙事称呼">
+            {ADDRESSING_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={styles.addressingButton}
+                aria-pressed={narrativeAddressing === option.value}
+                onClick={() => setNarrativeAddressing(option.value)}
+              >
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className={styles.section} aria-labelledby="settings-style-heading">
         <div className={styles.sectionLabel}>
           <h3 id="settings-style-heading">基础文风</h3>

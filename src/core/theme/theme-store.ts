@@ -1,7 +1,7 @@
 /**
  * Purpose: Own the persisted runtime theme selection and legacy theme migration.
  * Owner: core/theme
- * Responsibility: Validate the three supported themes and expose one switching contract.
+ * Responsibility: Validate the four supported themes and expose one switching contract.
  *
  * @module theme-store.ts
  * @description 运行时主题状态 —— 三套基础主题的唯一状态所有者
@@ -14,16 +14,17 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-/** 运行态可用的基础主题。阅读主题包含低饱和的彩色语义辅助 Token。 */
-export type ThemeType = 'reading' | 'night' | 'white'
+/** 运行态可用的基础主题。阅读与多彩主题包含低饱和的彩色语义辅助 Token。 */
+export type ThemeType = 'reading' | 'night' | 'white' | 'colorful'
 
 export const DEFAULT_THEME: ThemeType = 'reading'
-export const THEME_TYPES: ThemeType[] = ['reading', 'night', 'white']
+export const THEME_TYPES: ThemeType[] = ['reading', 'night', 'white', 'colorful']
 
 export const THEME_LABELS: Record<ThemeType, string> = {
   reading: '阅读主题',
   night: '暗夜主题',
   white: '白色主题',
+  colorful: '多彩主题',
 }
 
 const LEGACY_THEME_MAP: Record<string, ThemeType> = {
@@ -42,6 +43,8 @@ const LEGACY_THEME_MAP: Record<string, ThemeType> = {
   scifi: 'night',
   apocalypse: 'night',
   'cyber-neon': 'night',
+  colorful: 'colorful',
+  'rainbow-reading': 'colorful',
 }
 
 /** 将外部导入、云端快照和旧持久化值归一到当前主题集合。 */

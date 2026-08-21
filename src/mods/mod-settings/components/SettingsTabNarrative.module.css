@@ -31,6 +31,57 @@
   background: var(--flow-paper);
 }
 
+.addressingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(5 * var(--final-flow-density-px));
+}
+
+.addressingButton {
+  display: grid;
+  min-width: 0;
+  min-height: calc(48 * var(--final-flow-density-px));
+  align-content: center;
+  gap: calc(3 * var(--final-flow-density-px));
+  padding: calc(7 * var(--final-flow-density-px)) calc(5 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
+  background: var(--flow-paper);
+  color: var(--flow-ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+
+.addressingButton:hover,
+.addressingButton[aria-pressed="true"] {
+  border-color: var(--color-border-focus);
+  background: var(--flow-accent-soft);
+}
+
+.addressingButton[aria-pressed="true"] {
+  box-shadow: 0 0 0 calc(1 * var(--final-flow-density-px)) color-mix(in srgb, var(--color-border-focus) 28%, transparent);
+}
+
+.addressingButton strong,
+.addressingButton small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.addressingButton strong {
+  font-size: calc(8.333 * var(--final-flow-density-px));
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.addressingButton small {
+  color: var(--flow-muted);
+  font-size: calc(7 * var(--final-flow-density-px));
+  line-height: 1.3;
+}
+
 .styleInput {
       width: 100%;
       padding: calc(10 * var(--final-flow-density-px));

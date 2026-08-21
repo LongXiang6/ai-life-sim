@@ -58,6 +58,8 @@ const CloudThemeSchema = z.enum([
   'dark-cosmos',
   'light-aurora',
   'cyber-neon',
+  'colorful',
+  'rainbow-reading',
 ]).transform((value): ThemeType => normalizeTheme(value))
 
 const NarrativeWordCountTargetSchema = z.custom<NarrativeWordCountTarget>(
@@ -80,6 +82,7 @@ export const CloudSettingsSchema = z.object({
   narrativeStyle: z.enum(['default', 'epic', 'realistic', 'poetic']),
   narrativeStyleText: z.string().default(''),
   narrativeStyleVersion: z.number().int().nonnegative().default(0),
+  narrativeAddressing: z.enum(['first-person', 'second-person', 'character-name']).default('second-person'),
   wordCountTarget: NarrativeWordCountTargetSchema,
   streamingMode: z.enum(['off', 'stream']),
   comfortableParagraphs: z.boolean(),

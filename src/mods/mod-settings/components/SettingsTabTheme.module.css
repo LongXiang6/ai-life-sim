@@ -123,7 +123,7 @@
 
 .themeGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: calc(6.667 * var(--final-flow-density-px));
   padding: calc(9 * var(--final-flow-density-px)) 0 calc(4 * var(--final-flow-density-px));
 }
@@ -186,6 +186,9 @@
 .themeSwatch[data-theme-preview="white"] span { background: #ffffff; }
 .themeSwatch[data-theme-preview="white"] i { background: #f8f9fb; }
 .themeSwatch[data-theme-preview="white"] b { background: #edf2f7; }
+.themeSwatch[data-theme-preview="colorful"] span { background: #fffdf7; }
+.themeSwatch[data-theme-preview="colorful"] i { background: #fffefa; }
+.themeSwatch[data-theme-preview="colorful"] b { background: linear-gradient(90deg, #fff2f1 0 14%, #fff5ec 14% 28%, #fff9e8 28% 42%, #f0f7f1 42% 56%, #eef8f8 56% 70%, #f0f5fb 70% 84%, #f5f1f9 84%); }
 
 .themeCopy {
   display: block;
@@ -524,6 +527,12 @@
   .dangerButton,
   .confirmDangerButton {
     transition-duration: 1ms;
+  }
+}
+
+@media (min-width: 40rem) {
+  .themeGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

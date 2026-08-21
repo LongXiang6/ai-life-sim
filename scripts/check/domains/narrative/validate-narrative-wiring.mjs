@@ -79,8 +79,8 @@ assertOk(
   '01 必须保留唯一工具输出和同响应正文的宽容解析，不启用额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.2.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.2.0')
+  narrativePrompt.includes("version: '7.3.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.3.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '2.6.0'")
     && talentPrompt.includes("version: '3.2.0'")

@@ -33,6 +33,13 @@ export type NarrativeStyle = 'default' | 'epic' | 'realistic' | 'poetic'
 /** 叙事显示模式 */
 export type StreamingMode = 'off' | 'stream'
 
+/** 主叙事对当前角色的称呼方式。 */
+export type NarrativeAddressing = 'first-person' | 'second-person' | 'character-name'
+
+export function normalizeNarrativeAddressing(value: unknown): NarrativeAddressing {
+  return value === 'first-person' || value === 'character-name' ? value : 'second-person'
+}
+
 export type { ReasoningEffort } from '@/foundation'
 
 const LEGACY_REASONING_EFFORT_MAP: Record<string, ReasoningEffort> = {
@@ -74,6 +81,7 @@ export const DEFAULT_SETTINGS_VALUES = {
   narrativeStyle: 'default' as NarrativeStyle,
   narrativeStyleText: '',
   narrativeStyleVersion: 0,
+  narrativeAddressing: 'second-person' as NarrativeAddressing,
   wordCountTarget: DEFAULT_WORD_COUNT_TARGET,
   streamingMode: 'off' as StreamingMode,
   comfortableParagraphs: true,
@@ -137,6 +145,8 @@ interface SettingsState {
   narrativeStyleText: string
   /** 每次保存不同的生效文风时递增。 */
   narrativeStyleVersion: number
+  /** 主叙事对当前角色的称呼方式。 */
+  narrativeAddressing: NarrativeAddressing
   /** 固定档位的正文目标字数。 */
   wordCountTarget: NarrativeWordCountTarget
   /** 叙事显示模式 */
@@ -163,6 +173,7 @@ interface SettingsState {
   setNarrativeStyle: (style: NarrativeStyle) => void
   saveNarrativeStyleText: (styleText: string) => void
   restoreDefaultNarrativeStyle: () => void
+  setNarrativeAddressing: (addressing: NarrativeAddressing) => void
   setWordCountTarget: (target: NarrativeWordCountTarget) => void
   setStreamingMode: (mode: StreamingMode) => void
   setComfortableParagraphs: (enabled: boolean) => void
@@ -246,6 +257,9 @@ export const useSettingsStore = create<SettingsState>()(
             narrativeStyleVersion: state.narrativeStyleVersion + 1,
           }
         }),
+        setNarrativeAddressing: (narrativeAddressing) => set({
+          narrativeAddressing: normalizeNarrativeAddressing(narrativeAddressing),
+        }),
         setWordCountTarget: (wordCountTarget,) => set({ wordCountTarget, },),
         setStreamingMode: (streamingMode,) => set({ streamingMode, },),
         setComfortableParagraphs: (comfortableParagraphs,) => set({ comfortableParagraphs, },),
@@ -253,7 +267,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 14,
+        version: 15,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -286,11 +300,12 @@ export const useSettingsStore = create<SettingsState>()(
           migrated.customModelProfiles = normalizeCustomModelProfiles(state.customModelProfiles)
           migrated.preGenerateRounds = state.preGenerateRounds === 0 ? 0 : 1
           migrated.storySeed = ''
+          migrated.narrativeAddressing = normalizeNarrativeAddressing(state.narrativeAddressing)
           return migrated as SettingsState
         },
         // 不持久化 set 函数
         partialize: (state,) => {
-          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, saveCustomModelProfile: _scmp, activateCustomModelProfile: _acmp, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, storySeed: _seed, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, ...rest } = state
+          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, saveCustomModelProfile: _scmp, activateCustomModelProfile: _acmp, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, storySeed: _seed, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setNarrativeAddressing: _sna, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, ...rest } = state
           return rest
         },
         merge: (persistedState, currentState) => {
@@ -308,6 +323,7 @@ export const useSettingsStore = create<SettingsState>()(
               ? Math.min(MAX_TEMPERATURE, Math.max(0, persisted.temperature))
               : currentState.temperature,
             wordCountTarget: resolveNarrativeWordCountTarget(persisted.wordCountTarget),
+            narrativeAddressing: normalizeNarrativeAddressing(persisted.narrativeAddressing),
           }
         },
       },

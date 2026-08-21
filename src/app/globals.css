@@ -14,12 +14,13 @@
 @import '../foundation/tokens/layout.css';
 
 /* ═══════════════════════════════════════════════════════════════════
- * 主题 Token：阅读 / 暗夜 / 白色
+ * 主题 Token：阅读 / 暗夜 / 白色 / 多彩
  * 所有页面只消费语义变量，运行时由 data-theme 选择主题
  * ═══════════════════════════════════════════════════════════════════ */
 @import '../foundation/tokens/themes/theme-reading.css';
 @import '../foundation/tokens/themes/theme-night.css';
 @import '../foundation/tokens/themes/theme-white.css';
+@import '../foundation/tokens/themes/theme-colorful.css';
 
 /* ═══════════════════════════════════════════════════════════════════
  * 全局重置（Apple HIG Deference）

@@ -9,4 +9,4 @@ export {
   isApiConfigured,
   hasAvailableApiConfiguration,
 } from './store'
-export type { NarrativeStyle, StreamingMode, ReasoningEffort } from './store'
+export type { NarrativeAddressing, NarrativeStyle, StreamingMode, ReasoningEffort } from './store'

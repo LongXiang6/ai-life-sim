@@ -676,6 +676,7 @@
         "src/foundation/tokens/index.css",
         "src/foundation/tokens/layout.css",
         "src/foundation/tokens/spacing.css",
+        "src/foundation/tokens/themes/theme-colorful.css",
         "src/foundation/tokens/themes/theme-night.css",
         "src/foundation/tokens/themes/theme-reading.css",
         "src/foundation/tokens/themes/theme-white.css",

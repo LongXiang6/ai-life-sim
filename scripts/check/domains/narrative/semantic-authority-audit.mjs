@@ -37,10 +37,11 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.2\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.3\.0'/u)
 assert.match(sources.mainSystemPrompt, /人生模拟器的故事生成器/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
-assert.match(sources.mainSystemPrompt, /以第二人称‘你’作为当前角色的叙事主语/u)
+assert.match(sources.mainSystemPrompt, /默认以第二人称‘你’作为当前角色的叙事主语/u)
+assert.match(sources.mainSystemPrompt, /本轮引导提供称呼方式，则以该动态称呼方式为准/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /examples\s*:/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /详细示例|示例正文|例如：/u)
 assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查', '你暂时撤回'] }).success)

@@ -76,6 +76,22 @@ function buildNarrativeStyleInstruction(value: string | undefined): string {
   return `叙述风格：${usesLegacyDefault ? DEFAULT_NARRATIVE_STYLE : `${normalized}；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，不要机械用日期或年龄句开头。`}`
 }
 
+function buildNarrativeAddressingInstruction(
+  value: PromptContext['narrativeAddressing'],
+  characterName: unknown,
+): string {
+  if (value === 'first-person') {
+    return '称呼方式：本轮正文以第一人称“我”作为当前角色的叙事主语，保持视角一致；不要把“你”或角色姓名作为当前角色的叙事主语。'
+  }
+  if (value === 'character-name') {
+    const name = nonEmpty(characterName)
+    if (name) {
+      return `称呼方式：本轮正文以当前角色姓名“${name}”作为叙事主语，保持称呼自然一致；不要在当前角色叙事中改用“你”或“我”作为主语。`
+    }
+  }
+  return '称呼方式：本轮正文以第二人称“你”作为当前角色的叙事主语，保持视角一致；角色姓名只用于直接称呼或必要消歧。'
+}
+
 function buildWordCountInstruction(value: string | undefined): string {
   const match = nonEmpty(value)?.match(/正文约\s*(\d+)\s*字/u)
   return `字数要求：正文约${match?.[1] ?? '300'}字。`
@@ -115,6 +131,7 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
     buildCurrentTimeInstruction(context.currentTime),
     buildPlayerActionInstruction(context.playerBranchIntent),
     `${buildAgeCapabilityInstruction(currentAge)} 故事保持合理挑战，合理接受玩家行动；若决策不合理、忽视风险或与故事逻辑相悖，则行动很可能失败，并引发可预见的负面连锁反应。剧情走向由决策的合理性决定。`,
+    buildNarrativeAddressingInstruction(context.narrativeAddressing, rawCharacter.姓名),
     buildNarrativeStyleInstruction(context.narrativeStyle),
     buildWordCountInstruction(context.wordCountInstruction),
   ]

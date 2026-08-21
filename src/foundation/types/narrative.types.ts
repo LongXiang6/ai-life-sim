@@ -64,6 +64,8 @@ export interface PromptContext {
   recentDetailedStories?: NarrativeDetailedStoryPromptView[]
   currentRegion?: string
   narrativeStyle?: string
+  /** 主叙事动态称呼方式；由设置 Store 提供，缺失时按第二人称处理。 */
+  narrativeAddressing?: 'first-person' | 'second-person' | 'character-name'
   narrativeToneHint?: string
   modWorldRules?: string
   plotStructureText?: string

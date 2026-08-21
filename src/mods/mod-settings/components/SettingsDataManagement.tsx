@@ -18,9 +18,10 @@ import {
   DEFAULT_SETTINGS_VALUES,
   MAX_TEMPERATURE,
   normalizeImportedModelSettings,
+  normalizeNarrativeAddressing,
   useSettingsStore,
 } from '../store'
-import type { NarrativeStyle } from '../store'
+import type { NarrativeAddressing, NarrativeStyle } from '../store'
 
 import styles from './SettingsTabTheme.module.css'
 
@@ -40,7 +41,7 @@ export function SettingsDataManagement() {
       provider, customKey, customUrl, customModel, temperature, topP,
       reasoningEffort, talentThinkingIntensity, aiTalentGeneration,
       preGenerateRounds,
-      narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
+      narrativeStyle, narrativeStyleText, narrativeStyleVersion, narrativeAddressing, wordCountTarget,
       streamingMode, comfortableParagraphs, reduceMotion,
     } = settingsState
     const data = {
@@ -50,7 +51,7 @@ export function SettingsDataManagement() {
         provider, customKey, customUrl, customModel, temperature, topP,
         reasoningEffort, talentThinkingIntensity, aiTalentGeneration,
         preGenerateRounds,
-        narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
+        narrativeStyle, narrativeStyleText, narrativeStyleVersion, narrativeAddressing, wordCountTarget,
         streamingMode, comfortableParagraphs, reduceMotion, theme, fontFamily,
       },
     }
@@ -100,6 +101,7 @@ export function SettingsDataManagement() {
               narrativeStyleText: DEFAULT_SETTINGS_VALUES.narrativeStyleText,
               narrativeStyleVersion: DEFAULT_SETTINGS_VALUES.narrativeStyleVersion,
             })
+            store.setNarrativeAddressing(DEFAULT_SETTINGS_VALUES.narrativeAddressing)
             store.setWordCountTarget(DEFAULT_SETTINGS_VALUES.wordCountTarget)
             store.setStreamingMode(DEFAULT_SETTINGS_VALUES.streamingMode)
             store.setComfortableParagraphs(DEFAULT_SETTINGS_VALUES.comfortableParagraphs)
@@ -121,7 +123,10 @@ export function SettingsDataManagement() {
           if (imported.preGenerateRounds === 0 || imported.preGenerateRounds === 1) {
             store.setPreGenerateRounds(imported.preGenerateRounds)
           }
-            if (typeof imported.narrativeStyle === 'string') store.setNarrativeStyle(imported.narrativeStyle as NarrativeStyle)
+          if (typeof imported.narrativeStyle === 'string') store.setNarrativeStyle(imported.narrativeStyle as NarrativeStyle)
+          if (typeof imported.narrativeAddressing === 'string') {
+            store.setNarrativeAddressing(normalizeNarrativeAddressing(imported.narrativeAddressing) as NarrativeAddressing)
+          }
           if (typeof imported.narrativeStyleText === 'string') {
             useSettingsStore.setState({
               narrativeStyleText: imported.narrativeStyleText,

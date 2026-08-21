@@ -1608,19 +1608,9 @@
       "sha256": "7e2c36a88de415181666c8f096365a21fa97932cd71d49e7617d34cba54b64ab"
     },
     {
-      "path": "src/mods/mod-settings/components/SettingsTabNarrative.tsx",
-      "owner": "mod-settings",
-      "sha256": "c6cfd805bb64581fef69c07b1e0fb000be4b7633ef879aa5da889335181421bc"
-    },
-    {
       "path": "src/mods/mod-settings/components/SettingsTabStats.tsx",
       "owner": "mod-settings",
       "sha256": "2e9bb0dd0a8730a317b48eb26be978479fba7c64f820cac79aebc2ba60d52f33"
-    },
-    {
-      "path": "src/mods/mod-settings/index.ts",
-      "owner": "mod-settings",
-      "sha256": "0628b32d7aacacc20839b3483a5f592fe135365f34633a80eab00077c35186c1"
     },
     {
       "path": "src/mods/mod-settings/manifest.ts",
