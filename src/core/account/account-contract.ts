@@ -10,6 +10,7 @@ import {
   isNarrativeWordCountTarget,
   type NarrativeWordCountTarget,
 } from '@/foundation'
+import { normalizeTheme, type ThemeType } from '@/core/theme/theme-store'
 
 export const ACCOUNT_SESSION_COOKIE = 'ai_life_session'
 export const ACCOUNT_RETENTION_DAYS = 30
@@ -48,13 +49,16 @@ const ReasoningEffortSchema = z.union([
 })
 
 const CloudThemeSchema = z.enum([
+  'reading',
+  'night',
+  'white',
   'minimal-white',
   'minimal-black',
   'reading-yellow',
   'dark-cosmos',
   'light-aurora',
   'cyber-neon',
-]).transform(() => 'minimal-white' as const)
+]).transform((value): ThemeType => normalizeTheme(value))
 
 const NarrativeWordCountTargetSchema = z.custom<NarrativeWordCountTarget>(
   isNarrativeWordCountTarget,

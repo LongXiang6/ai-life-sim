@@ -20,7 +20,7 @@
   flex-direction: column;
   background: var(--flow-canvas);
   color: var(--flow-ink);
-  color-scheme: light;
+  color-scheme: var(--color-scheme, light);
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
 }
 

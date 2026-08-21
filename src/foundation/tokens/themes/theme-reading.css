@@ -1,29 +1,28 @@
 /**
- * Purpose: Define the low-saturation pale-yellow application theme.
+ * Purpose: Define the low-saturation reading theme and shared semantic accents.
  * Owner: foundation / theme tokens
- * Responsibility: Shared semantic colors and creation-flow palette only.
+ * Responsibility: The readable paper baseline and restrained rainbow accents.
  */
 
-:root,
-[data-theme='minimal-white'] {
-  /* ==================== 主色 ==================== */
+[data-theme='reading'],
+:root {
+  --color-scheme: light;
+
   --color-primary: #9b8350;
   --color-primary-hover: #806a3d;
-  --color-primary-light: #fffef8;
+  --color-primary-light: #fff7df;
   --color-secondary: #77736c;
   --color-text-on-primary: #ffffff;
 
-  /* ==================== 状态色 ==================== */
-  --color-success: #1d9b4d;
+  --color-success: #2d8a57;
   --color-warning: #b6842f;
-  --color-error: #dc2626;
-  --color-info: #8d7747;
-  --color-success-bg: #fbfdf8;
-  --color-warning-bg: #fffef8;
-  --color-error-bg: #fffaf9;
-  --color-info-bg: #fbfdfb;
+  --color-error: #bd5b54;
+  --color-info: #597f9d;
+  --color-success-bg: #f1f8f2;
+  --color-warning-bg: #fff8e9;
+  --color-error-bg: #fff4f2;
+  --color-info-bg: #f1f7fb;
 
-  /* ==================== 背景层次（Apple HIG Depth） ==================== */
   --color-bg: #fffdf7;
   --color-bg-primary: #fffdf7;
   --color-bg-secondary: #fffefa;
@@ -31,26 +30,20 @@
   --color-bg-card: #ffffff;
   --color-surface: rgba(255, 255, 255, 0.94);
 
-  /* ==================== 文字层次 ==================== */
   --color-text-primary: #1a1a2e;
   --color-text-secondary: #625f59;
   --color-text-tertiary: #918d85;
   --text-on-accent: #ffffff;
 
-  /* ==================== 边框 ==================== */
   --color-border: rgba(110, 100, 82, 0.1);
   --color-border-focus: #c8bda8;
   --color-border-hover: rgba(110, 100, 82, 0.16);
 
-  /* ==================== 阴影 ==================== */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.06);
-
-  /* ==================== 辉光 ==================== */
   --color-accent-glow: rgba(0, 0, 0, 0.04);
 
-  /* ==================== 创建流程纸张界面 ==================== */
   --flow-canvas: #fffdf7;
   --flow-paper: #ffffff;
   --flow-ink: #17191d;
@@ -60,4 +53,20 @@
   --flow-line-strong: #e6e1d7;
   --flow-accent: #a48b52;
   --flow-accent-soft: #fffef8;
+
+  /* 低饱和彩虹语义色：用于标签、状态、分类和稀有度的小面积提示。 */
+  --color-rainbow-red: #b65d5c;
+  --color-rainbow-orange: #c47d4c;
+  --color-rainbow-yellow: #b4933f;
+  --color-rainbow-green: #5f8d68;
+  --color-rainbow-cyan: #4f8f91;
+  --color-rainbow-blue: #5f7fa5;
+  --color-rainbow-purple: #806d9b;
+  --color-rainbow-red-bg: #fff2f1;
+  --color-rainbow-orange-bg: #fff5ec;
+  --color-rainbow-yellow-bg: #fff9e8;
+  --color-rainbow-green-bg: #f0f7f1;
+  --color-rainbow-cyan-bg: #eef8f8;
+  --color-rainbow-blue-bg: #f0f5fb;
+  --color-rainbow-purple-bg: #f5f1f9;
 }

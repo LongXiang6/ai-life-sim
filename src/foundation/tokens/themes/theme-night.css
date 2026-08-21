@@ -1,0 +1,70 @@
+/**
+ * Purpose: Define the low-luminance night theme.
+ * Owner: foundation / theme tokens
+ * Responsibility: Comfortable dark surfaces with readable semantic accents.
+ */
+
+[data-theme='night'] {
+  --color-scheme: dark;
+
+  --color-primary: #d4ae69;
+  --color-primary-hover: #ebc985;
+  --color-primary-light: #3b3428;
+  --color-secondary: #c0c0bd;
+  --color-text-on-primary: #211d18;
+
+  --color-success: #82c79a;
+  --color-warning: #e1ba70;
+  --color-error: #ed948c;
+  --color-info: #8fb9d8;
+  --color-success-bg: #21362a;
+  --color-warning-bg: #3b3324;
+  --color-error-bg: #3d2928;
+  --color-info-bg: #243441;
+
+  --color-bg: #171a20;
+  --color-bg-primary: #171a20;
+  --color-bg-secondary: #1e232c;
+  --color-bg-tertiary: #272d38;
+  --color-bg-card: #222832;
+  --color-surface: rgba(32, 37, 47, 0.96);
+
+  --color-text-primary: #f2efe8;
+  --color-text-secondary: #c3c2bd;
+  --color-text-tertiary: #969ba5;
+  --text-on-accent: #211d18;
+
+  --color-border: rgba(235, 232, 222, 0.13);
+  --color-border-focus: #d4ae69;
+  --color-border-hover: rgba(235, 232, 222, 0.22);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.38);
+  --color-accent-glow: rgba(212, 174, 105, 0.12);
+
+  --flow-canvas: #171a20;
+  --flow-paper: #20252e;
+  --flow-ink: #f2efe8;
+  --flow-muted: #c3c2bd;
+  --flow-faint: #969ba5;
+  --flow-line: #323946;
+  --flow-line-strong: #454d5b;
+  --flow-accent: #d4ae69;
+  --flow-accent-soft: #2c302f;
+
+  --color-rainbow-red: #e59a96;
+  --color-rainbow-orange: #e6b083;
+  --color-rainbow-yellow: #e5cf86;
+  --color-rainbow-green: #9bcaa7;
+  --color-rainbow-cyan: #8bc7c7;
+  --color-rainbow-blue: #9dbbd8;
+  --color-rainbow-purple: #bca7d4;
+  --color-rainbow-red-bg: #3d2928;
+  --color-rainbow-orange-bg: #3d3026;
+  --color-rainbow-yellow-bg: #3b3527;
+  --color-rainbow-green-bg: #26382d;
+  --color-rainbow-cyan-bg: #263a3b;
+  --color-rainbow-blue-bg: #273542;
+  --color-rainbow-purple-bg: #332b3d;
+}

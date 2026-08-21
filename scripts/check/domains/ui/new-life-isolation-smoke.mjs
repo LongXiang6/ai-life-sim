@@ -30,6 +30,7 @@ const [
   { orchestrator },
   { useCharacterStore },
   { useSettingsStore },
+  { useThemeStore },
   { useWorldStore },
   { prepareNewLifeWorldCommit },
 ] = await Promise.all([
@@ -40,6 +41,7 @@ const [
   import('../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   import('../../../../src/mods/mod-character/store.ts'),
   import('../../../../src/mods/mod-settings/store.ts'),
+  import('../../../../src/core/theme/theme-store.ts'),
   import('../../../../src/mods/mod-world/store.ts'),
   import('../../../../src/mods/mod-pages/helpers/new-life-reset.ts'),
 ])
@@ -90,6 +92,7 @@ configStore.set('mod-pages', 'fate-preview:101', { storySeed: '123' })
 configStore.set('mod-pages', 'character-create-form:101', { name: '旧角色' })
 configStore.set('mod-pages', 'mod-pages:world-customize-fields', { worldCode: 101 })
 configStore.set('mod-settings', 'theme', 'dark')
+useThemeStore.getState().setTheme('night')
 useCharacterCreationDraftStore.getState().updateDraft({
   name: '长期角色',
   gender: '无性别',
@@ -121,6 +124,7 @@ assertOk(
   'new-life reset must remove every per-life creation draft',
 )
 assertOk(configStore.get('mod-settings', 'theme') === 'dark', 'new-life reset must preserve player settings')
+assertOk(useThemeStore.getState().theme === 'night', 'new-life reset must preserve the selected theme')
 assertOk(
   JSON.stringify(useCharacterCreationDraftStore.getState().draft) === JSON.stringify(durableCharacterDraft),
   'new-life reset must preserve the complete long-lived character creation draft',

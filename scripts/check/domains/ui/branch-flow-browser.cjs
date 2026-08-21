@@ -61,7 +61,7 @@ function seedPage(page) {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,
       topP: 0.8, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
       aiTalentGeneration: false, storySeed: '20260723', narrativeStyle: 'default',
-      wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
+      wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true,
     }}))
     localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
       { id: 'fixture-mythic-1', lineageId: 'fixture-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'social', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },

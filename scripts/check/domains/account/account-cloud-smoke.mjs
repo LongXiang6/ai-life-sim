@@ -45,7 +45,7 @@ const settings = {
   streamingMode: 'off',
   comfortableParagraphs: true,
   reduceMotion: false,
-  theme: 'minimal-white',
+  theme: 'reading',
 }
 
 assert.equal(

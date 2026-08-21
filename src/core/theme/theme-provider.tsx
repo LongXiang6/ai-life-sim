@@ -1,34 +1,28 @@
 /**
- * @module theme-provider.tsx
- * @description 定版主题 Provider —— 固定注入 minimal-white 并应用字体偏好
- * @mod core
+ * Purpose: Project the selected theme into the document and apply font preferences.
+ * Owner: core/theme
+ * Responsibility: Keep runtime theme attributes synchronized with the core theme store.
  *
- * 旧主题样式已移除，运行时不再创建主题遮罩或可切换的视觉分支。
+ * @module theme-provider.tsx
+ * @description 应用主题 Provider —— 将核心主题状态投影为 data-theme 属性并应用字体偏好
+ * @mod core
  */
 
 'use client'
 
 import { useEffect } from 'react'
 
-import { useThemeStore } from './theme-store'
 import { useFontFamily } from './font-config'
 import { useFontStore } from './font-store'
+import { useThemeStore } from './theme-store'
 
-/**
- * 主题 Provider 组件
- *
- * 注入唯一主题属性并应用字体偏好。
- *
- * @param props - 组件属性
- * @param props.children - 子节点
- */
+/** 主题 Provider 组件。 */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const theme = useThemeStore((s) => s.theme)
-  const fontFamily = useFontStore((s) => s.fontFamily)
+  const theme = useThemeStore((state) => state.theme)
+  const fontFamily = useFontStore((state) => state.fontFamily)
 
   useEffect(() => {
-    if (theme !== 'minimal-white') useThemeStore.getState().setTheme('minimal-white')
-    document.documentElement.setAttribute('data-theme', 'minimal-white')
+    document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
   useFontFamily(fontFamily)

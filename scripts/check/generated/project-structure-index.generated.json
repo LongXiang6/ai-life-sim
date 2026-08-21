@@ -676,7 +676,9 @@
         "src/foundation/tokens/index.css",
         "src/foundation/tokens/layout.css",
         "src/foundation/tokens/spacing.css",
-        "src/foundation/tokens/themes/theme-minimal-white.css",
+        "src/foundation/tokens/themes/theme-night.css",
+        "src/foundation/tokens/themes/theme-reading.css",
+        "src/foundation/tokens/themes/theme-white.css",
         "src/foundation/tokens/typography.css"
       ],
       "oversized": []

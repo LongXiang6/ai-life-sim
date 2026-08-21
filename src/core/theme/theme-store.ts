@@ -1,61 +1,87 @@
 /**
+ * Purpose: Own the persisted runtime theme selection and legacy theme migration.
+ * Owner: core/theme
+ * Responsibility: Validate the three supported themes and expose one switching contract.
+ *
  * @module theme-store.ts
- * @description 定版界面主题状态 —— 固定为极简白，并归一化历史持久化值
+ * @description 运行时主题状态 —— 三套基础主题的唯一状态所有者
  * @mod core
  *
- * 历史主题 ID 仅在迁移边界被接受，不再进入运行态或样式选择器。
+ * 主题只负责界面表现，不进入人生模拟状态。旧版本主题 ID 只在迁移边界
+ * 被接受，并统一归一到当前三套主题之一。
  */
 
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-/** 定版方案唯一运行主题。 */
-export type ThemeType = 'minimal-white'
+/** 运行态可用的基础主题。阅读主题包含低饱和的彩色语义辅助 Token。 */
+export type ThemeType = 'reading' | 'night' | 'white'
 
-/** 主题 Store 状态 */
+export const DEFAULT_THEME: ThemeType = 'reading'
+export const THEME_TYPES: ThemeType[] = ['reading', 'night', 'white']
+
+export const THEME_LABELS: Record<ThemeType, string> = {
+  reading: '阅读主题',
+  night: '暗夜主题',
+  white: '白色主题',
+}
+
+const LEGACY_THEME_MAP: Record<string, ThemeType> = {
+  default: 'reading',
+  reading: 'reading',
+  'reading-yellow': 'reading',
+  cultivation: 'reading',
+  wuxia: 'reading',
+  'light-aurora': 'reading',
+  white: 'white',
+  'minimal-white': 'reading',
+  night: 'night',
+  dark: 'night',
+  'minimal-black': 'night',
+  'dark-cosmos': 'night',
+  scifi: 'night',
+  apocalypse: 'night',
+  'cyber-neon': 'night',
+}
+
+/** 将外部导入、云端快照和旧持久化值归一到当前主题集合。 */
+export function normalizeTheme(value: unknown): ThemeType {
+  if (typeof value !== 'string') return DEFAULT_THEME
+  return LEGACY_THEME_MAP[value] ?? DEFAULT_THEME
+}
+
 interface ThemeState {
   theme: ThemeType
   setTheme: (theme: ThemeType) => void
-  themes: ThemeType[],
-}
-
-/** 历史主题 ID 只用于迁移，全部归一化到定版主题。 */
-const LEGACY_THEME_MAP: Record<string, ThemeType> = {
-  default: 'minimal-white',
-  dark: 'minimal-white',
-  cultivation: 'minimal-white',
-  wuxia: 'minimal-white',
-  scifi: 'minimal-white',
-  apocalypse: 'minimal-white',
-  'minimal-black': 'minimal-white',
-  'reading-yellow': 'minimal-white',
-  'dark-cosmos': 'minimal-white',
-  'light-aurora': 'minimal-white',
-  'cyber-neon': 'minimal-white',
+  themes: ThemeType[]
 }
 
 export const useThemeStore = create<ThemeState>()(
   devtools(
     persist(
       (set) => ({
-        theme: 'minimal-white',
-        themes: ['minimal-white'],
-        setTheme: () => {
-          set({ theme: 'minimal-white' })
+        theme: DEFAULT_THEME,
+        themes: THEME_TYPES,
+        setTheme: (nextTheme) => {
+          const theme = normalizeTheme(nextTheme)
+          set({ theme })
           if (typeof document !== 'undefined') {
-            document.documentElement.setAttribute('data-theme', 'minimal-white')
+            document.documentElement.setAttribute('data-theme', theme)
           }
         },
       }),
       {
         name: 'core-theme-store',
-        migrate: (persistedState: { theme?: string; themes?: ThemeType[] } | unknown, _version: number) => {
-          const state = persistedState as { theme?: string; themes?: ThemeType[] }
-          const oldTheme = state?.theme
-          if (oldTheme && LEGACY_THEME_MAP[oldTheme]) state.theme = LEGACY_THEME_MAP[oldTheme]
-          return { ...state, theme: 'minimal-white', themes: ['minimal-white'] } as ThemeState
+        migrate: (persistedState: unknown) => {
+          const state = (persistedState && typeof persistedState === 'object')
+            ? persistedState as { theme?: unknown }
+            : {}
+          return {
+            theme: normalizeTheme(state.theme),
+            themes: THEME_TYPES,
+          } as ThemeState
         },
-        version: 3,
+        version: 4,
       },
     ),
     { name: 'core-theme' },

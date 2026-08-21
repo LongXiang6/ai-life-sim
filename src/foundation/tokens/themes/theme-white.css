@@ -1,0 +1,70 @@
+/**
+ * Purpose: Define the neutral white theme.
+ * Owner: foundation / theme tokens
+ * Responsibility: A clean light surface with neutral gray hierarchy.
+ */
+
+[data-theme='white'] {
+  --color-scheme: light;
+
+  --color-primary: #627489;
+  --color-primary-hover: #4d6075;
+  --color-primary-light: #edf2f7;
+  --color-secondary: #68717c;
+  --color-text-on-primary: #ffffff;
+
+  --color-success: #3b8360;
+  --color-warning: #a87936;
+  --color-error: #b85d5d;
+  --color-info: #557b9d;
+  --color-success-bg: #eff7f2;
+  --color-warning-bg: #fcf6e9;
+  --color-error-bg: #fff3f3;
+  --color-info-bg: #f0f5fa;
+
+  --color-bg: #ffffff;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8f9fb;
+  --color-bg-tertiary: #f0f2f5;
+  --color-bg-card: #ffffff;
+  --color-surface: rgba(255, 255, 255, 0.96);
+
+  --color-text-primary: #20262e;
+  --color-text-secondary: #5d6670;
+  --color-text-tertiary: #8e98a3;
+  --text-on-accent: #ffffff;
+
+  --color-border: rgba(83, 96, 111, 0.14);
+  --color-border-focus: #9aaabd;
+  --color-border-hover: rgba(83, 96, 111, 0.22);
+
+  --shadow-sm: 0 1px 3px rgba(29, 43, 58, 0.06);
+  --shadow: 0 4px 24px rgba(29, 43, 58, 0.06);
+  --shadow-lg: 0 8px 40px rgba(29, 43, 58, 0.09);
+  --color-accent-glow: rgba(98, 116, 137, 0.08);
+
+  --flow-canvas: #ffffff;
+  --flow-paper: #ffffff;
+  --flow-ink: #20262e;
+  --flow-muted: #65707c;
+  --flow-faint: #909aa5;
+  --flow-line: #e8ebef;
+  --flow-line-strong: #d8dee5;
+  --flow-accent: #627489;
+  --flow-accent-soft: #edf2f7;
+
+  --color-rainbow-red: #b65d5c;
+  --color-rainbow-orange: #bd7748;
+  --color-rainbow-yellow: #a88937;
+  --color-rainbow-green: #568660;
+  --color-rainbow-cyan: #4a8587;
+  --color-rainbow-blue: #58799e;
+  --color-rainbow-purple: #786897;
+  --color-rainbow-red-bg: #fff3f2;
+  --color-rainbow-orange-bg: #fff5ed;
+  --color-rainbow-yellow-bg: #fff9e9;
+  --color-rainbow-green-bg: #f1f8f2;
+  --color-rainbow-cyan-bg: #eff8f8;
+  --color-rainbow-blue-bg: #f1f6fb;
+  --color-rainbow-purple-bg: #f6f2fa;
+}

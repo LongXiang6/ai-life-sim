@@ -7,7 +7,6 @@
 import { create, } from 'zustand'
 import { devtools, persist, } from 'zustand/middleware'
 
-import type { ThemeType, } from '@/core/theme/theme-store'
 import {
   DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
@@ -79,7 +78,6 @@ export const DEFAULT_SETTINGS_VALUES = {
   streamingMode: 'off' as StreamingMode,
   comfortableParagraphs: true,
   reduceMotion: false,
-  theme: 'minimal-white' as ThemeType,
 } as const
 
 export interface ImportedModelSettings {
@@ -148,10 +146,6 @@ interface SettingsState {
   /** 降低装饰动画与过渡 */
   reduceMotion: boolean
 
-  // ---- 外观 ----
-  /** 主题 */
-  theme: ThemeType
-
   // ---- 操作 ----
   setProvider: (provider: string) => void
   setCustomKey: (key: string) => void
@@ -173,7 +167,6 @@ interface SettingsState {
   setStreamingMode: (mode: StreamingMode) => void
   setComfortableParagraphs: (enabled: boolean) => void
   setReduceMotion: (enabled: boolean) => void
-  setTheme: (theme: ThemeType) => void,
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -257,7 +250,6 @@ export const useSettingsStore = create<SettingsState>()(
         setStreamingMode: (streamingMode,) => set({ streamingMode, },),
         setComfortableParagraphs: (comfortableParagraphs,) => set({ comfortableParagraphs, },),
         setReduceMotion: (reduceMotion,) => set({ reduceMotion, },),
-        setTheme: (theme,) => set({ theme, },),
       }),
       {
         name: 'mod-settings:store',
@@ -292,22 +284,22 @@ export const useSettingsStore = create<SettingsState>()(
           migrated.customUrl = modelSettings.customUrl
           migrated.customModel = modelSettings.customModel
           migrated.customModelProfiles = normalizeCustomModelProfiles(state.customModelProfiles)
-          migrated.theme = 'minimal-white'
           migrated.preGenerateRounds = state.preGenerateRounds === 0 ? 0 : 1
           migrated.storySeed = ''
           return migrated as SettingsState
         },
         // 不持久化 set 函数
         partialize: (state,) => {
-          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, saveCustomModelProfile: _scmp, activateCustomModelProfile: _acmp, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, storySeed: _seed, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
+          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, saveCustomModelProfile: _scmp, activateCustomModelProfile: _acmp, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, storySeed: _seed, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, ...rest } = state
           return rest
         },
         merge: (persistedState, currentState) => {
           const persisted = persistedState as Partial<SettingsState>
+          const { theme: _legacyTheme, ...persistedWithoutLegacyTheme } = persisted as Partial<SettingsState> & { theme?: unknown }
           const modelSettings = normalizeImportedModelSettings(persisted as Record<string, unknown>)
           return {
             ...currentState,
-            ...persisted,
+            ...persistedWithoutLegacyTheme,
             ...modelSettings,
             customModelProfiles: normalizeCustomModelProfiles(persisted.customModelProfiles),
             storySeed: '',

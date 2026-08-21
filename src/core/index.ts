@@ -80,7 +80,14 @@ export { configStore, saveStore, cacheStore, tempStore, opfsStorage, saveManager
 export type { SaveMetadata } from './storage'
 
 // 主题
-export { ThemeProvider, useThemeStore } from './theme'
+export {
+  DEFAULT_THEME,
+  normalizeTheme,
+  THEME_LABELS,
+  THEME_TYPES,
+  ThemeProvider,
+  useThemeStore,
+} from './theme'
 export type { ThemeType } from './theme'
 
 // 插桩模式

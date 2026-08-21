@@ -1,4 +1,8 @@
 /**
+ * Purpose: Bind UI color and presentation tokens to semantic CSS variables.
+ * Owner: mod-ui/tokens
+ * Responsibility: Provide typed JavaScript references without owning theme state.
+ *
  * @module tokens.ts
  * @description Design Token 绑定 —— JavaScript/TypeScript 侧引用 Design Token CSS 变量
  * @mod mod-ui
@@ -39,6 +43,13 @@ export const COLOR_TOKENS = {
   borderFocus: 'var(--color-border-focus)',
   borderHover: 'var(--color-border-hover)',
   accentGlow: 'var(--color-accent-glow)',
+  rainbowRed: 'var(--color-rainbow-red)',
+  rainbowOrange: 'var(--color-rainbow-orange)',
+  rainbowYellow: 'var(--color-rainbow-yellow)',
+  rainbowGreen: 'var(--color-rainbow-green)',
+  rainbowCyan: 'var(--color-rainbow-cyan)',
+  rainbowBlue: 'var(--color-rainbow-blue)',
+  rainbowPurple: 'var(--color-rainbow-purple)',
 } as const
 
 /** 阴影 Token */

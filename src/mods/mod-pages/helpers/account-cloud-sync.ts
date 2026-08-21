@@ -11,6 +11,7 @@ import {
   pushCloudAccount,
   type AccountApiError,
 } from '@/core/account/account-client'
+import { normalizeTheme, useThemeStore } from '@/core/theme'
 import {
   CloudSettingsSchema,
   ACCOUNT_MAX_SLOTS,
@@ -104,7 +105,7 @@ function localSettings(): CloudSettings {
     streamingMode: state.streamingMode,
     comfortableParagraphs: state.comfortableParagraphs,
     reduceMotion: state.reduceMotion,
-    theme: state.theme,
+    theme: useThemeStore.getState().theme,
   })
 }
 
@@ -131,12 +132,13 @@ export function applyAccountSession(payload: AccountSessionPayload): void {
   const hasLocalOnlyTalents = mergedTalents.some((talent) => !cloudTalentIds.has(talent.id))
   applyingCloud = true
   try {
-    const { storySeed: _storySeed, ...cloudSettings } = payload.snapshot.settings
+    const { storySeed: _storySeed, theme: cloudTheme, ...cloudSettings } = payload.snapshot.settings
     useSettingsStore.setState({
       ...cloudSettings,
       storySeed: '',
       customKey: payload.snapshot.apiKey ?? '',
     })
+    useThemeStore.getState().setTheme(normalizeTheme(cloudTheme))
     useCharacterCreationDraftStore.getState().replaceDraft(payload.snapshot.characterDraft)
     useReincarnationLibraryStore.getState().replaceReincarnationTalents(mergedTalents)
     useLifeRecordStore.getState().replaceRecords(mergedRecords)
@@ -239,6 +241,7 @@ export async function initializeAccountCloudSync(): Promise<void> {
   if (initialized) return
   initialized = true
   useSettingsStore.subscribe(() => scheduleAccountSync())
+  useThemeStore.subscribe(() => scheduleAccountSync())
   useCharacterCreationDraftStore.subscribe(() => scheduleAccountSync())
   useReincarnationLibraryStore.subscribe(() => scheduleAccountSync())
   useLifeRecordStore.subscribe(() => scheduleAccountSync())

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearGameProgressFromLocalStorage, opfsStorage, safeCleanupReload } from '@/core'
 import { clamp } from '@/core/shared'
 import { useFontStore } from '@/core/theme/font-store'
+import { DEFAULT_THEME, normalizeTheme, useThemeStore } from '@/core/theme/theme-store'
 import { isNarrativeWordCountTarget } from '@/foundation'
 
 import {
@@ -27,6 +28,8 @@ export function SettingsDataManagement() {
   const settingsState = useSettingsStore()
   const fontFamily = useFontStore((state) => state.fontFamily)
   const setFontFamily = useFontStore((state) => state.setFontFamily)
+  const theme = useThemeStore((state) => state.theme)
+  const setTheme = useThemeStore((state) => state.setTheme)
   const [importMode, setImportMode] = useState<'merge' | 'overwrite'>('merge')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const resetTriggerRef = useRef<HTMLButtonElement>(null)
@@ -48,7 +51,7 @@ export function SettingsDataManagement() {
         reasoningEffort, talentThinkingIntensity, aiTalentGeneration,
         preGenerateRounds,
         narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
-        streamingMode, comfortableParagraphs, reduceMotion, fontFamily,
+        streamingMode, comfortableParagraphs, reduceMotion, theme, fontFamily,
       },
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -60,7 +63,7 @@ export function SettingsDataManagement() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-  }, [fontFamily, settingsState])
+  }, [fontFamily, settingsState, theme])
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input')
@@ -101,6 +104,7 @@ export function SettingsDataManagement() {
             store.setStreamingMode(DEFAULT_SETTINGS_VALUES.streamingMode)
             store.setComfortableParagraphs(DEFAULT_SETTINGS_VALUES.comfortableParagraphs)
             store.setReduceMotion(DEFAULT_SETTINGS_VALUES.reduceMotion)
+            setTheme(DEFAULT_THEME)
             setFontFamily('default')
           }
 
@@ -135,6 +139,7 @@ export function SettingsDataManagement() {
           if (typeof imported.streamingMode === 'string') store.setStreamingMode(imported.streamingMode)
           if (typeof imported.comfortableParagraphs === 'boolean') store.setComfortableParagraphs(imported.comfortableParagraphs)
           if (typeof imported.reduceMotion === 'boolean') store.setReduceMotion(imported.reduceMotion)
+          if (typeof imported.theme === 'string') setTheme(normalizeTheme(imported.theme))
           if (typeof imported.fontFamily === 'string') setFontFamily(imported.fontFamily)
           alert('数据导入成功')
         } catch {
@@ -145,7 +150,7 @@ export function SettingsDataManagement() {
       ;(event.target as HTMLInputElement).value = ''
     }
     input.click()
-  }, [importMode, setFontFamily])
+  }, [importMode, setFontFamily, setTheme])
 
   const handleCancelReset = useCallback(() => setShowResetConfirm(false), [])
   const handleConfirmReset = useCallback(async () => {

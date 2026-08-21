@@ -40,7 +40,7 @@ function seedPage(page) {
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
       provider: 'deepseek', customKey: '', customUrl: '', customModel: 'deepseek-v4-flash', temperature: 0.8, topP: 0.8,
       reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled', aiTalentGeneration: false, storySeed: '20260723-live',
-      narrativeStyle: 'default', wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
+      narrativeStyle: 'default', wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true,
     }}))
     localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
       { id: 'live-mythic-1', lineageId: 'live-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'social', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '真实测试', characterName: '旧角色' } },

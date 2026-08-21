@@ -361,10 +361,13 @@ assertOk(
   'the blocking disclaimer dialog must move and contain keyboard focus',
 )
 assertOk(
-  !settingsThemeSrc.includes('THEME_OPTIONS')
-    && themeStoreSrc.includes("themes: ['minimal-white']")
-    && themeStoreSrc.includes("theme: 'minimal-white', themes: ['minimal-white']"),
-  'approved settings must not expose alternate themes that conflict with the fixed white-paper UI',
+  settingsThemeSrc.includes('THEME_OPTIONS')
+    && settingsThemeSrc.includes('阅读主题')
+    && settingsThemeSrc.includes('暗夜主题')
+    && settingsThemeSrc.includes('白色主题')
+    && themeStoreSrc.includes("export type ThemeType = 'reading' | 'night' | 'white'")
+    && themeStoreSrc.includes("themes: THEME_TYPES"),
+  'settings must expose the three approved themes through the core theme store',
 )
 assertOk(settingsModalCssSrc.includes('.footerButton') && settingsModalCssSrc.includes(`min-height: ${scaledPx(38.333)}`), 'settings footer controls must use the finalized shared density')
 assertOk(settingsModelSrc.includes('styles.sectionLabel') && settingsModelSrc.includes('styles.sectionCard'), 'model settings must use independent section labels and cards')

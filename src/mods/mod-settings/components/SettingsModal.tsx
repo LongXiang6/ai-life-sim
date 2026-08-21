@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { useFontStore } from '@/core/theme/font-store'
+import { DEFAULT_THEME, useThemeStore } from '@/core/theme/theme-store'
 
 import { DEFAULT_SETTINGS_VALUES, useSettingsStore } from '../store'
 
@@ -57,9 +58,11 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
   const tabBarRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const settingsAreDefault = useSettingsStore(areSettingsDefault)
+  const theme = useThemeStore((state) => state.theme)
+  const setTheme = useThemeStore((state) => state.setTheme)
   const fontFamily = useFontStore((state) => state.fontFamily)
   const setFontFamily = useFontStore((state) => state.setFontFamily)
-  const allSettingsAreDefault = settingsAreDefault && fontFamily === 'default'
+  const allSettingsAreDefault = settingsAreDefault && fontFamily === 'default' && theme === DEFAULT_THEME
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -162,6 +165,7 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
   const handleRestoreDefaults = () => {
     useSettingsStore.setState({ ...DEFAULT_SETTINGS_VALUES })
     setFontFamily('default')
+    setTheme(DEFAULT_THEME)
     setSettingsRevision((current) => current + 1)
   }
 

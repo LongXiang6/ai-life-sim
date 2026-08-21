@@ -121,6 +121,98 @@
       background: var(--flow-paper);
     }
 
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(6.667 * var(--final-flow-density-px));
+  padding: calc(9 * var(--final-flow-density-px)) 0 calc(4 * var(--final-flow-density-px));
+}
+
+.themeButton {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: calc(36 * var(--final-flow-density-px)) minmax(0, 1fr);
+  align-items: center;
+  gap: calc(7 * var(--final-flow-density-px));
+  padding: calc(7 * var(--final-flow-density-px));
+  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(11 * var(--final-flow-density-px));
+  background: var(--flow-paper);
+  color: var(--flow-ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.themeButton:hover,
+.themeButton[aria-pressed="true"] {
+  border-color: var(--color-border-focus);
+  background: var(--flow-accent-soft);
+}
+
+.themeButton[aria-pressed="true"] {
+  box-shadow: 0 0 0 calc(1 * var(--final-flow-density-px)) color-mix(in srgb, var(--color-border-focus) 28%, transparent);
+}
+
+.themeSwatch {
+  position: relative;
+  display: grid;
+  width: calc(36 * var(--final-flow-density-px));
+  height: calc(45 * var(--final-flow-density-px));
+  grid-template-rows: 1fr 1fr 1fr;
+  overflow: hidden;
+  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+  border-radius: calc(7 * var(--final-flow-density-px));
+  background: var(--color-bg);
+}
+
+.themeSwatch span,
+.themeSwatch i,
+.themeSwatch b {
+  display: block;
+}
+
+.themeSwatch span { background: var(--color-bg); }
+.themeSwatch i { background: var(--color-bg-secondary); }
+.themeSwatch b { background: var(--color-primary-light); }
+
+.themeSwatch[data-theme-preview="reading"] span { background: #fffdf7; }
+.themeSwatch[data-theme-preview="reading"] i { background: #fffefa; }
+.themeSwatch[data-theme-preview="reading"] b { background: #fff7df; }
+.themeSwatch[data-theme-preview="night"] span { background: #171a20; }
+.themeSwatch[data-theme-preview="night"] i { background: #1e232c; }
+.themeSwatch[data-theme-preview="night"] b { background: #2c302f; }
+.themeSwatch[data-theme-preview="white"] span { background: #ffffff; }
+.themeSwatch[data-theme-preview="white"] i { background: #f8f9fb; }
+.themeSwatch[data-theme-preview="white"] b { background: #edf2f7; }
+
+.themeCopy {
+  display: block;
+  min-width: 0;
+}
+
+.themeCopy strong,
+.themeCopy small {
+  display: block;
+}
+
+.themeCopy strong {
+  overflow: hidden;
+  color: var(--flow-ink);
+  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.themeCopy small {
+  margin-top: calc(3 * var(--final-flow-density-px));
+  color: var(--flow-muted);
+  font-size: calc(7.5 * var(--final-flow-density-px));
+  line-height: 1.35;
+}
+
 .optionGroup,
 .cacheBody,
 .dataBody {
@@ -407,6 +499,7 @@
 }
 
 .choiceButton:focus-visible,
+.themeButton:focus-visible,
 .fontButton:focus-visible,
 .textButton:focus-visible,
 .segmentedControl button:focus-visible,
@@ -423,6 +516,7 @@
   .toggle,
   .toggle::after,
   .choiceButton,
+  .themeButton,
   .fontButton,
   .textButton,
   .segmentedControl button,

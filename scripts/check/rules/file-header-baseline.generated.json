@@ -803,11 +803,6 @@
       "sha256": "5fc23aed5b46fdd713f9d2fa96f288e9209951b362aafced5b1548dd360e299a"
     },
     {
-      "path": "src/core/storage/game-reset.ts",
-      "owner": "core:storage",
-      "sha256": "04bd30ea79bfb8d1d5e88f65cd93266eac119514185bbaa024e448df8a54682c"
-    },
-    {
       "path": "src/core/storage/index.ts",
       "owner": "core:storage",
       "sha256": "650898cac90bdbe1820583301b5f806ecae1fa5a238f287556df28e404c1d002"
@@ -846,21 +841,6 @@
       "path": "src/core/theme/font-store.ts",
       "owner": "core:theme",
       "sha256": "0c74d4996ce90b72c4c76e6d1a5219c07f42402fbced5c2b54fa9393e75cd560"
-    },
-    {
-      "path": "src/core/theme/index.ts",
-      "owner": "core:theme",
-      "sha256": "7215825f6a5e75113727c900406213f0e91d901f91655924bb45562e3abc64cb"
-    },
-    {
-      "path": "src/core/theme/theme-provider.tsx",
-      "owner": "core:theme",
-      "sha256": "1cf06e44bd816ea496975706ec856a804d23f3e28e0b872b280334922c071ee2"
-    },
-    {
-      "path": "src/core/theme/theme-store.ts",
-      "owner": "core:theme",
-      "sha256": "a71c9af29c43af0e3e8eaf2c3a9e5f62897131fb2d8b7079335ade10bae0a485"
     },
     {
       "path": "src/foundation/compat/deprecated.ts",
@@ -906,11 +886,6 @@
       "path": "src/foundation/tokens/breakpoints.css",
       "owner": "foundation:tokens",
       "sha256": "fc39f9044d36e2c4737488664dae5c07b1090da4044f2dd352dcdaf6a41a2e92"
-    },
-    {
-      "path": "src/foundation/tokens/colors.css",
-      "owner": "foundation:tokens",
-      "sha256": "0146529ca12f983ce119518eaa8fd3a25e1d7e5b1244e9fce0aa2e4ac29c9874"
     },
     {
       "path": "src/foundation/tokens/effects.css",
@@ -1976,11 +1951,6 @@
       "path": "src/mods/mod-ui/store.ts",
       "owner": "mod-ui",
       "sha256": "d9e14baa1374fc95e22bfae01610311ac98c170bdeab9bf783df7b3494fcbb86"
-    },
-    {
-      "path": "src/mods/mod-ui/tokens.ts",
-      "owner": "mod-ui",
-      "sha256": "eeff950931af0f1398ee24fe4cd1d4f0666edeb50575af127c7359bfad97d16f"
     },
     {
       "path": "src/mods/mod-ui/types.ts",

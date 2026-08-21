@@ -152,7 +152,6 @@ async function main() {
         streamingMode: 'off',
         comfortableParagraphs: true,
         reduceMotion: true,
-        theme: 'minimal-white',
       },
     }))
     localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({

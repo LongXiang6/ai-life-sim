@@ -7,6 +7,7 @@
 'use client'
 
 import { useFontStore } from '@/core/theme/font-store'
+import { THEME_LABELS, THEME_TYPES, useThemeStore, type ThemeType } from '@/core/theme/theme-store'
 
 import { useSettingsStore } from '../store'
 
@@ -28,6 +29,12 @@ const STREAMING_OPTIONS = [
   { value: 'stream' as const, label: '流式显示', description: '边接收边显示，响应速度优先' },
 ]
 
+const THEME_OPTIONS: Array<{ id: ThemeType; label: string; description: string }> = [
+  { id: 'reading', label: '阅读主题', description: '淡黄色纸面，适合长文阅读' },
+  { id: 'night', label: '暗夜主题', description: '低亮度深色，夜间更舒适' },
+  { id: 'white', label: '白色主题', description: '中性白色，清爽明亮' },
+]
+
 export function SettingsTabTheme() {
   const {
     streamingMode,
@@ -37,12 +44,50 @@ export function SettingsTabTheme() {
     setComfortableParagraphs,
     setReduceMotion,
   } = useSettingsStore()
+  const theme = useThemeStore((state) => state.theme)
+  const setTheme = useThemeStore((state) => state.setTheme)
   const fontFamily = useFontStore((state) => state.fontFamily)
   const setFontFamily = useFontStore((state) => state.setFontFamily)
   const currentFontLabel = FONT_OPTIONS.find((font) => font.id === fontFamily)?.label ?? '默认'
 
   return (
     <div className={styles.tabRoot}>
+      <section className={styles.section} aria-labelledby="settings-theme-heading">
+        <div className={styles.sectionLabel}>
+          <h3 id="settings-theme-heading">主题</h3>
+          <span>当前：{THEME_LABELS[theme]}</span>
+        </div>
+        <div className={styles.sectionCard}>
+          <div className={styles.themeGrid} role="group" aria-label="主题选择">
+            {THEME_TYPES.map((themeId) => {
+              const option = THEME_OPTIONS.find((item) => item.id === themeId)
+              if (!option) return null
+              return (
+                <button
+                  key={themeId}
+                  type="button"
+                  className={styles.themeButton}
+                  data-theme-option={themeId}
+                  aria-pressed={theme === themeId}
+                  onClick={() => setTheme(themeId)}
+                >
+                  <span className={styles.themeSwatch} data-theme-preview={themeId} aria-hidden="true">
+                    <span />
+                    <i />
+                    <b />
+                  </span>
+                  <span className={styles.themeCopy}>
+                    <strong>{option.label}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <p className={styles.supportingText}>阅读主题中的彩色标记只用于状态、分类和提示等辅助信息，不会铺满正文背景。</p>
+        </div>
+      </section>
+
       <section className={styles.section} aria-label="段落排版">
         <div className={styles.sectionCard}>
           <div className={styles.settingRow}>

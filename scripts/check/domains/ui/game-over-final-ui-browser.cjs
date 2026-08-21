@@ -155,7 +155,7 @@ function seedPage(page) {
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({
       version: 11,
-      state: { provider: 'custom', customKey: 'test-only-key', customUrl: 'https://api.deepseek.com', customModel: 'deepseek-v4-flash', reduceMotion: true, theme: 'minimal-white' },
+      state: { provider: 'custom', customKey: 'test-only-key', customUrl: 'https://api.deepseek.com', customModel: 'deepseek-v4-flash', reduceMotion: true },
     }))
   }, mythic)
 }

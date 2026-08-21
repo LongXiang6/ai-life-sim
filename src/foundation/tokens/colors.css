@@ -1,6 +1,10 @@
 /**
+ * Purpose: Register the default semantic color variables for the reading theme.
+ * Owner: foundation/theme-tokens
+ * Responsibility: Provide shared color names while data-theme files supply theme-specific values.
+ *
  * @file colors.css
- * @description Design Token —— 语义颜色变量（默认 = 淡黄色 minimal-white）
+ * @description Design Token —— 语义颜色变量（默认 = 阅读主题）
  * @mod foundation
  *
  * Apple HIG 淡黄色设计原则：
@@ -10,22 +14,22 @@
  */
 
 /* Tailwind CSS v4 @theme 指令 — 注册自定义设计 Token
- * 与运行时 minimal-white 主题保持同一套淡黄色语义下限，不再保留旧的中性灰蓝基线。
+ * 与运行时阅读主题保持同一套低饱和纸面语义；具体主题由 data-theme Token 覆盖。
  */
 @theme {
   --color-primary: #9b8350;
   --color-primary-hover: #806a3d;
-  --color-primary-light: #fffef8;
+  --color-primary-light: #fff7df;
   --color-secondary: #77736c;
   --color-text-on-primary: #ffffff;
-  --color-success: #1d9b4d;
+  --color-success: #2d8a57;
   --color-warning: #b6842f;
-  --color-error: #dc2626;
-  --color-info: #8d7747;
-  --color-success-bg: #fbfdf8;
-  --color-warning-bg: #fffef8;
-  --color-error-bg: #fffaf9;
-  --color-info-bg: #fbfdfb;
+  --color-error: #bd5b54;
+  --color-info: #597f9d;
+  --color-success-bg: #f1f8f2;
+  --color-warning-bg: #fff8e9;
+  --color-error-bg: #fff4f2;
+  --color-info-bg: #f1f7fb;
 
   /* 背景层次（Apple HIG Depth） */
   --color-bg: #fffdf7;
@@ -53,4 +57,12 @@
 
   /* 辉光 */
   --color-accent-glow: rgba(0, 0, 0, 0.04);
+
+  --color-rainbow-red: #b65d5c;
+  --color-rainbow-orange: #c47d4c;
+  --color-rainbow-yellow: #b4933f;
+  --color-rainbow-green: #5f8d68;
+  --color-rainbow-cyan: #4f8f91;
+  --color-rainbow-blue: #5f7fa5;
+  --color-rainbow-purple: #806d9b;
 }

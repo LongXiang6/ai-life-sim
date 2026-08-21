@@ -1,7 +1,11 @@
 /**
+ * Purpose: Clear life-progress storage while preserving player-owned preferences.
+ * Owner: core/storage
+ * Responsibility: Reset game data without removing credentials, disclaimer state, or theme preference.
+ *
  * @module game-reset.ts
  * @description 清空游戏进度 localStorage + OPFS
- *             仅豁免：API Key / 端口 / 提供商 / 模型 / 免责声明已接受标记
+ *             仅豁免：API Key / 端口 / 提供商 / 模型 / 主题 / 免责声明已接受标记
  *             采用排除法——未在此白名单中的全部清除，防遗漏
  * @mod core
  */
@@ -24,6 +28,7 @@ const KEEP_PREFIXES: string[] = []
 /** Zustand persist store <name> → 保留的顶层字段（不在这些字段中的全被删） */
 const KEEP_PERSIST_FIELDS: Record<string, string[]> = {
   'mod-settings:store': ['provider', 'customKey', 'customUrl', 'customModel'],
+  'core-theme-store': ['theme'],
 }
 
 // ============================================================
@@ -42,7 +47,8 @@ function shouldKeep(key: string): boolean {
  *   仅保留：
  *     - ai-life-sim:disclaimer-accepted  免责声明接受标记
  *     - mod-settings:store 的 provider / customKey / customUrl / customModel
- *   其余所有 key 全部删除（含主题、字体、难度、世界、角色、缓存 等）。
+ *     - core-theme-store 的 theme
+ *   其余所有 key 全部删除（含字体、难度、世界、角色、缓存 等）。
  *
  *   这样做是故意的：防止新增 persist store 或 cache key 被漏删。
  *   如果你新增了需要保留的 key，必须显式添加到 KEEP_EXACT / KEEP_PREFIXES /
