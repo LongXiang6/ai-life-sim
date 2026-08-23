@@ -8,11 +8,11 @@ import type { PromptTemplate } from '@/foundation'
 import { z } from 'zod'
 
 export const NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID =
-  'mod-engine:narrative-talent-growth:3.2.0'
+  'mod-engine:narrative-talent-growth:3.3.0'
 
 export const narrativeTalentGrowthPrompt: PromptTemplate = {
   name: 'narrative-talent-growth',
-  version: '3.2.0',
+  version: '3.3.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID,

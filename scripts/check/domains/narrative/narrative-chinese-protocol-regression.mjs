@@ -111,8 +111,8 @@ const infantSegments = buildSegmentedPrompt(narrativePrompt, {
 })
 const infantGuidance = JSON.parse(infantSegments.userSegments[2]).本轮引导
 assertOk(
-  infantGuidance[2].includes('不能稳稳独立行走')
-    && infantGuidance[2].includes('不能稳稳独立行走、学习或执行技能、使用工具、工作、持械'),
+  infantGuidance[2].includes('叙事以在照料下感知、哭闹、抓握、爬行或扶物蹒跚为主')
+    && infantGuidance[2].includes('本轮事件与选择由照料者、监护人和环境承载'),
   '01 必须把 1 岁角色限制为依赖照料的婴幼儿行动，不得写成学龄儿童或成人',
 )
 const dueSegments = buildSegmentedPrompt(narrativePrompt, {
@@ -320,9 +320,9 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.3.0'
-    && narrativeStoryContinuityPrompt.version === '2.6.0'
-    && narrativeTalentGrowthPrompt.version === '3.2.0'
+  narrativePrompt.version === '7.4.0'
+    && narrativeStoryContinuityPrompt.version === '2.7.0'
+    && narrativeTalentGrowthPrompt.version === '3.3.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
@@ -331,7 +331,7 @@ assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('把玩家行动视为已经选定的做法')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前时间、玩家行动、年龄边界、挑战与失败取向、称呼方式、叙述风格和字数要求')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('角色当前身份、当前年龄、能力语义与天赋')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('0至2岁只写婴幼儿能够成立的感知')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('0至2岁写婴幼儿能够成立的感知')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前已生效天赋')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前到期事件中的每项都要在正文中实际处理')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"当前到期事件":')
@@ -346,11 +346,11 @@ assertOk(
     && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('客观最简白话事实')
     && !COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('输出示例')
     && !COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('317年')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('转变强化只改变作用方式，不额外扩大影响总量')
+    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('转变强化改变作用方式，不额外扩大影响总量')
     && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('长期积累')
     && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('时间沉淀')
     && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('明确契机')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('三项必须同时成立')
+    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('三项共同成立')
     && !COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('不得转为直接'),
   '固定 Prompt 必须与 01/02/03 样品语义一致',
 )

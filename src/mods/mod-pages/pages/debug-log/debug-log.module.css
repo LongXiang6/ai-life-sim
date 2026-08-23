@@ -1,0 +1,266 @@
+/* Purpose: Provide desktop console presentation primitives for the debug page. Owner: mod-pages/debug-log. Responsibility: View-local layout and scroll affordances only. */
+
+.consoleRoot {
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.topBar {
+  display: flex;
+  min-height: 58px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  padding: 10px 24px;
+}
+
+.brandLine {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.brandMark {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.crumb {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.topMeta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+.scope {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  padding: 4px 8px;
+}
+
+.refreshButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.refreshButton:hover {
+  border-color: var(--color-border-focus);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.viewBar {
+  display: flex;
+  min-height: 54px;
+  flex-shrink: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  padding: 0 24px;
+}
+
+.viewIntro {
+  align-self: center;
+  min-width: 220px;
+}
+
+.viewIntroTitle {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.viewIntroText {
+  margin-top: 2px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.viewTabs {
+  display: flex;
+  align-self: stretch;
+  gap: 22px;
+}
+
+.viewTab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.viewTab:hover {
+  color: var(--color-text-primary);
+}
+
+.viewTabActive {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.viewBarMeta {
+  align-self: center;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.content {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.scrollRegion {
+  overscroll-behavior: contain;
+  scrollbar-color: var(--color-border-focus) transparent !important;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin !important;
+}
+
+.scrollRegion::-webkit-scrollbar {
+  display: block !important;
+  width: 9px !important;
+  height: 9px !important;
+}
+
+.scrollRegion::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.scrollRegion::-webkit-scrollbar-thumb {
+  border: 2px solid transparent !important;
+  border-radius: 8px !important;
+  background: var(--color-border-focus) !important;
+  background-clip: padding-box !important;
+}
+
+.scrollRegion::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary) !important;
+  background-clip: padding-box !important;
+}
+
+.consoleFocus:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+
+@media (max-width: 767px) {
+  .consoleRoot {
+    overflow: auto;
+  }
+
+  .topBar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .topMeta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .viewBar {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 8px 16px 0;
+  }
+
+  .viewIntro {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .viewTabs {
+    width: 100%;
+    min-height: 42px;
+    gap: 16px;
+    overflow-x: auto;
+  }
+
+  .viewBarMeta {
+    display: none;
+  }
+
+  .content {
+    overflow: auto;
+  }
+
+  :global([data-ai-exchange-layout]) {
+    display: flex !important;
+    min-height: auto !important;
+    flex-direction: column;
+  }
+
+  :global([data-ai-save-rail]),
+  :global([data-ai-call-nav]) {
+    max-height: 18rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  :global([data-ai-detail]) {
+    height: min(42rem, calc(100dvh - 10rem));
+    max-height: calc(100dvh - 10rem);
+    min-height: 32rem;
+  }
+
+  :global([data-ai-messages]) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: repeat(2, minmax(16rem, 1fr));
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  :global([data-ai-messages] > section) {
+    min-height: 0;
+  }
+}

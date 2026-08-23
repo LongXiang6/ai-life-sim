@@ -35,6 +35,11 @@ const clientLogger = readModuleSource('src/core/logger/client-logger.ts', root)
 const debugLogRoute = read('src/app/api/debug-log/route.ts')
 const debugLogger = read('src/core/logger/debug-logger.ts')
 const debugLogPage = read('src/mods/mod-pages/pages/debug-log/page.tsx')
+const debugLogExchangeView = read('src/mods/mod-pages/pages/debug-log/ai-exchange-view.tsx')
+const debugLogTechnicalView = read('src/mods/mod-pages/pages/debug-log/technical-diagnostics-view.tsx')
+const debugLogTypes = read('src/mods/mod-pages/pages/debug-log/debug-log-types.ts')
+const proxyLogging = read('src/app/api/proxy/route/proxy-logging.ts')
+const developmentLogMirror = read('src/core/logger/development-log-mirror.server.ts')
 const diagnosticIdentityStore = read('src/core/logger/diagnostic-player-identity.ts')
 const diagnosticIdentityRoute = read('src/app/api/diagnostic-identity/route.ts')
 const diagnosticCodeContract = read('src/core/logger/diagnostic-player-code.ts')
@@ -176,12 +181,24 @@ assert(
   'AI debug logs must write and query direct database rows without a destructive clear path',
 )
 assert(
-  /账号状态/.test(debugLogPage)
-    && /账号 ID/.test(debugLogPage)
-    && /用户名/.test(debugLogPage)
-    && /Prompt \/ AI 输入/.test(debugLogPage)
-    && /AI 返回 \/ 叙事/.test(debugLogPage),
-  'database viewer must show plaintext content and registered/anonymous identity',
+  /entryType: 'proxy-trace'/.test(debugLogPage)
+    && /category: 'ai-proxy'/.test(debugLogPage)
+    && /pairProxyTraceEntries/.test(debugLogExchangeView + debugLogTypes)
+    && /发送给 AI/.test(debugLogExchangeView)
+    && /AI 返回/.test(debugLogExchangeView)
+    && /账号状态/.test(debugLogTechnicalView)
+    && /账号 ID/.test(debugLogTechnicalView)
+    && /用户名/.test(debugLogTechnicalView),
+  'database viewer must pair proxy traces into plaintext exchanges while preserving technical identity inspection',
+)
+assert(
+  !proxyLogging.includes('apiKey: body.apiKey')
+    && proxyLogging.includes('JSON.stringify(requestMessages)')
+    && /process\.env\.NODE_ENV !== 'development'/.test(developmentLogMirror)
+    && developmentLogMirror.includes("timeZone: 'Asia/Shanghai'")
+    && developmentLogMirror.includes('MIRROR_RETENTION_MS = 3 * 24 * 60 * 60 * 1000')
+    && /scheduleDevelopmentLogMirror/.test(proxy),
+  'proxy traces and local mirrors must exclude credentials while preserving development-only raw exchange text',
 )
 assert(
   !/consent|附带诊断|玩家编号/.test(feedbackPage + feedbackContract)

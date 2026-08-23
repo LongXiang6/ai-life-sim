@@ -25,6 +25,7 @@ import {
   type NarrativeRoundTraceContext,
 } from '@/core/logger/narrative-round-archive'
 import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-diagnostic.server'
+import { scheduleDevelopmentLogMirror } from '@/core/logger/development-log-mirror.server'
 import { resolveModEngineServerPromptAsset } from '@/mods/mod-engine/server-prompt-assets'
 import {
   ProxyRequestSchema,
@@ -411,6 +412,12 @@ export async function POST(request: Request): Promise<Response> {
       model = candidate
       upstreamRequestBody = JSON.stringify(forwardBody)
       selectedAttempt = index + 1
+      const callKind = body.trace_context?.callKind ?? body.deadline_context.callKind
+      scheduleDevelopmentLogMirror({
+        callKind,
+        direction: '发送',
+        text: JSON.stringify(upstreamMessages),
+      })
 
       const candidateResponse = await fetch(apiUrl, {
         method: 'POST',
@@ -444,6 +451,11 @@ export async function POST(request: Request): Promise<Response> {
 
       if (!candidateResponse.ok) {
         upstreamErrorText = await candidateResponse.text().catch(() => '未知错误')
+        scheduleDevelopmentLogMirror({
+          callKind,
+          direction: '接收',
+          text: upstreamErrorText,
+        })
         await archiveCurrentExchange({
           model: candidate,
           attempt: index + 1,
@@ -547,6 +559,11 @@ export async function POST(request: Request): Promise<Response> {
         logged = true
         const responseBody = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk))).toString('utf8')
         const responseBytes = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk)))
+        scheduleDevelopmentLogMirror({
+          callKind: body.trace_context?.callKind ?? body.deadline_context.callKind,
+          direction: '接收',
+          text: responseBody,
+        })
         await Promise.all([
           archiveCurrentExchange({
             model,
@@ -629,6 +646,11 @@ export async function POST(request: Request): Promise<Response> {
     // 8. 非流式直接返回
     const responseBody = await upstreamResp.text()
     clearUpstreamGuards()
+    scheduleDevelopmentLogMirror({
+      callKind: body.trace_context?.callKind ?? body.deadline_context.callKind,
+      direction: '接收',
+      text: responseBody,
+    })
     await Promise.all([
       archiveCurrentExchange({
         model,

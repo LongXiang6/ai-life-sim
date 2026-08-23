@@ -22,16 +22,16 @@ export const WORLD_RULES: Record<string, string> = {
   easternFantasy: '灵气、宗门、妖族或神话力量只按当前世界已经确立的来源、代价与边界运行。',
   modern: '现实物理与社会因果构成默认基础，超自然事实以世界设定的明确许可为成立条件。',
   postApocalyptic: '资源、生存与秩序重建构成主要压力；灾变细节以世界设定为准。',
-  survivalHorror: '生存、信息不足与持续风险构成主要压力；未知威胁只能按已建立的迹象和代价逐步显现。',
+  survivalHorror: '生存、信息不足与持续风险构成主要压力；未知威胁依据已建立的迹象和代价逐步显现。',
   mythological: '神灵、信仰与神话力量只按世界设定中已建立的干预边界运行。',
   steampunk: '技术围绕既定机械、能源体系与当前工程上限发展。',
   materialist: '现象沿着该世界的客观规律形成可追踪因果。',
   materialist_cultivation: '修炼作为可观察的能量或生命现象运行，具体机制以世界设定为准。',
-  idealist_cultivation: '修炼可涉及心境、因果与意境，但触发条件和代价必须来自既有设定。',
+  idealist_cultivation: '修炼可涉及心境、因果与意境，触发条件和代价以既有设定为依据。',
   darkFantasy: '力量伴随风险与代价，黑暗氛围由人物选择和可追踪后果共同承载。',
-  lovecraftian: '未知与不可理解的力量不凭空替代因果；其影响只能通过已成立的迹象、接触条件与代价呈现。',
+  lovecraftian: '未知与不可理解的力量不凭空替代因果；其影响通过已成立的迹象、接触条件与代价呈现。',
   historical: '制度、技术、交通与信息传播遵守已成立的时代条件，人物行动受真实资源和社会关系约束。',
-  mixed: '多种世界规则可以并存，但每种力量、技术或社会机制都必须有明确来源、适用范围与相互边界。',
+  mixed: '多种世界规则可以并存，每种力量、技术或社会机制各有明确来源、适用范围与相互边界。',
 }
 
 const WORLD_RULE_TAG_ALIASES: Readonly<Record<string, string>> = {
@@ -50,7 +50,7 @@ const WORLD_RULE_TAG_ALIASES: Readonly<Record<string, string>> = {
 }
 
 /** 公开 ID 只用于请求服务端资产；不包含任何固定 Prompt 文本。 */
-export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:7.3.0'
+export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:7.4.0'
 
 /**
  * 世界观参考注入函数。
@@ -75,7 +75,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '7.3.0',
+  version: '7.4.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID,

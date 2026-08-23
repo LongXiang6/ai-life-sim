@@ -83,11 +83,11 @@ assertOk(
   '01 必须保留唯一工具输出和同响应正文的宽容解析，不启用额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.3.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.3.0')
+  narrativePrompt.includes("version: '7.4.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.4.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
-    && continuityPrompt.includes("version: '2.6.0'")
-    && talentPrompt.includes("version: '3.2.0'")
+    && continuityPrompt.includes("version: '2.7.0'")
+    && talentPrompt.includes("version: '3.3.0'")
     && [narrativePrompt, continuityPrompt, talentPrompt].every((source) => (
       source.includes("systemPrompt: ''") && source.includes('serverPromptAssetId:')
     )),
@@ -100,11 +100,11 @@ assertOk(
     && continuityServer.includes('本轮记忆')
     && continuityServer.includes('未来事件')
     && talentServer.includes('深度强化、广度强化、转变强化')
-    && talentServer.includes('转变强化只改变作用方式，不额外扩大影响总量')
+    && talentServer.includes('转变强化改变作用方式，不额外扩大影响总量')
     && talentServer.includes('长期积累')
     && talentServer.includes('时间沉淀')
     && talentServer.includes('明确契机')
-    && talentServer.includes('三项必须同时成立')
+    && talentServer.includes('三项共同成立')
     && !talentServer.includes('不得转为直接')
     && !talentServer.includes('禁止直接操控'),
   '三个固定 Prompt 必须分别承担故事、连续性和成长职责，且 03 不增加转变路线替代限制',

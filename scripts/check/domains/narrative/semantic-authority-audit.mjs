@@ -37,7 +37,7 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.3\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.4\.0'/u)
 assert.match(sources.mainSystemPrompt, /人生模拟器的故事生成器/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
 assert.match(sources.mainSystemPrompt, /默认以第二人称‘你’作为当前角色的叙事主语/u)
@@ -56,11 +56,11 @@ assert.match(sources.continuityPrompt, /时间、事实和权重/u)
 assert.match(sources.talentPrompt, /天赋成长判定与路线生成器/u)
 assert.match(sources.talentPrompt, /下一等级/u)
 assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
-assert.match(sources.talentPrompt, /转变强化只改变作用方式，不额外扩大影响总量/u)
+assert.match(sources.talentPrompt, /转变强化改变作用方式，不额外扩大影响总量/u)
 assert.match(sources.talentPrompt, /长期积累/u)
 assert.match(sources.talentPrompt, /时间沉淀/u)
 assert.match(sources.talentPrompt, /明确契机/u)
-assert.match(sources.talentPrompt, /三项必须同时成立/u)
+assert.match(sources.talentPrompt, /三项共同成立/u)
 assert.doesNotMatch(sources.talentPrompt, /感知[^\n]{0,80}不得[^\n]{0,80}(?:创造|消除|操控)/u)
 assert.doesNotMatch(sources.talentPrompt, /判断[^\n]{0,80}不得[^\n]{0,80}(?:创造|消除|操控)/u)
 for (const prompt of [sources.continuityPrompt, sources.talentPrompt]) {

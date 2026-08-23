@@ -162,7 +162,6 @@ export function buildTraceRequest(
     seed: body.seed,
     thinking: body.thinking,
     baseUrl: body.baseUrl,
-    apiKey: body.apiKey,
   }
 }
 
@@ -210,7 +209,7 @@ export async function writeProxyTrace(
   }
   const prompt = requestContent === undefined
     ? typeof rawRequestBody === 'string' ? rawRequestBody : undefined
-    : JSON.stringify(requestContent, null, 2)
+    : JSON.stringify(requestMessages)
   await appendServerLogEntry({
     createdAt: now.getTime(),
     entryType: 'proxy-trace',

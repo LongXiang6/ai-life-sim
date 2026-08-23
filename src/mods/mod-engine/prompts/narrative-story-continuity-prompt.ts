@@ -8,11 +8,11 @@ import type { PromptTemplate } from '@/foundation'
 import { z } from 'zod'
 
 export const NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID =
-  'mod-engine:narrative-story-continuity:2.6.0'
+  'mod-engine:narrative-story-continuity:2.7.0'
 
 export const narrativeStoryContinuityPrompt: PromptTemplate = {
   name: 'narrative-story-continuity',
-  version: '2.6.0',
+  version: '2.7.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID,

@@ -368,11 +368,6 @@
       "sha256": "376256d5f41dd74fb7e2886c3f6db8b1bd1b4c9c6f4b0654a73d4a50b7aff40d"
     },
     {
-      "path": "src/app/api/debug-log/route.ts",
-      "owner": "app:api",
-      "sha256": "a3703b661ace5972388b1b02191015ee859e95b7627b6b2e9d041e8e6b48e5f1"
-    },
-    {
       "path": "src/app/api/diagnostic-identity/route.ts",
       "owner": "app:api",
       "sha256": "89410e2fcdb97f74bb963731487379f46bcb1cd1d9ee30ce6ba3549f81a3740f"
@@ -1346,16 +1341,6 @@
       "path": "src/mods/mod-pages/pages/character-create/page.tsx",
       "owner": "mod-pages",
       "sha256": "c3f12a8c21cce1f91479117bee57b3fa2f41e356da0d9d87de03302f1ff61faa"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/debug-log/page.tsx",
-      "owner": "mod-pages",
-      "sha256": "c94769a0799598e775ff44b89f46ea7f659a42ae9d35e498a9433d0da08440ad"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/debug-log/runtime-registry-panel.tsx",
-      "owner": "mod-pages",
-      "sha256": "7859605869ab4c3364f8d1d67b52dcc0332e6c8a90d0a88f26642deb7d50a5ae"
     },
     {
       "path": "src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts",

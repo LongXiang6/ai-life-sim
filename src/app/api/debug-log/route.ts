@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose plaintext SQLite debug-log writes and safe read projections.
+ * Owner: app:api
+ * Responsibility: Accept client AI-log writes and project queried proxy traces without credentials.
+ *
  * @module route.ts
  * @description 明文 SQLite 日志 API：AI 日志写入与开发查看
  * @mod app
@@ -6,6 +10,7 @@
 
 import { z } from 'zod'
 
+import { projectProxyTraceEntry } from '@/core/logger/debug-log-projection'
 import {
   appendServerLogEntry,
   getServerRequestSource,
@@ -112,5 +117,8 @@ export async function GET(request: Request): Promise<Response> {
     limit: Number.isFinite(limit) ? limit : 100,
     offset: Number.isFinite(offset) ? offset : 0,
   })
-  return Response.json(result)
+  return Response.json({
+    ...result,
+    entries: result.entries.map((entry) => projectProxyTraceEntry(entry)),
+  })
 }
