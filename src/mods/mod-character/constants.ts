@@ -55,7 +55,7 @@ export const ATTR_HARD_CAP = 100000
 
 /**
  * 超凡领域档位阈值（正向；负向对称取绝对值）
- * 凡人：|v|≤10（沿用 11 档 ATTR_TIER_DESCRIPTIONS）
+ * 凡人：|v|≤10（沿用 -10..+10 的 21 档 ATTR_TIER_DESCRIPTIONS）
  * 超凡入圣：11–20 / 神性：21–40 / 神王：41–80 / 概念级：81+（公式化生成）
  */
 export const TRANSCENDENT_TIER_THRESHOLDS = {
@@ -107,8 +107,8 @@ export const ROUND_DECIMALS = 4
 // 命格（对齐废弃项目 TalentRarity + TALENT_PRESETS_SHARED）
 // ============================================================
 
-/** 首批四类普通候选总数：每类各四条。 */
-export const DESTINY_PATTERN_DISPLAY_COUNT = 16
+/** 首批五类普通候选总数：每类各四条。 */
+export const DESTINY_PATTERN_DISPLAY_COUNT = 20
 
 /** 默认候选数量。 */
 export const DEFAULT_DESTINY_PATTERN_COUNT = DESTINY_PATTERN_DISPLAY_COUNT
@@ -119,32 +119,41 @@ export const PATTERN_LOADOUT_SLOT_COUNT = 4
 /** 每个分类 AI 请求生成的命格数。 */
 export const AI_DESTINY_PATTERN_BATCH_SIZE = 4
 
+/** 首批每个分类必须发布的普通候选数；不足时不交接到选择页。 */
+export const DESTINY_PATTERN_CATEGORY_INITIAL_COUNT = AI_DESTINY_PATTERN_BATCH_SIZE
+
 /** 普通命格的固定分类顺序。 */
 export const DESTINY_PATTERN_CATEGORY_ORDER: readonly DestinyPatternCategory[] = [
-  'battle',
-  'exploration',
-  'social',
-  'production',
+  'action',
+  'cognition',
+  'expression',
+  'stewardship',
+  'misc',
 ] as const
 
 /** 每个分类的后台候选目标数。 */
 export const DESTINY_PATTERN_CATEGORY_TARGET_COUNT = 12
 
-/** 一批命格生成的四个独立分类任务。 */
+/** 一批命格生成的五个独立分类任务。 */
 export const AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS: readonly (readonly DestinyPatternCategory[])[] = [
-  ['battle'],
-  ['exploration'],
-  ['social'],
-  ['production'],
+  ['action'],
+  ['cognition'],
+  ['expression'],
+  ['stewardship'],
+  ['misc'],
 ] as const
 
 /** 命格类别名称与说明。 */
 export const DESTINY_PATTERN_CATEGORY_CONFIG: Record<DestinyPatternCategory, { label: string; guidance: string }> = {
-  battle: { label: '战斗', guidance: '直接影响对抗、攻防、临场判断、承压或战斗方式。' },
-  exploration: { label: '探索', guidance: '直接影响观察、求知、追踪、远行、发现或环境适应。' },
-  social: { label: '社交', guidance: '直接影响交往、协作、说服、关系建立或群体位置。' },
-  production: { label: '生产', guidance: '直接影响制作、经营、劳动、创造、维护或资源转化。' },
+  action: { label: '行动', guidance: '直接影响身体、感官、移动、反应、承压、临场执行或对抗方式。' },
+  cognition: { label: '认知', guidance: '直接影响观察、记忆、学习、知识、技术、推理或问题拆解。' },
+  expression: { label: '表达', guidance: '直接影响语言、表演、审美、娱乐、共情、社交或关系影响。' },
+  stewardship: { label: '经营', guidance: '直接影响生活、生产、经济、交易、资源、维护或组织事务。' },
+  misc: { label: '杂类', guidance: '承载前四类无法作为主要机制解释的轻微异常、跨域适配或特殊玩法；只允许普通级局部倾向。' },
 }
+
+/** 普通级命格的属性净分配与负属性绝对值上限。 */
+export const DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP = 2
 
 /** 自定义世界编码起始偏移（对齐废弃项目 CUSTOM_WORLD_CODE_START） */
 export const CUSTOM_WORLD_CODE_START = 10000
@@ -196,6 +205,11 @@ export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id' | 'category' | '
   { name: '精工细作', description: '你愿意反复校正细节，让成品更完整可靠；追求周全会多耗时间，急事中未必占优。', rarity: 'common', effect: '作品更完整，但耗时更长', attrBonus: { talentAptitude: 1, mind: -1, }, },
   { name: '夜读凝神', description: '你在夜深人静时更易集中精神，处理细事更有耐性；若缺少休息，次日的体力与反应会受影响。', rarity: 'common', effect: '夜间专注较强，白日恢复较慢', attrBonus: { mind: 1, physique: -1, }, },
 
+  { name: '零碎灵感', description: '你偶尔会在无意间把看似无关的细节串起来，能为眼前的小问题换个角度；灵感来去不定，不能替代持续思考。', rarity: 'common', effect: '偶发获得有限的新思路', attrBonus: {}, },
+  { name: '小有巧合', description: '日常琐事中偶尔会遇到恰好顺手的安排，例如及时碰见熟人或少走一段路；这种偏移幅度很小，无法左右重大结果。', rarity: 'common', effect: '小事偶尔得到轻微便利', attrBonus: {}, },
+  { name: '异样体感', description: '你对冷热、明暗或空气变化的体感与旁人略有不同，常能提前留意到环境细节；感觉模糊时仍需实际确认。', rarity: 'common', effect: '对环境细微异常略敏感', attrBonus: { physique: 1, }, },
+  { name: '杂学旁通', description: '你接触陌生话题时偶尔能借用其他领域的零碎经验，先找到可行的入手点；没有基础时仍须按部学习。', rarity: 'common', effect: '跨领域入门略快一些', attrBonus: { talentAptitude: 1, }, },
+
   // ===================== 其余备用命格 =====================
   { name: '容易忘事', description: '出门走到半路才想起忘了带钥匙，交代的事情转头就记不清细节；备忘录写了又写还是丢三落四，记性差这件事本身倒是记得很清楚。', rarity: 'common', effect: '经常忘记重要事情', attrBonus: { mind: -1, }, },
   { name: '路痴', description: '在地图上看懂路线是一回事，走着走着又是另一回事了；明明来过的地方换个方向就不认识了，导航是你出门最离不开的东西。', rarity: 'common', effect: '容易迷路', attrBonus: {}, },
@@ -214,25 +228,30 @@ export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id' | 'category' | '
 
 /** 非 AI 模式使用的人工分类；未列入的旧预设不进入新分类抽取。 */
 export const PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME: Readonly<Record<string, DestinyPatternCategory>> = {
-  负重耐行: 'battle',
-  静心守势: 'battle',
-  夜读凝神: 'battle',
-  不爱运动: 'battle',
-  观微知著: 'exploration',
-  过目留痕: 'exploration',
-  晨行识路: 'exploration',
-  持见不移: 'exploration',
-  旧物留情: 'exploration',
-  守诺如山: 'social',
-  知礼有度: 'social',
-  恻隐存心: 'social',
-  慢熟重情: 'social',
-  手稳工细: 'production',
-  食火知味: 'production',
-  洁身有序: 'production',
-  耐心守成: 'production',
-  精工细作: 'production',
-  审慎决断: 'production',
+  负重耐行: 'action',
+  静心守势: 'action',
+  不爱运动: 'action',
+  反应慢: 'action',
+  观微知著: 'cognition',
+  过目留痕: 'cognition',
+  晨行识路: 'cognition',
+  持见不移: 'cognition',
+  容易忘事: 'cognition',
+  守诺如山: 'expression',
+  知礼有度: 'expression',
+  恻隐存心: 'expression',
+  慢熟重情: 'expression',
+  脾气急躁: 'expression',
+  手稳工细: 'stewardship',
+  食火知味: 'stewardship',
+  洁身有序: 'stewardship',
+  耐心守成: 'stewardship',
+  精工细作: 'stewardship',
+  审慎决断: 'stewardship',
+  零碎灵感: 'misc',
+  小有巧合: 'misc',
+  异样体感: 'misc',
+  杂学旁通: 'misc',
 }
 
 // ============================================================

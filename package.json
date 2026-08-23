@@ -30,6 +30,7 @@
     "test:new-life-isolation": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/new-life-isolation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
     "test:creation-settings": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/creation-settings-regression.mjs",
     "test:account-cloud": "node scripts/check/index.mjs account --verbose",
+    "test:player-mail-reward": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-mail-ops-smoke.mjs",
     "test:data-viewer": "node scripts/check/domains/account/data-viewer-smoke.mjs",
     "test:account-cloud:browser": "node scripts/check/domains/ui/account-cloud-browser.cjs",
     "test:compression-runtime": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/compression-runtime-smoke.mjs",

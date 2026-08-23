@@ -22,7 +22,7 @@ const fail = (message) => { console.error(`FAIL: ${message}`); failed += 1 }
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8')
 
 const promptSources = [
-  ['destiny', buildDestinyPatternSystemPrompt('battle')],
+  ['destiny', buildDestinyPatternSystemPrompt('action')],
   ['reincarnation', reincarnationPromotionPrompt.systemPrompt],
   ['narrative', COMPILED_NARRATIVE_SYSTEM_PROMPT],
   ['ending-review', ENDING_REVIEW_SYSTEM_PROMPT],

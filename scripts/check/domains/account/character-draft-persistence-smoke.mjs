@@ -115,7 +115,7 @@ const talents = Array.from({ length: 36 }, (_, index) => ({
   version: 1,
   name: `神话${index}`,
   description: `概念${index}`,
-  category: 'battle',
+  category: 'action',
   rarity: 'mythic',
   effect: '保持完整。',
   attrBonus: {},

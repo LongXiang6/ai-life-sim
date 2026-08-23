@@ -52,20 +52,12 @@ const FIELD_ALIASES = {
   items: ['天赋', '命格', '候选', '候选命格', 'patterns', 'talents', 'candidates', 'items'],
 } as const
 
-export function destinyPatternNameKey(name: string): string {
-  return name.normalize('NFKC').trim().replace(/\s+/gu, '').toLocaleLowerCase()
-}
-
 export function dedupeDestinyPatterns(patterns: DestinyPattern[]): DestinyPattern[] {
   const result: DestinyPattern[] = []
   const seenIds = new Set<string>()
-  const seenNames = new Set<string>()
   for (const pattern of patterns) {
-    if (!pattern?.id || !pattern.name) continue
-    const nameKey = destinyPatternNameKey(pattern.name)
-    if (seenIds.has(pattern.id) || seenNames.has(nameKey)) continue
+    if (!pattern?.id || seenIds.has(pattern.id)) continue
     seenIds.add(pattern.id)
-    seenNames.add(nameKey)
     result.push({ ...pattern, name: pattern.name.trim() })
   }
   return result
@@ -98,8 +90,11 @@ function textValue(value: unknown): string {
 function normalizeCategory(value: unknown, fallback?: DestinyPatternCategory): DestinyPatternCategory | null {
   const text = textValue(value)
   const english: Record<string, DestinyPatternCategory> = {
-    battle: 'battle', combat: 'battle', exploration: 'exploration', explore: 'exploration',
-    social: 'social', production: 'production', manufacture: 'production',
+    action: 'action', movement: 'action', battle: 'action', combat: 'action',
+    cognition: 'cognition', knowledge: 'cognition', exploration: 'cognition', explore: 'cognition',
+    expression: 'expression', communication: 'expression', social: 'expression',
+    stewardship: 'stewardship', management: 'stewardship', production: 'stewardship', manufacture: 'stewardship',
+    misc: 'misc', miscellaneous: 'misc',
   }
   return CATEGORY_BY_LABEL[text] ?? english[text.toLocaleLowerCase()] ?? fallback ?? null
 }
@@ -189,8 +184,7 @@ export function parseDestinyPatternAIResponse(
 }
 
 export function validateDestinyPatternCategory(category: string): DestinyPatternCategory | null {
-  const valid: DestinyPatternCategory[] = ['battle', 'exploration', 'social', 'production']
-  return valid.includes(category as DestinyPatternCategory) ? category as DestinyPatternCategory : null
+  return normalizeCategory(category)
 }
 
 export function validateDestinyPatternRarity(rarity: string): DestinyPatternRarity | null {
@@ -215,6 +209,46 @@ export function validateDestinyPatternAttrBonus(
     throw new Error(`${getDestinyPatternRarityLabel(rarity)}天赋属性加成超过等级边界或包含无效值`)
   }
   return result
+}
+
+/** Normalize a persisted or hydrated common candidate without judging its written content. */
+export function normalizeCommonDestinyPatternCandidate(pattern: DestinyPattern): DestinyPattern | null {
+  if (
+    !pattern
+    || typeof pattern.id !== 'string'
+    || !pattern.id.trim()
+    || typeof pattern.lineageId !== 'string'
+    || !pattern.lineageId.trim()
+    || !Number.isSafeInteger(pattern.version)
+    || pattern.version < 1
+    || typeof pattern.name !== 'string'
+    || !pattern.name.trim()
+    || typeof pattern.description !== 'string'
+    || !pattern.description.trim()
+    || typeof pattern.effect !== 'string'
+    || !pattern.effect.trim()
+    || pattern.rarity !== 'common'
+  ) return null
+
+  const category = validateDestinyPatternCategory(pattern.category)
+  if (!category) return null
+  try {
+    return {
+      ...pattern,
+      id: pattern.id.trim(),
+      lineageId: pattern.lineageId.trim(),
+      name: pattern.name.trim(),
+      description: pattern.description.trim(),
+      effect: pattern.effect.trim(),
+      category,
+      attrBonus: validateDestinyPatternAttrBonus(
+        pattern.attrBonus as Record<string, number> | undefined,
+        'common',
+      ),
+    }
+  } catch {
+    return null
+  }
 }
 
 export function getDestinyPatternRarityLabel(rarity: DestinyPatternRarity): string {

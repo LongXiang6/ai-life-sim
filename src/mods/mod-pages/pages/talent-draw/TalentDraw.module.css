@@ -181,7 +181,7 @@
     }
 
 .sealHead { display: flex; justify-content: space-between; color: var(--flow-faint); font-size: 0.75rem; font-weight: 650; }
-.seals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.42rem; margin-top: 0.6rem; }
+.seals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.42rem; margin-top: 0.6rem; }
 .seal {
       display: grid;
       min-height: 2.4rem;

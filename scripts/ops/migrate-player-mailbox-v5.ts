@@ -115,8 +115,8 @@ async function applyMigration(options: Options): Promise<void> {
   } finally {
     databaseModule.closePlayerContentDatabaseForTests()
   }
-  assertQuickCheck(options.playerContentDatabase, '6')
-  console.log(JSON.stringify({ ok: true, mode: 'apply', before, after: '6' }))
+  assertQuickCheck(options.playerContentDatabase, '7')
+  console.log(JSON.stringify({ ok: true, mode: 'apply', before, after: '7' }))
 }
 
 async function rollbackMigration(options: Options): Promise<void> {
@@ -125,16 +125,16 @@ async function rollbackMigration(options: Options): Promise<void> {
   if (!fs.existsSync(baseline)) throw new Error('部署前玩家内容备份不存在')
   assertQuickCheck(baseline, '4')
   const currentVersion = schemaVersion(options.playerContentDatabase)
-  if (currentVersion !== '6') {
+  if (currentVersion !== '7') {
     if (currentVersion === '4') {
       console.log(JSON.stringify({ ok: true, mode: 'rollback', restored: false, reason: 'already-v4' }))
       return
     }
-    throw new Error(`回滚前玩家内容 Schema 应为 6，实际为 ${currentVersion ?? 'missing'}`)
+    throw new Error(`回滚前玩家内容 Schema 应为 7，实际为 ${currentVersion ?? 'missing'}`)
   }
 
   const archive = path.join(backupDirectory, 'player-content-mailbox-v5-rollback.sqlite')
-  await ensureDatabaseBackup(options.playerContentDatabase, archive, '6')
+  await ensureDatabaseBackup(options.playerContentDatabase, archive, '7')
 
   const restoreTemp = `${options.playerContentDatabase}.mailbox-v5-restore`
   if (fs.existsSync(restoreTemp)) {
@@ -155,7 +155,7 @@ async function rollbackMigration(options: Options): Promise<void> {
     ok: true,
     mode: 'rollback',
     restored: true,
-    archivedVersion: '6',
+    archivedVersion: '7',
     activeVersion: '4',
   }))
 }
@@ -164,6 +164,6 @@ const options = parseArgs(process.argv.slice(2))
 if (options.mode === 'apply') await applyMigration(options)
 else if (options.mode === 'rollback') await rollbackMigration(options)
 else {
-  assertQuickCheck(options.playerContentDatabase, '6')
-  console.log(JSON.stringify({ ok: true, mode: 'verify', version: '6' }))
+  assertQuickCheck(options.playerContentDatabase, '7')
+  console.log(JSON.stringify({ ok: true, mode: 'verify', version: '7' }))
 }

@@ -11,6 +11,7 @@ import type {
   NarrativeAIEnding,
 } from './narrative-ai-protocol'
 import { parseAIJSON, parseAIJSONCandidates } from '@/core/ai-service/parse-ai-json'
+import { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 
 export interface NarrativeResponseEnvelope {
   narrative: string
@@ -44,7 +45,9 @@ function normalizedKey(value: string): string {
 function normalizeNarrative(value: unknown): string | undefined {
   const text = normalizedText(value)
   if (!text) return undefined
-  return text.replace(/^```(?:json|text|markdown)?\s*/iu, '').replace(/\s*```$/u, '').trim() || undefined
+  return normalizeNarrativeParagraphs(
+    text.replace(/^```(?:json|text|markdown)?\s*/iu, '').replace(/\s*```$/u, ''),
+  ) || undefined
 }
 
 function normalizeOptionalJsonValue(value: unknown): unknown {

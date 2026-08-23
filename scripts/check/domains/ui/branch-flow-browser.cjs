@@ -64,8 +64,8 @@ function seedPage(page) {
       wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true,
     }}))
     localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
-      { id: 'fixture-mythic-1', lineageId: 'fixture-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'social', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
-      { id: 'fixture-mythic-2', lineageId: 'fixture-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'social', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
+      { id: 'fixture-mythic-1', lineageId: 'fixture-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'expression', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
+      { id: 'fixture-mythic-2', lineageId: 'fixture-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'cognition', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
     ] } }))
   }, worldCode)
 }
@@ -254,7 +254,7 @@ async function main() {
   await capture('draw-idle')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始抽取') && !button.disabled)?.click())
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled))
-  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '进入命格选择', includes: ['四类首批命印', '16 / 16'] })
+  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '进入命格选择', includes: ['五类首批命印', '20 / 20'] })
   await capture('draw-ready')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('进入命格选择'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw') && document.body.textContent?.includes('选择命格'))
@@ -263,7 +263,7 @@ async function main() {
     await page.waitForSelector('button[aria-label$="选择轮回天赋"]')
     await page.evaluate((patternName) => [...document.querySelectorAll('button[aria-label$="选择轮回天赋"]')].find((button) => button.textContent?.includes(patternName))?.click(), name)
   }
-  await page.evaluate(() => [...document.querySelectorAll('button[role="tab"]')].find((button) => button.textContent?.trim() === '战斗')?.click())
+  await page.evaluate(() => [...document.querySelectorAll('button[role="tab"]')].find((button) => button.textContent?.trim() === '行动')?.click())
   for (let index = 0; index < 2; index += 1) {
     await page.waitForSelector('button[aria-label$="选择普通命格"]')
     await page.evaluate(() => document.querySelector('button[aria-label$="选择普通命格"]')?.click())

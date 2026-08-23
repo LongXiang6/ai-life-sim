@@ -16,6 +16,7 @@ export {
   markPlayerMailboxMessageRead,
   sendPlayerMail,
 } from './player-mail-service/mailbox-commands'
+export { claimPlayerMailboxReward } from './player-mail-service/mailbox-reward-service'
 export {
   bindDiagnosticMailboxIdentity,
   reserveDiagnosticMailboxAddress,

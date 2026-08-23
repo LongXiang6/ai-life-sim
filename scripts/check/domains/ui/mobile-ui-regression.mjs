@@ -263,7 +263,7 @@ assertOk(
 assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'welcome page must use the single responsive WelcomeView')
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
 assertOk(welcomePageSrc.includes('<WelcomeView'), 'welcome page must render WelcomeView exactly once')
-assertOk(welcomeViewSrc.includes('命书已翻至首页，') && welcomeViewSrc.includes('故事由你落笔。'), 'welcome title must use the finalized warm-paper copy')
+assertOk(welcomeViewSrc.includes('🎮 人生模拟器 ✨'), 'welcome title must identify the life simulator with decorative emoji')
 assertOk(welcomeViewSrc.includes('选择世界与角色。'), 'welcome introduction must use the approved short copy from the selected RF4 refinement')
 assertOk(welcomeViewSrc.includes('开始新人生'), 'welcome primary action must use the approved T2 label')
 assertOk(!welcomeViewSrc.includes('styles.trajectory'), 'welcome must not reintroduce the retired decorative trajectory ornament')
@@ -409,11 +409,13 @@ assertOk(
   'approved presentation preferences must update actual narrative spacing and motion behavior',
 )
 assertOk(
-  settingsModelSrc.includes('预生成下一轮（已停用）')
-    && settingsModelSrc.includes('disabled={true}')
-    && !settingsModelSrc.includes('preGenerateRounds === 1')
-    && !settingsModelSrc.includes('setPreGenerateRounds('),
-  'settings must show that next-round pre-generation is disabled and cannot issue a request',
+  settingsModelSrc.includes('预生成下一轮')
+    && settingsModelSrc.includes('preGenerateRounds === 1')
+    && settingsModelSrc.includes('setPreGenerateRounds(preGenerationEnabled ? 0 : 1)')
+    && settingsModelSrc.includes('当前故事与两次并行后调用全部完成后')
+    && !settingsModelSrc.includes('预生成下一轮（已停用）')
+    && !settingsModelSrc.includes('下一轮预生成已停用'),
+  'settings must expose the persisted next-round pre-generation switch and describe its post-call timing',
 )
 assertOk(
   settingsPresetsSrc.includes('setProvider(DEFAULT_AI_PROVIDER_ID)')
@@ -620,8 +622,8 @@ assertOk(
     && talentDrawPageSrc.includes('className={styles.aura}')
     && talentDrawPageSrc.includes('<b>命</b>')
     && talentDrawPageSrc.includes('className={styles.seals}')
-    && talentDrawPageSrc.includes('aria-label="四类首批命印"'),
-  'runtime talent draw must use the selected aura and sixteen four-category seals instead of the retired astrolabe',
+    && talentDrawPageSrc.includes('aria-label="五类首批命印"'),
+  'runtime talent draw must use the selected aura and twenty five-category seals instead of the retired astrolabe',
 )
 assertOk(
   !talentDrawPageSrc.includes('progressTrack')
@@ -635,9 +637,10 @@ assertOk(
     && !talentDrawPageSrc.includes('handleTurnAstrolabe')
     && /const\s+handleCandidateClick[\s\S]{0,220}toggleEntry\(\{ kind: 'destiny'/.test(talentDrawPageSrc)
     && !talentDrawPageSrc.includes('持续轮转')
-    && talentDrawPageSrc.includes('DESTINY_PATTERN_CATEGORY_ORDER.every((category) => visiblePatterns.some')
+    && talentDrawPageSrc.includes('DESTINY_PATTERN_CATEGORY_ORDER.every((category) => (')
+    && talentDrawPageSrc.includes('DESTINY_PATTERN_CATEGORY_INITIAL_COUNT')
     && !talentDrawPageSrc.includes('可先进入选择'),
-  'talent draw must reveal real progress and wait for the complete four-category batch before handoff',
+  'talent draw must reveal real progress and wait for the complete five-category batch before handoff',
 )
 assertOk(
   talentDrawPageSrc.includes('function createLoadoutSlots')
@@ -651,16 +654,18 @@ assertOk(
 assertOk(
   hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', scaledPx(220))
     && hasCssDeclaration(talentDrawCssSrc, 'aura', 'height', scaledPx(220))
-    && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
+    && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(5, minmax(0, 1fr))')
     && talentDrawCssSrc.includes(`.drawStageComplete .aura { top: ${scaledPx(224)};`)
     && talentDrawCssSrc.includes('.drawStageComplete .sealWrap { opacity: 0;')
     && talentDrawPageSrc.includes('<FlowRunningHead')
-    && talentDrawPageSrc.includes('四类命印，静待天命。')
+    && talentDrawPageSrc.includes('五类命印，静待天命。')
     && talentDrawPageSrc.includes('aria-hidden="true">🔮</span>'),
-  'the finalized draw ritual must keep its 220px aura, four-column handoff, and selected warm-paper title copy',
+  'the finalized draw ritual must keep its 220px aura, five-column handoff, and selected warm-paper title copy',
 )
 assertOk(
-  ['battle', 'exploration', 'social', 'production', 'mythic'].every((tabId) => talentDrawPageSrc.includes(`id: '${tabId}'`))
+  talentDrawPageSrc.includes('DESTINY_PATTERN_CATEGORY_ORDER.map')
+    && talentDrawPageSrc.includes('DESTINY_PATTERN_CATEGORY_CONFIG[id].label')
+    && talentDrawPageSrc.includes("{ id: 'mythic', label: '轮回天赋' }")
     && talentDrawPageSrc.includes('role="tablist"')
     && talentDrawPageSrc.includes('role="tabpanel"')
     && !talentDrawPageSrc.includes('role="dialog"')
@@ -672,7 +677,7 @@ assertOk(
     && talentDrawCssSrc.includes('animation: rebirth-flow')
     && talentDrawCssSrc.includes('rebirth-seal-halo')
     && talentDrawCssSrc.includes('@keyframes rebirth-seal-halo'),
-  'selected fate runtime must keep five direct category tabs, four shared slots, and the finalized selected glow effects',
+  'selected fate runtime must keep five ordinary plus one reincarnation tab, four shared slots, and the finalized selected glow effects',
 )
 assertOk(
   ['progressBar', 'progressRow', 'categoryTabs', 'candidateBand'].every((className) => talentDrawPageSrc.includes(`className={styles.${className}}`))

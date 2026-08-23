@@ -123,7 +123,8 @@ interface NarrativeTimelineEntryViewProps extends BranchEditorProps {
 }
 
 function splitNarrativeParagraphs(text: string): string[] {
-  return text.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean)
+  // 只按模型已经给出的换行保留段落边界，不按句数或字数重排正文。
+  return text.split(/\r?\n+/u).map((paragraph) => paragraph.trim()).filter(Boolean)
 }
 
 const ATTRIBUTE_PRESENTATION: Readonly<Record<string, { label: string; icon: string }>> = {

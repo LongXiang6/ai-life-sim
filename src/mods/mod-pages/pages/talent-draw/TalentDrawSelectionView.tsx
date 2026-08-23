@@ -1,5 +1,5 @@
 /**
- * Purpose: Render the five-tab pattern browser and shared four-slot loadout.
+ * Purpose: Render the six-tab pattern browser and shared four-slot loadout.
  * Owner: mod-pages/talent-draw
  * Responsibility: Selection-stage presentation and command forwarding only.
  */
@@ -7,6 +7,8 @@
 import { useMemo, useState } from 'react'
 
 import {
+  DESTINY_PATTERN_CATEGORY_CONFIG,
+  DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_RARITY_CONFIG,
   PATTERN_LOADOUT_SLOT_COUNT,
 } from '@/mods/mod-character'
@@ -22,10 +24,10 @@ import { FlowIcon } from './TalentFlowArt'
 import styles from './TalentDraw.module.css'
 
 const TABS: ReadonlyArray<{ id: TalentDrawTab; label: string }> = [
-  { id: 'battle', label: '战斗' },
-  { id: 'exploration', label: '探索' },
-  { id: 'social', label: '社交' },
-  { id: 'production', label: '生产' },
+  ...DESTINY_PATTERN_CATEGORY_ORDER.map((id) => ({
+    id,
+    label: DESTINY_PATTERN_CATEGORY_CONFIG[id].label,
+  })),
   { id: 'mythic', label: '轮回天赋' },
 ]
 
@@ -60,7 +62,7 @@ export function TalentDrawSelectionView({
   selectedMythicIds,
   candidatePool,
 }: TalentDrawSelectionViewProps) {
-  const [activeTab, setActiveTab] = useState<TalentDrawTab>('battle')
+  const [activeTab, setActiveTab] = useState<TalentDrawTab>(DESTINY_PATTERN_CATEGORY_ORDER[0])
   const ordinaryCandidates = useMemo(() => candidatePool.flatMap((pattern) => (
     pattern.category === activeTab ? [{ pattern }] : []
   )), [activeTab, candidatePool])
@@ -126,7 +128,7 @@ export function TalentDrawSelectionView({
             <small>{activeTab === 'mythic' ? `${mythicLibrary.length} 项` : `${ordinaryCandidates.length} 条`}</small>
           </strong>
           {activeTab !== 'mythic' ? (
-            <button type="button" className={styles.reroll} onClick={onRedraw} disabled={reDrawDisabled} aria-label="重新生成四类普通命格">
+            <button type="button" className={styles.reroll} onClick={onRedraw} disabled={reDrawDisabled} aria-label="重新生成五类普通命格">
               <FlowIcon name="shuffle" /><span>{isRegenerating ? '生成中…' : '重新抽取'}</span>
             </button>
           ) : null}

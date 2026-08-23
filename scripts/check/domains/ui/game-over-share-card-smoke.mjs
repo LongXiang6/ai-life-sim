@@ -154,7 +154,7 @@ const mythicSource = {
   name: '命运之书',
   description: '记录已经发生的命运。',
   effect: '可在明确代价下调整一次既定结果。',
-  category: 'exploration',
+  category: 'cognition',
   rarity: 'mythic',
   attrBonus: { mind: 8, talentAptitude: 7, luck: 3 },
   strengthenLevel: 5,

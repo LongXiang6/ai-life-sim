@@ -12,7 +12,7 @@ import type { ModManifest } from '@/foundation'
 
 import { parseDependency, resolveDependenciesV2 } from '@/core/mod-loader/dependency-resolver'
 import { loadMods } from '@/core/mod-loader/mod-loader'
-import { selectRemoteApiExports } from '@/core/mod-loader/mod-lifecycle'
+import { mergeRemoteApiExports, selectRemoteApiExports } from '@/core/mod-loader/mod-lifecycle'
 import { MOD_API_IMPORTERS } from '@/core/mod-loader/mod-importers.generated'
 import { MOD_SECONDARY_API_IMPORTERS } from '@/core/mod-loader/mod-secondary-api-importers.generated'
 import { REMOTE_API_CONTRACTS } from '@/core/mod-loader/remote-contracts.generated'
@@ -21,6 +21,7 @@ import { remote } from '@/core/remote-interface/remote-interface'
 import { createExecutionOutcomeCodes, runExecutionSequence } from '@/foundation'
 import type { ExecutionFlowRegistration, ExecutionSequenceNode } from '@/foundation'
 import {
+  assertNoDuplicateSecondaryRemoteApiExports,
   extractRemoteApiExports,
   parseManifestStringArray,
 } from '../../../codegen/generate-mod-wiring/source-analysis.mjs'
@@ -123,6 +124,24 @@ function testExplicitRemoteApiAllowlist() {
   remote.autoRegister(manifest.name, {})
   assert.equal(remote.has(manifest.name), false)
   assert.deepEqual(validateRemoteContracts([manifest]), [])
+}
+
+function testRemoteApiCollisionGuards() {
+  const shared = () => 'shared'
+  const target: Record<string, unknown> = { shared }
+  mergeRemoteApiExports(target, { shared }, 'same-reference')
+  assert.equal(target.shared, shared)
+  assert.throws(
+    () => mergeRemoteApiExports(target, { shared: () => 'different' }, 'different-reference'),
+    /重复导出.*不同实现/u,
+  )
+  assert.throws(
+    () => assertNoDuplicateSecondaryRemoteApiExports('fixture', [
+      { source: 'first-api.ts', names: ['sameName'] },
+      { source: 'second-api.ts', names: ['sameName'] },
+    ]),
+    /secondary Remote API 重复导出/u,
+  )
 }
 
 async function verifyAliasedRemoteEntry(
@@ -399,6 +418,7 @@ async function main() {
   testParseDependency()
   testMutualSoftDependencies()
   testExplicitRemoteApiAllowlist()
+  testRemoteApiCollisionGuards()
   await testAliasedRemoteApiEntries()
   await testExecutionSequenceContract()
   console.log('[OK] mod-loader regression tests passed')

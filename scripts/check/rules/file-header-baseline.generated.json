@@ -18,11 +18,6 @@
       "sha256": "297da7a2020e4a24a8104c9bf28f4e4c7ecc69ffda3fbb4540b84fbd4ce15a9a"
     },
     {
-      "path": "scripts/check/domains/account/player-mail-ops-smoke.mjs",
-      "owner": "quality:account",
-      "sha256": "0144834882bb17ea9f0260b1fc244f9b42d26f3d6679678d72a8fb35a88d86c5"
-    },
-    {
       "path": "scripts/check/domains/calibration/calibration-wiring-audit.ts",
       "owner": "quality:calibration",
       "sha256": "5a417c87ea1e6cf1a9f09e3d80d94bb7be6d55762f2ae4446e80401b726de1be"
@@ -346,11 +341,6 @@
       "path": "src/app/api/account/mailbox/portrait/route.ts",
       "owner": "app:api",
       "sha256": "5c87d8cbeab5585df07c0b727b1d31240fef1e19ea380ca5edeff2939f6a14b1"
-    },
-    {
-      "path": "src/app/api/account/mailbox/route.ts",
-      "owner": "app:api",
-      "sha256": "51d9346f3a9b1116e91d27dc3fb735e6f54957c1c539669a991a8acb493d96cf"
     },
     {
       "path": "src/app/api/account/qq-link/route.ts",
@@ -738,11 +728,6 @@
       "sha256": "cd08be881109fd34a73af43010e9004e3703a85d68542b6ae6eafa8458cb67a2"
     },
     {
-      "path": "src/core/player-content/player-content-client.ts",
-      "owner": "core:player-content",
-      "sha256": "fe98b12e267d31954c146fa36014cb14f425ee7cb4d4c90b399f2d09bd6aff9d"
-    },
-    {
       "path": "src/core/player-content/player-content-error.ts",
       "owner": "core:player-content",
       "sha256": "fbb0d116e231d08200a4f17e9e043c225fda7f02973e3829285cd985972c2054"
@@ -761,11 +746,6 @@
       "path": "src/core/player-content/portrait-image-provider.ts",
       "owner": "core:player-content",
       "sha256": "09ee102d6122e0e9061647d4b7d6afbd72ea524a448f9d0d8a17a4d1289c3119"
-    },
-    {
-      "path": "src/core/remote-interface/remote-interface.ts",
-      "owner": "core:remote-interface",
-      "sha256": "a2f055274a6f50d37bc08c8734d156424903cf8b18222199e0742de86c29502d"
     },
     {
       "path": "src/core/scoring/index.ts",
@@ -1046,11 +1026,6 @@
       "path": "src/mods/mod-character/utils.ts",
       "owner": "mod-character",
       "sha256": "83da7eb1019a96447b83bbfcd912f40bc98a294d1765c9f58a053a5188868f45"
-    },
-    {
-      "path": "src/mods/mod-character/utils/destiny-pattern-pool-cache.ts",
-      "owner": "mod-character",
-      "sha256": "793deb2df5aba915dbbe7333e1b71dbdcfba3e5c35a67d8d0789b5d5bebb6102"
     },
     {
       "path": "src/mods/mod-character/utils/name-pools.ts",
@@ -2151,11 +2126,6 @@
       "path": "src/mods/mod-world/world-context-api.ts",
       "owner": "mod-world",
       "sha256": "a83e3eeee4b573105271a87a565bf269ebf6d8f00b5559f2868bd78185633733"
-    },
-    {
-      "path": "src/mods/mod-world/world-init-api.ts",
-      "owner": "mod-world",
-      "sha256": "5885d8d9a32d9437ecce321df6aacc79c746217645e0e9c5197ec41cf10973d8"
     },
     {
       "path": "src/mods/mod-world/world-init-bundle-deps.ts",

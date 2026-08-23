@@ -44,18 +44,11 @@ export function isAIGeneratedPattern(pattern: DestinyPattern): boolean {
   return pattern.id.startsWith('ai-') || pattern.id.startsWith('ai_')
 }
 
-export function patternNameKey(pattern: DestinyPattern): string {
-  return pattern.name.trim().toLocaleLowerCase()
-}
-
 export function uniquePatternsByIdentity(patterns: DestinyPattern[]): DestinyPattern[] {
   const seenIds = new Set<string>()
-  const seenNames = new Set<string>()
   return patterns.filter((pattern) => {
-    const nameKey = patternNameKey(pattern)
-    if (seenIds.has(pattern.id) || seenNames.has(nameKey)) return false
+    if (!pattern.id || seenIds.has(pattern.id)) return false
     seenIds.add(pattern.id)
-    seenNames.add(nameKey)
     return true
   })
 }
@@ -84,14 +77,12 @@ export function mergeSlotsWithPatterns(
     ? [...currentSlots]
     : Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null) as TalentDrawSlots
   const visibleIds = new Set(nextSlots.flatMap((pattern) => pattern ? [pattern.id] : []))
-  const visibleNames = new Set(nextSlots.flatMap((pattern) => pattern ? [patternNameKey(pattern)] : []))
   for (const pattern of uniquePatternsByIdentity(patterns)) {
-    if (visibleIds.has(pattern.id) || visibleNames.has(patternNameKey(pattern))) continue
+    if (visibleIds.has(pattern.id)) continue
     const emptyIndex = nextSlots.findIndex((slot) => slot === null)
     if (emptyIndex < 0) break
     nextSlots[emptyIndex] = pattern
     visibleIds.add(pattern.id)
-    visibleNames.add(patternNameKey(pattern))
   }
   return nextSlots
 }

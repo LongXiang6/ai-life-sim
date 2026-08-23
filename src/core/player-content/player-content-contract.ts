@@ -58,6 +58,83 @@ export const PlayerMailRecipientSchema = z.object({
   value: z.string().trim().min(1),
 }).strict()
 
+/** Developer-authored reward campaign eligibility is evaluated by the mailbox service. */
+export const PlayerMailRewardEligibilityModeSchema = z.enum([
+  'login-window',
+  'registered-account',
+])
+
+export const PlayerMailRewardTargetKindSchema = z.enum(['account', 'broadcast'])
+
+export const PlayerMailRewardCampaignSchema = z.object({
+  rewardId: z.string().trim().min(1).max(200),
+  talentId: z.string().trim().min(1).max(128),
+  talent: ReincarnationTalentSchema,
+  targetSignature: z.string().max(5000),
+  title: z.string().min(1),
+  body: z.string().min(1),
+  eligibilityMode: PlayerMailRewardEligibilityModeSchema,
+  startsAt: z.number().int().nonnegative(),
+  endsAt: z.number().int().nonnegative(),
+  createdAt: z.number().int().nonnegative(),
+}).strict().superRefine((campaign, context) => {
+  if (campaign.endsAt <= campaign.startsAt) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endsAt'],
+      message: '奖励活动结束时间必须晚于开始时间',
+    })
+  }
+  if (campaign.talent.id !== campaign.talentId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['talentId'],
+      message: '奖励活动天赋 ID 与天赋内容不一致',
+    })
+  }
+})
+
+export const PlayerMailRewardTargetSchema = z.object({
+  rewardId: z.string().trim().min(1).max(200),
+  messageId: z.string().trim().min(1).max(200),
+  recipientKind: PlayerMailRewardTargetKindSchema,
+  recipientKey: z.string().trim().min(1).nullable(),
+  recipientLabel: z.string().trim().min(1).nullable(),
+}).strict().superRefine((target, context) => {
+  const isBroadcast = target.recipientKind === 'broadcast'
+  if (isBroadcast && (target.recipientKey !== null || target.recipientLabel !== null)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['recipientKey'],
+      message: '全体奖励目标不应绑定单一收件身份',
+    })
+  }
+  if (!isBroadcast && (!target.recipientKey || !target.recipientLabel)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['recipientKey'],
+      message: '定向奖励目标必须包含收件身份',
+    })
+  }
+})
+
+export const PlayerMailRewardClaimSchema = z.object({
+  rewardId: z.string().trim().min(1).max(200),
+  accountId: z.string().trim().min(1).max(200),
+  messageId: z.string().trim().min(1).max(200).nullable(),
+  talentId: z.string().trim().min(1).max(128),
+  talent: ReincarnationTalentSchema,
+  claimedAt: z.number().int().nonnegative(),
+}).strict().superRefine((claim, context) => {
+  if (claim.talent.id !== claim.talentId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['talentId'],
+      message: '领取记录天赋 ID 与天赋内容不一致',
+    })
+  }
+})
+
 export const PlayerMailCommandSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('send'),
@@ -70,6 +147,7 @@ export const PlayerMailCommandSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('read'), messageId: z.string().uuid() }).strict(),
   z.object({ action: z.literal('delete'), messageId: z.string().uuid() }).strict(),
   z.object({ action: z.literal('accept-talent'), messageId: z.string().uuid() }).strict(),
+  z.object({ action: z.literal('claim-reward'), messageId: z.string().uuid() }).strict(),
 ])
 
 export type CloudGameSavePayload = z.infer<typeof CloudGameSavePayloadSchema>
@@ -80,6 +158,22 @@ export type PortraitMailRequest = z.infer<typeof PortraitMailRequestSchema>
 export type PlayerMailFolder = z.infer<typeof PlayerMailFolderSchema>
 export type PlayerMailRecipient = z.infer<typeof PlayerMailRecipientSchema>
 export type PlayerMailCommand = z.infer<typeof PlayerMailCommandSchema>
+export type PlayerMailRewardEligibilityMode = z.infer<typeof PlayerMailRewardEligibilityModeSchema>
+export type PlayerMailRewardTargetKind = z.infer<typeof PlayerMailRewardTargetKindSchema>
+export type PlayerMailRewardCampaign = z.infer<typeof PlayerMailRewardCampaignSchema>
+export type PlayerMailRewardTarget = z.infer<typeof PlayerMailRewardTargetSchema>
+export type PlayerMailRewardClaim = z.infer<typeof PlayerMailRewardClaimSchema>
+
+export const PlayerMailRewardClaimStatusSchema = z.enum([
+  'available',
+  'claimed',
+  'expired',
+  'not-started',
+  'not-eligible',
+  'login-required',
+])
+
+export type PlayerMailRewardClaimStatus = z.infer<typeof PlayerMailRewardClaimStatusSchema>
 
 export interface CloudManualSaveSummary extends CloudManualSaveMetadata {
   compressedBytes: number
@@ -114,6 +208,16 @@ export interface PlayerMailTalentAttachment {
   returnedAt: number | null
 }
 
+export interface PlayerMailRewardView {
+  rewardId: string
+  eligibilityMode: PlayerMailRewardEligibilityMode
+  startsAt: number
+  endsAt: number
+  talent: CloudReincarnationTalent
+  claimStatus: PlayerMailRewardClaimStatus
+  claimedAt: number | null
+}
+
 export interface PlayerMailMessage {
   id: string
   kind: 'message' | 'portrait'
@@ -127,6 +231,7 @@ export interface PlayerMailMessage {
   expiresAt: number
   readAt: number | null
   talent: PlayerMailTalentAttachment | null
+  reward: PlayerMailRewardView | null
 }
 
 export interface PlayerMailMessageView extends PlayerMailMessage {
@@ -149,6 +254,9 @@ export interface PlayerMailCommandResult {
   updated: boolean
   message?: PlayerMailMessageView
   acceptedTalent?: CloudReincarnationTalent
+  claimedReward?: CloudReincarnationTalent
+  rewardId?: string
+  alreadyClaimed?: boolean
   accountRevision: number | null
 }
 

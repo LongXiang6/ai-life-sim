@@ -60,6 +60,7 @@ import { useWorldStore } from '@/mods/mod-world'
 import { HISTORICAL_EVENT_STATUSES, HISTORICAL_EVENT_TRANSITIONS } from '../constants'
 import {
   isHistoryLedgerPersistenceState,
+  createEmptyHistoryLedgerState,
   migrateHistoryDynamicsState,
   normalizeHistoryLedgerPersistenceState,
   selectHistoryLedgerReadState,
@@ -165,6 +166,30 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   /** 最近一次通过严格校验的 Store 数组引用；外部水合或直接替换后会自动失效。 */
   private validatedStoreState?: HistoryLedgerReadState
   private hydrationError?: Error
+  /** 预生成投影使用的本地账本快照；设置后所有读取不再访问正式历史 Store。 */
+  private projectionPersistenceState?: HistoricalEventLedgerPersistenceState
+
+  private isProjection(): boolean {
+    return this.projectionPersistenceState !== undefined
+  }
+
+  private getReadState(): HistoryLedgerReadState {
+    const snapshot = this.projectionPersistenceState
+    if (!snapshot) return selectHistoryLedgerReadState()
+    return {
+      schemaVersion: 2,
+      events: snapshot.events,
+      transitions: snapshot.transitions,
+      evidence: snapshot.evidence,
+      causalEdges: snapshot.causalEdges,
+      candidateAudits: snapshot.candidateAudits,
+      migrationMetadata: snapshot.migrationMetadata,
+    }
+  }
+
+  private assertWritable(): void {
+    if (this.isProjection()) throw new Error('预生成投影账本不接受写入')
+  }
 
   private isValidatedStoreState(state: HistoryLedgerReadState): boolean {
     const validated = this.validatedStoreState
@@ -180,16 +205,17 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   }
 
   private markCurrentStoreValidated(): void {
-    this.validatedStoreState = selectHistoryLedgerReadState()
+    this.validatedStoreState = this.getReadState()
     this.hydrationError = undefined
     this.cachedIndex = undefined
   }
 
   /** 任何查询、提交或存档前都必须确认当前 Store 经过严格 v2 校验。 */
   private ensureCurrentStoreValidated(): void {
-    if (this.isValidatedStoreState(selectHistoryLedgerReadState())) return
+    if (this.isProjection()) return
+    if (this.isValidatedStoreState(this.getReadState())) return
     this.hydrateFromStore()
-    if (this.isValidatedStoreState(selectHistoryLedgerReadState())) return
+    if (this.isValidatedStoreState(this.getReadState())) return
     throw this.hydrationError ?? new Error('历史事件账本尚未完成严格持久化校验')
   }
 
@@ -246,6 +272,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   }
 
   applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    this.assertWritable()
     if (!changes || typeof changes !== 'object') throw new Error(`[${this.id}] 变更必须是对象`)
     if (changes.id !== this.id) throw new Error(`[${this.id}] 变更目标不匹配`)
     if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
@@ -262,6 +289,11 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   }
 
   reset(): void {
+    if (this.isProjection()) {
+      this.projectionPersistenceState = structuredClone(createEmptyHistoryLedgerState())
+      this.cachedIndex = undefined
+      return
+    }
     useHistoryDynamicsStore.getState().reset()
     this.markCurrentStoreValidated()
   }
@@ -627,6 +659,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     rawReason: string,
     rawContext: RoundContext | HistoricalEventValidationContext,
   ): HistoricalEventCandidateAudit {
+    this.assertWritable()
     const context = toValidationContext(rawContext)
     const errors: string[] = []
     this.validateValidationContext(context, errors)
@@ -652,15 +685,20 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       reason,
       context,
     )
-    useHistoryDynamicsStore.getState().commitAppend({
-      batchId: createLedgerId('candidate-decision-batch'),
-      events: [],
-      transitions: [],
-      evidence: [],
-      causalEdges: [],
-      candidateAudits: [audit],
-      migrationMetadata: [],
+    const commit = this.commitPrepared({
+      ok: true,
+      errors: [],
+      prepared: {
+        batchId: createLedgerId('candidate-decision-batch'),
+        events: [],
+        transitions: [],
+        evidence: [],
+        causalEdges: [],
+        candidateAudits: [audit],
+        migrationMetadata: [],
+      },
     })
+    if (!commit.ok) throw new Error(commit.errors.join('；'))
     return cloneValue(audit)
   }
 
@@ -761,7 +799,33 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
 
   capturePersistenceState(): HistoricalEventLedgerPersistenceState {
     this.ensureCurrentStoreValidated()
+    if (this.projectionPersistenceState) return structuredClone(this.projectionPersistenceState)
     return useHistoryDynamicsStore.getState().getPersistenceState()
+  }
+
+  /** 从正式 Store 捕获快照并建立只读实例；创建过程不触发账本水合或替换。 */
+  createReadOnlyProjection(): HistoricalEventLedgerSystem {
+    const projection = new HistoricalEventLedgerSystem()
+    projection.setProjectionPersistenceState(useHistoryDynamicsStore.getState().getPersistenceState())
+    return projection
+  }
+
+  /** 仅供叙事预生成建立隔离投影；不会触碰正式历史 Store。 */
+  private setProjectionPersistenceState(snapshot: unknown): void {
+    let restored: HistoricalEventLedgerPersistenceState
+    if (isHistoryLedgerPersistenceState(snapshot)) {
+      restored = normalizeHistoryLedgerPersistenceState(snapshot)
+    } else {
+      throw new Error('历史事件账本投影快照格式无效')
+    }
+    const errors = this.validatePersistenceSnapshot(restored)
+    if (errors.length > 0) {
+      throw new Error(`历史事件账本投影快照不一致：${errors.join('；')}`)
+    }
+    this.projectionPersistenceState = structuredClone(restored)
+    this.validatedStoreState = undefined
+    this.hydrationError = undefined
+    this.cachedIndex = undefined
   }
 
   /**
@@ -770,6 +834,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
    * 依据该存档已经恢复的当前上下文完成一次迁移期重绑，防止随后创建第二世界时串线。
    */
   hydrateFromStore(): void {
+    if (this.isProjection()) return
     const contextId = useWorldStore.getState().currentContextId
     const snapshot = normalizeHistoryLedgerPersistenceState(
       useHistoryDynamicsStore.getState().getPersistenceState(),
@@ -868,6 +933,11 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (errors.length > 0) {
       throw new Error(`历史事件账本持久化快照不一致：${errors.join('；')}`)
     }
+    if (this.isProjection()) {
+      this.projectionPersistenceState = structuredClone(restored)
+      this.cachedIndex = undefined
+      return
+    }
     useHistoryDynamicsStore.getState().replacePersistenceState(restored)
     this.markCurrentStoreValidated()
   }
@@ -881,6 +951,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   }
 
   importLegacyCollectedStates(states: Record<string, SubSystemState>): boolean {
+    this.assertWritable()
     const eventPool = states['event-pool']?.data
     const causalSimulation = states['causal-simulation']?.data
     if (eventPool === undefined && causalSimulation === undefined) return false
@@ -914,6 +985,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
 
   commitPrepared(preflight: HistoricalEventPreflightResult): HistoricalEventCommitResult {
     if (!preflight.ok || !preflight.prepared) return emptyCommitResult(preflight.errors)
+    this.assertWritable()
     useHistoryDynamicsStore.getState().commitAppend(preflight.prepared)
     this.markCurrentStoreValidated()
     return {
@@ -1821,7 +1893,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (useCharacterStore.getState().characterId === entityId && world.currentContextId) {
       contextIds.add(world.currentContextId)
     }
-    for (const event of selectHistoryLedgerReadState().events) {
+    for (const event of this.getReadState().events) {
       const participant = event.participants.find((item) => item.entityId === entityId)
       if (!participant) continue
       if (participant.contextId) contextIds.add(participant.contextId)
@@ -1848,7 +1920,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
 
   private getLedgerIndex(): HistoricalLedgerIndex {
     this.ensureCurrentStoreValidated()
-    const state = selectHistoryLedgerReadState()
+    const state = this.getReadState()
     const cached = this.cachedIndex
     if (
       cached

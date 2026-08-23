@@ -40,6 +40,10 @@ import {
   prepareMainNarrativeRequest,
 } from '../../helpers/main-narrative-call'
 import {
+  startNarrativePreGeneration,
+  takeNarrativePreGeneration,
+} from '../../helpers/narrative-pre-generation'
+import {
   buildNarrativeStoryContinuityPromptInput,
   type NarrativeStoryContinuityPromptInput,
 } from '../../helpers/narrative-story-continuity-context'
@@ -239,7 +243,10 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     },
     worldContext: {
       世界: structuredClone(ctx._promptContext.worldNarrativeView),
-      成立规则: ctx._promptContext.worldRules ?? [],
+      成立规则: [ctx._promptContext.worldRules, ctx._promptContext.modWorldRules]
+        .flatMap((value) => value?.split(/\r?\n/u) ?? [])
+        .map((value) => value.trim())
+        .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index),
       力量体系: ctx._promptContext.powerFramework ?? null,
       当前时间: ctx._promptContext.currentTime,
     },
@@ -402,13 +409,16 @@ export function loadStages(
         })
         let response: string
         let quality
+        let source: 'live' | 'preview' = 'live'
         try {
-          const result = await executeMainNarrativeRequest(request, 'real')
+          const preGenerated = await takeNarrativePreGeneration(request)
+          const result = preGenerated ?? await executeMainNarrativeRequest(request, 'real')
+          if (preGenerated) source = 'preview'
           response = result.response
           quality = result.quality
         } catch (error) {
           orchestrator.noteNarrativeQuality({
-            source: 'live',
+            source,
             finalValid: false,
             acceptedNarrativeBody: false,
             finalReason: error instanceof Error ? error.message : String(error),
@@ -420,7 +430,7 @@ export function loadStages(
         ctx._narrativeParsed = quality.parsed
         orchestrator.setLastExecutedFullContent(response)
         orchestrator.noteNarrativeQuality({
-          source: 'live',
+          source,
           finalValid: true,
           acceptedNarrativeBody: true,
           narrativeChars: quality.narrativeChars,
@@ -428,7 +438,7 @@ export function loadStages(
         })
         logger.info('narrative-quality', 'narrative-response-accepted', {
           round: state.totalRounds,
-          source: 'live',
+          source,
           narrativeChars: quality.narrativeChars,
         })
       },
@@ -761,6 +771,12 @@ export function loadStages(
         if (!ctx._committedRoundResult) {
           throw new Error('回合终态缺少已经完整提交的正文结果')
         }
+        startNarrativePreGeneration({
+          owner: orchestrator,
+          promptTemplate,
+          aiConfig,
+          sessionId,
+        })
       },
       maxRounds: 1,
     },

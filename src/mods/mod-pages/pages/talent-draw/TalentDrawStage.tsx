@@ -59,17 +59,17 @@ export function TalentDrawStage({
         </div>
       </div>
       <div className={styles.ritualCopy}>
-        <strong>{phase === 'idle' ? '让命运揭示你的命格' : busyDrawing ? '四类命格正在归位' : '四类首批命印已归位'}</strong>
+        <strong>{phase === 'idle' ? '让命运揭示你的命格' : busyDrawing ? '五类命格正在归位' : '五类首批命印已归位'}</strong>
         <p>{phase === 'idle'
-          ? '准备就绪后开始抽取，战斗、探索、社交、生产四类命格会依次归位。'
-          : busyDrawing ? generationMessage : '四类首批命印已全部归位。'}</p>
+          ? '准备就绪后开始抽取，行动、认知、表达、经营、杂类五类命格会依次归位。'
+          : busyDrawing ? generationMessage : '五类首批命印已全部归位。'}</p>
       </div>
       <div className={styles.sealWrap}>
         <div className={styles.sealHead}>
-          <span>四类首批命印</span>
+          <span>五类首批命印</span>
           <span>{visibleRevealCount} / {DESTINY_PATTERN_DISPLAY_COUNT}</span>
         </div>
-        <div className={styles.seals} aria-label="四类首批命印">
+        <div className={styles.seals} aria-label="五类首批命印">
           {slots.map((pattern, index) => (
             <span
               key={pattern?.id ?? `seal-${index}`}

@@ -11,4 +11,3 @@ export { buildDefaultCalibration } from './utils/calibration-clamp/default-calib
 export { formatCalibrationSummary } from './utils/calibration-clamp/calibration-summary'
 export { formatPowerFrameworkForPrompt } from './utils/power-framework'
 export { inferAnchorYearFromDescription } from './utils/world-init-anchor-year'
-export { getCurrentRegion, setCurrentRegion } from './world-context-api'

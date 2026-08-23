@@ -33,7 +33,7 @@ const THEME_OPTIONS: Array<{ id: ThemeType; label: string; description: string }
   { id: 'reading', label: '阅读主题', description: '淡黄色纸面，适合长文阅读' },
   { id: 'night', label: '暗夜主题', description: '低亮度深色，夜间更舒适' },
   { id: 'white', label: '白色主题', description: '中性白色，清爽明亮' },
-  { id: 'colorful', label: '多彩主题', description: '阅读纸面，彩色辅助更丰富' },
+  { id: 'colorful', label: '多彩主题', description: '鲜艳高对比，彩色语义更醒目' },
 ]
 
 export function SettingsTabTheme() {
@@ -85,7 +85,7 @@ export function SettingsTabTheme() {
               )
             })}
           </div>
-          <p className={styles.supportingText}>阅读主题中的彩色标记只用于状态、分类和提示等辅助信息，不会铺满正文背景。</p>
+          <p className={styles.supportingText}>阅读主题保持克制；多彩主题使用鲜艳高对比的状态、分类和提示色，正文底色仍保持清晰。</p>
         </div>
       </section>
 

@@ -11,11 +11,13 @@ import path from 'node:path'
 
 import Database from 'better-sqlite3'
 
+import { ensureMailboxRewardSchema } from './player-content-reward-database'
+
 declare global {
   var __aiLifePlayerContentDatabase: Database.Database | undefined
 }
 
-const PLAYER_CONTENT_SCHEMA_VERSION = 6
+const PLAYER_CONTENT_SCHEMA_VERSION = 7
 
 export const PLAYER_MAIL_RETENTION_MS = 3 * 24 * 60 * 60 * 1000
 
@@ -382,6 +384,7 @@ function initializeSchema(database: Database.Database): void {
   migrateSchema(database, currentVersion)
   createPortraitMailJobsTable(database)
   migrateMailboxSchema(database, currentVersion)
+  ensureMailboxRewardSchema(database)
   removeLeaderboardRowsWithoutReviewVerse(database)
   removeLegacyScoringLeaderboardRows(database)
   database.exec(`

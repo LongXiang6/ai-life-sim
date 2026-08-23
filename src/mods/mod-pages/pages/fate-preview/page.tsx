@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 
 import { useRouter } from 'next/navigation'
 
@@ -169,7 +169,11 @@ function FatePreviewContent() {
               {selectedPatterns.length > 0 ? selectedPatterns.map((pattern) => {
                 const rarity = DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity]
                 return (
-                  <div key={pattern.id} className={styles.patternRow}>
+                  <div
+                    key={pattern.id}
+                    className={`${styles.patternRow} ${styles.rarityRow}`}
+                    style={{ '--rarity-color': rarity.color } as CSSProperties}
+                  >
                     <div className={styles.patternHeading}>
                       <strong>{pattern.name}</strong>
                       <small>{rarity.label}</small>
@@ -179,7 +183,11 @@ function FatePreviewContent() {
                 )
               }) : <p className={styles.emptyText}>尚未确认命格。</p>}
               {equippedReincarnationTalents.map((pattern) => (
-                <div key={pattern.id} className={`${styles.patternRow} ${styles.isRebirth}`}>
+                <div
+                  key={pattern.id}
+                  className={`${styles.patternRow} ${styles.isRebirth} ${styles.rarityRow}`}
+                  style={{ '--rarity-color': DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity].color } as CSSProperties}
+                >
                   <div className={styles.patternHeading}>
                     <strong>轮回 · {pattern.name}</strong>
                     <small>轮回天赋</small>
@@ -188,13 +196,20 @@ function FatePreviewContent() {
                 </div>
               ))}
             </div>
-            {equippedReincarnationTalents.length === 0 ? <p className={styles.mythicEmpty}>本局不携带轮回天赋。</p> : null}
             {talents.length > 0 && (
               <div className={styles.talentPills} aria-label="角色天赋">
                 {talents.map((talent) => {
                   const rarity = TALENT_RARITY_CONFIG[talent.rarity]
                   const polarity = TALENT_POLARITY_CONFIG[talent.polarity]
-                  return <span key={talent.id} className={styles.talentPill}>{talent.name}<small>{rarity.label}{polarity ? ` · ${polarity.label}` : ''}</small></span>
+                  return (
+                    <span
+                      key={talent.id}
+                      className={styles.talentPill}
+                      style={{ '--rarity-color': rarity.color } as CSSProperties}
+                    >
+                      {talent.name}<small>{rarity.label}{polarity ? ` · ${polarity.label}` : ''}</small>
+                    </span>
+                  )
                 })}
               </div>
             )}

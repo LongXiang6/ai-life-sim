@@ -21,13 +21,13 @@ export interface PromptSegments {
 }
 
 const DEFAULT_PLAYER_ACTION = '在当前条件下顺其自然，处理本轮生活中实际发生的事情。'
-const DEFAULT_NARRATIVE_STYLE = '保留古典用词质感，但使用略微白话、直接易读的句式；以具体动作、工具、材料、身体限制、关系反应和可追踪因果推进，不堆砌典故、意象、倒装或晦涩表达；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，不要机械用日期或年龄句开头。'
+const DEFAULT_NARRATIVE_STYLE = '保留古典用词质感，但使用略微白话、直接易读的句式；以具体动作、工具、材料、身体限制、关系反应和可追踪因果推进，不堆砌典故、意象、倒装或晦涩表达；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，首句从窗口内正在发生的行动、关系、环境或冲突进入，不要机械用日期、年龄或时间标签开头。'
 
 function nonEmpty(value: unknown): string | undefined {
   return typeof value === 'string' ? value.trim() || undefined : undefined
 }
 
-function buildCurrentTimeInstruction(value: string | undefined): string {
+function buildCurrentTimeInstruction(value: string | undefined, supplemental?: string): string {
   const time = nonEmpty(value) ?? '当前时间'
   const scope = /日$/u.test(time)
     ? '本日'
@@ -36,7 +36,9 @@ function buildCurrentTimeInstruction(value: string | undefined): string {
       : /季|春|夏|秋|冬/u.test(time)
         ? '本季度'
         : '本年'
-  return `${time}，请合理模拟${scope}发生的事情。`
+  const instruction = `时间背景：${time}。请合理模拟${scope}发生的事情；时间只作为场景背景，正文首句从窗口内正在发生的行动、关系、环境或冲突进入，不以日期、年龄或时间标签作为固定开头。`
+  const extra = nonEmpty(supplemental)
+  return extra ? `${instruction}\n${extra}` : instruction
 }
 
 function buildPlayerActionInstruction(intent: Record<string, unknown> | undefined): string {
@@ -73,7 +75,7 @@ function buildNarrativeStyleInstruction(value: string | undefined): string {
   const normalized = style?.replace(/^【[^】]+】/u, '').trim()
   const usesLegacyDefault = !normalized
     || normalized.includes('根据世界事实、人生阶段和时间跨度选择合理剧情材料')
-  return `叙述风格：${usesLegacyDefault ? DEFAULT_NARRATIVE_STYLE : `${normalized}；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，不要机械用日期或年龄句开头。`}`
+  return `叙述风格：${usesLegacyDefault ? DEFAULT_NARRATIVE_STYLE : `${normalized}；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，首句从窗口内正在发生的行动、关系、环境或冲突进入，不要机械用日期、年龄或时间标签开头。`}`
 }
 
 function buildNarrativeAddressingInstruction(
@@ -128,7 +130,7 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
     天赋: context.talents ?? [],
   }
   const roundGuidance = [
-    buildCurrentTimeInstruction(context.currentTime),
+    buildCurrentTimeInstruction(context.currentTime, context.timeGuideText),
     buildPlayerActionInstruction(context.playerBranchIntent),
     `${buildAgeCapabilityInstruction(currentAge)} 故事保持合理挑战，合理接受玩家行动；若决策不合理、忽视风险或与故事逻辑相悖，则行动很可能失败，并引发可预见的负面连锁反应。剧情走向由决策的合理性决定。`,
     buildNarrativeAddressingInstruction(context.narrativeAddressing, rawCharacter.姓名),

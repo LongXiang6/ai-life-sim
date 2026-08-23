@@ -1,4 +1,8 @@
 /**
+ * Purpose: Own the runtime Remote API registry and request/response boundary.
+ * Owner: core:remote-interface
+ * Responsibility: Register, validate, and invoke one implementation per public MOD function.
+ *
  * @module remote-interface.ts
  * @description Remote Interface — 跨 MOD 请求/响应总线
  * @mod core
@@ -62,7 +66,12 @@ class RemoteInterface {
     if (!this.interfaces.has(modName)) {
       this.interfaces.set(modName, new Map())
     }
-    this.interfaces.get(modName)!.set(fnName, fn)
+    const iface = this.interfaces.get(modName)!
+    const existing = iface.get(fnName)
+    if (existing && existing !== fn) {
+      throw new Error(`远程接口 ${modName}.${fnName} 重复注册，拒绝覆盖已有实现`)
+    }
+    if (!existing) iface.set(fnName, fn)
   }
 
   /**

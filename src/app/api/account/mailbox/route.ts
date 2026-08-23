@@ -1,3 +1,9 @@
+/**
+ * Purpose: Expose authenticated mailbox reads and commands through the account API.
+ * Owner: app:api
+ * Responsibility: Request validation, trusted identity projection, and mailbox service dispatch only.
+ */
+
 import { assertSameOrigin, jsonNoStore } from '@/core/account/account-http'
 import { getServerRequestSource } from '@/core/logger/server-log-store'
 import {
@@ -7,6 +13,7 @@ import {
 import { playerContentErrorResponse } from '@/core/player-content/player-content-http'
 import {
   acceptPlayerMailboxTalent,
+  claimPlayerMailboxReward,
   deletePlayerMailboxMessage,
   markPlayerMailboxMessageRead,
   readPlayerMailboxPage,
@@ -54,6 +61,8 @@ export async function POST(request: Request): Promise<Response> {
         return jsonNoStore(deletePlayerMailboxMessage({ identity, ...input }))
       case 'accept-talent':
         return jsonNoStore(acceptPlayerMailboxTalent({ identity, ...input }))
+      case 'claim-reward':
+        return jsonNoStore(claimPlayerMailboxReward({ identity, ...input }))
     }
   } catch (error) {
     return playerContentErrorResponse(error)

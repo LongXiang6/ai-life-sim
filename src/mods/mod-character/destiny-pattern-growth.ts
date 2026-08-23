@@ -14,10 +14,11 @@ import type {
   DestinyPatternState,
   PendingDestinyPatternGrowth,
 } from './types'
+import { DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP } from './constants'
 
 /** 每个目标稀有度允许的属性净分配上限。 */
 export const DESTINY_PATTERN_ATTRIBUTE_CAPS: Readonly<Record<DestinyPatternRarity, number>> = {
-  common: 2,
+  common: DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP,
   fine: 4,
   rare: 6,
   epic: 8,

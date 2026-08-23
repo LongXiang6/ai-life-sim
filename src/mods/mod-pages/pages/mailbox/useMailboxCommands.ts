@@ -11,6 +11,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAccountClientStore } from '@/core/account/account-client-store'
 import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
 import {
+  PlayerContentApiError,
+  claimPlayerMailReward,
   acceptPlayerMailTalent,
   deletePlayerMail,
   fetchPlayerMailPage,
@@ -51,6 +53,7 @@ export function useMailboxCommands() {
   const [body, setBody] = useState('')
   const [talentId, setTalentId] = useState('')
   const [sending, setSending] = useState(false)
+  const [claimingRewardId, setClaimingRewardId] = useState<string | null>(null)
 
   const applyServerState = useCallback((page: PlayerMailPage) => {
     if (page.accountRevision !== null) {
@@ -176,6 +179,52 @@ export function useMailboxCommands() {
     }
   }
 
+  const claimReward = async (messageId: string) => {
+    if (claimingRewardId) return
+    setClaimingRewardId(messageId)
+    setError('')
+    setNotice('')
+    try {
+      const result = await claimPlayerMailReward(messageId)
+      if (result.accountRevision !== null) {
+        useAccountClientStore.getState().setRevision(result.accountRevision)
+      }
+      if (result.claimedReward) {
+        const currentTalents = useReincarnationLibraryStore.getState().talents
+        if (!currentTalents.some((talent) => talent.id === result.claimedReward!.id)) {
+          useReincarnationLibraryStore.getState().addReincarnationTalent(result.claimedReward)
+        }
+      }
+      setMessages((current) => current.map((message) => {
+        if (message.id !== messageId || !message.reward) return message
+        if (result.message) return result.message
+        return {
+          ...message,
+          readAt: message.readAt ?? Date.now(),
+          reward: {
+            ...message.reward,
+            claimStatus: 'claimed',
+            claimedAt: message.reward.claimedAt ?? Date.now(),
+          },
+        }
+      }))
+      setNotice(result.alreadyClaimed ? '这份礼包天赋已经领取过了' : '礼包天赋已收入天赋库')
+    } catch (reason) {
+      const failure = failureMessage(reason, '礼包天赋领取失败')
+      if (reason instanceof PlayerContentApiError && reason.status < 500) {
+        setError(failure)
+        return
+      }
+      const page = await reload('inbox')
+      const message = page?.messages.find((item) => item.id === messageId)
+      if (message?.reward?.claimStatus === 'claimed') setNotice('礼包天赋已经领取过了')
+      else if (page) setNotice('连接中断，收件箱已重新同步，请核对领取状态')
+      else setError(failure)
+    } finally {
+      setClaimingRewardId(null)
+    }
+  }
+
   const sendMail = async () => {
     if (!recipientValue.trim() || !title || !body || sending) return
     const requestId = crypto.randomUUID()
@@ -222,6 +271,8 @@ export function useMailboxCommands() {
   return {
     acceptTalent,
     body,
+    claimReward,
+    claimingRewardId,
     composeOpen,
     diagnosticCode,
     error,

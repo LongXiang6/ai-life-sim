@@ -92,6 +92,83 @@
       font-weight: 650;
     }
 
+.talentAttachment button:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+
+.talentAttachment.rewardAttachment {
+      border-color: var(--color-border-focus);
+      background: var(--color-bg-secondary);
+    }
+
+.rewardHeading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: calc(10 * var(--final-flow-density-px));
+    }
+
+.rewardStatus {
+      flex: 0 0 auto;
+      padding: calc(2.5 * var(--final-flow-density-px)) calc(6.667 * var(--final-flow-density-px));
+      border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+      border-radius: calc(10 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+      line-height: 1.2;
+    }
+
+.rewardStatus[data-status="available"] {
+      border-color: var(--color-border-focus);
+      color: var(--flow-ink);
+      font-weight: 700;
+    }
+
+.rewardStatus[data-status="claimed"] {
+      border-color: var(--color-success);
+      color: var(--color-success);
+    }
+
+.rewardStatus[data-status="expired"],
+.rewardStatus[data-status="not-eligible"] {
+      border-color: var(--color-error);
+      color: var(--color-error);
+    }
+
+.rewardTags,
+.rewardMeta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: calc(5 * var(--final-flow-density-px));
+    }
+
+.rewardTags {
+      margin-top: calc(6.667 * var(--final-flow-density-px));
+    }
+
+.rewardTags span {
+      padding: calc(2.5 * var(--final-flow-density-px)) calc(6.667 * var(--final-flow-density-px));
+      border-radius: calc(6.667 * var(--final-flow-density-px));
+      background: var(--flow-paper);
+      color: var(--flow-muted);
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
+
+.rewardAttributes {
+      font-weight: 650;
+    }
+
+.rewardMeta {
+      justify-content: space-between;
+      margin-top: calc(8.333 * var(--final-flow-density-px));
+      color: var(--flow-faint);
+    }
+
+.rewardMeta small {
+      font-size: calc(8.333 * var(--final-flow-density-px));
+    }
+
 .composer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -113,7 +113,7 @@ export const DOMAINS = {
       nodeStep('account-cloud', 10, 'scripts/check/domains/account/account-cloud-smoke.mjs', { critical: true, typescript: true }),
       nodeStep('player-content', 20, 'scripts/check/domains/account/player-content-smoke.mjs', { typescript: true }),
       nodeStep('player-mail-migration', 30, 'scripts/check/domains/account/player-mail-migration-smoke.mjs', { typescript: true }),
-      nodeStep('player-mail-ops', 50, 'scripts/check/domains/account/player-mail-ops-smoke.mjs', { typescript: true }),
+      nodeStep('player-mail-ops', 40, 'scripts/check/domains/account/player-mail-ops-smoke.mjs', { typescript: true }),
       nodeStep('operations-dashboard', 60, 'scripts/check/domains/account/operations-dashboard-smoke.mjs', { typescript: true }),
       nodeStep('data-viewer', 70, 'scripts/check/domains/account/data-viewer-smoke.mjs', { typescript: true }),
       nodeStep('character-draft-persistence', 80, 'scripts/check/domains/account/character-draft-persistence-smoke.mjs', { typescript: true }),

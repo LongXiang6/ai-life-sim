@@ -170,7 +170,7 @@ function AttributeAllocContent() {
               const value = attributes[attribute.key]
               const bonus = attributeBonuses[attribute.key]
               const effectiveValue = value + bonus
-              const tierPosition = Math.round(getAttrTierIndex(effectiveValue) / 10 * 14)
+              const tierPosition = Math.round(getAttrTierIndex(effectiveValue) / 20 * 14)
               return (
                 <li key={attribute.key} className={styles.attribute}>
                   <div className={styles.attributeName}>

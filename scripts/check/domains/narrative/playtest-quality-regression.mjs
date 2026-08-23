@@ -202,7 +202,7 @@ function loadPersistMigration(sourceText) {
 
 function loadTalentPoolHelpers(sourceText) {
   const sourceFile = ts.createSourceFile('talent-draw-page.tsx', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-  const helperNames = new Set(['patternNameKey', 'uniquePatternsByIdentity', 'drawSlotsFromPool'])
+  const helperNames = new Set(['uniquePatternsByIdentity', 'drawSlotsFromPool'])
   const declarations = []
   for (const statement of sourceFile.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name && helperNames.has(statement.name.text)) {
@@ -403,7 +403,7 @@ for (const [index, rarity] of promotionRarities.entries()) {
     name: `${rarity}-source`,
     description: '来源说明',
     effect: '来源效果',
-    category: 'exploration',
+    category: 'cognition',
     rarity,
     attrBonus: {},
     strengthenLevel: rarity === 'mythic' ? 3 : 0,
@@ -448,7 +448,7 @@ const invalidNonMythicReincarnation = {
   version: 1,
   name: '错误精良',
   description: '说明',
-  category: 'battle',
+  category: 'action',
   rarity: 'fine',
   effect: '效果',
   attrBonus: {},
@@ -473,7 +473,7 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
       name: '旧命格',
       description: '旧命格描述',
       effect: '旧命格效果',
-      category: 'exploration',
+      category: 'cognition',
       rarity: 'rare',
       polarity: 'positive',
       attrBonus: { mind: 1, resources: 4 },
@@ -670,29 +670,29 @@ const worldConfirmSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldC
 const gameOverPageSrc = readDirectorySource('src/mods/mod-pages/pages/game-over', root, ['.ts', '.tsx'])
 
 const talentPoolHelpers = loadTalentPoolHelpers(talentDrawPageSrc)
-const normalizedDuplicatePool = [
+const sameNamePool = [
   { id: 'a', name: '拖延症' },
   { id: 'b', name: ' 拖延症 ' },
   ...Array.from({ length: 3 }, (_, index) => ({ id: `unique-${index}`, name: `唯一命格${index}` })),
 ]
 assertSame(
-  talentPoolHelpers.uniquePatternsByIdentity(normalizedDuplicatePool).length,
-  4,
-  'display identity must collapse names that differ only by surrounding whitespace',
+  talentPoolHelpers.uniquePatternsByIdentity(sameNamePool).length,
+  5,
+  'display identity must retain same-name candidates when their IDs differ',
 )
 assertSame(
-  talentPoolHelpers.drawSlotsFromPool(normalizedDuplicatePool).filter(Boolean).length,
-  4,
-  'a raw five-item pool with one normalized duplicate must not pretend to fill six slots',
+  talentPoolHelpers.drawSlotsFromPool(sameNamePool).filter(Boolean).length,
+  5,
+  'a five-item pool with distinct IDs must expose all five candidates despite repeated names',
 )
 assertSame(
   talentPoolHelpers.uniquePatternsByIdentity([
-    ...normalizedDuplicatePool,
+    ...sameNamePool,
     { id: 'extra', name: '补足命格' },
     { id: 'extra-2', name: '再补命格' },
   ]).length,
-  6,
-  'readiness must become possible once six display-unique candidates exist',
+  7,
+  'adding two new IDs must retain all seven candidates regardless of display-name similarity',
 )
 
 assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
@@ -838,22 +838,22 @@ assertOk(
   'entry gates and proxy routing must require a complete player-owned API configuration',
 )
 
-assertOk(/DESTINY_PATTERN_DISPLAY_COUNT\s*=\s*16/.test(constantsSrc), 'destiny generation must publish sixteen ordinary first-batch candidates')
+assertOk(/DESTINY_PATTERN_DISPLAY_COUNT\s*=\s*20/.test(constantsSrc), 'destiny generation must publish twenty ordinary first-batch candidates')
 assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*4/.test(constantsSrc), 'each destiny request must target four candidates')
 assertOk(/DESTINY_PATTERN_CATEGORY_TARGET_COUNT\s*=\s*12/.test(constantsSrc), 'each destiny category must fill to twelve candidates')
-assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 16, 'destiny display count must expose four categories times four candidates')
+assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 20, 'destiny display count must expose five categories times four candidates')
 assertSame(DESTINY_PATTERN_CATEGORY_TARGET_COUNT, 12, 'destiny background target must be twelve per category')
-assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'battle,exploration,social,production', 'destiny category order must remain stable')
+assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'action,cognition,expression,stewardship,misc', 'destiny category order must remain stable')
 assertOk(
-  /AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS[\s\S]{0,260}\['battle'\][\s\S]{0,120}\['exploration'\][\s\S]{0,120}\['social'\][\s\S]{0,120}\['production'\]/.test(constantsSrc),
-  'destiny generation must keep four independent category tasks',
+  /AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS[\s\S]{0,260}\['action'\][\s\S]{0,120}\['cognition'\][\s\S]{0,120}\['expression'\][\s\S]{0,120}\['stewardship'\][\s\S]{0,120}\['misc'\]/.test(constantsSrc),
+  'destiny generation must keep five independent category tasks',
 )
 assertOk(!constantsSrc.includes('DESTINY_PATTERN_EARLY_READY_TIMEOUT_MS'), 'AI destiny readiness must not time out to presets')
 assertOk(
   /Promise\.allSettled\(/.test(destinyPoolServiceSrc)
     && /startBackgroundFill/.test(destinyPoolServiceSrc)
     && /fillCategory/.test(destinyPoolServiceSrc),
-  'destiny generation must run four independent initial calls and category-scoped background filling',
+  'destiny generation must run five independent initial calls and category-scoped background filling',
 )
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(
@@ -863,15 +863,25 @@ assertOk(
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.3\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.5\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 8.3.0',
+  'destiny prompt builder and cache version must share version 8.5.0',
 )
 assertOk(
-  destinyPromptSrc.includes('已经被占用的天赋名称')
-    && destinyPromptSrc.includes('新天赋不得与这些名称重复'),
-  'destiny system Prompt must explain existingNames as a no-duplicate constraint',
+  destinyPromptSrc.includes('全池已经被占用的天赋名称')
+    && destinyPromptSrc.includes('更换近义字后仍指向同一名称'),
+  'destiny system Prompt must explain existingNames as a normalized no-repeat constraint',
+)
+assertOk(
+  destinyPromptSrc.includes('existingPatterns')
+    && destinyPromptSrc.includes('触发条件、核心动作与实际结果')
+    && destinyPromptSrc.includes('不得用改名、同义表达、场景替换或限制条件换写同一能力')
+    && destinyPromptSrc.includes('必须持续重写同名、同义或换写候选')
+    && destinyPromptSrc.includes('不得因避免重复而少输出')
+    && destinyPoolServiceSrc.includes('existingPatterns: this.currentPatterns')
+    && !destinyPoolServiceSrc.includes('isSimilarDestinyPattern'),
+  'destiny supplements must provide same-category summaries and delegate semantic uniqueness to the Prompt',
 )
 assertOk(
   destinyPromptSrc.includes('二至六个汉字')
@@ -892,26 +902,37 @@ const makeDestinyPattern = (index, category) => ({
   效果: `持续提供清楚可用的影响${index}`,
   属性加成: { 心智: 1 },
 })
-assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '战斗')] }).success, 'destiny transport schema must stay permissive')
+assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '行动')] }).success, 'destiny transport schema must stay permissive')
 const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '探索', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，悟性+1，魅力-1' },
-  { 类别: '探索', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
-] }), 'exploration')
+  { 类别: '认知', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，悟性+1，魅力-1' },
+  { 类别: '认知', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
+] }), 'cognition')
 assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
 const partialResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '战斗', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
-  { 类别: '战斗', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
-] }), 'battle')
+  { 类别: '行动', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
+  { 类别: '行动', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
+] }), 'action')
 assertOk(partialResponse.length === 1 && partialResponse[0].name === '铁壁磐石', 'destiny parser must keep valid siblings when one item is unusable')
 const numberedResponse = parseDestinyPatternAIResponse(JSON.stringify({
-  第一条: { effect: '交流更稳。', attributes: '魅力+2，心智-1', title: '言简意明', type: 'social', detail: '能迅速说清重点。' },
+  第一条: { effect: '交流更稳。', attributes: '魅力+2，心智-1', title: '言简意明', type: 'expression', detail: '能迅速说清重点。' },
   第二条: { 属性加成: { 魅力: '1' }, 效果: '关系更易维持。', 名称: '守信重诺', 描述: '答应的事会认真完成。' },
-}), 'social')
+}), 'expression')
 assertOk(
   numberedResponse.length === 2
     && numberedResponse[0].name === '言简意明'
-    && numberedResponse[1].category === 'social',
+    && numberedResponse[1].category === 'expression',
   'destiny parser must recognize numbered object wrappers, aliases, missing assigned categories, and field disorder',
+)
+assertOk(
+  !destinyValidationSrc.includes('isSimilarDestinyPattern')
+    && !destinyValidationSrc.includes('isOrdinaryDestinyPatternText')
+    && !destinyPoolServiceSrc.includes('isSimilarDestinyPattern')
+    && !destinyPoolServiceSrc.includes('isOrdinaryDestinyPatternText')
+    && !destinySystemSrc.includes('isSimilarDestinyPattern')
+    && !destinySystemSrc.includes('isOrdinaryDestinyPatternText')
+    && !destinyPoolCacheSrc.includes('isOrdinaryDestinyPatternText')
+    && !characterMigrationSrc.includes('isOrdinaryDestinyPatternText'),
+  'destiny ingestion must not apply local semantic-similarity or high-tier text filters',
 )
 assertOk(
   /const category = validateDestinyPatternCategory\(item\.category\)[\s\S]{0,180}const name = item\.name/.test(destinySystemSrc)
@@ -1023,16 +1044,17 @@ assertOk(
 )
 assertOk(
   /existingNames:\s*this\.currentPatterns\.map/.test(destinyPoolServiceSrc)
+    && /existingPatterns:\s*this\.currentPatterns/.test(destinyPoolServiceSrc)
     && !/assignedCategory:\s*category/.test(destinyPoolServiceSrc)
     && /outputSchema:\s*undefined/.test(destinyPoolServiceSrc)
     && !/DestinyPatternAIGenerateOptions/.test(destinyPoolServiceSrc),
   'destiny category calls must build category-scoped prompts without strict schema validation or the retired generation contract',
 )
 assertOk(
-  /function destinyPatternNameKey[\s\S]{0,180}normalize\('NFKC'\)[\s\S]{0,120}toLocaleLowerCase\(\)/.test(destinyValidationSrc)
-    && /names\.has\(destinyPatternNameKey\(name\)\)/.test(destinyPoolServiceSrc)
+  /function dedupeDestinyPatterns[\s\S]{0,260}seenIds[\s\S]{0,180}seenIds\.has\(pattern\.id\)[\s\S]{0,180}seenIds\.add\(pattern\.id\)/.test(destinyValidationSrc)
+    && /this\.currentPatterns = dedupeDestinyPatterns/.test(destinyPoolServiceSrc)
     && /countCategory\(category\)/.test(destinyPoolServiceSrc),
-  'the AI authority must dedupe normalized names while tracking each category independently',
+  'the AI authority must dedupe only repeated IDs while tracking each category independently',
 )
 assertOk(
   /getPoolFillStatus\(\)\.phase === 'initial'[\s\S]{0,80}abortPoolFill\(\)/.test(talentDrawPageSrc),
@@ -1052,31 +1074,33 @@ assertOk(
 )
 assertOk(
   /type TalentDrawPhase = 'idle' \| 'generating' \| 'ready' \| 'selecting'/.test(talentDrawPageSrc),
-  'destiny draw must keep an explicit non-persisted handoff state after the four-category first batch is ready',
+  'destiny draw must keep an explicit non-persisted handoff state after the five-category first batch is ready',
 )
 assertOk(
   /const completeFullDraw = useCallback\(\(patterns: DestinyPattern\[\]\)/.test(talentDrawPageSrc)
     && /DESTINY_PATTERN_CATEGORY_ORDER\.every/.test(talentDrawPageSrc)
     && /setSlots\(revealSlotsInOrder\(visiblePatterns\)\)/.test(talentDrawPageSrc)
     && /completionTimerRef\.current = window\.setTimeout\([\s\S]{0,220}setPhase\('ready'\)/.test(talentDrawPageSrc),
-  'AI destiny readiness must require usable candidates from all four categories before the handoff opens',
+  'AI destiny readiness must require usable candidates from all five categories before the handoff opens',
 )
 assertOk(
   /phase === 'ready'[\s\S]{0,1600}进入命格选择/.test(talentDrawPageSrc),
   'the completed destiny handoff must expose an explicit enter-selection action',
 )
 assertOk(
-  /function uniquePatternsByIdentity[\s\S]{0,700}seenIds[\s\S]{0,300}seenNames[\s\S]{0,300}patternNameKey/.test(talentDrawPageSrc),
-  'the destiny draw must remove duplicate IDs and duplicate display names',
+  /function uniquePatternsByIdentity[\s\S]{0,500}seenIds[\s\S]{0,240}seenIds\.has\(pattern\.id\)[\s\S]{0,160}seenIds\.add\(pattern\.id\)/.test(talentDrawPageSrc)
+    && !talentDrawPageSrc.includes('seenNames')
+    && !talentDrawPageSrc.includes('patternNameKey'),
+  'the destiny draw must remove duplicate IDs without treating display names as identity',
 )
 assertOk(
   /const savedSlotsMatchMode[\s\S]{0,360}savedPatterns\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,260}uniquePatternsByIdentity\(savedPatterns\)\.length === savedPatterns\.length/.test(talentDrawPageSrc),
-  'persisted selecting slots must not restore a normalized duplicate set',
+  'persisted selecting slots must not restore a repeated-ID set',
 )
 assertOk(
   /const patterns = await destinySystem\.generateWithAI\(context\)[\s\S]{0,500}completeFullDraw\(complete\)/.test(talentDrawPageSrc)
     && /startBackgroundFill\(\)/.test(talentDrawPageSrc),
-  'the page must hand off the four-category first batch before starting background filling',
+  'the page must hand off the five-category first batch before starting background filling',
 )
 assertOk(
   /outputSchema\?: Parameters<typeof callAI>\[2\]\['outputSchema'\]/.test(talentDrawPageSrc)
@@ -1092,22 +1116,26 @@ assertOk(
   'DeepSeek reasoning must transmit an explicit enabled/disabled type and supported reasoning effort',
 )
 assertOk(
-  /const visibleNames = new Set\([\s\S]{0,700}visibleNames\.has\(patternNameKey\(pattern\)\)\) continue/.test(talentDrawPageSrc),
-  'destiny redraw must not reintroduce duplicate display names into the visible slots',
+  /const visibleIds = new Set\([\s\S]{0,700}visibleIds\.has\(pattern\.id\)\) continue[\s\S]{0,300}visibleIds\.add\(pattern\.id\)/.test(talentDrawPageSrc)
+    && !talentDrawPageSrc.includes('visibleNames')
+    && !talentDrawPageSrc.includes('patternNameKey'),
+  'destiny redraw must reject repeated IDs without filtering same-name candidates',
 )
 assertOk(
   /\.aura\s*\{[^}]*width:\s*calc\(220 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
-    && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
+    && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
     && /\.drawStageComplete \.aura\s*\{[^}]*top:\s*calc\(224 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
     && /\.drawStageComplete \.sealWrap\s*\{[^}]*opacity:\s*0/s.test(talentDrawCssSrc)
-    && /aria-label="四类首批命印"/.test(talentDrawPageSrc)
-    && /const TABS:[\s\S]{0,420}id: 'battle'[\s\S]{0,120}id: 'exploration'[\s\S]{0,120}id: 'social'[\s\S]{0,120}id: 'production'[\s\S]{0,120}id: 'mythic'/.test(talentDrawPageSrc)
+    && /aria-label="五类首批命印"/.test(talentDrawPageSrc)
+    && /DESTINY_PATTERN_CATEGORY_ORDER\.map/.test(talentDrawPageSrc)
+    && /DESTINY_PATTERN_CATEGORY_CONFIG\[id\]\.label/.test(talentDrawPageSrc)
+    && /\{ id: 'mythic', label: '轮回天赋' \}/.test(talentDrawPageSrc)
     && /resolvedLoadoutSlots\.map\(/.test(talentDrawPageSrc)
     && /selectedData\.length !== PATTERN_LOADOUT_SLOT_COUNT/.test(talentDrawPageSrc)
     && !/role="dialog"|TalentDrawMythicLibrary|useTalentDrawMythicLibrary/.test(talentDrawPageSrc)
     && !/TalentAstrolabe|astrolabe|fateNode/.test(talentDrawPageSrc)
     && !/progressTrack|progressFill/.test(talentDrawPageSrc),
-  'the completed destiny handoff must keep the selected aura, four-category seals, five tabs, and four shared slots',
+  'the completed destiny handoff must keep the selected aura, five-category seals, six tabs, and four shared slots',
 )
 
 assertOk(
@@ -1227,9 +1255,11 @@ assertOk(
 )
 assertOk(!promptContextRuntimeSrc.includes("split('。')[0]"), '01 power projection must preserve complete rank descriptions')
 assertOk(
-  promptContextRuntimeSrc.includes('if (!framework?.enabled) return undefined')
+  promptContextRuntimeSrc.includes('if (!framework) return undefined')
+    && promptContextRuntimeSrc.includes('未启用独立超常力量框架')
+    && promptContextRuntimeSrc.includes('能力、技术与特殊现象只能来自世界描述中已经成立的事实')
     && promptContextRuntimeSrc.includes('config.powerFramework as PowerFrameworkDefinition'),
-  'non-supernatural worlds must omit an irrelevant power framework from the 01 world message',
+  'non-supernatural worlds must project an explicit power boundary into the 01 world message',
 )
 assertOk(
   calendarContextSrc.includes('buildFestivalNarrativeHint')

@@ -50,7 +50,22 @@ try {
   const migrated = databaseModule.getPlayerContentDatabase()
   assert.equal(migrated.prepare(`
     SELECT value FROM player_content_meta WHERE key = 'schema_version'
-  `).get().value, '6')
+  `).get().value, '7')
+  assert.deepEqual(migrated.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name LIKE 'player_mail_reward_%'
+    ORDER BY name
+  `).all().map((row) => row.name), [
+    'player_mail_reward_campaigns',
+    'player_mail_reward_claims',
+    'player_mail_reward_targets',
+  ])
+  assert.equal(migrated.pragma('table_info(player_mail_reward_campaigns)')
+    .some((column) => column.name === 'target_signature'), true)
+  assert.equal(migrated.pragma('table_info(player_mail_reward_campaigns)')
+    .some((column) => column.name === 'title'), true)
+  assert.equal(migrated.pragma('table_info(player_mail_reward_campaigns)')
+    .some((column) => column.name === 'body'), true)
   const message = migrated.prepare(`
     SELECT audience, kind, sender_key, recipient_key, record_id, expires_at
     FROM player_mail_messages WHERE id = 'legacy-mail'
@@ -131,8 +146,8 @@ try {
   await source.backup(baseline)
   source.close()
 
-  assert.match(runMigration('apply'), /"after":"6"/)
-  assert.match(runMigration('verify'), /"version":"6"/)
+  assert.match(runMigration('apply'), /"after":"7"/)
+  assert.match(runMigration('verify'), /"version":"7"/)
 
   const migrated = new Database(deploymentDatabase)
   migrated.exec(`CREATE TABLE rollback_probe(value TEXT NOT NULL); INSERT INTO rollback_probe VALUES ('preserved');`)
@@ -150,7 +165,7 @@ try {
   restored.close()
 
   const archived = new Database(rollbackArchive, { readonly: true })
-  assert.equal(archived.prepare(`SELECT value FROM player_content_meta WHERE key = 'schema_version'`).get().value, '6')
+  assert.equal(archived.prepare(`SELECT value FROM player_content_meta WHERE key = 'schema_version'`).get().value, '7')
   assert.equal(archived.prepare(`SELECT value FROM rollback_probe`).get().value, 'preserved')
   archived.close()
   assert.match(

@@ -20,6 +20,8 @@ import {
   DESTINY_PATTERN_GROWTH_MINIMUM_AGE,
   getNextDestinyPatternRarity,
 } from '../destiny-pattern-growth'
+import { sanitizeDestinyPatternCategory } from './destiny-pattern-category-migration'
+import { normalizeCommonDestinyPatternCandidate } from '../subsystems/destiny-pattern-system/validation'
 
 const BASE_ATTRIBUTE_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 const ATTRIBUTE_BONUS_KEYS = [...BASE_ATTRIBUTE_KEYS, 'luck'] as const
@@ -93,7 +95,8 @@ export function sanitizeDestinyPattern(value: unknown): DestinyPattern | null {
   if (!isRecord(value)) return null
   if (typeof value.id !== 'string' || typeof value.name !== 'string') return null
   if (typeof value.description !== 'string' || typeof value.effect !== 'string') return null
-  if (!['battle', 'exploration', 'social', 'production'].includes(String(value.category))) return null
+  const category = sanitizeDestinyPatternCategory(value.category)
+  if (!category) return null
   if (!['common', 'fine', 'rare', 'epic', 'legendary'].includes(String(value.rarity))) return null
 
   const lineageId = typeof value.lineageId === 'string' && value.lineageId.trim()
@@ -110,7 +113,7 @@ export function sanitizeDestinyPattern(value: unknown): DestinyPattern | null {
     name: value.name,
     description: value.description,
     effect: value.effect,
-    category: value.category as DestinyPattern['category'],
+    category,
     rarity: value.rarity as DestinyPattern['rarity'],
     attrBonus: sanitizeAttrBonus(value.attrBonus),
   }
@@ -271,7 +274,11 @@ export function sanitizeDestinyPatternState(
 ): DestinyPatternState {
   const record = isRecord(value) ? value : {}
   const candidates = Array.isArray(record.candidates)
-    ? record.candidates.map(sanitizeDestinyPattern).filter((item): item is DestinyPattern => item !== null)
+    ? record.candidates
+      .map(sanitizeDestinyPattern)
+      .filter((item): item is DestinyPattern => item !== null)
+      .map(normalizeCommonDestinyPatternCandidate)
+      .filter((item): item is DestinyPattern => item !== null)
     : []
   const patterns = Array.isArray(record.patterns)
     ? record.patterns.map(sanitizeDestinyPattern).filter((item): item is DestinyPattern => item !== null)
@@ -289,7 +296,8 @@ export function sanitizeReincarnationTalent(value: unknown): ReincarnationTalent
   if (!isRecord(value)) return null
   if (typeof value.id !== 'string' || typeof value.lineageId !== 'string' || typeof value.name !== 'string') return null
   if (typeof value.description !== 'string' || typeof value.effect !== 'string') return null
-  if (!['battle', 'exploration', 'social', 'production'].includes(String(value.category))) return null
+  const category = sanitizeDestinyPatternCategory(value.category)
+  if (!category) return null
   if (!['common', 'fine', 'rare', 'epic', 'legendary', 'mythic'].includes(String(value.rarity))) return null
   if (!isRecord(value.source)
     || typeof value.source.worldName !== 'string'
@@ -302,7 +310,7 @@ export function sanitizeReincarnationTalent(value: unknown): ReincarnationTalent
       : 1,
     name: value.name,
     description: value.description,
-    category: value.category as ReincarnationTalent['category'],
+    category,
     rarity: value.rarity as ReincarnationTalent['rarity'],
     effect: value.effect,
     attrBonus: sanitizeAttrBonus(value.attrBonus),

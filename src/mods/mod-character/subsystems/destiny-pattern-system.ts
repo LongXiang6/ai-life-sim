@@ -50,7 +50,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
   readonly id = 'destiny-pattern' as const
   readonly mod = 'mod-character' as const
   readonly label = '命格' as const
-  readonly description = '管理四类命格候选与选中结果，支持四路首批生成和分类后台补充' as const
+  readonly description = '管理五类命格候选与选中结果，支持五路首批生成和分类后台补充' as const
 
   private idCounter = 0
 
@@ -139,7 +139,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
   // -------- 公共方法 --------
 
-  /** 内置模式：按与 AI 相同的四类首批配额生成普通候选。 */
+  /** 内置模式：按与 AI 相同的五类首批配额生成普通候选。 */
   generateFromPresets(count = DESTINY_PATTERN_DISPLAY_COUNT): DestinyPattern[] {
     const assignments = DESTINY_PATTERN_CATEGORY_ORDER.flatMap((category) => (
       Array.from({ length: Math.ceil(count / DESTINY_PATTERN_CATEGORY_ORDER.length) }, () => category)
@@ -180,15 +180,19 @@ export class DestinyPatternSystem extends BaseSubsystem {
       try {
         const category = validateDestinyPatternCategory(input.category)
         if (!category) continue
+        const name = input.name.trim()
+        const description = input.description.trim()
+        const effect = input.effects.trim()
+        if (!name || !description || !effect) continue
 
         const id = `ai_${this.idCounter++}`
         const pattern = withInitialDestinyPatternGrowthIdentity({
           id,
-          name: input.name,
-          description: input.description,
+          name,
+          description,
           category,
           rarity: 'common',
-          effect: input.effects,
+          effect,
           attrBonus: input.attrBonus
             ? validateDestinyPatternAttrBonus(input.attrBonus as Record<string, number>, 'common')
             : {},
@@ -204,7 +208,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     return result
   }
 
-  /** 当前四类首批或后台补充请求状态。 */
+  /** 当前五类首批或后台补充请求状态。 */
   getPoolFillStatus(): DestinyPatternPoolFillStatus {
     return this.aiPool.getPoolFillStatus()
   }
@@ -228,7 +232,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     this.aiPool.hydratePool(patterns)
   }
 
-  /** AI 四路并发生成首批分类命格候选。 */
+  /** AI 五路并发生成首批分类命格候选。 */
   async generateWithAI(
     contextInput: BuildDestinyPatternContextInput,
   ): Promise<DestinyPattern[]> {

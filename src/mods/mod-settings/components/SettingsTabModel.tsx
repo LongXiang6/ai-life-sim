@@ -55,10 +55,12 @@ function getAnchoredDropdownPosition(button: HTMLButtonElement, dropdownWidth: n
 export function SettingsTabModel() {
   const {
     aiTalentGeneration, reasoningEffort, talentThinkingIntensity,
-    temperature,
+    temperature, preGenerateRounds,
     setAiTalentGeneration, setReasoningEffort, setTalentThinkingIntensity,
-    setTemperature,
+    setTemperature, setPreGenerateRounds,
   } = useSettingsStore()
+
+  const preGenerationEnabled = preGenerateRounds === 1
 
   // Help tooltip state
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({})
@@ -143,18 +145,17 @@ export function SettingsTabModel() {
           </div>
           <div className={styles.sectionRow}>
             <div>
-              <div className={styles.controlTitle}>预生成下一轮（已停用）</div>
-              <p className={styles.descText}>核心模拟固定执行一次故事与两次并行后调用，不再额外请求下一轮正文。</p>
+              <div className={styles.controlTitle}>预生成下一轮</div>
+              <p className={styles.descText}>开启后，当前故事与两次并行后调用全部完成后，自动请求并缓存下一轮正文。</p>
             </div>
             <div className={styles.toggleLabel}>
-              <span className={styles.toggleStatus}>已停用</span>
+              <span className={styles.toggleStatus}>{preGenerationEnabled ? '已开启' : '已关闭'}</span>
               <button
                 type="button"
                 role="switch"
-                aria-checked={false}
-                aria-disabled={true}
-                disabled={true}
-                title="下一轮预生成已停用"
+                aria-checked={preGenerationEnabled}
+                onClick={() => setPreGenerateRounds(preGenerationEnabled ? 0 : 1)}
+                title={preGenerationEnabled ? '点击关闭下一轮预生成' : '点击开启下一轮预生成'}
                 className={styles.toggleTrack}
               >
                 <div className={styles.toggleThumb} />

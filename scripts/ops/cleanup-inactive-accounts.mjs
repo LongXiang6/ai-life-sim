@@ -198,7 +198,7 @@ try {
   let contentCleanup = { deletedContentAccounts: 0, deletedAssetFiles: 0, deletedOrphanAssetFiles: 0 }
   if (fs.existsSync(options.playerContentDatabase)) {
     playerContentDatabase = openDatabase(options.playerContentDatabase)
-    assertSchema(playerContentDatabase, 'player_content_meta', '6')
+    assertSchema(playerContentDatabase, 'player_content_meta', '7')
     Object.assign(contentCleanup, returnExpiredMail(playerContentDatabase, now))
     const liveAccountIds = new Set(accountDatabase.prepare('SELECT id FROM accounts').all().map((row) => row.id))
     const contentAccountIds = playerContentDatabase.prepare(`

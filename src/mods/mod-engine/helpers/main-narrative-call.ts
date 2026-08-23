@@ -20,7 +20,7 @@ import {
 } from './narrative-response-quality'
 import type { OrchestratorSystem } from '../subsystems/orchestrator-system'
 
-export type MainNarrativeExecutionKind = 'real'
+export type MainNarrativeExecutionKind = 'real' | 'preview'
 
 const MAIN_NARRATIVE_REASONING_EFFORT = 'disabled' as const
 

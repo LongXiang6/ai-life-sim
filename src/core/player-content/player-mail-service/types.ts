@@ -35,6 +35,14 @@ export interface StoredMailRow {
   talent_json: string | null
   accepted_at: number | null
   returned_at: number | null
+  reward_id: string | null
+  reward_talent_id: string | null
+  reward_talent_json: string | null
+  reward_eligibility_mode: 'login-window' | 'registered-account' | null
+  reward_starts_at: number | null
+  reward_ends_at: number | null
+  reward_claimed_at: number | null
+  reward_target_kind: 'account' | 'broadcast' | null
 }
 
 export interface StoredAttachmentRow {

@@ -102,6 +102,23 @@ export function selectRemoteApiExports(
   )
 }
 
+/** 合并公开入口；同一函数的纯重导出可复用，任何不同实现都必须显式失败。 */
+export function mergeRemoteApiExports(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+  sourceLabel: string,
+): void {
+  for (const [name, value] of Object.entries(source)) {
+    if (!Object.prototype.hasOwnProperty.call(target, name)) {
+      target[name] = value
+      continue
+    }
+    if (target[name] !== value) {
+      throw new Error(`MOD Remote API 重复导出：${name} 已存在，来源 ${sourceLabel} 提供了不同实现`)
+    }
+  }
+}
+
 /**
  * 批量注册 Remote API（index.ts + 启用的 secondaryPublicEntries，与 lifecycle 加载分离）
  */
@@ -117,8 +134,8 @@ async function registerModRemoteApis(order: string[]): Promise<void> {
 
     const secondaryImporters = MOD_SECONDARY_API_IMPORTERS[name]
     if (secondaryImporters) {
-      for (const importSecondary of secondaryImporters) {
-        Object.assign(merged, await importSecondary())
+      for (const [index, importSecondary] of secondaryImporters.entries()) {
+        mergeRemoteApiExports(merged, await importSecondary(), `${name} secondary[${index}]`)
       }
     }
 

@@ -1,5 +1,5 @@
 /**
- * Purpose: Run the four-category destiny draw and start silent background filling after handoff.
+ * Purpose: Run the five-category destiny draw and start silent background filling after handoff.
  * Owner: mod-pages/talent-draw
  * Responsibility: Generation command lifecycle only; parsing and pool ownership remain in mod-character.
  */
@@ -90,7 +90,7 @@ export function useTalentDrawGeneration({
       fullPoolRef.current = complete
       useCharacterStore.getState().setDestinyPatterns({ candidates: complete })
       setLocalPoolSize(complete.length)
-      if (!completeFullDraw(complete)) throw new Error('命格首批候选未形成完整四类候选集')
+      if (!completeFullDraw(complete)) throw new Error('命格首批候选未形成完整五类候选集')
     } catch (error) {
       if (abortRef.current) return
       setErrorMsg(isAiCredentialError(error)
@@ -136,7 +136,7 @@ export function useTalentDrawGeneration({
         return next
       })
     }).catch(() => {
-      /* Background fill is optional after the four-category handoff is ready. */
+      /* Background fill is optional after the five-category handoff is ready. */
     })
   }, [abortRef, fullPoolRef, setLocalPoolSize, setSlots])
 

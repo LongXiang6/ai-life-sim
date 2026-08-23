@@ -18,6 +18,8 @@ export default function MailboxPage() {
   const {
     acceptTalent,
     body,
+    claimReward,
+    claimingRewardId,
     composeOpen,
     diagnosticCode,
     error,
@@ -107,6 +109,8 @@ export default function MailboxPage() {
                     folder={folder}
                     messages={messages}
                     onAcceptTalent={(messageId) => void acceptTalent(messageId)}
+                    onClaimReward={(messageId) => void claimReward(messageId)}
+                    claimingRewardId={claimingRewardId}
                     onDeleteMessage={(messageId) => void removeMessage(messageId)}
                     onToggleMessage={(message) => void toggleMessage(message)}
                   />

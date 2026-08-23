@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  DESTINY_PATTERN_CATEGORY_INITIAL_COUNT,
   DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_DISPLAY_COUNT,
   useCharacterStore,
@@ -98,7 +99,10 @@ export function useTalentDrawReveal({
   const completeFullDraw = useCallback((patterns: DestinyPattern[]): boolean => {
     const visiblePatterns = uniquePatternsByIdentity(patterns)
     if (
-      !DESTINY_PATTERN_CATEGORY_ORDER.every((category) => visiblePatterns.some((pattern) => pattern.category === category))
+      !DESTINY_PATTERN_CATEGORY_ORDER.every((category) => (
+        visiblePatterns.filter((pattern) => pattern.category === category).length
+          >= DESTINY_PATTERN_CATEGORY_INITIAL_COUNT
+      ))
       || abortRef.current
       || completionScheduledRef.current
     ) return false

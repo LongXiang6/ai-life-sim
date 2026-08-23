@@ -148,13 +148,13 @@ function TalentDrawContent() {
   const footerCopy = selection.isConfirming
     ? '正在进入属性分配'
     : phase === 'idle'
-      ? '四类命印 · 准备就绪'
+      ? '五类命印 · 准备就绪'
       : busyDrawing
         ? latestStreamPattern
           ? `已完成 ${visibleRevealCount} / ${DESTINY_PATTERN_DISPLAY_COUNT} · ${latestStreamPattern.name}`
           : `已完成 ${visibleRevealCount} / ${DESTINY_PATTERN_DISPLAY_COUNT} · 正在连接命盘`
         : phase === 'ready'
-          ? '四类首批命印已归位'
+          ? '五类首批命印已归位'
           : selection.selectedData.length === PATTERN_LOADOUT_SLOT_COUNT
             ? '四个携带槽已确认 · 进入属性分配'
             : `还需选择 ${PATTERN_LOADOUT_SLOT_COUNT - selection.selectedData.length} 项命格`
@@ -188,7 +188,7 @@ function TalentDrawContent() {
                     </h1>
                     <p>{phase === 'selecting'
                       ? '在五类页签中填满四个携带槽，普通命格与轮回天赋可自由组合。'
-                      : '四类命印，静待天命。'}</p>
+                      : '五类命印，静待天命。'}</p>
                   </div>
                 </header>
                 {phase !== 'selecting' ? (

@@ -137,10 +137,10 @@ assertOk(
 )
 
 const growthPatterns = [
-  ['lineage-battle', '战斗命格', 'battle', 'epic'],
-  ['lineage-exploration', '探索命格', 'exploration', 'common'],
-  ['lineage-social', '社交命格', 'social', 'common'],
-  ['lineage-production', '生产命格', 'production', 'common'],
+  ['lineage-action', '行动命格', 'action', 'epic'],
+  ['lineage-cognition', '认知命格', 'cognition', 'common'],
+  ['lineage-expression', '表达命格', 'expression', 'common'],
+  ['lineage-stewardship', '经营命格', 'stewardship', 'common'],
 ].map(([lineageId, name, category, rarity], index) => ({
   lineageId,
   version: index + 1,

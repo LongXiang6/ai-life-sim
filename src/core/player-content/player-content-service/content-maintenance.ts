@@ -16,6 +16,7 @@ export function deletePlayerContentForAccount(accountId: string): void {
     database.prepare('DELETE FROM leaderboard_best_runs WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM portrait_mail_jobs WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM portrait_assets WHERE account_id = ?').run(accountId)
+    database.prepare('DELETE FROM player_mail_reward_claims WHERE account_id = ?').run(accountId)
     database.prepare(
       'DELETE FROM legendary_run_decisions WHERE source_account_id = ? OR target_key = ?',
     ).run(accountId, `account:${accountId}`)

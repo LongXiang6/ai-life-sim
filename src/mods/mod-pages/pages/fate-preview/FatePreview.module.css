@@ -215,6 +215,12 @@
       border-top: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
     }
 
+.rarityRow {
+  border-inline-start: calc(2 * var(--final-flow-density-px)) solid var(--rarity-color);
+  padding-inline-start: calc(7 * var(--final-flow-density-px));
+  background: color-mix(in srgb, var(--rarity-color) 6%, transparent);
+}
+
 .patternRow:first-child { padding-top: 0; border-top: 0; }
 
 .patternHeading {
@@ -233,6 +239,10 @@
       white-space: nowrap;
     }
 
+.rarityRow .patternHeading strong {
+  color: var(--rarity-color);
+}
+
 .patternHeading small {
       overflow: hidden;
       color: var(--flow-faint);
@@ -240,6 +250,10 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+.rarityRow .patternHeading small {
+  color: color-mix(in srgb, var(--rarity-color) 72%, var(--flow-ink));
+}
 
 .patternRow > span {
       color: var(--flow-muted);
@@ -252,12 +266,6 @@
   color: var(--flow-faint);
   font-size: calc(0.375 * var(--final-flow-density-rem));
 }
-
-.mythicEmpty {
-      margin: calc(6.667 * var(--final-flow-density-px)) 0 0;
-      color: var(--flow-faint);
-      font-size: calc(8.333 * var(--final-flow-density-px));
-    }
 
 .talentPills {
   display: flex;
@@ -274,15 +282,15 @@
   align-items: baseline;
   gap: calc(0.25 * var(--final-flow-density-rem));
   padding: calc(0.25 * var(--final-flow-density-rem)) calc(0.4375 * var(--final-flow-density-rem));
-  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
+  border: calc(1 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--rarity-color) 52%, var(--flow-line-strong));
   border-radius: calc(999 * var(--final-flow-density-px));
-  background: var(--color-bg-secondary);
-  color: var(--flow-muted);
+  background: color-mix(in srgb, var(--rarity-color) 8%, var(--flow-paper));
+  color: color-mix(in srgb, var(--rarity-color) 78%, var(--flow-ink));
   font-size: calc(0.375 * var(--final-flow-density-rem));
 }
 
 .talentPill small {
-  color: var(--flow-faint);
+  color: color-mix(in srgb, var(--rarity-color) 66%, var(--flow-muted));
   font-size: calc(0.3125 * var(--final-flow-density-rem));
 }
 
@@ -422,7 +430,7 @@
 
 .patternRow:last-child { padding-bottom: 0; }
 
-.patternRow.isRebirth .patternHeading strong { color: var(--flow-muted); }
+.patternRow.isRebirth .patternHeading strong { color: var(--rarity-color); }
 
 .seedInput::placeholder { color: var(--flow-faint); }
 

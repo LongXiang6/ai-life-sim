@@ -65,8 +65,12 @@ assertOk(
     && mainNarrativeCall.includes("name: 'submit_story_turn'")
     && mainNarrativeCall.includes('toolChoice')
     && mainNarrativeCall.includes('responseToolName')
-    && preGeneration.length === 0,
-  '正式回合不得存在下一轮预生成旁路调用',
+    && mainNarrativeCall.includes("'real' | 'preview'")
+    && preGeneration.includes('createNarrativeProjection()')
+    && preGeneration.includes("executeMainNarrativeRequest(request, 'preview'")
+    && preGeneration.includes('candidate.fingerprint !== request.fingerprint')
+    && !preGeneration.includes('executeRoundV2('),
+  '01 必须由正式回合或隔离的下一轮正文预生成复用同一请求契约，且不得恢复整轮预览旁路',
 )
 assertOk(
   !mainNarrativeCall.includes('strict: true')
@@ -134,7 +138,8 @@ assertOk(
     && campaign.includes("ctx._talentInput.eligiblePatterns.length === 0")
     && campaign.includes('getRoundContextSnapshot')
     && campaign.includes('totalDays: roundContext.totalDays')
-    && /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign),
+    && /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign)
+    && /name: 'finalize-round'[\s\S]{0,260}dependsOn: \['commit-round'\][\s\S]{0,500}startNarrativePreGeneration\(/u.test(campaign),
   '正文发布后必须并行执行 02/03，并由 commit-round 唯一汇合',
 )
 assertOk(

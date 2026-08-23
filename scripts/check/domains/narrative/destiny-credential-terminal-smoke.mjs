@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Purpose: Verify four-way destiny credential failures remain terminal without retries.
+ * Purpose: Verify five-way destiny credential failures remain terminal without retries.
  * Owner: quality:narrative
  * Responsibility: Regression assertions only; it never changes runtime state.
  */
@@ -48,7 +48,7 @@ await assert.rejects(
   'credential failure must leave the single generation request as a terminal error',
 )
 
-assert.equal(requestCount, 4, 'credential failure must finish the four independent initial category requests without retries')
+assert.equal(requestCount, 5, 'credential failure must finish the five independent initial category requests without retries')
 assert.equal(system.getPoolFillStatus().inProgress, false, 'terminal credential failure must clear the pool-fill lifecycle')
 
 const context = {
@@ -59,11 +59,17 @@ const context = {
   existingNames: [],
 }
 const categoryLabels = {
-  battle: '战斗',
-  exploration: '探索',
-  social: '社交',
-  production: '生产',
+  action: '行动',
+  cognition: '认知',
+  expression: '表达',
+  stewardship: '经营',
+  misc: '杂类',
 }
+const variationWords = [
+  '急停转身', '狭窄穿行', '长途负重', '水面平衡',
+  '细节捕捉', '信息归档', '故障排查', '数量估算',
+  '声调控制', '即兴逗趣', '预算拆分', '物品归类',
+]
 const generationSystem = new DestinyPatternSystem()
 const categoryCallCounts = new Map(DESTINY_PATTERN_CATEGORY_ORDER.map((category) => [category, 0]))
 let generationRequestCount = 0
@@ -83,26 +89,40 @@ generationSystem.setAIService(async (systemPrompt, userPrompt, options) => {
     !Object.hasOwn(userPayload, '生成方向') && !Object.hasOwn(userPayload, 'generationDirection'),
     'user prompt must not duplicate the system-owned category field',
   )
+  if (callIndex > 1) {
+    assert.ok(Array.isArray(userPayload.existingPatterns), 'supplement calls must receive same-category candidate summaries')
+    assert.ok(
+      userPayload.existingPatterns.every((pattern) => (
+        typeof pattern.name === 'string'
+        && typeof pattern.description === 'string'
+        && typeof pattern.effect === 'string'
+        && !Object.hasOwn(pattern, 'id')
+        && !Object.hasOwn(pattern, 'lineageId')
+      )),
+      'candidate summaries must omit internal identity fields',
+    )
+  }
+  const variationOffset = (callIndex - 1) * 4
   return JSON.stringify({
     命格: Array.from({ length: 4 }, (_, itemIndex) => ({
       类别: label,
-      名称: `${label}命格${callIndex}-${itemIndex + 1}`,
-      设定描述: `${label}方向的普通命格设定${callIndex}-${itemIndex + 1}。`,
-      效果: `${label}方向的长期叙事作用${callIndex}-${itemIndex + 1}。`,
+      名称: `${label}${variationWords[variationOffset + itemIndex]}倾向`,
+      设定描述: `${label}在${variationWords[variationOffset + itemIndex]}方面保有普通熟练倾向。`,
+      效果: `处理${variationWords[variationOffset + itemIndex]}时更容易保持稳定表现，适合日常情境。`,
       属性加成: itemIndex === 0 ? '心智+1，悟性+1，魅力-1' : { 体魄: 1 },
     })),
   })
 })
 
 const initialPatterns = await generationSystem.generateWithAI(context)
-assert.equal(generationRequestCount, 4, 'fresh initial generation must make exactly four category calls')
-assert.equal(initialPatterns.length, 16, 'fresh initial generation must publish four candidates per category')
-assert.equal(generationSystem.getPoolFillStatus().initialReady, true, 'all four initial categories must publish the selection handoff')
+assert.equal(generationRequestCount, 5, 'fresh initial generation must make exactly five category calls')
+assert.equal(initialPatterns.length, 20, 'fresh initial generation must publish four candidates per category')
+assert.equal(generationSystem.getPoolFillStatus().initialReady, true, 'all five initial categories must publish the selection handoff')
 assert.equal(initialPatterns[0]?.attrBonus.mind, 1, 'string attribute bonuses must remain usable in the live generation path')
 
 const fullPool = await generationSystem.startBackgroundFill(context, initialPatterns)
-assert.equal(generationRequestCount, 12, 'fresh full pool must use four initial calls plus eight background calls')
-assert.equal(fullPool.length, 48, 'background filling must finish with twelve candidates in each of four categories')
+assert.equal(generationRequestCount, 15, 'fresh full pool must use five initial calls plus ten background calls')
+assert.equal(fullPool.length, 60, 'background filling must finish with twelve candidates in each of five categories')
 for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
   assert.equal(categoryCallCounts.get(category), 3, `${category} must use one initial and two background calls`)
   assert.equal(
@@ -115,7 +135,105 @@ assert.equal(generationSystem.getPoolFillStatus().inProgress, false, 'completed 
 
 const restoredSystem = new DestinyPatternSystem()
 restoredSystem.hydratePool(initialPatterns)
-assert.equal(restoredSystem.getPoolFillStatus().initialReady, true, 'cached four-category candidates must restore the selection handoff')
-assert.equal(restoredSystem.getCandidates().length, 16, 'cached hydration must restore the candidate pool without a second source')
+assert.equal(restoredSystem.getPoolFillStatus().initialReady, true, 'cached five-category candidates must restore the selection handoff')
+assert.equal(restoredSystem.getCandidates().length, 20, 'cached hydration must restore the candidate pool without a second source')
+
+const sameContentSystem = new DestinyPatternSystem()
+let sameContentRequestCount = 0
+sameContentSystem.setAIService(async (_systemPrompt, _userPrompt, options) => {
+  sameContentRequestCount += 1
+  const callKind = options?.logContext?.callKind ?? ''
+  const category = DESTINY_PATTERN_CATEGORY_ORDER.find((candidate) => callKind.includes(`-${candidate}-`))
+  assert.ok(category, 'same-content fixture must resolve its assigned category')
+  const label = categoryLabels[category]
+  return JSON.stringify({
+    命格: Array.from({ length: 4 }, () => ({
+      类别: label,
+      名称: `${label}同名倾向`,
+      设定描述: `${label}方向完全相同的候选内容。`,
+      效果: `${label}方向完全相同的候选效果。`,
+      属性加成: { 体魄: 1 },
+    })),
+  })
+})
+const sameContentPatterns = await sameContentSystem.generateWithAI(context)
+assert.equal(sameContentRequestCount, 5, 'same-content candidates must not trigger retries')
+assert.equal(sameContentPatterns.length, 20, 'same-name and same-meaning candidates must not be discarded locally')
+assert.equal(sameContentSystem.getPoolFillStatus().initialReady, true, 'four structurally valid candidates per category must hand off')
+
+const overflowSystem = new DestinyPatternSystem()
+overflowSystem.setAIService(async (_systemPrompt, _userPrompt, options) => {
+  const callKind = options?.logContext?.callKind ?? ''
+  const category = DESTINY_PATTERN_CATEGORY_ORDER.find((candidate) => callKind.includes(`-${candidate}-`))
+  assert.ok(category, 'overflow fixture must resolve its assigned category')
+  const label = categoryLabels[category]
+  return JSON.stringify({
+    命格: Array.from({ length: 5 }, (_, index) => ({
+      类别: label,
+      名称: `${label}额外候选${index + 1}`,
+      设定描述: `${label}方向的第${index + 1}条额外候选。`,
+      效果: `${label}方向的第${index + 1}条额外效果。`,
+      属性加成: {},
+    })),
+  })
+})
+const overflowPatterns = await overflowSystem.generateWithAI(context)
+assert.equal(overflowPatterns.length, 25, 'initial responses above four items must not be truncated locally')
+
+const injectedSystem = new DestinyPatternSystem()
+const injected = injectedSystem.generateFromAI([
+  {
+    category: 'action',
+    name: '手眼协调',
+    description: '处理细小物件时动作较稳。',
+    effects: '日常操作中较少出现明显失误。',
+  },
+  {
+    category: 'action',
+    name: '手眼协调',
+    description: '处理细小物件时动作较稳。',
+    effects: '日常操作中较少出现明显失误。',
+  },
+])
+assert.equal(injected.length, 2, 'public AI injection must retain same-name and same-meaning candidates with distinct IDs')
+
+const pollutedHydrationSystem = new DestinyPatternSystem()
+pollutedHydrationSystem.hydratePool([
+  ...initialPatterns,
+  {
+    ...initialPatterns[0],
+    id: 'ai-high-tier-wording',
+    name: '长生不老',
+    description: '身体不会衰老。',
+    effect: '获得长生不老效果。',
+  },
+  {
+    ...initialPatterns[0],
+    id: 'ai-polluted-attributes',
+    name: '过量加成',
+    description: '日常处理事情时略有优势。',
+    effect: '普通事务中表现更稳定。',
+    attrBonus: { mind: 3 },
+  },
+  {
+    ...initialPatterns[1],
+    name: '重复身份但不同内容',
+  },
+])
+assert.equal(
+  pollutedHydrationSystem.getCandidates().some((pattern) => pattern.name === '长生不老'),
+  true,
+  'cache hydration must not judge or discard candidate wording',
+)
+assert.equal(
+  pollutedHydrationSystem.getCandidates().some((pattern) => pattern.name === '过量加成'),
+  false,
+  'cache hydration must reject common candidates outside the ordinary attribute budget',
+)
+assert.equal(
+  pollutedHydrationSystem.getCandidates().filter((pattern) => pattern.id === initialPatterns[1].id).length,
+  1,
+  'cache hydration must retain only one candidate for a duplicate persistent ID',
+)
 
 console.log(`[destiny-credential-terminal] PASS credentialRequests=${requestCount} generationRequests=${generationRequestCount} initial=${initialPatterns.length} final=${fullPool.length}`)

@@ -16,7 +16,10 @@ import {
   queryHistoricalEventEvidence,
   rejectHistoricalEventCandidate,
 } from '../../../../src/mods/mod-history-dynamics/historical-event-api.ts'
-import { migrateHistoryDynamicsState } from '../../../../src/mods/mod-history-dynamics/store.ts'
+import {
+  migrateHistoryDynamicsState,
+  useHistoryDynamicsStore,
+} from '../../../../src/mods/mod-history-dynamics/store.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
 
 let failed = 0
@@ -468,6 +471,63 @@ assertOk(
   migrated.migrationMetadata[0]?.legacyPayload.unknownLegacyField.complete === true,
   'legacy migration metadata must retain the complete original payload',
 )
+
+// 预生成历史投影必须只读本地深拷贝，不能水合、替换或追加正式账本 Store。
+const formalLedgerStateBeforeProjection = useHistoryDynamicsStore.getState()
+const formalLedgerRefs = {
+  events: formalLedgerStateBeforeProjection.events,
+  transitions: formalLedgerStateBeforeProjection.transitions,
+  evidence: formalLedgerStateBeforeProjection.evidence,
+  causalEdges: formalLedgerStateBeforeProjection.causalEdges,
+  candidateAudits: formalLedgerStateBeforeProjection.candidateAudits,
+  migrationMetadata: formalLedgerStateBeforeProjection.migrationMetadata,
+}
+const formalLedgerJsonBeforeProjection = JSON.stringify(ledger.capturePersistenceState())
+const projection = ledger.createReadOnlyProjection()
+const assertFormalLedgerUnchanged = (label) => {
+  const state = useHistoryDynamicsStore.getState()
+  assertOk(
+    state.events === formalLedgerRefs.events
+      && state.transitions === formalLedgerRefs.transitions
+      && state.evidence === formalLedgerRefs.evidence
+      && state.causalEdges === formalLedgerRefs.causalEdges
+      && state.candidateAudits === formalLedgerRefs.candidateAudits
+      && state.migrationMetadata === formalLedgerRefs.migrationMetadata,
+    `${label} must preserve formal ledger array references`,
+  )
+  assertOk(
+    JSON.stringify(ledger.capturePersistenceState()) === formalLedgerJsonBeforeProjection,
+    `${label} must preserve formal ledger contents`,
+  )
+}
+
+assertFormalLedgerUnchanged('creating the read-only ledger projection')
+projection.collectState(round)
+projection.queryCandidates({ latestOnly: false })
+projection.queryEvents?.()
+projection.getDueCandidates(round)
+assertFormalLedgerUnchanged('querying the read-only ledger projection')
+projection.reset()
+assertFormalLedgerUnchanged('resetting the read-only ledger projection')
+
+let projectionWriteRejected = false
+try {
+  projection.commitBatch({
+    source: { kind: 'system', sourceId: 'projection-write-guard' },
+    events: [{
+      eventId: 'event:projection-write-guard',
+      eventType: 'projection-write-guard',
+      title: '投影写入守卫',
+      description: '投影不得向正式账本追加事实。',
+      scope: { kind: 'context', contextIds: [contextA] },
+      status: 'occurred',
+    }],
+  }, round)
+} catch {
+  projectionWriteRejected = true
+}
+assertOk(projectionWriteRejected, 'read-only ledger projection must reject writes')
+assertFormalLedgerUnchanged('attempting a write through the read-only ledger projection')
 
 if (failed > 0) {
   console.error(`historical-event-p1-smoke failed: ${failed}`)

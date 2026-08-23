@@ -464,9 +464,9 @@
 
 .selectedMark { display: none; }
 
-.worldCardWithCache {
-  padding-right: calc(30 * var(--final-flow-density-px));
-}
+/* The cache control is an overlay; keep the card's inner geometry identical with or without it. */
+.worldCardWithCache { padding-right: calc(3.333 * var(--final-flow-density-px)); }
+.moreWorldCard.moreWorldCardWithCache { padding-right: calc(10 * var(--final-flow-density-px)); }
 
 .cacheButton,
 .inlineCacheButton {
@@ -490,10 +490,6 @@
 .cacheButton {
   top: calc(3 * var(--final-flow-density-px));
   right: calc(3 * var(--final-flow-density-px));
-}
-
-.moreWorldCardWithCache {
-  padding-right: calc(36 * var(--final-flow-density-px));
 }
 
 .inlineCacheButton {

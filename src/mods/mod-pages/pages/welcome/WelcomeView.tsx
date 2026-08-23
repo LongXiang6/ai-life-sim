@@ -74,11 +74,7 @@ export default function WelcomeView({
 
       <section className={styles.intro} aria-labelledby="welcome-title">
         <p className={styles.brand}>✦ 人生序章</p>
-        <h1 id="welcome-title" className={styles.title}>
-          命书已翻至首页，
-          <br />
-          故事由你落笔。
-        </h1>
+        <h1 id="welcome-title" className={styles.title}>🎮 人生模拟器 ✨</h1>
         <p className={styles.subtitle}>✦ 选择世界与角色。</p>
       </section>
 

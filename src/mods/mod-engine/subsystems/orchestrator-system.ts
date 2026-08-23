@@ -32,6 +32,7 @@ import {
   sanitizeSubSystemState,
   isMvpRuntimeSubsystem,
   resolveTimeStep,
+  extractBridgeSnapshot,
   shouldAlignTimeStepTransition,
   mapSubsystemStatesToDetectionStates,
   RoundCommitBus,
@@ -66,6 +67,7 @@ import {
   type NarrativeStoryContinuityTransactionSnapshot,
   type CharacterCreation,
   type TimeStep,
+  type BridgeSnapshot,
   type ParsedNarrative,
   createNarrativeLifeRunId,
   isNarrativeRepetitionMetric,
@@ -106,6 +108,7 @@ import type {
   LuckNarrativeGuidance,
 } from '@/foundation'
 import { createSubsystemAdvanceExecutionNodes } from '../helpers/subsystem-execution-flow'
+import { invalidateNarrativePreGeneration } from '../helpers/narrative-pre-generation'
 import {
   RoundDiagnosticController,
   CampaignStageRuntime,
@@ -175,6 +178,9 @@ export interface OrchestratorPersistenceState {
   state: EngineState
   lastSubsystemStates: Record<string, SubSystemState>
   eventLifecycle: EventLifecycleTracker
+  /** 大步进时间桥接摘要的起始年份与前一轮关键状态快照。 */
+  prevRoundYear?: number
+  prevBridgeSnapshot?: BridgeSnapshot
   /** 本次叙事开始前的时间节点；用于给 Prompt 提供真实的起止窗口。 */
   previousNarrativeRound?: RoundInfo
   timeRound: RoundInfo
@@ -198,8 +204,30 @@ type RuntimeManagedSubsystem = ISubSystem & {
   restoreCollectedState?: (snapshot: unknown) => void
   capturePersistenceState?: () => unknown
   restorePersistenceState?: (snapshot: unknown) => void
+  createReadOnlyProjection?: () => ISubSystem
   importLegacyCollectedStates?: (states: Record<string, SubSystemState>) => boolean
   onHistoricalEventsCommitted?: (eventIds: string[], context: RoundContext) => void
+}
+
+function createSnapshotProjectionSubsystem(
+  subsystem: ISubSystem,
+  snapshot: SubSystemState,
+): ISubSystem & {
+  collectStateUpdate: () => null
+  collectStateFinalFix: () => null
+} {
+  const frozenSnapshot = structuredClone(snapshot)
+  return {
+    id: subsystem.id,
+    mod: subsystem.mod,
+    label: subsystem.label,
+    description: subsystem.description,
+    collectState: () => structuredClone(frozenSnapshot),
+    collectStateUpdate: () => null,
+    collectStateFinalFix: () => null,
+    applyChanges: () => { throw new Error(`预生成投影不接受 ${subsystem.id} 写入`) },
+    reset: () => undefined,
+  }
 }
 
 type LuckNarrativeRuntime = ISubSystem & {
@@ -342,6 +370,10 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 已加载 MOD 清单；组装 Prompt 时再按实际运行绑定过滤规则。 */
   private modManifests: ModManifest[] = []
 
+  /** 大步进时间桥接：推进前记录起始年份与关键状态，供本轮 Prompt 投影。 */
+  private prevRoundYear = 0
+  private prevBridgeSnapshot: BridgeSnapshot = {}
+
   /** 本次叙事开始前的权威时间节点（不随步长切换额外跳转）。 */
   private previousNarrativeRound: RoundInfo = {
     year: 0,
@@ -483,29 +515,24 @@ export class OrchestratorSystem extends BaseSubsystem {
       projectionMode: true,
     })
     projection.subsystems = this.subsystems.map((subsystem) => {
-      if (typeof subsystem.advance !== 'function') return subsystem
       if (subsystem.id === 'simulation-scope-policy') {
-        const snapshot = structuredClone(this.lastSubsystemStates[subsystem.id])
+        const snapshot = this.lastSubsystemStates[subsystem.id]
         if (!snapshot) throw new Error('预生成投影缺少模拟范围状态')
-        return {
-          id: subsystem.id,
-          mod: subsystem.mod,
-          label: subsystem.label,
-          description: subsystem.description,
-          advance: () => undefined,
-          collectState: () => structuredClone(snapshot),
-          applyChanges: () => { throw new Error('预生成投影不接受模拟范围写入') },
-          reset: () => undefined,
-        }
+        return createSnapshotProjectionSubsystem(subsystem, snapshot)
       }
-
       const managed = this.asRuntimeManaged(subsystem)
+      const createReadOnlyProjection = managed.createReadOnlyProjection
+      if (createReadOnlyProjection) {
+        return createReadOnlyProjection.call(subsystem)
+      }
       const capture = managed.capturePersistenceState
       const Constructor = subsystem.constructor as new () => ISubSystem
       const clone = new Constructor()
       const restore = this.asRuntimeManaged(clone).restorePersistenceState
       if (!capture || !restore) {
-        throw new Error(`预生成投影无法隔离活动子系统：${subsystem.id}`)
+        const snapshot = this.lastSubsystemStates[subsystem.id]
+        if (!snapshot) throw new Error(`预生成投影缺少活动子系统状态：${subsystem.id}`)
+        return createSnapshotProjectionSubsystem(subsystem, snapshot)
       }
       restore.call(clone, structuredClone(capture.call(subsystem)))
       return clone
@@ -644,6 +671,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 角色等 owning system 完成本地命令后，重建同一份规范子系统快照。 */
   refreshCommittedSubsystemStateSnapshot(): void {
+    if (!this.projectionMode) invalidateNarrativePreGeneration()
     this.collectSubsystemStates(false, false)
   }
 
@@ -699,6 +727,8 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 推进时间（供 stage 闭包使用） */
   advanceTime(): void {
     this.previousNarrativeRound = { ...this.state.round }
+    this.prevRoundYear = this.state.round.year
+    this.prevBridgeSnapshot = extractBridgeSnapshot(this.lastSubsystemStates)
     this.state.round = this.advanceTimeForCurrentStep()
     this.state.totalRounds++
   }
@@ -717,6 +747,10 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 设置时间步进（UI → 引擎 + TimeSystem） */
   setTimeStep(step: RoundContext['timeStep']): void {
+    if (
+      !this.projectionMode
+      && (this.state.timeStep.unit !== step.unit || this.state.timeStep.value !== step.value)
+    ) invalidateNarrativePreGeneration()
     if (this.pendingTimeStepAlignmentFromUnit) {
       if (!shouldAlignTimeStepTransition(this.pendingTimeStepAlignmentFromUnit, step.unit)) {
         this.pendingTimeStepAlignmentFromUnit = undefined
@@ -764,7 +798,9 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   setLastPlayerChoice(choice: string): void {
-    this.lastPlayerChoice = choice.trim() || undefined
+    const nextChoice = choice.trim() || undefined
+    if (!this.projectionMode && nextChoice !== this.lastPlayerChoice) invalidateNarrativePreGeneration()
+    this.lastPlayerChoice = nextChoice
   }
 
   getPendingPlayerChoice(): string | undefined {
@@ -810,6 +846,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   resolveBranchChoice(branchId: string, choice: string): void {
     const trimmed = choice.trim()
     if (!branchId || !trimmed) return
+    if (!this.projectionMode) invalidateNarrativePreGeneration()
 
     this.state.narrativeHistory = this.state.narrativeHistory.map((entry) =>
       entry.id === branchId
@@ -991,6 +1028,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       state: this.state,
       lastSubsystemStates: this.lastSubsystemStates,
       eventLifecycle: this.eventLifecycle,
+      prevRoundYear: this.prevRoundYear,
+      prevBridgeSnapshot: this.prevBridgeSnapshot,
       previousNarrativeRound: this.previousNarrativeRound,
       timeRound: this.runtime.time.exportRound(),
       lastNarratedTimeStep: this.lastNarratedTimeStep,
@@ -1019,6 +1058,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
     }
     this.eventLifecycle = structuredClone(state.eventLifecycle ?? {})
+    this.prevRoundYear = state.prevRoundYear ?? this.state.round.year
+    this.prevBridgeSnapshot = structuredClone(state.prevBridgeSnapshot ?? {})
     this.previousNarrativeRound = {
       ...(state.previousNarrativeRound ?? state.state.round ?? this.state.round),
     }
@@ -1039,6 +1080,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   importPersistenceState(state: OrchestratorPersistenceState, restorePersistentSubsystemStates = true): void {
+    if (!this.projectionMode) invalidateNarrativePreGeneration()
     const clonedState = structuredClone(state.state) as unknown
     const rawState = clonedState && typeof clonedState === 'object' && !Array.isArray(clonedState)
       ? clonedState as Partial<EngineState> & {
@@ -1497,6 +1539,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   pause(): void {
+    if (!this.projectionMode) invalidateNarrativePreGeneration()
     this.state.status = 'paused'
   }
 
@@ -1507,6 +1550,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   stop(): void {
+    if (!this.projectionMode) invalidateNarrativePreGeneration()
     this.state.status = 'complete'
   }
 
@@ -1539,6 +1583,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 取消尚未提交的旧人生异步操作；真实回合失败不会恢复旧运行态。 */
   invalidatePendingLifeOperations(): void {
+    invalidateNarrativePreGeneration()
     this.lifeGeneration += 1
     this.pendingNarrativeRoundPreparation = undefined
   }
@@ -1569,6 +1614,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     this.lastSubsystemStates = {}
     this.eventLifecycle = {}
+    this.prevRoundYear = 0
+    this.prevBridgeSnapshot = {}
     this.previousNarrativeRound = {
       year: 0,
       season: getSeasonForMonth(0),
@@ -1654,6 +1701,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     // EngineStore 的 round 是最近一条已完成叙事的结束节点；
     // 读档后下一轮从这里开始，不能按当前步长重新推断或回放旧周期。
     this.previousNarrativeRound = { ...store.round }
+    this.prevRoundYear = store.round.year
+    this.prevBridgeSnapshot = extractBridgeSnapshot(this.lastSubsystemStates)
     const shouldRestorePendingAlignment = previousTimeStep
       && store.narrativeHistory.length > 0
       && shouldAlignTimeStepTransition(previousTimeStep.unit, store.timeStep.unit)

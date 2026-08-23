@@ -1,10 +1,11 @@
 /**
- * Purpose: Coordinate four category-scoped destiny-pattern requests and their background fill.
+ * Purpose: Coordinate five category-scoped destiny-pattern requests and their background fill.
  * Owner: mod-character
  * Responsibility: Own request coordination, item-level parsing, candidate publication, and pool-cache writes.
  */
 
 import {
+  DESTINY_PATTERN_CATEGORY_INITIAL_COUNT,
   DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
   DESTINY_PATTERN_ID_PREFIX,
@@ -30,11 +31,17 @@ import type {
 } from './contracts'
 import {
   dedupeDestinyPatterns,
-  destinyPatternNameKey,
+  normalizeCommonDestinyPatternCandidate,
   parseDestinyPatternAIResponse,
   validateDestinyPatternAttrBonus,
   validateDestinyPatternCategory,
 } from './validation'
+
+function normalizeCandidates(patterns: DestinyPattern[]): DestinyPattern[] {
+  return patterns
+    .map(normalizeCommonDestinyPatternCandidate)
+    .filter((pattern): pattern is DestinyPattern => pattern !== null)
+}
 
 function createCategoryStatus(category: DestinyPatternCategory): DestinyPatternCategoryFillStatus {
   return {
@@ -103,19 +110,20 @@ export class DestinyPatternAiPoolService {
 
   /** Restore a cached candidate pool into the transient runtime lifecycle. */
   hydratePool(patterns: DestinyPattern[]): void {
-    if (patterns.length === 0) return
+    const normalizedPatterns = normalizeCandidates(patterns)
+    if (normalizedPatterns.length === 0) return
 
     this.currentPatterns = dedupeDestinyPatterns(
       this.poolFillStatus.inProgress
-        ? [...this.currentPatterns, ...patterns]
-        : patterns,
+        ? [...this.currentPatterns, ...normalizedPatterns]
+        : normalizedPatterns,
     )
     this.poolFillStatus.count = this.currentPatterns.length
     for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
       const state = this.poolFillStatus.categories[category]
       state.count = this.countCategory(category)
       if (this.poolFillStatus.inProgress) continue
-      state.initialReady = state.count > 0
+      state.initialReady = state.count >= DESTINY_PATTERN_CATEGORY_INITIAL_COUNT
       state.status = state.initialReady ? 'complete' : 'idle'
     }
     if (!this.poolFillStatus.inProgress) {
@@ -173,10 +181,10 @@ export class DestinyPatternAiPoolService {
       this.mergeItems(parsed, category, generationId, categoryIndex)
       const state = this.poolFillStatus.categories[category]
       state.count = this.countCategory(category)
-      state.initialReady = state.count > 0
+      state.initialReady = state.count >= DESTINY_PATTERN_CATEGORY_INITIAL_COUNT
       state.inProgress = false
       state.status = state.initialReady ? 'complete' : 'failed'
-      if (!state.initialReady) failures.push(`${category}分类没有可用命格`)
+      if (!state.initialReady) failures.push(`${category}分类首批不足 ${DESTINY_PATTERN_CATEGORY_INITIAL_COUNT} 条`)
     }
 
     this.poolFillStatus.count = this.currentPatterns.length
@@ -205,11 +213,13 @@ export class DestinyPatternAiPoolService {
     if (!contextInput) return Promise.resolve([...this.currentPatterns])
 
     if (initialPatterns.length > 0) {
-      this.currentPatterns = dedupeDestinyPatterns([...this.currentPatterns, ...initialPatterns])
+      this.currentPatterns = dedupeDestinyPatterns(
+        [...this.currentPatterns, ...normalizeCandidates(initialPatterns)],
+      )
       for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
         const state = this.poolFillStatus.categories[category]
         state.count = this.countCategory(category)
-        state.initialReady = state.count > 0
+        state.initialReady = state.count >= DESTINY_PATTERN_CATEGORY_INITIAL_COUNT
       }
       this.poolFillStatus.count = this.currentPatterns.length
       this.poolFillStatus.initialReady = DESTINY_PATTERN_CATEGORY_ORDER.every(
@@ -318,6 +328,13 @@ export class DestinyPatternAiPoolService {
     const promptInput = buildDestinyPatternUserPromptKv({
       ...contextInput,
       existingNames: this.currentPatterns.map((pattern) => pattern.name),
+      existingPatterns: this.currentPatterns
+        .filter((pattern) => pattern.category === category)
+        .map((pattern) => ({
+          name: pattern.name,
+          description: pattern.description,
+          effect: pattern.effect,
+        })),
     })
     return this.callAI!(
       buildDestinyPatternSystemPrompt(category),
@@ -347,16 +364,14 @@ export class DestinyPatternAiPoolService {
     generationId: number,
     categoryIndex: number,
   ): number {
-    const names = new Set(this.currentPatterns.map((pattern) => destinyPatternNameKey(pattern.name)))
     const additions: DestinyPattern[] = []
     for (const [slotIndex, item] of parsed.entries()) {
       try {
         const category = validateDestinyPatternCategory(item.category)
         const name = item.name.trim()
-        if (category !== expectedCategory || !name || names.has(destinyPatternNameKey(name))) continue
+        if (category !== expectedCategory || !name) continue
         const id = `${DESTINY_PATTERN_ID_PREFIX.AI}-${generationId}-${categoryIndex}-${slotIndex}`
         const attrBonus = validateDestinyPatternAttrBonus(item.attrBonus, 'common')
-        names.add(destinyPatternNameKey(name))
         additions.push(withInitialDestinyPatternGrowthIdentity({
           id,
           name,

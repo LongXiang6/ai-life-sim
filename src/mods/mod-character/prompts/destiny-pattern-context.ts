@@ -17,6 +17,12 @@ import type { WorldConfig } from '@/mods/mod-world'
 import { PRESET_DESTINY_PATTERNS } from '../constants'
 import { prepareFateUserPrompt } from '../utils/fate-kv'
 
+export type ExistingDestinyPatternSummary = {
+  name: string
+  description: string
+  effect: string
+}
+
 export interface BuildDestinyPatternContextInput {
   worldConfig: WorldConfig | null | undefined
   character: {
@@ -24,6 +30,8 @@ export interface BuildDestinyPatternContextInput {
     background?: string
   }
   existingNames: string[]
+  /** Existing candidates from the requested category only; IDs and lineage are intentionally excluded. */
+  existingPatterns?: ExistingDestinyPatternSummary[]
   includePresetNames?: boolean
 }
 
@@ -49,6 +57,16 @@ export function buildDestinyPatternUserPrompt(input: BuildDestinyPatternContextI
 
   if (names.length > 0) {
     obj.existingNames = names.join('、')
+  }
+  const existingPatterns = input.existingPatterns
+    ?.map((pattern) => ({
+      name: pattern.name.trim(),
+      description: pattern.description.trim(),
+      effect: pattern.effect.trim(),
+    }))
+    .filter((pattern) => pattern.name && (pattern.description || pattern.effect))
+  if (existingPatterns && existingPatterns.length > 0) {
+    obj.existingPatterns = existingPatterns
   }
 
   return stringifyPrompt(obj)

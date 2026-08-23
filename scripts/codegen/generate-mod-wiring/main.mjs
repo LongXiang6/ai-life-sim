@@ -40,6 +40,7 @@ import {
   assertRemoteApiExtractionIsLineEndingAgnostic,
   buildSubsystemAliases,
   extractRemoteApiExports,
+  assertNoDuplicateSecondaryRemoteApiExports,
   listModDirs,
   parseManifestEvents,
   parseManifestStores,
@@ -88,17 +89,21 @@ export function main() {
     const indexPath = path.join(modPath, 'index.ts')
     const remoteFnSet = new Set(extractRemoteApiExports(readFile(indexPath)))
     const secondaryEntries = parseManifestStringArray(manifestContent, 'secondaryPublicEntries').values
+    const secondaryRemoteEntries = []
     if (secondaryEntries.length > 0) {
       const entries = secondaryEntries
       for (const entry of entries) {
         const entryPath = path.join(modPath, entry)
         const entryContent = readFile(entryPath)
         if (entryContent) {
-          for (const fn of extractRemoteApiExports(entryContent)) {
+          const names = extractRemoteApiExports(entryContent)
+          secondaryRemoteEntries.push({ source: entry, names })
+          for (const fn of names) {
             remoteFnSet.add(fn)
           }
         }
       }
+      assertNoDuplicateSecondaryRemoteApiExports(modName, secondaryRemoteEntries)
     }
     const remoteContract = resolveRemoteApiContract(manifestContent, [...remoteFnSet])
     if (remoteContract.declared || remoteContract.values.length > 0) {

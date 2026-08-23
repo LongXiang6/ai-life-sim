@@ -20,6 +20,27 @@ export const REINCARNATION_LIBRARY_MAX_SLOTS = 36
 export const ACCOUNT_MAX_SESSIONS = 5
 export const ACCOUNT_SYNC_BODY_LIMIT = 256 * 1024
 
+const DESTINY_PATTERN_CATEGORY_VALUES = ['action', 'cognition', 'expression', 'stewardship', 'misc'] as const
+const DESTINY_PATTERN_CATEGORY_MIGRATION: Readonly<Record<string, (typeof DESTINY_PATTERN_CATEGORY_VALUES)[number]>> = {
+  action: 'action',
+  cognition: 'cognition',
+  expression: 'expression',
+  stewardship: 'stewardship',
+  misc: 'misc',
+  battle: 'action',
+  exploration: 'cognition',
+  social: 'expression',
+  production: 'stewardship',
+}
+
+/** Cloud boundary migration: legacy category values are normalized once on parse. */
+const DestinyPatternCategorySchema = z.preprocess(
+  (value) => typeof value === 'string'
+    ? DESTINY_PATTERN_CATEGORY_MIGRATION[value.trim().toLocaleLowerCase()] ?? value
+    : value,
+  z.enum(DESTINY_PATTERN_CATEGORY_VALUES),
+)
+
 export const UsernameSchema = z.string()
   .transform((value) => value.normalize('NFKC'))
   .pipe(z.string()
@@ -136,7 +157,7 @@ export const ReincarnationTalentSchema = z.object({
   version: z.number().int().min(1),
   name: z.string().min(1).max(100),
   description: z.string().min(1),
-  category: z.enum(['battle', 'exploration', 'social', 'production']),
+  category: DestinyPatternCategorySchema,
   rarity: z.enum(['common', 'fine', 'rare', 'epic', 'legendary', 'mythic']),
   effect: z.string().min(1),
   attrBonus: z.object({

@@ -91,7 +91,7 @@ check(
 check(
   'V3',
   'Product/OpeningFlow/DestinyPatternSelection',
-  'Can the local preset path produce six classified candidates, fill four shared slots, write the owner, and navigate?',
+  'Can the local preset path produce five classified categories, fill four shared slots, write the owner, and navigate?',
   () => requireModuleFragments('src/mods/mod-pages/pages/talent-draw/page.tsx', [
     'useTalentDrawGeneration',
     'DESTINY_PATTERN_DISPLAY_COUNT',

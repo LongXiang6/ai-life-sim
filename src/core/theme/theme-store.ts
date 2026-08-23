@@ -14,7 +14,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-/** 运行态可用的基础主题。阅读与多彩主题包含低饱和的彩色语义辅助 Token。 */
+/** 运行态可用的基础主题。多彩主题提供纯白基底和鲜艳可选的彩色语义 Token。 */
 export type ThemeType = 'reading' | 'night' | 'white' | 'colorful'
 
 export const DEFAULT_THEME: ThemeType = 'reading'

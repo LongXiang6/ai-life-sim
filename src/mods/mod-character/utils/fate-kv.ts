@@ -25,12 +25,13 @@ export const FATE_STABLE_USER_KEYS = [
   'personalModifierFields',
 ] as const
 
-/** 每批变化的 user 字段（existingNames 放最后以最大化前缀命中） */
+/** 每批变化的 user 字段（候选历史放最后以最大化稳定前缀命中） */
 export const FATE_VARIABLE_USER_KEYS = [
   'instruction',
   'character',
   'requirements',
   'existingNames',
+  'existingPatterns',
 ] as const
 
 export function buildFateKvSessionId(worldCode: number): string {

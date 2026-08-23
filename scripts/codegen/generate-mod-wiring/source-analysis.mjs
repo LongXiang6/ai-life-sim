@@ -212,6 +212,38 @@ export function extractRemoteApiExports(indexContent) {
   return [...names].sort()
 }
 
+/**
+ * 检查同一 MOD 的多个 secondary public entry 是否重复声明 Remote 名称。
+ * index.ts 与 secondary 的同函数重导出由运行时引用相等性校验；secondary 之间的重复必须在生成阶段直接失败。
+ * @param {{ source: string, names: string[] }[]} entries
+ * @returns {{ name: string, first: string, duplicate: string }[]}
+ */
+export function findDuplicateSecondaryRemoteApiExports(entries) {
+  const owners = new Map()
+  const duplicates = []
+  for (const entry of entries) {
+    for (const name of entry.names) {
+      const first = owners.get(name)
+      if (first) {
+        duplicates.push({ name, first, duplicate: entry.source })
+      } else {
+        owners.set(name, entry.source)
+      }
+    }
+  }
+  return duplicates
+}
+
+/** @param {string} modName @param {{ source: string, names: string[] }[]} entries */
+export function assertNoDuplicateSecondaryRemoteApiExports(modName, entries) {
+  const duplicates = findDuplicateSecondaryRemoteApiExports(entries)
+  if (duplicates.length === 0) return
+  const detail = duplicates
+    .map(({ name, first, duplicate }) => `${name}（${first}、${duplicate}）`)
+    .join('；')
+  throw new Error(`[generate-mod-wiring] ${modName} secondary Remote API 重复导出：${detail}`)
+}
+
 /** 生成器必须在 Windows CRLF 与 Linux LF 工作副本中得到完全相同的 Remote 契约。 */
 export function assertRemoteApiExtractionIsLineEndingAgnostic() {
   const lfSource = `export {

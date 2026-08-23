@@ -71,8 +71,8 @@ export interface CharacterBaseState {
 /** 稀有度等级（对齐废弃项目 TalentRarity；`mythic` 仅由结算升阶产生，局内成长仍封顶 `legendary`） */
 export type DestinyPatternRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
 
-/** 命格所属的玩法领域。 */
-export type DestinyPatternCategory = 'battle' | 'exploration' | 'social' | 'production'
+/** 命格所属的主要作用机制；轮回天赋沿用同一分类契约。 */
+export type DestinyPatternCategory = 'action' | 'cognition' | 'expression' | 'stewardship' | 'misc'
 
 /** 命格成长路线。 */
 export type DestinyPatternGrowthRoute = '深度强化' | '广度强化' | '转变强化'
@@ -177,9 +177,9 @@ export interface ReincarnationTalent {
 
 /** 命格子系统状态 */
 export interface DestinyPatternState {
-  /** 当前命格抽取候选池；首批为四类各四条，后台最多补充到每类十二条。 */
+  /** 当前命格抽取候选池；首批为五类各四条，后台最多补充到每类十二条。 */
   candidates: DestinyPattern[]
-  /** 角色在四个共享携带槽中选择的普通命格。 */
+  /** 角色在共享携带槽中选择的普通命格。 */
   patterns: DestinyPattern[]
   /** 稀有度统计 */
   rarityCount: Record<DestinyPatternRarity, number>,

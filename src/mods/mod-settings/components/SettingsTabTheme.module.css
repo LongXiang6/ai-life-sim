@@ -186,9 +186,9 @@
 .themeSwatch[data-theme-preview="white"] span { background: #ffffff; }
 .themeSwatch[data-theme-preview="white"] i { background: #f8f9fb; }
 .themeSwatch[data-theme-preview="white"] b { background: #edf2f7; }
-.themeSwatch[data-theme-preview="colorful"] span { background: #fffdf7; }
-.themeSwatch[data-theme-preview="colorful"] i { background: #fffefa; }
-.themeSwatch[data-theme-preview="colorful"] b { background: linear-gradient(90deg, #fff2f1 0 14%, #fff5ec 14% 28%, #fff9e8 28% 42%, #f0f7f1 42% 56%, #eef8f8 56% 70%, #f0f5fb 70% 84%, #f5f1f9 84%); }
+.themeSwatch[data-theme-preview="colorful"] span { background: #f8fbff; }
+.themeSwatch[data-theme-preview="colorful"] i { background: #ffffff; }
+.themeSwatch[data-theme-preview="colorful"] b { background: linear-gradient(90deg, #e11d48 0 14%, #ea580c 14% 28%, #ca8a04 28% 42%, #16a34a 42% 56%, #0891b2 56% 70%, #2563eb 70% 84%, #9333ea 84%); }
 
 .themeCopy {
   display: block;

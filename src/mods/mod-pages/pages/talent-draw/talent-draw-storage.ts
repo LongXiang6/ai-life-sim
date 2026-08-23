@@ -6,6 +6,7 @@
 
 import { configStore } from '@/core'
 import {
+  DESTINY_PATTERN_CATEGORY_INITIAL_COUNT,
   DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_DISPLAY_COUNT,
   PATTERN_LOADOUT_SLOT_COUNT,
@@ -77,7 +78,8 @@ export function loadCachedPool(): DestinyPattern[] {
 
 function hasAllDestinyPatternCategories(patterns: DestinyPattern[]): boolean {
   return DESTINY_PATTERN_CATEGORY_ORDER.every((category) => (
-    patterns.some((pattern) => pattern.category === category)
+    patterns.filter((pattern) => pattern.category === category).length
+      >= DESTINY_PATTERN_CATEGORY_INITIAL_COUNT
   ))
 }
 

@@ -18,8 +18,10 @@ import {
   buildNarrativeTimeContext,
   buildNarrativeWorldRules,
   buildWordCountInstruction,
+  buildTimeBridgeSummary,
   collectActiveModWorldRules,
   DEFAULT_WORD_COUNT_TARGET,
+  extractBridgeSnapshot,
   getWorldRules,
 } from '../../orchestrator-shared'
 import type { OrchestratorSystem } from '../orchestrator-system'
@@ -32,20 +34,65 @@ function projectPowerFramework(
   framework: PowerFrameworkDefinition | undefined,
   powerSystemTag: unknown,
 ): Record<string, string> | undefined {
-  if (!framework?.enabled) return undefined
-  const ranks = framework.ranks
+  if (!framework) return undefined
+  const ranks = framework.enabled
+    ? framework.ranks
     .map((rank) => `${rank.label}：${rank.description}`)
     .join('；')
-  const boundary = framework.progression === 'open'
-    ? '开放进阶，当前已知阶位之后仍须由世界内事实继续建立'
-    : '有限体系，最高已知阶位就是当前世界可达边界'
+    : ''
+  const boundary = !framework.enabled
+    ? '未启用独立超常力量框架；能力、技术与特殊现象只能来自世界描述中已经成立的事实'
+    : framework.progression === 'open'
+      ? '开放进阶，当前已知阶位之后仍须由世界内事实继续建立'
+      : '有限体系，最高已知阶位就是当前世界可达边界'
   return {
-    名称: framework.label,
+    名称: framework.label || '未命名力量体系',
     来源: typeof powerSystemTag === 'string' && powerSystemTag.trim()
       ? `依照当前世界的${powerSystemTag.trim()}规则形成`
       : '依照当前世界已经成立的客观规则形成',
     边界: ranks ? `${boundary}；已知阶位为${ranks}` : boundary,
   }
+}
+
+const SPATIAL_FORM_LABELS: Readonly<Record<string, string>> = {
+  plane: '单一位面',
+  universe: '宇宙',
+  crystalSphere: '位面晶壁群系',
+  multiverse: '多元宇宙群系',
+  omniverse: '诸天万界',
+}
+
+const POWER_SYSTEM_LABELS: Readonly<Record<string, string>> = {
+  none: '无超自然力量',
+  cultivation: '修炼',
+  magic: '魔法',
+  psi: '灵能或异能',
+  technology: '科技',
+  martial: '武学',
+  faith: '信仰',
+  mixed: '混合力量',
+}
+
+/** 把已固化的世界维度压成稳定规则文本，和力量框架一起供 01/03 共用。 */
+function buildConfiguredWorldRules(config: Record<string, unknown>): string | undefined {
+  const lines = [getWorldRules(typeof config.essenceTag === 'string' ? config.essenceTag : undefined)]
+  const spatialForm = typeof config.spatialForm === 'string' ? config.spatialForm.trim() : ''
+  if (spatialForm) {
+    const label = SPATIAL_FORM_LABELS[spatialForm] ?? spatialForm
+    lines.push(`空间边界：当前世界以${label}为稳定容器；跨越空间层级或进入新的世界范围，必须由已成立的事实和力量边界支持。`)
+  }
+  const powerSystemTag = typeof config.powerSystemTag === 'string' ? config.powerSystemTag.trim() : ''
+  if (powerSystemTag) {
+    const label = POWER_SYSTEM_LABELS[powerSystemTag] ?? powerSystemTag
+    lines.push(powerSystemTag === 'none'
+      ? '力量来源：当前世界未启用独立超自然力量；角色只能使用世界描述中已成立的知识、技能、工具和社会资源。'
+      : `力量来源：当前世界以${label}作为已声明的主要力量来源；具体能力须服从力量框架、条件、代价与边界。`)
+  }
+  const rules = [...new Set(lines
+    .flatMap((value) => value.split(/\r?\n/u))
+    .map((value) => value.trim())
+    .filter(Boolean))]
+  return buildNarrativeWorldRules(rules.join('\n')) || undefined
 }
 
 function normalizeCurrentDueEventKey(value: string): string {
@@ -174,13 +221,20 @@ export function assemblePromptContextRuntime(
   }
   // 记录本轮实际投影的候选；正文接纳阶段会把这些编号转入既有 in-flight 生命周期。
   orchestrator['pendingNarrativeEventCandidateIds'] = [...new Set(injectedCandidateIds)]
+  const timeBridgeSummary = buildTimeBridgeSummary({
+    fromYear: orchestrator['prevRoundYear'],
+    toYear: orchestrator['state'].round.year,
+    tickCount: Math.max(0, orchestrator['state'].round.year - orchestrator['prevRoundYear']),
+    prevSnapshot: orchestrator['prevBridgeSnapshot'],
+    currentSnapshot: extractBridgeSnapshot(orchestrator['lastSubsystemStates']),
+  })
   const assembled: PromptContext = {
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting, narrativeTime),
     characterProfileView: characterNarrativeView.profile,
     characterStatusView: characterNarrativeView.status,
     subsystemSummaries: [],
     currentTime: narrativeTime.timeLabel,
-    worldRules: buildNarrativeWorldRules(getWorldRules(config.essenceTag as string | undefined)) || undefined,
+    worldRules: buildConfiguredWorldRules(config),
     modWorldRules: collectActiveModWorldRules(
       orchestrator['modManifests'],
       orchestrator['getSubsystemBindings'](),
@@ -193,6 +247,7 @@ export function assemblePromptContextRuntime(
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),
+    ...(timeBridgeSummary ? { timeGuideText: timeBridgeSummary } : {}),
     playerBranchIntent: roundGuidance.playerBranchIntent,
     ...(currentDueEvents.length > 0 ? { currentDueEvents } : {}),
     powerFramework: projectPowerFramework(

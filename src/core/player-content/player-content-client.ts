@@ -1,3 +1,9 @@
+/**
+ * Purpose: Provide the browser client for player-content and mailbox APIs.
+ * Owner: core:player-content
+ * Responsibility: HTTP request composition and response parsing only; business state remains server-owned.
+ */
+
 'use client'
 
 import type {
@@ -149,6 +155,10 @@ export function deletePlayerMail(messageId: string): Promise<PlayerMailCommandRe
 
 export function acceptPlayerMailTalent(messageId: string): Promise<PlayerMailCommandResult> {
   return postPlayerMailCommand({ action: 'accept-talent', messageId })
+}
+
+export function claimPlayerMailReward(messageId: string): Promise<PlayerMailCommandResult> {
+  return postPlayerMailCommand({ action: 'claim-reward', messageId })
 }
 
 export async function fetchLegendaryEncounter(
