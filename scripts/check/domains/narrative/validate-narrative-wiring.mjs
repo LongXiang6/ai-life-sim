@@ -49,15 +49,16 @@ const cachePool = read('src/core/ai-service/cache-pool.ts')
 assertOk(
   promptBuilder.includes('userSegments: [string, string, string]')
     && promptBuilder.includes('JSON.stringify({ 世界: input.世界 ?? {} })')
-    && promptBuilder.indexOf('历史剧情: input.历史剧情') < promptBuilder.indexOf('最近两轮详细剧情: input.最近两轮详细剧情')
-    && promptBuilder.indexOf('最近两轮详细剧情: input.最近两轮详细剧情') < promptBuilder.indexOf('角色: input.角色')
+    && promptBuilder.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
+    && promptBuilder.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
+    && promptBuilder.includes('历史连续性事实: input.历史连续性事实 ?? []')
+    && promptBuilder.indexOf('历史连续性事实: input.历史连续性事实') < promptBuilder.indexOf('角色: input.角色')
     && promptBuilder.includes('天赋: context.talents ?? []')
-    && promptBuilder.includes('本轮引导: input.本轮引导 ?? []')
+    && promptBuilder.includes('本轮事实与方向: input.本轮事实与方向 ?? []')
     && promptBuilder.includes('当前到期事件')
-    && !promptBuilder.includes('当前区域')
-    && !promptBuilder.includes('文明阶段')
-    && !promptBuilder.includes('当前可叙述状态'),
-  '01 必须只组装世界、历史与角色、本轮引导三条标准 JSON，且不接入样品外状态字段',
+    && !promptBuilder.includes('recentDetailedStories')
+    && !/(空间形态|世界观本质|力量体系|成立规则|当前区域|文明阶段|当前可叙述状态)/u.test(promptBuilder),
+  '01 必须只组装世界、连续性事实与角色、本轮事实与方向三条标准 JSON，且不接入样品外状态字段',
 )
 assertOk(
   mainNarrativeCall.includes('prepareMainNarrativeRequest')
@@ -83,8 +84,8 @@ assertOk(
   '01 必须保留唯一工具输出和同响应正文的宽容解析，不启用额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.4.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.4.0')
+  narrativePrompt.includes("version: '7.4.1'")
+    && narrativePrompt.includes('mod-engine:narrative:7.4.1')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '2.7.0'")
     && talentPrompt.includes("version: '3.3.0'")

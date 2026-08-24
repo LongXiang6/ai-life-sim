@@ -4,7 +4,6 @@
 |---|---|
 | 欢迎与主体导航 | [欢迎界面](pages/welcome.md) |
 | 世界选择 | [世界选择界面](pages/world-select.md) |
-| 自定义世界 | [自定义世界界面](pages/world-customize.md) |
 | 角色创建 | [角色创建界面](pages/character-create.md) |
 | 命格抽取与选择 | [命格界面](pages/talent-draw.md) |
 | 属性分配 | [属性分配界面](pages/attribute-alloc.md) |

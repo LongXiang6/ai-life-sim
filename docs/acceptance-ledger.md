@@ -120,9 +120,9 @@
 
 `test:creation-first-narrative`、UI、TypeScript、浏览器 430×932 全流程和 320—1180px 响应式切片通过；旧存档不被批量重写。新增真实浏览器分支回归覆盖普通选择、自定义文本、后台分支补救、模型不可用页面内错误和 120 字自定义世界名称完整保留；均无原生弹窗、控制台错误或横向溢出。
 
-移动端方案库现串联欢迎、账号、世界、角色、命格、轮回天赋、属性、预览、模拟、结算、设置、说明和反馈共 14 个页面，并以 Pro Max `430×932` 观察框展示。方案库以单一可重置 session state 传递世界、角色、十二项命格候选、两项轮回天赋与属性预览数据；运行时已按当前定版落地 15 点四项基础属性分配，旧存档值保持兼容。既有页面保留原定版背景、主题、配色、纹样、光效、布局和控件比例。欢迎、世界选择、世界配置的真实点击串联与 430×932 布局通过浏览器验证。
+移动端方案库现串联欢迎、账号、世界、角色、命格、轮回天赋、属性、预览、模拟、结算、设置、说明和反馈页面，并以 Pro Max `430×932` 观察框展示。方案库以单一可重置 session state 传递世界、角色、十二项命格候选、两项轮回天赋与属性预览数据；运行时已按当前定版落地 15 点四项基础属性分配，旧存档值保持兼容。既有页面保留原定版背景、主题、配色、纹样、光效、布局和控件比例。当前创建链的有效入口是世界选择确认后直接进入角色创建，节日范围由角色创建自定义选项承接。
 
-2026-07-23 `ui-sync-5` 原型收束验收：`flow.html` 使用统一 `20260723-ui-sync-5` revision 串联 10 个主流程页面与 4 个辅助页面；欢迎 → 世界选择 → 世界配置真实点击链在 430×932 通过，`scrollWidth = 430` 无横向溢出。命格选取页的固定卡槽、完整描述滚动和已选轮回天赋点击移除均有回归断言；运行时属性页已对齐 AA-RF1-1 的预算、四条渐隐轴、命格加成和统一底栏结构，并注册方案库使用的 `/new-game/*` 别名。
+2026-07-23 `ui-sync-5` 原型收束验收（历史记录）：`flow.html` 使用统一 `20260723-ui-sync-5` revision 串联 10 个主流程页面与 4 个辅助页面；当时的欢迎 → 世界选择 → 世界配置点击链在 430×932 通过，`scrollWidth = 430` 无横向溢出。该世界配置链已由世界选择直达角色创建取代，不再作为当前验收入口。其余命格选取、属性页和统一底栏证据仍保留为历史对照。
 
 2026-07-24 `ui-sync-16` 玩家路径复核：运行时实际采用串联版 01—08 页码、十二候选命格、三普通槽、双轮回槽、15 点四维属性与统一底栏；Puppeteer 在 320、360、375、390、430、768、1280px 完成分支路径，`scrollWidth` 与控制台均正常。模型配置不可用时改为页面内 `role=alert` 错误，不再调用原生 `alert()`；自定义世界名称取消语义 `maxLength` 并显示非破坏性字数计数。
 
@@ -279,7 +279,7 @@
 
 `KnownLimitations: `check:mod` 的当前完整基线见 2.15：258 项 FAIL，相对旧完整输出新增 0 项；PM2 历史日志中存在切换前旧客户端触发的 Server Action warning，不作为本次发布新增故障。`
 
-### 2.20 移动端语义图标与人生结算底栏定版
+### 2.20 移动端语义图标与人生结算底栏定版（历史记录，已取代）
 
 `LastVerified: 2026-07-24`
 
@@ -289,6 +289,8 @@
 
 `Result: pass (production)`
 
+`Supersession: 本条保留 2026-07-24 的生产证据；其中世界配置原型与世界配置页面仅作为历史来源，不再代表当前创建流程或验收入口。当前流程由世界选择直接进入角色创建，节日范围由角色创建自定义选项承接。`
+
 `Evidence: 正式运行时已同步世界预设、世界规则、角色三分区、四维属性、命运预览、结算指标、账号真实条件区域和反馈字段的定版语义图标；命格抽取/选取、设置、说明和欢迎页保持无新增图标。内置 Browser 在 430×932 确认账号与反馈页 scrollWidth=430、零元素越界，图标均 aria-hidden。Puppeteer 创建链在 320、360、375、390、430、768、1280 七个视口真实完成十二候选、选三项、两个轮回天赋、15 点四维、预览、叙事与分支确认；320px 长命格文案曾暴露候选卡纵向重叠，现以内容高度行修复，并由卡内内容边界与相邻卡片碰撞断言覆盖。结算页七视口 scrollWidth 均等于视口，底栏固定 56px、返回按钮 38px、主操作 48px、箭头 28px，返回故事与二次确认开启新人生均通过且零 AI 请求。官方 Provider=deepseek、Model=deepseek-v4-flash 在 430×932 完成 4 次主叙事、1 次后台分支补救、4 条正文落盘、分支点击确认与后续推进；浏览器请求/存储无 Key，控制台零错误。npm run lint、TypeScript、npm run check:ui、npm run check:changelog、npm run check:structural、npm run gate-check、no-hard-truncation-audit.mjs 与 git diff --check 通过；lint 仅保留未改动叙事文件的 1 条既有 unused 参数 warning。`
 
 `IntentionalAdaptations: 图标只作为 aria-hidden 的紧邻标签标记，不进入可访问名称；人生结算没有引入原型占位的“模拟数据”，保留正式版真实存在的返回故事/取消确认与开启新人生动作，主操作沿用创建流程的完整文字与箭头；账号沿用真实登录态、云存档和长期角色设定区域，没有制造原型中的假 Tab；核心模拟继续沿用已有四维图标，不新增第二套装饰。`
@@ -297,7 +299,7 @@
 
 `ProjectChange: yes; FunctionalChange: yes; 已按发布台账统一生成 5.3.7 与一条玩家更新记录，并由 release 7342c8b 完成生产切换。`
 
-### 2.21 5.3.7 生产发布与 release 保留
+### 2.21 5.3.7 生产发布与 release 保留（历史记录，已取代）
 
 `LastVerified: 2026-07-24`
 
@@ -307,13 +309,15 @@
 
 `Result: pass`
 
+`Supersession: 本条只保留 2026-07-24 的发布与保留证据；创建链中的旧世界配置路由不再是当前运行或验收契约。`
+
 `Evidence: 本地与 Linux Node 20 的 changelog、full gate、production build、protected-prompt bundle 和 release-cleanup smoke 通过；3001 旁路确认欢迎页、5.3.7 说明/更新日志、诊断接口和排行榜关闭态后原子切换，3000、PM2、Nginx、HTTP→HTTPS、两个 HTTPS 域名与全部创建/叙事/结算路由正常。公网 Puppeteer 在 320、430、1280 完成十二候选、选三项、两个轮回天赋、15 点四维、分支确认和结算返回/新人生，零控制台错误。官方 Provider=deepseek、Model=deepseek-v4-flash 通过公网 HTTPS 完成 4 次主叙事与 1 次后台分支补救，5 次代理请求全为 200，4 条正文落盘，分支点击确认并继续推进；Key 未进入浏览器请求原始载荷、存储、生产日志或 PM2 日志。临时生产账号完成注册、云同步覆盖、完整手动云存档、退出、重新登录、逐字恢复、邮箱/画像关闭态和账号删除。`
 
 `Retention: 发布健康确认后删除非活动且非上一版的 2be5f58，释放约 556 MiB；当前只保留活动 7342c8b 与上一版 3aa346faa14c84f767d7f4b4cd81bf91999e64bc。3001 旁路和临时 archive 已清理；release/account cleanup timers、回环运营面板、pm2-root、Nginx 与 Certbot timer 保持 active，UFW 只开放 22/80/443。`
 
 `BaselineDifference: Linux Node 20 安装阶段按 Puppeteer 官方开关跳过仅测试用 Chrome 二进制下载；Next 生产构建与全部服务端关闸通过。npm audit 仍报告 4 项既有 high 依赖告警，未在本次 UI 发布中执行破坏性依赖升级。Nginx error log 最新记录为外部 TLS bad key share 探测，PM2 应用错误日志最后修改早于本次发布，均无本轮应用错误。`
 
-### 2.22 定版 UI 相对画布与中央手机框收口
+### 2.22 定版 UI 相对画布与中央手机框收口（历史记录，已取代）
 
 `LastVerified: 2026-07-24`
 
@@ -325,6 +329,8 @@
 
 `Result: pass with known baseline differences`
 
+`Supersession: 本条只保留当时的相对画布证据；世界配置原型和路由引用属于历史来源，不再作为当前 UI 验收输入。`
+
 `Evidence: 运行时所有串联页均包入唯一 final-flow-frame 与 final-flow-design-fit/canvas；欢迎 430×932、常规创建与辅助页 320×694、设置/说明/结算 330×715、核心模拟 390×844 保留各自设计画布，外层按可用宽高最小比例等比缩放。浏览器默认 320×694 实测 frame=320×694、fit=320×693.57、canvas transform=scale(0.744186)、body/html scrollWidth=320，无横向溢出；欢迎页截图与 flow.html 构图一致。桌面规则在 globals.css 中以中央固定手机框和同一纵横比公式实现。旧主题 CSS、StarfieldBackground、styles/mobile/base.css、旧桌面 zoom/scale 覆盖已从运行时导入与文件树删除。npm run lint（0 errors，1 条未改动叙事文件 warning）、npx tsc --noEmit、npm run build、no-hard-truncation-audit.mjs、git diff --check、check:changelog 均通过。`
 
 `IntentionalRuntimeAdaptations: 方案库页面的运行时缺失功能、错误态、存档/账号真实数据和辅助弹窗继续由现有 owning system 提供；这些内容只放入对应定版画布，不改变页内构图、字段顺序或操作语义。`
@@ -333,7 +339,7 @@
 
 `ProjectChange: yes; FunctionalChange: yes; 已按发布台账生成 5.3.8 与一条玩家更新记录（public/changelog-41.txt，2026-07-24 20:41:33）。`
 
-### 2.23 定版 UI 全量对照偏离修复
+### 2.23 定版 UI 全量对照偏离修复（历史记录，已取代）
 
 `LastVerified: 2026-07-24`
 
@@ -344,6 +350,8 @@
 `RuntimeSource: src/mods/mod-pages/pages/{welcome,world-select,world-customize,character-create,talent-draw,attribute-alloc,fate-preview,game-story,game-over,account,feedback}/**; src/mods/mod-settings/components/SettingsModal*; src/mods/mod-ui/components/organisms/{BottomActionBar,HelpModal}*; scripts/check/domains/ui/mobile-ui-regression.mjs`
 
 `Result: pass with known baseline differences`
+
+`Supersession: 本条只保留当时的全量对照证据；旧 world-customize 运行源、底栏和摘要描述均已由世界选择直达角色创建后的当前流程取代。`
 
 `Evidence: 对照 flow.html 14 屏后修复：人生结算磨砂底栏补齐返回首页/查看模拟数据工具钮并固定在画布外滚动层；命运预览眉标改为命书步骤并统一 BottomActionBar 为 B1 磨砂规格；世界选择 Tab 顺序、focus 难度控件、当前选择索引与绝对定位底栏；命格/角色/世界配置底栏收为 52/38/48/25 悬浮承托；核心模拟恢复双行状态栏与四维语义标记；世界配置摘要绑定真实世界数据；设置/说明关闭钮 34px；命格候选描述去掉 line-clamp 硬截断。mobile-ui-regression 已迁到 final-flow 画布模型并全绿。lint 0 error / 1 既有 unused warning；tsc 通过；gate-check:quick 的 C0/C1/C2 通过。`
 

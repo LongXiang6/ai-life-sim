@@ -33,7 +33,6 @@ import {
   resolvePreviewRaceInfo,
 } from './fate-preview-helpers'
 import { useFatePreviewStart } from './useFatePreviewStart'
-import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
 import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
 
 function FatePreviewContent() {
@@ -109,8 +108,6 @@ function FatePreviewContent() {
 
   const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-  const worldDimensionLabels = worldConfig ? resolveWorldDimensionLabels(worldConfig) : null
-
   return (
     <div className="final-flow-frame">
       <div className="flow-responsive-viewport">
@@ -118,7 +115,7 @@ function FatePreviewContent() {
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.paper}>
           <header className={styles.header}>
-            <FlowRunningHead stepLabel="07 / 08" />
+            <FlowRunningHead stepLabel="06 / 07" />
             <div className={styles.titleCopy}>
               <h1>核对命书</h1>
               <p>确认所有起点，然后开启人生。</p>
@@ -142,8 +139,8 @@ function FatePreviewContent() {
             <div className={styles.ritualDivider} aria-hidden="true"><i>✦</i></div>
             <div className={styles.stats}>
               <div><b>{lifespan.maximumLifespanYears > 0 ? lifespan.maximumLifespanYears : raceInfo.baseLifespanYears} 年</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⏳</span>预期寿命</span></div>
-              <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⚡</span>力量体系</span></div>
-              <div><b>{worldDimensionLabels?.spatialForm ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🗺️</span>世界空间</span></div>
+              <div><b>{worldConfig?.festivalScope === 'china-and-international' ? '中国及国际' : '仅中国'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🎐</span>节日范围</span></div>
+              <div><b>{startingAge} 岁</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🌱</span>起始年龄</span></div>
             </div>
           </section>
 
@@ -247,7 +244,7 @@ function FatePreviewContent() {
         backDescription={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
         onConfirm={handleStartLife}
         confirmText={creationGateReason ? '创建信息未完成' : runtimeGateReason ? '加载模拟系统' : isStarting ? '正在确认…' : '开始人生'}
-        confirmNumber="08"
+        confirmNumber="07"
         confirmDescription={creationGateReason ?? runtimeGateReason ?? '世界与角色资料已确认 · 开启人生'}
         confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}
         confirmTitle={creationGateReason ?? runtimeGateReason ?? (!worldReady ? '世界资料尚未确认' : '开始人生')}

@@ -34,25 +34,19 @@ function ApprovedHelpGuide() {
       <article id="help-world-select" className={styles.chapter}>
         <span className={styles.chapterIndex}>02 / 世界</span>
         <h3>🌍 世界选择</h3>
-        <p>选择一个预设世界，或进入世界配置创建自己的舞台。</p>
+        <p>选择一个预设世界，或填写自定义世界；确认后直接进入角色创建。</p>
         <ul>
           <li>世界决定时代、社会结构、自然规律和可用题材。</li>
           <li>难度会影响风险与资源，不直接替角色做选择。</li>
         </ul>
       </article>
-      <article id="help-world-customize" className={styles.chapter}>
-        <span className={styles.chapterIndex}>03 / 配置</span>
-        <h3>⚙️ 世界配置</h3>
-        <p>调整世界描述、空间形态、世界本质、力量体系与力量上限，再继续角色创建。</p>
-        <div className={styles.chapterTip}>生成期间可以取消；离开页面前会明确提示尚未完成的内容。</div>
-      </article>
       <article id="help-character-create" className={styles.chapter}>
-        <span className={styles.chapterIndex}>04 / 角色</span>
+        <span className={styles.chapterIndex}>03 / 角色</span>
         <h3>🧑‍🤝‍🧑 角色创建</h3>
         <p>决定姓名、性别、种族、寿命、起始年龄与背景。随机姓名不会覆盖其他已经完成的选择。</p>
       </article>
       <article id="help-talent-select" className={styles.chapter}>
-        <span className={styles.chapterIndex}>05 / 命格</span>
+        <span className={styles.chapterIndex}>04 / 命格</span>
         <h3>✨ 命格与属性</h3>
         <p>等待命盘解析完成，从候选中选择普通命格，再按世界规则分配初始属性。轮回天赋与普通命格共用四个携带槽。</p>
         <ul>
@@ -62,7 +56,7 @@ function ApprovedHelpGuide() {
         </ul>
       </article>
       <article id="help-story" className={styles.chapter}>
-        <span className={styles.chapterIndex}>06 / 故事</span>
+        <span className={styles.chapterIndex}>05 / 故事</span>
         <h3>📖 故事与选择</h3>
         <p>每一轮故事会给出可选行动，也允许写下自己的做法。确认后，AI 会沿选择继续叙事。</p>
         <ul>

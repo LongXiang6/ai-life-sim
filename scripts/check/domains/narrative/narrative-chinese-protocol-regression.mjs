@@ -49,17 +49,6 @@ const promptContext = {
   worldNarrativeView: {
     名称: '雾潮群岛',
     描述: '受海雾、季风和潮汐影响的群岛位面。',
-    空间形态: '位面',
-    世界观本质: '唯物修仙',
-    文明阶段: '不应发送',
-    当前区域: '不应发送',
-  },
-  worldRules: '潜水、采矿和工程结果遵守真实时间与材料条件。',
-  modWorldRules: '潮裔能感受近处水压变化，但不能无限潜水。',
-  powerFramework: {
-    名称: '潮汐劲',
-    来源: '呼吸、负重与潮压训练',
-    边界: '受训练、资源和身体承受限制',
   },
   characterProfileView: {
     姓名: '岑澜',
@@ -71,7 +60,6 @@ const promptContext = {
   characterStatusView: { 年龄: 19, 伤势: '不应发送' },
   talents: [{ 名称: '听潮辨隙', 效果: '能根据近处水声察觉明显堵塞。' }],
   timelineMemory: ['317年3月12日：议事会同意先做低潮勘查。'],
-  recentDetailedStories: [{ 时间: '317年3月', 正文: '你完成了连续水声记录。' }],
   currentTime: '317年4月',
   playerBranchIntent: {
     本轮明确行动: '利用低潮窗口复测闸槽，确认安全后完成临时封堵。',
@@ -86,30 +74,30 @@ assertOk(segments.userSegments.length === 3 && segments.userMessageCount === 3, 
 const storyMessages = segments.userSegments.map((segment) => JSON.parse(segment))
 assertOk(JSON.stringify(Object.keys(storyMessages[0])) === JSON.stringify(['世界']), '01 第一条消息只能是世界')
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[0].世界)) === JSON.stringify(['名称', '描述', '空间形态', '世界观本质', '力量体系', '成立规则']),
+  JSON.stringify(Object.keys(storyMessages[0].世界)) === JSON.stringify(['名称', '描述']),
   '01 世界字段及顺序必须与样品一致',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['历史剧情', '最近两轮详细剧情', '角色']),
-  '01 第二条消息必须先历史和最近正文，再角色',
+  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['历史连续性事实', '角色']),
+  '01 第二条消息必须先连续性事实，再角色',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['本轮引导'])
-    && storyMessages[2].本轮引导.length === 6
-    && storyMessages[2].本轮引导[0].includes('317年4月')
-    && storyMessages[2].本轮引导[1].startsWith('玩家行动：')
-    && storyMessages[2].本轮引导[2].includes('角色当前19岁')
-    && storyMessages[2].本轮引导[2].includes('故事保持合理挑战')
-    && storyMessages[2].本轮引导[3].includes('第二人称“你”')
-    && storyMessages[2].本轮引导[5] === '字数要求：正文约300字。',
-  '01 第三条消息必须只含时间、行动、年龄与难度、称呼、文风和篇幅六项引导',
+  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['本轮事实与方向'])
+    && storyMessages[2].本轮事实与方向.length === 6
+    && storyMessages[2].本轮事实与方向[0].includes('317年4月')
+    && storyMessages[2].本轮事实与方向[1].startsWith('玩家行动：')
+    && storyMessages[2].本轮事实与方向[2].includes('角色当前19岁')
+    && storyMessages[2].本轮事实与方向[2].includes('故事保持合理挑战')
+    && storyMessages[2].本轮事实与方向[3].includes('第二人称“你”')
+    && storyMessages[2].本轮事实与方向[5] === '字数要求：正文约300字。',
+  '01 第三条消息必须只含时间、行动、年龄与难度、称呼、文风和篇幅六项事实与方向',
 )
-for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '当前角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[2]).本轮引导[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
+for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '当前角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[2]).本轮事实与方向[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
 const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
   characterStatusView: { 年龄: 1 },
 })
-const infantGuidance = JSON.parse(infantSegments.userSegments[2]).本轮引导
+const infantGuidance = JSON.parse(infantSegments.userSegments[2]).本轮事实与方向
 assertOk(
   infantGuidance[2].includes('叙事以在照料下感知、哭闹、抓握、爬行或扶物蹒跚为主')
     && infantGuidance[2].includes('本轮事件与选择由照料者、监护人和环境承载'),
@@ -121,7 +109,7 @@ const dueSegments = buildSegmentedPrompt(narrativePrompt, {
 })
 const dueMessage = JSON.parse(dueSegments.userSegments[2])
 assertOk(
-  JSON.stringify(Object.keys(dueMessage)) === JSON.stringify(['本轮引导', '当前到期事件'])
+  JSON.stringify(Object.keys(dueMessage)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
     && dueMessage.当前到期事件.length === 1,
   '01 到期候选必须按需注入当前到期事件字段',
 )
@@ -129,11 +117,16 @@ assertOk(
   !segments.full.includes('文明阶段')
     && !segments.full.includes('当前区域')
     && !segments.full.includes('当前可叙述状态')
+    && !segments.full.includes('空间形态')
+    && !segments.full.includes('世界观本质')
+    && !segments.full.includes('力量体系')
+    && !segments.full.includes('成立规则')
+    && !segments.full.includes('最近正文')
     && !segments.full.includes('伤势')
     && !segments.full.includes('等级')
     && !segments.full.includes('subsystemStates')
     && JSON.stringify(Object.keys(storyMessages[1].角色.天赋[0])) === JSON.stringify(['名称', '效果']),
-  '01 不得泄漏样品外世界、区域、状态或天赋等级字段',
+  '01 不得泄漏样品外世界、完整近期正文、区域、状态或天赋等级字段',
 )
 
 const growthPatterns = [
@@ -320,7 +313,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.4.0'
+  narrativePrompt.version === '7.4.1'
     && narrativeStoryContinuityPrompt.version === '2.7.0'
     && narrativeTalentGrowthPrompt.version === '3.3.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'

@@ -29,7 +29,6 @@ import {
   DESTINY_PATTERN_DISPLAY_COUNT,
   RACE_LIFESPAN,
 } from '../../../../src/mods/mod-character/constants.ts'
-import { buildNarrativeCoherenceHeader } from '../../../../src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'
 import {
   NARRATIVE_WORD_COUNT_TARGETS,
   resolveNarrativeWordCountTarget,
@@ -280,11 +279,11 @@ const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '年度故事弧线视角', 'one-year hint must use a connected annual story arc')
 assertIncludes(oneYearHint, '二至三个彼此照应的代表性场景', 'one-year hint must cover the annual arc with connected representative scenes')
 assertIncludes(oneYearHint, '旧主线只能作为承接背景，不能占据多数篇幅', 'one-year hint must move away from a repeated recent main line')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '根据世界事实、连续记忆和本轮引导', 'fixed prompt must use the approved 01 story sources')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '根据世界名称与描述、历史连续性事实、角色当前叙事语义和本轮事实与方向', 'fixed prompt must use the approved 01 story sources')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '多个并列事项都要形成实际尝试', 'fixed prompt must cover every selected parallel action')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前时间、玩家行动、年龄边界、挑战与失败取向、称呼方式、叙述风格和字数要求', 'fixed prompt must map the approved age, challenge and failure guidance')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '角色当前身份、当前年龄、能力语义与天赋', 'fixed prompt must map age and talent under the character input')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '0至2岁只写婴幼儿能够成立的感知', 'fixed prompt must enforce infant capability boundaries')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '0至2岁写婴幼儿能够成立的感知', 'fixed prompt must enforce infant capability boundaries')
 assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前已生效天赋', 'fixed prompt must use the unified talent terminology')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前到期事件中的每项都要在正文中实际处理'), 'fixed prompt must not add a per-item due-event obligation')
 assertOk(COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"当前到期事件":'), 'fixed prompt must describe the optional due-event input')
@@ -737,10 +736,6 @@ assertOk(
   'character status guidance must bind cognition and behavior to the owning stage definition',
 )
 assertOk(
-  buildNarrativeCoherenceHeader({ powerSystemTag: 'none' }, 2)?.includes('【世界设定】【命格天赋】或【当前状态】'),
-  'a no-base-power world must still preserve supernatural facts explicitly established by world, talent, or state',
-)
-assertOk(
   !narrativeQualitySrc.includes('retryMin')
     && !narrativeQualitySrc.includes('retryMax')
     && narrativeQualitySrc.includes('lengthAdvisory'),
@@ -831,11 +826,11 @@ const migratedCustomStyle = migrateSettings({
 assertSame(migratedCustomStyle.narrativeStyleText, exactCustomStyle, 'saved custom style text must survive migration byte-for-byte')
 assertSame(migratedCustomStyle.narrativeStyleVersion, 7, 'saved custom style version must survive migration')
 assertOk(
-  /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,180}return isApiConfigured\(\)/.test(settingsStoreSrc)
+  /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,320}return isApiConfigured\(\)/.test(settingsStoreSrc)
     && /providerId !== DEFAULT_AI_PROVIDER_ID[\s\S]{0,260}当前版本只支持玩家自己的 API Key/.test(proxyRouteSrc)
     && /await hasAvailableApiConfiguration\(\)/.test(welcomePageSrc)
-    && /await hasAvailableApiConfiguration\(\)/.test(worldConfirmSrc),
-  'entry gates and proxy routing must require a complete player-owned API configuration',
+    && !worldConfirmSrc.includes('hasAvailableApiConfiguration'),
+  'the welcome entry gate and proxy must require a complete player-owned API configuration while world confirmation stays local',
 )
 
 assertOk(/DESTINY_PATTERN_DISPLAY_COUNT\s*=\s*20/.test(constantsSrc), 'destiny generation must publish twenty ordinary first-batch candidates')
@@ -1182,7 +1177,7 @@ assertOk(
     && narrativePromptComponentsSrc.includes('不同选择会改变后续走向'),
   'branch prompt must require a blocking choice with materially different futures',
 )
-assertOk(/version:\s*'7\.3\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 7.3.0')
+assertOk(/version:\s*'7\.4\.1'/.test(narrativePromptSrc), 'pure narrative contract must use version 7.4.1')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
@@ -1190,7 +1185,7 @@ assertOk(
 )
 assertOk(
   narrativePromptComponentsSrc.includes('默认以第二人称‘你’作为当前角色的叙事主语')
-    && narrativePromptComponentsSrc.includes('本轮引导提供称呼方式，则以该动态称呼方式为准')
+    && narrativePromptComponentsSrc.includes('本轮事实与方向提供称呼方式，则以该动态称呼方式为准')
     && narrativePromptComponentsSrc.includes('不得伪造证据、身份、秘密答案、过去言行或后续结果'),
   'narrative prompt must preserve the approved second-person and fact-boundary rules',
 )
@@ -1201,10 +1196,10 @@ assertOk(
   'time-scale entry and the approved dynamic narrative style must remain live',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('同一主场景、同一主关系或同一反复动作')
-    && narrativePromptComponentsSrc.includes('最近两轮未体现的天赋')
+  narrativePromptComponentsSrc.includes('历史连续性事实只用于识别已完成状态、持续关系和未解决结果')
+    && narrativePromptComponentsSrc.includes('未在连续性事实中近期体现的天赋')
     && timeScaleSrc.includes('不能只换时间继续复述'),
-  '01 must rotate repeated story focus and give naturally relevant underused talents room to act',
+  '01 must use continuity facts without template reuse and give naturally relevant underused talents room to act',
 )
 assertOk(
   talentGrowthPromptSrc.includes('程序筛选')
@@ -1213,14 +1208,16 @@ assertOk(
 )
 assertOk(
   promptBuilderSrc.includes('世界: world')
-    && promptBuilderSrc.includes('历史剧情: context.timelineMemory ?? []')
-    && promptBuilderSrc.includes('最近两轮详细剧情: context.recentDetailedStories ?? []')
+    && promptBuilderSrc.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
+    && promptBuilderSrc.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
+    && promptBuilderSrc.includes('历史连续性事实: context.timelineMemory ?? []')
     && promptBuilderSrc.includes('角色: character')
     && promptBuilderSrc.includes('天赋: context.talents ?? []')
-    && promptBuilderSrc.includes('本轮引导: roundGuidance')
+    && promptBuilderSrc.includes('本轮事实与方向: roundFactsAndDirection')
     && promptBuilderSrc.includes('当前到期事件')
     && /userSegments:\s*\[globalSegment,\s*memorySegment,\s*roundSegment\]/u.test(promptBuilderSrc)
-    && !/(文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
+    && !promptBuilderSrc.includes('recentDetailedStories')
+    && !/(空间形态|世界观本质|力量体系|成立规则|文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
   '01 input assembly must keep the approved field whitelist and three-message order',
 )
 assertOk(
@@ -1248,18 +1245,11 @@ assertOk(
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render every natural narrative paragraph')
 assertOk(!timelineTsxSrc.includes('streamingText'), 'timeline must render only fully committed narrative entries')
 assertOk(
-  promptContextRuntimeSrc.includes('function projectPowerFramework')
-    && promptContextRuntimeSrc.includes('powerFramework: projectPowerFramework(')
-    && promptContextRuntimeSrc.includes('config.powerFramework as PowerFrameworkDefinition'),
-  '01 world projection must read the current world-owned power framework',
-)
-assertOk(!promptContextRuntimeSrc.includes("split('。')[0]"), '01 power projection must preserve complete rank descriptions')
-assertOk(
-  promptContextRuntimeSrc.includes('if (!framework) return undefined')
-    && promptContextRuntimeSrc.includes('未启用独立超常力量框架')
-    && promptContextRuntimeSrc.includes('能力、技术与特殊现象只能来自世界描述中已经成立的事实')
-    && promptContextRuntimeSrc.includes('config.powerFramework as PowerFrameworkDefinition'),
-  'non-supernatural worlds must project an explicit power boundary into the 01 world message',
+  !promptContextRuntimeSrc.includes('projectPowerFramework')
+    && !promptContextRuntimeSrc.includes('powerFramework:')
+    && !promptContextRuntimeSrc.includes('buildConfiguredWorldRules')
+    && !promptContextRuntimeSrc.includes('modWorldRules:'),
+  '01 world projection must keep world dimensions and power-framework rules out of the main-story context',
 )
 assertOk(
   calendarContextSrc.includes('buildFestivalNarrativeHint')

@@ -12,29 +12,13 @@
 
 export {
   commitWorldInitialization,
-  generateWorldInitBundle,
-  startBackgroundWorldInit,
-  startBackgroundWorldInitForCustom,
 } from './world-init-bundle'
 
 export type {
   AdditionalWorldContextOptions,
   WorldCommitResult,
   WorldContextCreationOptions,
-  WorldInitBundleResult,
 } from './world-init-bundle'
 
 export { WorldInitSystem } from './subsystems/world-init-system'
-export { filterCoherentWorldTags } from './utils/world-coherence-output-guard'
-export {
-  buildWorldInitKvSessionId,
-  configForWorldInitSubPool,
-  parseWorldTagsResponse,
-  prepareWorldInitUserPrompt,
-} from './utils/world-init-kv'
 export { resolvePresetWorldCode } from './utils/preset-world-code'
-export {
-  scanWorldCodesWithGeneratedCache,
-  hasWorldGeneratedCache,
-  clearWorldGeneratedCache,
-} from './utils/world-generated-cache'

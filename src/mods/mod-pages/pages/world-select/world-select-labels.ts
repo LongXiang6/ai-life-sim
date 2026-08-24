@@ -18,7 +18,6 @@ export const LABELS = {
   tabSavedShowTitle: '展开已保存的自定义世界',
   tabCustomHideTitle: '隐藏自定义世界表单',
   tabCustomShowTitle: '展开自定义世界表单',
-  clearCacheTitle: '清空该世界 AI 生成缓存',
   emptySavedHint: '暂无已保存的自定义世界，在“自定义世界”中创建',
   formEditTitle: '编辑自定义世界',
   formCreateTitle: '自定义世界',

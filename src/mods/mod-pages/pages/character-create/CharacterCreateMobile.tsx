@@ -12,6 +12,7 @@ import { useWorldStore } from '@/mods/mod-world'
 import { FlowRunningHead } from '@/mods/mod-ui'
 
 import { CharacterBackgroundSection } from './CharacterBackgroundSection'
+import { CharacterCustomOptionsSection } from './CharacterCustomOptionsSection'
 import { CharacterCreateBottomBar } from './CharacterCreateBottomBar'
 import { CharacterIdentitySection } from './CharacterIdentitySection'
 import { CharacterLifespanSection } from './CharacterLifespanSection'
@@ -35,7 +36,7 @@ export function CharacterCreateMobile() {
           <main className={styles.page}>
             <div className={styles.container}>
               <div className={`${styles.paper} final-flow-page-surface`}>
-            <FlowRunningHead stepLabel="03 / 08" />
+            <FlowRunningHead stepLabel="02 / 07" />
 
             <section className={styles.profileSummary} aria-live="polite">
               <span className={styles.profileAvatar} aria-hidden="true">📜</span>
@@ -56,6 +57,7 @@ export function CharacterCreateMobile() {
             <div className={styles.flowSections}>
               <CharacterIdentitySection logic={logic} />
               <CharacterLifespanSection logic={logic} />
+              <CharacterCustomOptionsSection logic={logic} />
               <CharacterBackgroundSection logic={logic} />
             </div>
               </div>

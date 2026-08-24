@@ -38,7 +38,6 @@ assert.match(
 )
 const runners = [
   path.join(DIR, 'world-calibration-acceptance-runner.ts'),
-  path.join(DIR, 'world-calibration-ai-path-runner.ts'),
   path.join(DIR, 'world-calibration-phase5-runner.ts'),
   path.join(DIR, 'calibration-wiring-audit.ts'),
 ]

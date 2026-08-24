@@ -1,5 +1,5 @@
 /**
- * Purpose: Initialize a world snapshot from the configured dimensions and selected map strategy.
+ * Purpose: Initialize a world snapshot from local configuration and selected map strategy.
  * Owner: mod-world / world-init.
  * Responsibility: Snapshot orchestration and subsystem lifecycle; region algorithms live in the sibling directory.
  */
@@ -40,7 +40,7 @@ export class WorldInitSystem extends BaseSubsystem {
   readonly id = 'world-init' as const
   readonly mod = 'mod-world' as const
   readonly label = '世界初始化' as const
-  readonly description = '世界创建中央工厂：接收 5 维度 → 按空间形态分流策略生成区域 + 标签' as const
+  readonly description = '世界创建本地工厂：按本地配置生成区域与默认标签' as const
 
   private state: InternalState = { config: null, snapshot: null }
 

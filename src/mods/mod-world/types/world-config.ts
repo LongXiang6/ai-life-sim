@@ -8,7 +8,6 @@ import type {
   CharacterLifeStageDefinition,
   PowerFrameworkDefinition,
 } from '@/foundation'
-import type { WorldAIDetailedParameters } from '../prompts/world-config-prompt'
 
 export interface WorldConfig {
   name: string
@@ -28,5 +27,4 @@ export interface WorldConfig {
   _coherenceLocks?: Partial<Record<'essenceTag' | 'civilizationStage' | 'powerSystemTag' | 'spatialForm', boolean>>
   _dimensionModes?: Record<string, 'ai' | 'adaptive' | 'custom'>
   _dimensionValues?: Record<string, string>
-  aiDetailedParameters?: WorldAIDetailedParameters
 }

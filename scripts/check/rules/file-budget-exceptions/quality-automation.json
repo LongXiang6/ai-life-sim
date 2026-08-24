@@ -62,12 +62,6 @@
       "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
     },
     {
-      "path": "scripts/check/domains/ui/character-first-narrative-browser.cjs",
-      "owner": "quality:ui",
-      "reviewedLines": 331,
-      "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
-    },
-    {
       "path": "scripts/check/domains/ui/deepseek-full-flow-browser.cjs",
       "owner": "quality:ui",
       "reviewedLines": 360,

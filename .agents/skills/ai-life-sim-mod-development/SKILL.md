@@ -25,6 +25,10 @@ description: 用于用户要求的 AI 人生模拟器 MOD 清单、注册、生�
 
 [核心原则] MOD 负责所属业务规则、业务状态、持久化和公开结果。
 
+<!-- RULE id="mod.root-cause" source="USER-HARD" owner="mod" status="active" -->
+[核心原则] 功能缺陷先沿公开入口、调用方、状态、契约、生命周期和副作用回溯到首个错误，在根因所有者处修改或合并原有逻辑。只有确认职责、字段或契约缺失时才新增代码或机制；重复校验、局部特判、兼容层、旁路和回退路径不替代根因修复。
+<!-- END RULE id="mod.root-cause" -->
+
 [核心原则] 核心模拟负责跨 MOD 发令、依赖汇合、独立发布边界和流程终态。
 
 [次要规则] 标识、文件、格式、写法和排序按 [项目标准化契约](../ai-life-sim/references/standardization.md) 执行。

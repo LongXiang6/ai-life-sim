@@ -123,15 +123,6 @@ async function main() {
         eraName: '公元',
         calibration: null,
         destinyPatternModifiers: {},
-        worldInitAIStatus: {
-          status: 'complete',
-          currentStep: '完成',
-          calibrationGenerated: true,
-          tagsGenerated: true,
-          configGenerated: true,
-          regionProfilesGenerated: true,
-          errors: [],
-        },
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({

@@ -34,8 +34,6 @@ function seedPage(page) {
         powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' }, spatialForm: 'plane', civilizationStage: 'modern', difficulty: 'normal', description: 'DeepSeek 全流程真实测试世界。', worldType: 'materialist' },
       entities: [], initialized: true, worldCode: fixtureWorldCode, currentYear: 2000, worldTags: ['现代', '现实'], eraStartYear: 2000, eraName: '公元',
       calibration: null, destinyPatternModifiers: {},
-      worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true, tagsGenerated: true, configGenerated: true,
-        regionProfilesGenerated: true, errors: [] },
     } }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
       provider: 'deepseek', customKey: '', customUrl: '', customModel: 'deepseek-v4-flash', temperature: 0.8, topP: 0.8,

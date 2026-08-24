@@ -12,7 +12,6 @@ import type {
   WorldCalibration,
   WorldConfig,
   WorldContextInstance,
-  WorldInitAIStatus,
 } from '../types'
 
 export interface WorldStore {
@@ -28,7 +27,6 @@ export interface WorldStore {
   eraStartYear: number
   eraName: string
   calibration: WorldCalibration | null
-  worldInitAIStatus: WorldInitAIStatus | null
   setWorldConfig: (config: WorldConfig) => void
   setInitialized: (value: boolean) => void
   setWorldCode: (code: number) => void
@@ -37,7 +35,6 @@ export interface WorldStore {
   setEraStartYear: (year: number) => void
   setEraName: (name: string) => void
   setCalibration: (calibration: WorldCalibration | null) => void
-  setWorldInitAIStatus: (status: WorldInitAIStatus | null) => void
   registerContext: (instance: WorldContextInstance, makeActive?: boolean) => void
   replaceContext: (instance: WorldContextInstance) => void
   setCrossContextEdge: (edge: SpatialEdge) => void
@@ -61,5 +58,4 @@ export const initialWorldState = {
   eraStartYear: 0,
   eraName: '',
   calibration: null as WorldCalibration | null,
-  worldInitAIStatus: null as WorldInitAIStatus | null,
 }

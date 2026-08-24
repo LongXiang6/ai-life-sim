@@ -11,7 +11,7 @@
 
 ## 〇、一句话目标
 
-**让项目回到"最初能正常游玩的版本"**：选择服务器预设模型或填写自己的 API → 新游戏 → 选世界 → 手动配置世界 → 设定角色 → AI 抽取并选择命格 → 分配四项基础属性并核对命运 → 进入核心模拟界面默认按"年"推进剧情（玩家可切换为日 / 月 / 季 / 年不同叙事步长）、AI 生成叙事、带记忆压缩防止 token 爆炸、能存档和自动存档。最终验收必须**全程零红错、零崩溃、零未分流 gate FAIL**。
+**让项目回到"最初能正常游玩的版本"**：选择服务器预设模型或填写自己的 API → 新游戏 → 选世界 → 设定角色（含自定义节日范围）→ AI 抽取并选择命格 → 分配四项基础属性并核对命运 → 进入核心模拟界面默认按"年"推进剧情（玩家可切换为日 / 月 / 季 / 年不同叙事步长）、AI 生成叙事、带记忆压缩防止 token 爆炸、能存档和自动存档。最终验收必须**全程零红错、零崩溃、零未分流 gate FAIL**。
 
 [蓝图二](blueprint-02-multi-world-simulation-foundation.md)已经完成 P0 多世界基础与 P1 历史事件账本；NPC、旧地图、地理资源、成长、生命周期、经济、社会文明、生态和世界观插件继续延后，等待用户按 P2—P8 逐阶段确认。延后系统优先从 MVP 执行路径隔离；只有为了暴露遗漏依赖时才允许临时抛错桩，且最终验收前不能让抛错桩在正常玩法路径产生红色控制台错误。
 
@@ -46,7 +46,7 @@
 
 本轮已清零或降级的旧阻断：
 - `fate-prophecy` 已从活跃叙事变更链移出，并通过 codegen 同步 `subsystem-field-keys.generated.ts`。
-- `orchestrator-system.ts` 对 `world-init-prompt-vars` 的跨 MOD 深导入已改为 `@/mods/mod-world` 公共导入。
+- 世界创建链已收口为本地确定性上下文创建；旧 world-init Prompt 变量入口不再属于 MVP 运行路径。
 - `world-calibration` 的 CSS/module 导入链已通过 `world-pool-selectors.ts` 拆分修复，calibration 域现在 PASS。
 - A5 `timeBridgeSummary` / `narrativeGuidanceText` / `causalChainHint` 已由扫描器识别 `buildNarrativeUserJson(context)` 消费；真孤儿 `subsystemFields` 已从 `PromptContext`、orchestrator 赋值、re-export 和 generated 契约移除。
 - A-15 ATCE 误报已收紧为只认字面 `A-15`，不再因 `orchestrator-system.ts` 文件名误判为强制重构。
@@ -67,7 +67,7 @@ Full gate 剩余 FAIL 分流表：
 | 迁移期应降级 | 延后模拟系统的大量 `C3-APPLY-*` / `C4-DEEPCOPY` / `C5-SUMMARY-FMT`（economy/culture/politics/environment/power/base-universe 等）与 `calibration` 20 个延后字段 | 阶段 B 已完成运行时隔离；后续只需让 mod scanner 识别 MVP/defer 口径，未进入 MVP 路径的延后系统不逐行硬修 |
 | MVP 后处理 | `G1/G2/G5/G10` 文件纯度、`D7-SUBSINDEX`、`D9-PROVIDE`、`D24-SEGMENT-REVERSE`、`A10-UNWIRED-EXPORT` 等架构健康债 | 不阻断阶段 0；后续按 owner/阶段逐项收敛，不能笼统无视 |
 
-**执行策略**：阶段 0/A/B 的 structural / calibration / narrative / lint / tsc 已打通；full gate 剩余项已分流。下一步进入阶段 C「世界配置去 AI」，同时保留一个验证债：mod scanner 需要识别 MVP/defer 口径，UI token 与核心引擎格式问题在对应阶段修复。**C1 lint（0）+ C2 tsc（0）必须始终保持。**
+**执行策略**：阶段 0/A/B 的 structural / calibration / narrative / lint / tsc 已打通；full gate 剩余项已分流。阶段 C 已完成世界创建链去除 AI enrichment，后续只收口本地上下文创建与直接角色入口；同时保留一个验证债：mod scanner 需要识别 MVP/defer 口径，UI token 与核心引擎格式问题在对应阶段修复。**C1 lint（0）+ C2 tsc（0）必须始终保持。**
 
 ### 2.3 代码事实核实规则
 
@@ -93,8 +93,8 @@ Full gate 剩余 FAIL 分流表：
 世界选择 world-select（预设列表 / 自定义入口）
     │  （mod-pages/pages/world-select + mod-world 预设）
     ▼
-世界配置 world-customize / world-build  ★去掉 AI 调用★
-    │  只保留手动选择四字段 + 自定义按钮：力量体系 · 世界观本质 · 力量上限 · 空间形态
+世界选择 world-select → 角色配置 character-create  ★移除世界创意工坊★
+    │  世界选择只负责选择/填写世界；节日范围由角色配置的自定义选项写回同一世界状态
     │  （文明阶段字段：注释掉，最后做）
     ▼
 角色设定 character-create
@@ -118,7 +118,7 @@ Full gate 剩余 FAIL 分流表：
 ```
 
 对应页面目录（均在 `src/mods/mod-pages/pages/`，大部分已存在；当前核心模拟真实路由为 `/game-story`）：
-`welcome` `new-game` `world-select` `world-customize` `world-build` `character-create` `talent-draw` `attribute-alloc` `fate-preview` `game-story` `game-over` `save-manager`。其中 `/attribute-alloc` 是活动创建步骤；旧 `/new-game/world-build` 只保留兼容跳转。
+`welcome` `new-game` `world-select` `character-create` `talent-draw` `attribute-alloc` `fate-preview` `game-story` `game-over` `save-manager`。世界选择确认后直接进入 `/new-game/character-create`；不保留 `/new-game/world-customize` 或 `/new-game/world-build` 兼容入口。
 
 ---
 
@@ -134,11 +134,11 @@ Full gate 剩余 FAIL 分流表：
 | core | `core/storage/`（`save-manager`/`persist-layer`/`local-storage`/`opfs-storage`/`game-reset`） | 已有 | 确保存档 + 读档 + 自动存档可用 |
 | mod-settings | 全部 | 保留不动 | API endpoint + KEY 输入与持久化（UI 在 `SettingsModal` → `SettingsTabModel`/`SettingsTabPresets`；`ai-service` 侧读取见 `core/ai-service/provider-config.ts`，DeepSeek 默认 `baseUrl: https://api.deepseek.com/v1`） |
 | mod-engine | 当前 12 个引擎系统 | P0/P1 已适配 | 核心叙事循环、记忆压缩、当前上下文过滤、历史事实投影和跨系统原子快照，见 §六 |
-| mod-world | P0 六个外部运行系统、`world-entity`、世界选择与手动配置 | P0 已完成 | 每次创建一个世界上下文；保持本地手动配置，不恢复旧地图或 world-init AI 调用链 |
+| mod-world | P0 六个外部运行系统、`world-entity`、世界选择与本地上下文创建 | P0 已完成 | 每次创建一个世界上下文；保留本地默认元数据，不恢复世界创意工坊或 world-init AI enrichment 调用链 |
 | mod-history-dynamics | `historical-event-ledger` | P1 已完成 | 作为唯一历史事实账本运行；旧 `event-pool` 与 `causal-simulation` 已降为无独立 ID/Store 的内部组件 |
 | mod-character | `destiny-pattern`、`character-base`、`lifespan`、`luck`、`morality` | 保留并完成 P0 身份适配 | 主角 ID 全局稳定；当地属性修正按 `contextId/sourceId` 分区 |
 | mod-ui | 全部 | 保留不动 | 组件库 |
-| mod-pages | 上述页面 | 可改页面逻辑，不做 UI 大重构 | 为 MVP 串通页面链路；`world-customize`/`world-build` 可调整为手动写入，避免 world-init AI 调用 |
+| mod-pages | 上述页面 | 可改页面逻辑，不做 UI 大重构 | 为 MVP 串通页面链路；world-select 确认后直接进入 character-create，节日范围由角色自定义选项承接 |
 
 ### 4.2 P2—P8 模拟系统段 —— 继续延后（执行路径隔离优先，用户逐阶段确认后再加）
 
@@ -168,7 +168,7 @@ Full gate 剩余 FAIL 分流表：
 | mod-character | health / life-stage / attribute-decay / post-death-epilogue | ⬜ P5 延后；`morality` 已进入当前 MVP |
 | mod-npc | npc-attribute / npc-behavior / npc-memory | ⬜ 需清空 |
 | mod-history-dynamics | 旧 event-pool / causal-simulation | P1 已淘汰独立系统；候选与因果图能力已并入历史事件账本内部组件 |
-| mod-base-universe | celestial / era / world-map / fate-prophecy / divine-creation | ⬜ 需清空（世界配置改手动后，纪元/天象等 sim 部分延后） |
+| mod-base-universe | celestial / era / world-map / fate-prophecy / divine-creation | ⬜ 需清空（世界创意工坊移除后，纪元/天象等 sim 部分延后） |
 | mod-world | P0 世界上下文、空间、切换、范围、初始化和 `world-entity` | 已进入运行；P3 之前不恢复旧 `world-map` 或地图 UI |
 | mod-world-map | 世界地图渲染 | ⬜ 延后 |
 | mod-golden-finger | 已按 `PD-027` 删除 | 不再加载、恢复或进入插件段 |
@@ -213,12 +213,12 @@ Full gate 剩余 FAIL 分流表：
 
 ---
 
-## 七、世界配置与 P0 上下文创建（屏 3 展开）
+## 七、世界选择与 P0 上下文创建（屏 2 展开）
 
-MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化世界初始化，不恢复 world-init AI 生成管线：
-1. `world-select`：预设世界列表 + "自定义"入口，纯本地数据，无 AI。
-2. `world-customize`/`world-build`：手动选择/输入四字段（力量体系 · 世界观本质 · 力量上限 · 空间形态）+ 自定义按钮，**不触发任何 world-init AI 调用**。
-3. world-init AI 管线继续从 MVP 执行路径隔离；`WorldInitSystem` 当前作为本地创建工厂，每次创建或受控重初始化一个带稳定 `contextId`、能力画像、空间根和当地时间的上下文实例。
+MVP 由世界选择直接进入角色创建；P0 只保留本地结构化世界上下文创建，不恢复世界创意工坊或 world-init AI enrichment：
+1. `world-select`：预设世界列表 + "自定义"入口，纯本地数据，无 AI；确认后建立目标世界上下文并直接进入角色创建。
+2. `character-create`：在自定义选项中编辑节日范围，继续写回 `WorldConfig.festivalScope`，不建立第二状态源。
+3. `WorldInitSystem` 作为本地创建工厂，每次创建或受控重初始化一个带稳定 `contextId`、能力画像、空间根和当地时间的上下文实例。
 4. 这一步不会自动消除 §2.2 的 calibration 语法错误 FAIL；该 FAIL 属于 gate 检查脚本/导入链问题，需在阶段 0 的 full gate 分流中单独处理。
 5. `world-entity-system` 已按 `contextId` 分区并使用全局实体 ID；旧地图、NPC、经济、政治和世界观插件仍不进入创建流程。
 
@@ -233,12 +233,11 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 - **阶段 0｜关闸基线打通（换电脑后第一步）**：
   1. 运行 `npm run check:structural`，确认最新报告仍只剩 structural 两项硬阻断。
   2. 修 `fate-prophecy` schema/generated keys 不一致：MVP 口径是 `fate-prophecy` 延后，因此优先从活跃叙事变更链移出（`SUBSYSTEM_CHANGE_SCHEMAS`、Prompt 允许列表、prompt gate 等需链路检索后同步）；若选择保留字段，必须说明为什么它仍属于 MVP，并补齐单一来源，禁止只为 generated 变绿而手改产物。
-  3. 修 `orchestrator-system.ts` deep import：`@/mods/mod-world/utils/world-init-prompt-vars` 必须改为 `@/mods/mod-world` 公共导出、secondary public entry、事件或 store selector 之一；先做链路检索，再选最小且符合 MOD 边界的方案。
   4. `npm run check:structural` 必须 PASS 后，才进入阶段 A/B。
   5. 随后运行一次 `npm run gate-check`，把剩余 C3 FAIL 建立基线分流表：真实阻断 / 检测器误报 / 迁移期应降级 / MVP 后处理。分流表必须至少覆盖 calibration CSS module 导入链、AI `apiKey` 透传、MOD scanner 迁移期误报、UI token 错误。分流表应写回本蓝图或独立 `docs/` 记录，避免下一轮重复判断。
 - **阶段 A｜引擎地基对齐**：确认 `TimeSystem` 以"天"为唯一最小单位，默认叙事步长为年，且日/月/季/年切换都会换算成正确 `daysPassed`；确认 orchestrator 用 `daysPassed`/`totalDays` 正常组装 context。
 - **阶段 B｜MVP 执行路径收敛**：先把 §五所有非 MVP 子系统从 Prompt、AI changes、核心循环验证路径中隔离；必须保留的清空桩不得在正常玩法路径持续 `console.error`。这一步放在核心模拟验证前，避免旧活代码或抛错桩干扰阶段 D。
-- **阶段 C｜世界配置去 AI**：world-select 预设/自定义 + world-customize 手动四字段，绕过 world-init AI 管线；world/base-universe 的 sim 子系统只保留 MVP 所需纯数据入口；确认阶段 0 的 structural 基线不回归。
+- **阶段 C｜世界创建链收口**：world-select 预设/自定义后直接进入 character-create；清理世界创意工坊、world-init AI enrichment 与旧路由/缓存引用；world/base-universe 的 sim 子系统只保留 MVP 所需纯数据入口；确认阶段 0 的 structural 基线不回归。
 - **阶段 D｜角色链路**：character-create（姓名/性别/种族/背景/寿命）→ talent-draw（AI 命格）→ attribute-alloc（15 点四项属性）→ fate-preview（基础值与独立修正核对）串通。隔离 mod-character 的 health/life-stage/attribute-decay/post-death-epilogue，保留 destiny/base/lifespan/luck/morality。旧存档的已确认基础值只读兼容，不在进入新页面时静默重算。
 - **阶段 E｜核心模拟循环 + 存档**：game-story 默认按年推进，也能切换为日/月/季推进；AI 出叙事，character-base/lifespan 随 `daysPassed` 更新，记忆压缩生效；手动存档 + 自动存档 + 读档恢复。
 - **阶段 F｜最终清尾与验收**：确认启动→建世界→建角色→进模拟→推进→存读档全程零红错；所有 gate FAIL 均已修复或进入有 owner/阶段/原因的分流表，不能以"迁移期"笼统忽略。
@@ -248,7 +247,7 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 ## 九、验收标准（MVP "能玩"的定义）
 
 1. 设置里填 endpoint + KEY，能保存并被命格 AI、叙事 AI、摘要压缩 AI、降级链读取；不能只验证 UI 存储。
-2. 启动 → 新游戏 → 选世界（预设或自定义手动配置）→ 设定角色 → AI 抽命格并选择 → 分配四项基础属性并核对命运 → 进核心模拟，**全程无红色报错、无崩溃、无清空桩持续刷 `console.error`**。
+2. 启动 → 新游戏 → 选世界（预设或自定义）→ 设定角色（含节日范围）→ AI 抽命格并选择 → 分配四项基础属性并核对命运 → 进核心模拟，**全程无红色报错、无崩溃、无清空桩持续刷 `console.error`**。
 3. 核心模拟底层按整数天推进；默认叙事步长为「年」，玩家可切换为「日 / 月 / 季 / 年」，AI 生成叙事，角色寿命/属性随 `daysPassed` 变化。
 4. 连续推进多年，token 不爆炸（压缩生效）。
 5. 长局原始叙事、摘要、关系、伏笔、因果标记和用户设定不因字符数、条目数或容量上限被截断；近期窗口之外由压缩与检索覆盖。
@@ -263,7 +262,7 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 
 - 先读后改：改任何文件前 Read 完整文件 + 贴链路检索证据（含大小写不敏感 + getter 变体搜索）。
 - 需求优先：保持已完成的 P0 多世界基础与 P1 历史事件账本，只按蓝图二和用户授权恢复后续阶段，**不要顺手进入 P2—P8**；临时抛错桩不能进入最终正常玩法验收路径。
-- 不懂就停：世界配置去 AI 的边界、命格 AI 的返回结构等有歧义时，列选项问用户。
+- 不懂就停：世界上下文创建的本地边界、命格 AI 的返回结构等有歧义时，列选项问用户。
 - 动 core/foundation 前说明风险等确认（B-01/B-02）。
 - 本轮实际触碰、清空、恢复的子系统一律 `extends BaseSubsystem`；时间只读 `this.getDaysPassed(context)`；禁止复活 `ageYearsDelta`/`simulationTicks`。
 - 禁止硬编码 maxTokens；禁止以 `slice/substring/shift/splice`、固定字符数、固定条数、容量淘汰或部分提交等任何破坏性方式截断剧情语义。允许语义压缩和可解释遗忘，但原始事实与覆盖链必须可追踪。

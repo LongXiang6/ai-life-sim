@@ -41,11 +41,6 @@ export interface NarrativeTalentPromptView {
   效果: string
 }
 
-export interface NarrativeDetailedStoryPromptView {
-  时间: string
-  正文: string
-}
-
 /** Prompt 构建上下文；代码生成器从本入口读取字段，不能移动到下级文件。 */
 export interface PromptContext {
   worldNarrativeView: Record<string, unknown>
@@ -59,15 +54,12 @@ export interface PromptContext {
   systemChangeSummary?: string
   narrativeGuidanceText?: string
   worldTagsText?: string
-  worldRules?: string
   timelineMemory?: string[]
-  recentDetailedStories?: NarrativeDetailedStoryPromptView[]
   currentRegion?: string
   narrativeStyle?: string
   /** 主叙事动态称呼方式；由设置 Store 提供，缺失时按第二人称处理。 */
   narrativeAddressing?: 'first-person' | 'second-person' | 'character-name'
   narrativeToneHint?: string
-  modWorldRules?: string
   plotStructureText?: string
   foreshadowingText?: string
   wordCountInstruction?: string
@@ -78,7 +70,6 @@ export interface PromptContext {
   currentDueEvents?: string[]
   talents?: NarrativeTalentPromptView[]
   timeGuideText?: string
-  powerFramework?: Record<string, string>
 }
 
 export interface PromptTemplate<TOutput = unknown> {

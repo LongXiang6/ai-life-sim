@@ -18,14 +18,11 @@ export const PROMPT_CONTEXT_FIELDS = [
   "systemChangeSummary",
   "narrativeGuidanceText",
   "worldTagsText",
-  "worldRules",
   "timelineMemory",
-  "recentDetailedStories",
   "currentRegion",
   "narrativeStyle",
   "narrativeAddressing",
   "narrativeToneHint",
-  "modWorldRules",
   "plotStructureText",
   "foreshadowingText",
   "wordCountInstruction",
@@ -34,8 +31,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "currentTime",
   "currentDueEvents",
   "talents",
-  "timeGuideText",
-  "powerFramework"
+  "timeGuideText"
 ] as const
 
 /** narrative-prompt 模板 variables[] */

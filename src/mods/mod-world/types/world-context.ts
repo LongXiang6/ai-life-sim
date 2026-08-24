@@ -11,7 +11,7 @@ import type {
   SpatialGraphContract,
   WorldContextRecord,
 } from '@/foundation'
-import type { WorldCalibration, WorldInitAIStatus } from './calibration'
+import type { WorldCalibration } from './calibration'
 import type { RegionData } from './regions'
 import type { WorldConfig } from './world-config'
 import type { WorldTagsV2 } from './world-tags'
@@ -39,7 +39,6 @@ export interface WorldContextInstance {
   eraStartYear: number
   eraName: string
   calibration: WorldCalibration | null
-  worldInitAIStatus: WorldInitAIStatus | null
 }
 
 export interface WorldContextCollection {

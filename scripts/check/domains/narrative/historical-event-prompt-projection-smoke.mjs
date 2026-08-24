@@ -309,15 +309,17 @@ assertOk(
   'historical facts and candidates must continue to exist in their local ledger owner',
 )
 assertOk(
-  narrativePrompt.version === '7.3.0',
-  'the story Prompt must use the approved 01 asset version',
+  narrativePrompt.version === '7.4.1'
+    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.4.1',
+  'the story Prompt must use the approved 01 asset and version',
 )
 assertOk(
   JSON.stringify(Object.keys(compiledWorldInput)) === JSON.stringify(['世界'])
-    && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史剧情', '最近两轮详细剧情', '角色'])
-    && JSON.stringify(Object.keys(compiledRoundInput)) === JSON.stringify(['本轮引导', '当前到期事件'])
-    && Array.isArray(compiledRoundInput.本轮引导)
-    && compiledRoundInput.本轮引导.length === 6,
+    && JSON.stringify(Object.keys(compiledWorldInput.世界)) === JSON.stringify(['名称', '描述'])
+    && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史连续性事实', '角色'])
+    && JSON.stringify(Object.keys(compiledRoundInput)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
+    && Array.isArray(compiledRoundInput.本轮事实与方向)
+    && compiledRoundInput.本轮事实与方向.length === 6,
   '01 must retain exactly three user messages and inject current due events only when available',
 )
 assertOk(

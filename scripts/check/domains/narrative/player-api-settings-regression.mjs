@@ -26,8 +26,6 @@ const provider = read('src/core/ai-service/provider-config.ts')
 const proxy = read('src/app/api/proxy/route.ts')
 const serverTargets = read('src/core/ai-service/server-provider-targets.ts')
 const worldInitBundle = read('src/mods/mod-world/world-init-bundle.ts')
-const worldInitAIService = read('src/mods/mod-world/utils/world-init-pipeline/ai-service.ts')
-const worldInitContextFactory = read('src/mods/mod-world/utils/world-init-pipeline/context-factory.ts')
 const store = read('src/mods/mod-settings/store.ts')
 const settings = read('src/mods/mod-settings/components/SettingsTabPresets.tsx')
 const modelSettings = read('src/mods/mod-settings/components/SettingsTabModel.tsx')
@@ -74,15 +72,11 @@ assertOk(
 )
 assertOk(
   !fs.existsSync(path.join(root, 'src/app/api/world-init/route.ts'))
-    && worldInitContextFactory.includes('const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()')
-    && worldInitContextFactory.includes('provider,')
-    && worldInitContextFactory.includes("customUrl: customUrl || ''")
-    && worldInitContextFactory.includes("customKey: customKey || ''")
-    && worldInitAIService.includes('providerId: context.provider')
-    && worldInitAIService.includes('customBaseUrl: context.customUrl || undefined')
-    && worldInitAIService.includes('apiKey: context.customKey')
-    && !worldInitAIService.includes('readServerProviderApiKey'),
-  'world initialization must call the shared player-owned AI client without a server route or credential fallback',
+    && worldInitBundle.includes('commitWorldInitialization')
+    && !fs.existsSync(path.join(root, 'src/mods/mod-world/utils/world-init-pipeline.ts'))
+    && !worldInitBundle.includes('generateWorldInitBundle')
+    && !worldInitBundle.includes('startBackgroundWorldInit'),
+  'world initialization must use the local commit path without a server route or retired AI enrichment pipeline',
 )
 assertOk(
   settingsPersistenceVersion >= 12
@@ -110,7 +104,7 @@ assertOk(
   'player guidance and deployment validation must not point back to removed free providers',
 )
 assertOk(
-  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverTargets + worldInitBundle + worldInitAIService + worldInitContextFactory + store + settings + envExample),
+  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverTargets + worldInitBundle + store + settings + envExample),
   'tracked sources must not contain an API credential',
 )
 

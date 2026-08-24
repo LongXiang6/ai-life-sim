@@ -8,7 +8,7 @@
  * @mod mod-engine
  */
 
-import type { ModManifest, RoundContext, SubSystemState } from '@/foundation'
+import type { RoundContext, SubSystemState } from '@/foundation'
 
 import { isMvpPromptSubsystem } from './mvp-runtime-policy'
 
@@ -80,37 +80,6 @@ export function isSubsystemOpenForPrompt(state: SubSystemState | undefined, subs
   return true
 }
 
-export interface ActivePromptModBinding {
-  readonly mod: string
-}
-
-/**
- * 只聚合真正参与当前运行链的 MOD 规则。
- * manifest 被加载仅代表代码可用，不代表其规则应进入本轮叙事 Prompt。
- */
-export function collectActiveModWorldRules(
-  manifests: readonly ModManifest[],
-  activeBindings: Iterable<ActivePromptModBinding>,
-): string | undefined {
-  const activeModNames = new Set<string>(['mod-engine'])
-  for (const binding of activeBindings) {
-    const modName = binding.mod.trim()
-    if (modName) activeModNames.add(modName)
-  }
-
-  const seenRules = new Set<string>()
-  const rules: string[] = []
-  for (const manifest of manifests) {
-    if (!activeModNames.has(manifest.name)) continue
-    const rule = manifest.worldRules?.trim()
-    if (!rule || seenRules.has(rule)) continue
-    seenRules.add(rule)
-    rules.push(rule)
-  }
-
-  return rules.length > 0 ? rules.join('\n') : undefined
-}
-
 function normalizeSummaryLine(summary: string): string {
   return summary.trim()
 }
@@ -180,24 +149,4 @@ export function dedupeSummariesAgainstMemory(
   return currentStateSummaries
     .map(normalizeSummaryLine)
     .filter((line) => line.length > 0 && !memorySet.has(line))
-}
-
-/** 叙事一致性头（自然语言，非 tag 正则切换） */
-export function buildNarrativeCoherenceHeader(
-  config: Record<string, unknown>,
-): string | undefined {
-  const parts: string[] = ['【叙事一致性】']
-  parts.push('同条消息中的“世界设定”独立承载完整世界描述，本节只补充叙事一致性。')
-  const powerFramework = config.powerFramework as { enabled?: boolean; label?: string } | undefined
-  if (!powerFramework?.enabled) {
-    parts.push('基础力量体系为“无”；【世界设定】【命格天赋】或【当前状态】中已经成立的超常事实按各自条件生效。')
-  } else {
-    parts.push(`力量体系：${powerFramework.label ?? '按世界设定运行'}；本轮能力与设定从【当前状态】的已成立事实中取用。`)
-  }
-  return parts.join('\n')
-}
-
-/** 世界规则只保留 tag 兜底；校准摘要已有独立字段，避免稳定 Prompt 重复发送。 */
-export function buildNarrativeWorldRules(fallbackFromTag: string): string {
-  return fallbackFromTag.trim()
 }

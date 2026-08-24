@@ -1,3 +1,15 @@
+/**
+ * Purpose: Browser regression for the current world-select workflow.
+ * Owner: quality:ui
+ * Responsibility: Verify world selection presentation, local summary readiness, cache reset controls, and direct role-configuration handoff without restoring the retired world-customize flow.
+ */
+
+/**
+ * Purpose: Regress responsive world-selection layout and direct navigation behavior.
+ * Owner: quality:ui
+ * Responsibility: One Playwright session, viewport evidence, and ordered world-selection assertions only.
+ */
+
 const path = require('node:path')
 const { chromium } = require('playwright')
 
@@ -50,7 +62,7 @@ async function main() {
         scrollWidth: document.documentElement.scrollWidth,
         bottomHeights: bottomButtons.map((item) => item.getBoundingClientRect().height),
         directoryLabels: directoryButtons.map((item) => item.textContent?.replace(/\s+/g, ' ').trim()),
-        hasRuleSummary: document.body.textContent?.includes('世界规则摘要') ?? false,
+        hasWorldSummary: Boolean(document.querySelector('section[aria-label="当前世界"] .stageQuote')?.textContent?.trim()),
       }
     })
 
@@ -61,7 +73,7 @@ async function main() {
       [difficultyOptions === 4, `difficulty menu expected 4 options, got ${difficultyOptions}`],
       [metrics.bottomHeights.every((height) => Math.abs(height - 32) < 1), `bottom controls are not 32px: ${metrics.bottomHeights.join(',')}`],
       [metrics.directoryLabels.length === 3, 'independent three-row directory missing'],
-      [metrics.hasRuleSummary, 'world rule summary missing from stage'],
+      [metrics.hasWorldSummary, 'world summary missing from stage'],
       [errors.length === 0, `console errors: ${errors.join(' | ')}`],
     ]
 

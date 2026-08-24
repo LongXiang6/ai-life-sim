@@ -53,8 +53,6 @@ function seedPage(page) {
         entities: [], initialized: true, worldCode: fixtureWorldCode, currentYear: 2000,
         worldTags: ['现代', '现实'], eraStartYear: 2000, eraName: '公元', calibration: null,
         destinyPatternModifiers: {},
-        worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true,
-          tagsGenerated: true, configGenerated: true, regionProfilesGenerated: true, errors: [] },
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 11, state: {
@@ -194,7 +192,7 @@ async function main() {
   await page.goto(`${baseUrl}/new-game/world-select`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
   await assertCreationUiContract(page, {
-    header: '01 / 08', nextNumber: '02', primaryText: '确认世界',
+    header: '01 / 07', nextNumber: '02', primaryText: '确认世界',
     includes: ['选择世界', '已保存', '预设世界', '自定义', '难度'],
   })
   await capture('world-select')
@@ -233,28 +231,27 @@ async function main() {
     return
   }
 
-  await page.goto(`${baseUrl}/new-game/world-customize`, { waitUntil: 'domcontentloaded' })
+  await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].find((button) => button.textContent?.includes('预设'))?.click())
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('现代地球'))?.click())
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认世界') && !button.disabled))
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认世界') && !button.disabled)?.click())
+  await page.waitForFunction(() => location.pathname.endsWith('/new-game/character-create'))
   await page.waitForSelector('h1')
   await assertCreationUiContract(page, {
-    header: '02 / 08', nextNumber: '03', primaryText: '确认世界',
-    includes: ['配置世界', '规则摘要', '世界规则', 'AI', '选择', '自定'],
+    header: '02 / 07', nextNumber: '03', primaryText: '确认角色',
+    includes: ['自定义选项', '节日范围'],
   })
-  await capture('world-customize')
-
-  await page.goto(`${baseUrl}/new-game/character-create`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('h1')
-  await assertCreationUiContract(page, { header: '03 / 08', nextNumber: '04', primaryText: '确认角色' })
   await capture('character')
   await page.focus('#character-name')
   await page.keyboard.type('分支测试')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认角色'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw'))
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('开始抽取') && !button.disabled))
-  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '开始抽取', includes: ['命格抽取'] })
+  await assertCreationUiContract(page, { header: '03 / 07', nextNumber: '04', primaryText: '开始抽取', includes: ['命格抽取'] })
   await capture('draw-idle')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始抽取') && !button.disabled)?.click())
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled))
-  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '进入命格选择', includes: ['五类首批命印', '20 / 20'] })
+  await assertCreationUiContract(page, { header: '03 / 07', nextNumber: '04', primaryText: '进入命格选择', includes: ['五类首批命印', '20 / 20'] })
   await capture('draw-ready')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('进入命格选择'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw') && document.body.textContent?.includes('选择命格'))
@@ -269,7 +266,7 @@ async function main() {
     await page.evaluate(() => document.querySelector('button[aria-label$="选择普通命格"]')?.click())
   }
   await assertCreationUiContract(page, {
-    header: '05 / 08', nextNumber: '06', primaryText: '确认命格',
+    header: '04 / 07', nextNumber: '05', primaryText: '确认命格',
     loadoutSlots: 4, includes: ['轮回天赋', '携带命格', '4 / 4'],
   })
   await capture('selection-filled')
@@ -282,7 +279,7 @@ async function main() {
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认命格'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
   await page.waitForSelector('button[aria-label="提高体魄"]')
-  await assertCreationUiContract(page, { header: '06 / 08', nextNumber: '07', primaryText: '确认属性', attributeRows: 4, includes: ['/ 12', '四项基础属性'] })
+  await assertCreationUiContract(page, { header: '05 / 07', nextNumber: '06', primaryText: '确认属性', attributeRows: 4, includes: ['/ 12', '四项基础属性'] })
   await capture('attribute')
   for (let i = 0; i < 12; i += 1) {
     const label = i < 10 ? '提高体魄' : '提高心智'
@@ -296,7 +293,7 @@ async function main() {
     console.error('FATE_PREVIEW_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-4000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled, title: button.title })) })))
     throw error
   }
-  await assertCreationUiContract(page, { header: '07 / 08', primaryText: '开始人生', includes: ['世界与角色', '轮回天赋', '属性与命格'] })
+  await assertCreationUiContract(page, { header: '06 / 07', primaryText: '开始人生', includes: ['世界与角色', '轮回天赋', '属性与命格'] })
   await capture('preview')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始人生'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))

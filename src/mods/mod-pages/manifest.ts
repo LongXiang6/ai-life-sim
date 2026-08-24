@@ -21,8 +21,6 @@ export default defineMod({
     { path: '/welcome', page: 'welcome' },
     { path: '/new-game', page: 'new-game' },
     { path: '/new-game/world-select', page: 'world-select' },
-    { path: '/new-game/world-customize', page: 'world-customize' },
-    { path: '/new-game/world-build', page: 'world-build' },
     { path: '/new-game/character-create', page: 'character-create' },
     // The mobile solution library uses /new-game/* for every creation step.
     // Keep those links first-class while retaining the shorter legacy paths.

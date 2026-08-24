@@ -8,7 +8,6 @@ export type { PageRoute } from './types'
 
 export { default as WelcomePage } from './pages/welcome/page'
 export { default as NewGamePage } from './pages/new-game/page'
-export { default as WorldBuildPage } from './pages/world-build/page'
 export { default as CharacterCreatePage } from './pages/character-create/page'
 export { default as TalentDrawPage } from './pages/talent-draw/page'
 export { default as FatePreviewPage } from './pages/fate-preview/page'

@@ -1,6 +1,6 @@
 /**
  * @module useWorldConfirm.ts
- * @description 世界选择确认 —— 本地初始化 + 一致性确认 + 跳转自定义
+ * @description 世界选择确认 —— 本地初始化 + 一致性确认 + 跳转角色创建
  * @mod mod-pages
  */
 
@@ -23,9 +23,7 @@ import {
   type WorldConfig,
 } from '@/mods/mod-world'
 import { commitWorldInitialization, resolvePresetWorldCode } from '@/mods/mod-world/world-init-api'
-import { hasAvailableApiConfiguration, isApiConfigured } from '@/mods/mod-settings'
 
-import { useWorldCoherenceConfirm } from '../../hooks/useWorldCoherenceConfirm'
 import { prepareNewLifeWorldCommit } from '../../helpers/new-life-reset'
 
 import type { Difficulty } from './useWorldSelectForm'
@@ -36,13 +34,10 @@ const WORLDVIEW_ROUTE_MAP: Record<string, 'modern' | 'cultivation' | 'post-apoca
   survival_horror: 'post-apocalyptic',
 }
 
-export { hasAvailableApiConfiguration, isApiConfigured } from '@/mods/mod-settings'
-
 export function useWorldConfirm() {
   const router = useRouter()
   const setWorldviewId = useGlobalStore((s) => s.setWorldviewId)
   const setWorldName = useGlobalStore((s) => s.setWorldName)
-  const { requestCoherenceResolve, conflictModal } = useWorldCoherenceConfirm()
   const confirmingRef = useRef(false)
 
   const proceedWithConfig = useCallback(async (
@@ -92,10 +87,7 @@ export function useWorldConfirm() {
       },
     )
 
-    if (typeof window !== 'undefined') {
-    }
-
-    router.push('/new-game/world-customize')
+    router.push('/new-game/character-create')
     return true
   }, [router, setWorldviewId, setWorldName])
 
@@ -107,12 +99,6 @@ export function useWorldConfirm() {
     if (confirmingRef.current) return false
     confirmingRef.current = true
     try {
-      if (!await hasAvailableApiConfiguration()) {
-        throw new Error(
-          '当前主叙事模型不可用：请打开设置 → 模型调用，选择官方厂商预设；你仍可填写自己的 API Key。',
-        )
-      }
-
       const isCustom = selectedWorld.id.startsWith('custom-')
       const draft = isCustom
         ? buildWorldConfigFromCustom(
@@ -125,21 +111,11 @@ export function useWorldConfirm() {
           )
         : buildWorldConfigFromPreset(selectedWorld, difficulty)
 
-      return await new Promise<boolean>((resolve, reject) => {
-        requestCoherenceResolve(
-          draft,
-          (config) => {
-            void proceedWithConfig(config, selectedWorld, { worldCode: options?.worldCode })
-              .then(resolve)
-              .catch(reject)
-          },
-          () => resolve(false),
-        )
-      })
+      return await proceedWithConfig(draft, selectedWorld, { worldCode: options?.worldCode })
     } finally {
       confirmingRef.current = false
     }
-  }, [proceedWithConfig, requestCoherenceResolve])
+  }, [proceedWithConfig])
 
-  return { handleConfirm, isApiConfigured, hasAvailableApiConfiguration, conflictModal }
+  return { handleConfirm }
 }

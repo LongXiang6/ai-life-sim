@@ -25,14 +25,14 @@ export type NarrativePromptAuthority =
   | '世界与协议'
   | '玩家意图'
   | '当前事实'
-  | '剧情引导'
+  | '本轮方向'
   | '文风参考'
 
 export type NarrativePromptAssemblyPosition =
   | '系统固定前缀'
   | '全局信息'
   | '记忆'
-  | '本轮引导'
+  | '本轮事实与方向'
   | '格式修复'
 
 export interface NarrativePromptComponent {

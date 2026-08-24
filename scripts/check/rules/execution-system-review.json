@@ -8,8 +8,7 @@
     "mod-initialization",
     "mod-state-load",
     "narrative-round",
-    "subsystem-advance",
-    "world-init"
+    "subsystem-advance"
   ],
   "requiredIncidentCategories": [
     "blocked",

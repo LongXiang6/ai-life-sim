@@ -43,12 +43,6 @@ import { DEFAULT_CAMPAIGN_STAGE_NAMES } from '@/mods/mod-engine/campaigns/defaul
 import {
   createSubsystemAdvanceExecutionNodes,
 } from '@/mods/mod-engine/helpers/subsystem-execution-flow'
-import {
-  createDefaultWorldInitSteps,
-} from '@/mods/mod-world/utils/world-init-pipeline'
-import type {
-  WorldInitPipelineContext,
-} from '@/mods/mod-world/utils/world-init-pipeline'
 
 interface RootCauseChain {
   directFailure: string
@@ -199,15 +193,6 @@ function testModLifecycle(): void {
     }, manifests)
     validateGraph(flow.flowId, flow, nodes)
   }
-}
-
-function testWorldInitialization(): void {
-  const flow = EXECUTION_FLOWS.worldInit
-  const nodes = createDefaultWorldInitSteps().map((step): ExecutionSequenceNode<WorldInitPipelineContext> => ({
-    ...step,
-    outcomes: createExecutionOutcomeCodes(flow.flowId, step.id),
-  }))
-  validateGraph('world-init', flow, nodes)
 }
 
 function testSubsystemAdvance(): void {
@@ -406,7 +391,6 @@ async function testExecutionDiagnostics(): Promise<void> {
 testRegistry()
 testNarrativeRound()
 testModLifecycle()
-testWorldInitialization()
 testSubsystemAdvance()
 testNegativeContracts()
 testIncidentFixtures()

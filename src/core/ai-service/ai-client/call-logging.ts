@@ -15,7 +15,6 @@ import type { AICallOptions, AiMessage } from './types'
 
 const POOL_TO_CATEGORY: Record<CachePoolType, DebugLogCategory> = {
   narrative: 'narrative-rounds',
-  worldInit: 'world-init',
   fate: 'talent-generate',
   lowFrequency: 'background-events',
   adaptation: 'background-events',

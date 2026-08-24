@@ -11,7 +11,6 @@ export type {
   MapTemplateId,
   WorldCalibration,
   WorldCalibrationFormulas,
-  WorldInitAIStatus,
 } from './types/calibration'
 export type { GenerationStrategy, MapTemplateConfig, RegionData } from './types/regions'
 export type { WorldConfig } from './types/world-config'

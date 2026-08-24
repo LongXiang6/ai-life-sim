@@ -13,7 +13,6 @@ import { useState } from 'react'
 import { FlowRunningHead } from '@/mods/mod-ui'
 
 import { WorldSelectBottomBar } from './WorldSelectBottomBar'
-import { WorldSelectCacheResetDialog } from './WorldSelectCacheResetDialog'
 import { WorldSelectDirectory } from './WorldSelectDirectory'
 import { WorldSelectMainGrid } from './WorldSelectMainGrid'
 import { WorldSelectStage } from './WorldSelectStage'
@@ -29,10 +28,9 @@ export function WorldSelectMobile() {
     <div className="final-flow-frame">
       <div className="flow-responsive-viewport">
         <div className="flow-responsive-layout">
-          {logic.conflictModal}
           <main className={styles.page} aria-busy={logic.isConfirming}>
             <div className={`${styles.screen} final-flow-page-surface`}>
-              <FlowRunningHead stepLabel="01 / 08" />
+              <FlowRunningHead stepLabel="01 / 07" />
               <header className={styles.header}>
                 <h1>选择世界</h1>
               </header>
@@ -94,7 +92,6 @@ export function WorldSelectMobile() {
               {logic.confirmError && <p className={styles.errorMessage} role="alert">{logic.confirmError}</p>}
             </div>
           </main>
-          <WorldSelectCacheResetDialog logic={logic} />
           <WorldSelectBottomBar logic={logic} />
         </div>
       </div>

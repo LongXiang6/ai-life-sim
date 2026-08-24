@@ -17,7 +17,6 @@ import type {
   WorldCalibration,
   WorldConfig,
   WorldContextInstance,
-  WorldInitAIStatus,
   WorldSnapshot,
   WorldTagsV2,
 } from '../../types'
@@ -55,7 +54,6 @@ export function buildWorldContextInstance(input: {
   worldTags?: string[]
   eraStartYear?: number
   eraName?: string
-  worldInitAIStatus?: WorldInitAIStatus | null
   parentContextId?: string
   contextKind?: WorldContextKind
   localCalendar?: LocalCalendarProfile
@@ -125,7 +123,6 @@ export function buildWorldContextInstance(input: {
     eraStartYear: input.eraStartYear ?? input.config.eraStartYear ?? 0,
     eraName: input.eraName ?? input.config.eraName ?? '',
     calibration: structuredClone(input.calibration),
-    worldInitAIStatus: structuredClone(input.worldInitAIStatus ?? null),
   }
 }
 
@@ -158,6 +155,5 @@ export function projectWorldContextInstance(instance: WorldContextInstance) {
     eraStartYear: instance.eraStartYear,
     eraName: instance.eraName,
     calibration: structuredClone(instance.calibration),
-    worldInitAIStatus: structuredClone(instance.worldInitAIStatus),
   }
 }

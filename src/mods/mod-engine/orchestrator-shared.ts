@@ -34,7 +34,6 @@ export { shouldAlignTimeStepTransition } from './subsystems/time-system'
 // helpers
 export {
   DEFAULT_ENGINE_CONFIG,
-  getWorldRules,
   buildWordCountInstruction,
   buildStyleInstruction,
   resolveNarrativeToneHint,
@@ -44,9 +43,6 @@ export {
   sanitizeSubSystemState,
   clampNumber,
   buildLayeredMemoryStateCard,
-  buildNarrativeCoherenceHeader,
-  buildNarrativeWorldRules,
-  collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   isSubsystemOpenForPrompt,

@@ -20,7 +20,6 @@ import {
 const MAX_BODY_SIZE = 8 * 1024 * 1024
 const DEBUG_CATEGORIES = [
   'narrative-rounds',
-  'world-init',
   'talent-generate',
   'epilogue',
   'background-events',

@@ -95,11 +95,6 @@ function seedPage(page) {
         entities: [],
         calibration: null,
         destinyPatternModifiers: {},
-        worldInitAIStatus: {
-          status: 'complete', currentStep: '完成', calibrationGenerated: true,
-          tagsGenerated: true, configGenerated: true, regionProfilesGenerated: true,
-          errors: [],
-        },
       },
     }))
     localStorage.setItem('mod-character:persist:character-state', JSON.stringify({

@@ -1,5 +1,5 @@
 /**
- * Purpose: Coordinate preset selection, difficulty, cache controls, and world confirmation.
+ * Purpose: Coordinate preset selection, difficulty, and world confirmation.
  * Owner: mod-pages/world-select
  * Responsibility: Page hook orchestration; custom-world CRUD, labels, and projections live in sibling modules.
  */
@@ -18,7 +18,6 @@ import {
 import { LABELS } from './world-select-labels'
 import { resolveRestoredWorld } from './world-select-worlds'
 import { useWorldConfirm } from './useWorldConfirm'
-import { useWorldSelectCache } from './useWorldSelectCache'
 import { useWorldSelectCustomWorlds } from './useWorldSelectCustomWorlds'
 import {
   DIFFICULTY_CONFIG,
@@ -33,8 +32,7 @@ export function useWorldSelectLogic() {
   const router = useRouter()
   const existingWorldConfig = useWorldStore((state) => state.worldConfig)
   const existingWorldCode = useWorldStore((state) => state.worldCode)
-  const { handleConfirm: confirmWorld, conflictModal } = useWorldConfirm()
-  const cache = useWorldSelectCache()
+  const { handleConfirm: confirmWorld } = useWorldConfirm()
   const [isConfirming, setIsConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [selectedWorldOverride, setSelectedWorld] = useState<PresetWorld | null>(null)
@@ -167,14 +165,6 @@ export function useWorldSelectLogic() {
     difficultyItems,
     selectedDifficultyLabel: LABELS.difficultyItems[difficulty].label,
     confirmTitle,
-    worldCodesWithCache: cache.worldCodesWithCache,
-    rotatingWorldCode: cache.rotatingWorldCode,
-    pendingCacheReset: cache.pendingCacheReset,
-    handleRequestClearWorldCache: cache.handleRequestClearWorldCache,
-    handleCancelClearWorldCache: cache.handleCancelClearWorldCache,
-    handleConfirmClearWorldCache: cache.handleConfirmClearWorldCache,
-    handleClearWorldCache: cache.handleClearWorldCache,
-    conflictModal,
     LABELS,
   }
 }

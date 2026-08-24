@@ -8,7 +8,6 @@
  * @mod mod-engine
  */
 
-export { getWorldRules } from '../prompts/narrative-prompt'
 export {
   DEFAULT_ENGINE_CONFIG,
 } from '../constants'
@@ -33,9 +32,6 @@ export type { NarrativePromptKey } from '@/core/shared'
 export {
   buildLayeredMemoryStateCard,
   buildMemoryStateCard,
-  buildNarrativeCoherenceHeader,
-  buildNarrativeWorldRules,
-  collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   isPromptNoiseSummary,

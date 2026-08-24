@@ -1,18 +1,15 @@
 /**
  * Purpose: Commit a locally initialized world context and its owned world projections atomically.
  * Owner: mod-world / world-init bundle.
- * Responsibility: Local world/context creation only; background AI enrichment is delegated.
+ * Responsibility: Local world/context creation only.
  */
 
 import type { ContextCapability } from '@/foundation'
 import { generateWorldCode, useWorldStore } from '../store'
-import {
-  applyCoherenceToWorldConfig,
-  buildDefaultCalibration,
-  formatWorldTagsText,
-  WorldInitSystem,
-} from '../world-init-bundle-deps'
-import type { WorldConfig, WorldInitAIStatus, WorldSnapshot } from '../types'
+import { formatWorldTagsText } from '../constants/world-tag-defaults'
+import { WorldInitSystem } from '../subsystems/world-init-system'
+import type { WorldConfig, WorldSnapshot } from '../types'
+import { buildDefaultCalibration } from '../utils/calibration-clamp'
 import { assertValidPowerFramework, materializePowerFramework } from '../utils/power-framework'
 import { resolvePipelineAnchorYear } from '../utils/world-init-anchor-year'
 import {
@@ -63,15 +60,14 @@ export async function commitWorldInitialization(
   })
   const previousContextId = store.currentContextId
   const previousInstance = store.contexts[contextId]
-  const coherentConfig = applyCoherenceToWorldConfig(config)
-  if (!coherentConfig.powerFramework) throw new Error('世界配置缺少已定义的力量框架')
-  const framework = materializePowerFramework(coherentConfig.powerFramework, {
+  if (!config.powerFramework) throw new Error('世界配置缺少已定义的力量框架')
+  const framework = materializePowerFramework(config.powerFramework, {
     contextId,
-    powerSystemTag: coherentConfig.powerSystemTag,
-    source: coherentConfig.powerFramework.source,
+    powerSystemTag: config.powerSystemTag,
+    source: config.powerFramework.source,
   })
   assertValidPowerFramework(framework)
-  const resolvedConfig = { ...coherentConfig, powerFramework: framework }
+  const resolvedConfig = { ...config, powerFramework: framework }
   const parentContextId = options?.parentContextId ?? previousInstance?.record.parentContextId
   const contextKind = options?.contextKind ?? previousInstance?.record.kind ?? inferContextKind(resolvedConfig)
   const localCalendar = options?.localCalendar ?? previousInstance?.record.localCalendar
@@ -93,15 +89,6 @@ export async function commitWorldInitialization(
     calibration: defaultCalibration,
   })
   const anchorYear = resolvePipelineAnchorYear(resolvedConfig, startingYear)
-  const initStatus: WorldInitAIStatus = {
-    status: 'complete',
-    currentStep: '本地初始化完成',
-    calibrationGenerated: true,
-    tagsGenerated: true,
-    configGenerated: true,
-    regionProfilesGenerated: true,
-    errors: [],
-  }
   const instance = buildWorldContextInstance({
     contextId,
     config: resolvedConfig,
@@ -110,7 +97,6 @@ export async function commitWorldInitialization(
     calibration: defaultCalibration,
     eraStartYear: anchorYear,
     eraName: resolvedConfig.eraName,
-    worldInitAIStatus: initStatus,
     parentContextId,
     contextKind,
     localCalendar,

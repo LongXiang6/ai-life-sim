@@ -35,13 +35,6 @@ export const EXECUTION_FLOWS = Object.freeze({
     department: 'mod-engine',
     subsystem: 'subsystem-runtime',
   }),
-  worldInit: registerFlow({
-    flowId: 'world-init',
-    owner: 'mod-world',
-    failureTarget: 'mod-world',
-    department: 'mod-world',
-    subsystem: 'world-init-pipeline',
-  }),
   modInitialization: registerFlow({
     flowId: 'mod-initialization',
     owner: 'core-mod-loader',

@@ -54,6 +54,8 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   // 检测是否为原始社会
   const eraStartYear = useWorldStore((s) => s.eraStartYear)
   const worldTags = useWorldStore((s) => s.worldTags)
+  const worldConfig = useWorldStore((s) => s.worldConfig)
+  const setWorldConfig = useWorldStore((s) => s.setWorldConfig)
   const primitiveWorld = useMemo(
     () => isPrimitiveWorld(eraStartYear, worldTags),
     [eraStartYear, worldTags],
@@ -175,6 +177,12 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     ? '请先填写角色姓名，或使用随机生成'
     : ageSetupPreview.error
   const canProceed = nextBlockReason === null
+  const festivalScope = worldConfig?.festivalScope ?? 'china'
+  const setFestivalScope = useCallback((value: 'china' | 'china-and-international') => {
+    const current = useWorldStore.getState().worldConfig
+    if (!current) return
+    setWorldConfig({ ...current, festivalScope: value })
+  }, [setWorldConfig])
 
   // ============================================================
   // 导航
@@ -213,12 +221,12 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     setCharacterBase({ startingAge })
     const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
     setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })
-    router.push('/new-game/world-customize')
+    router.push('/new-game/world-select')
   }, [gender, race, background, router, setGender, setAge, setCharacterBase, setLifespanDraft, store, resolveAgeSetup])
 
   return {
     // 表单
-    name, nameError, gender, race, background,
+    name, nameError, gender, race, background, festivalScope, setFestivalScope,
     setFormName, setNameError, setFormGender, setRace, setBackground,
 
     // 姓名

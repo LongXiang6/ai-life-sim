@@ -1,24 +1,16 @@
 /**
- * Purpose: Define world-init bundle results, creation options, and the internal AI configuration.
+ * Purpose: Define local world-creation results and context options.
  * Owner: mod-world / world-init bundle.
- * Responsibility: Stable data contracts only; no initialization or Store writes.
+ * Responsibility: Stable local-creation contracts only; no initialization or Store writes.
  */
 
 import type {
-  AIModelConfig,
   ContextCapability,
   LocalCalendarProfile,
   SimulationScope,
   WorldContextKind,
 } from '@/foundation'
 import type { WorldConfig, WorldSnapshot } from '../types'
-export const WORLD_AI_CONFIG: AIModelConfig = {
-  model: 'deepseek-v4-flash',
-  temperature: 0.3,
-  responseFormat: { type: 'json_object' },
-  reasoningEffort: 'disabled',
-  stream: false,
-}
 
 export interface WorldCommitResult {
   contextId: string
@@ -26,15 +18,6 @@ export interface WorldCommitResult {
   snapshot: WorldSnapshot
   worldCode: number
   formattedTags: string
-}
-
-export interface WorldInitBundleResult {
-  calibrationGenerated: boolean
-  tagsGenerated: boolean
-  configGenerated: boolean
-  regionProfilesGenerated: boolean
-  errors: string[]
-  rawTags?: string[]
 }
 
 export interface WorldContextCreationOptions {

@@ -180,7 +180,7 @@ function TalentDrawContent() {
                 aria-labelledby="talent-page-title"
               >
                 <header className={styles.header}>
-                  <FlowRunningHead stepLabel={`${phase === 'selecting' ? '05' : '04'} / 08`} />
+                  <FlowRunningHead stepLabel={`${phase === 'selecting' ? '04' : '03'} / 07`} />
                   <div className={styles.titleCopy}>
                     <h1 id="talent-page-title">
                       {phase !== 'selecting' ? <span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🔮</span> : null}
@@ -226,7 +226,7 @@ function TalentDrawContent() {
                 backDescription={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}
                 backDisabled={selection.isConfirming}
                 onConfirm={handleFooterAction}
-                confirmNumber={phase === 'selecting' ? '06' : '05'}
+                confirmNumber={phase === 'selecting' ? '05' : '04'}
                 confirmText={footerTitle}
                 confirmDescription={footerCopy}
                 confirmDisabled={footerDisabled}

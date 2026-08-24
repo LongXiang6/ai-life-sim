@@ -8,7 +8,6 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { saveStore } from '@/core'
 import { allocateWorldCode, type PresetWorld } from '@/mods/mod-world'
-import { clearWorldGeneratedCache } from '@/mods/mod-world/world-init-api'
 
 import { LABELS } from './world-select-labels'
 import {
@@ -187,14 +186,13 @@ export function useWorldSelectCustomWorlds({
   }, [resetCustomForm])
   const handleDeleteCustom = useCallback((world: SavedCustomWorld) => {
     setPendingDeleteWorldId(world.id)
-    setCustomFeedback({ type: 'warning', text: `再次确认后将删除「${world.name}」，并清理该世界生成缓存。` })
+    setCustomFeedback({ type: 'warning', text: `再次确认后将删除「${world.name}」。` })
   }, [])
   const handleCancelDeleteCustom = useCallback(() => {
     setPendingDeleteWorldId(null)
     setCustomFeedback(null)
   }, [])
   const handleConfirmDeleteCustom = useCallback((world: SavedCustomWorld) => {
-    clearWorldGeneratedCache(world.worldCode)
     persistSaved(savedWorlds.filter((item) => item.id !== world.id))
     onDeleteSelectedWorld(world.id)
     setPendingDeleteWorldId(null)

@@ -266,9 +266,6 @@ export function ensureOrchestratorContextFromStores(): boolean {
       _calibration: calibration,
       _calibrationSummary: formatCalibrationSummary(calibration),
       _economyModifier: calibration.formulas?.economyModifier ?? 1.0,
-      ...(worldConfig.aiDetailedParameters
-        ? { _aiDetailedParameters: worldConfig.aiDetailedParameters }
-        : {}),
     },
   })
 

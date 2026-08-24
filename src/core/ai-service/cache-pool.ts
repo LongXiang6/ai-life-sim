@@ -12,7 +12,6 @@ export const INTERNAL_CACHE_POOLS = [
   'narrative-main',
   'narrative-story-continuity',
   'narrative-talent-growth',
-  'world-init',
 ] as const
 
 export type InternalCachePool = typeof INTERNAL_CACHE_POOLS[number]
@@ -22,7 +21,6 @@ export type CachePoolType =
   | 'fate'
   | 'lowFrequency'
   | 'narrative'
-  | 'worldInit'
 
 export function resolveInternalCachePool(
   pool: CachePoolType,
@@ -37,6 +35,5 @@ export function resolveInternalCachePool(
   if (pool === 'adaptation') return 'adaptation'
   if (pool === 'fate') return 'fate-talent'
   if (pool === 'lowFrequency') return 'low-frequency'
-  if (pool === 'worldInit') return 'world-init'
   return 'narrative-main'
 }

@@ -13,14 +13,12 @@ const TEMPLATE_DESCRIPTION_RE = /^.+世界观 · .+空间形态 · .+文明阶�
 
 /**
  * 是否应使用通用 default 模拟池（而非 *_BY_WORLDVIEW 分层表）
- * 信号：AI 校准产物、AI 标签、用户自定义描述
+ * 信号：本地标签和用户自定义描述
  */
 export function shouldUseGenericSimulationPools(): boolean {
   const store = useWorldStore.getState()
   const cal = store.calibration
   if (cal?.styleGuide?.worldviewStyleHint?.trim()) return true
-  if (store.worldConfig?._aiFlags?.calibrationFromAI) return true
-  if (store.worldConfig?._aiFlags?.aiDetailedParameters) return true
   if (store.worldTags.length > 0) return true
 
   const desc = store.worldConfig?.description?.trim() ?? ''

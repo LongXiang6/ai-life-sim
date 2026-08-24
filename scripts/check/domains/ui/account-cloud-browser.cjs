@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress cloud-save round trips and responsive account creation behavior.
+ * Owner: quality:ui
+ * Responsibility: One Playwright session, cloud-save fixtures, and ordered UI assertions only.
+ */
+
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -95,15 +101,6 @@ async function main() {
         eraName: '公元',
         calibration: null,
         destinyPatternModifiers: {},
-        worldInitAIStatus: {
-          status: 'complete',
-          currentStep: '完成',
-          calibrationGenerated: true,
-          tagsGenerated: true,
-          configGenerated: true,
-          regionProfilesGenerated: true,
-          errors: [],
-        },
       },
     }))
   }, { apiKey: cloudKey })

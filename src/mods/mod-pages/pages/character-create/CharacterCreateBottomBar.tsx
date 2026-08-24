@@ -11,9 +11,9 @@ export function CharacterCreateBottomBar({ logic }: { logic: UseCharacterCreateL
     onBack={logic.handleBack}
     backTitle={logic.LABELS.backTitleMobile}
     backText="返回"
-    backDescription="回到世界配置"
+    backDescription="回到世界选择"
     onConfirm={logic.handleNext}
-    confirmNumber="04"
+    confirmNumber="03"
     confirmText="确认角色"
     confirmDescription={hint}
     confirmDisabled={!logic.canProceed}

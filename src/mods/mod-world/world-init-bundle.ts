@@ -1,21 +1,15 @@
 /**
- * Purpose: Preserve the public world-init bundle API through focused creation and enrichment modules.
+ * Purpose: Preserve the public local world-creation API through focused creation modules.
  * Owner: mod-world / world-init bundle.
- * Responsibility: Public exports only; commit, AI generation, and background launch remain separate.
+ * Responsibility: Public exports only; local commit work remains separate.
  */
 
 export type {
   AdditionalWorldContextOptions,
   WorldCommitResult,
   WorldContextCreationOptions,
-  WorldInitBundleResult,
 } from './world-init-bundle/contracts'
 export {
   commitWorldInitialization,
   createAdditionalWorldContext,
 } from './world-init-bundle/commit'
-export { generateWorldInitBundle } from './world-init-bundle/generation'
-export {
-  startBackgroundWorldInit,
-  startBackgroundWorldInitForCustom,
-} from './world-init-bundle/background'

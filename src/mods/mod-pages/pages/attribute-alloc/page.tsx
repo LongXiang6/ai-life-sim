@@ -132,7 +132,7 @@ function AttributeAllocContent() {
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
           <header className={styles.header}>
-            <FlowRunningHead stepLabel="06 / 08" />
+            <FlowRunningHead stepLabel="05 / 07" />
             <div className={styles.titleCopy}>
               <h1><span className="semantic-emoji" aria-hidden="true">📜</span>属性分配</h1>
               <p><span className={styles.deco} aria-hidden="true">❖</span>命格既显，根基待你一一铭定<span className={styles.deco} aria-hidden="true">❖</span></p>
@@ -211,7 +211,7 @@ function AttributeAllocContent() {
         backDescription="返回命格选择"
         onConfirm={handleConfirm}
         confirmText="确认属性"
-        confirmNumber="07"
+        confirmNumber="06"
         confirmDescription={remainingPoints > 0 ? `尚余 ${remainingPoints} 点 · 下一步核对命运` : '预算已分配 · 下一步核对命运'}
           />
 

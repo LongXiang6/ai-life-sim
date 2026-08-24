@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>命运预览 · 第七轮候选 B · 去符号间距加宽</title>
   <style>
-    /* Purpose: Static interactive prototype: fate-preview page (07) round-07 candidate B (symbol-free body, roomier head gap): based on the settled round-06 candidate B (ornament inscription section head). This round's direction: remove the ❖ ornaments from the body copy in p/span elements and move the sectionHead small copy up to sit centered above the divider line instead of close to it. Candidate B removes all ❖ from body copy and uses the widest head gap of the three (padding: 2px 0 14px) so the head small clearly floats above the divider. Facts and structure unchanged. Ritual ✦ head ornaments and ✦ dividers kept; no sub-cards. Warm paper/ink language matching the settled pages. Only the world-init spinner animation is copied from runtime FatePreview.module.css (loading149Spin 0.8s linear infinite, 2s under reduced motion); no other animations are added. No role-talent pill: runtime setTalents has no callers, talents stays empty, that block never renders. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
+    /* Purpose: Static interactive prototype: fate-preview page (06) round-07 candidate B (symbol-free body, roomier head gap): based on the settled round-06 candidate B (ornament inscription section head). This round's direction: remove the ❖ ornaments from the body copy in p/span elements and move the sectionHead small copy up to sit centered above the divider line instead of close to it. Candidate B removes all ❖ from body copy and uses the widest head gap of the three (padding: 2px 0 14px) so the head small clearly floats above the divider. The old world-init AI progress panel is removed; the preview only shows local world readiness. Facts and structure unchanged. Ritual ✦ head ornaments and ✦ dividers kept; no sub-cards. Warm paper/ink language matching the settled pages. No role-talent pill: runtime setTalents has no callers, talents stays empty, that block never renders. Owner: Interface system. Responsibility: Candidate only; pure DOM interaction, no localStorage/sessionStorage/fetch. */
     * { box-sizing: border-box; }
 
     body {
@@ -334,92 +334,6 @@
       line-height: 1.4;
     }
 
-    /* 世界初始化（spinner 动画照抄运行时 loading149Spin 0.8s linear infinite） */
-    .gateNotice {
-      margin: 0 0 8px;
-      padding: 7px 10px;
-      border: 1px solid rgba(150 122 66 / 30%);
-      border-radius: 10px;
-      background: rgba(150 122 66 / 7%);
-      color: #8a6a2f;
-      font-size: 10px;
-      line-height: 1.45;
-    }
-    .initStepList {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 6px;
-    }
-    .initStepRow {
-      display: flex;
-      min-width: 0;
-      min-height: 52px;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 4px;
-      padding: 6px 3px;
-      border: 1px solid #e5e1d6;
-      border-radius: 10px;
-      background: #fff;
-      text-align: center;
-    }
-    .initStepIcon {
-      display: grid;
-      width: 17px;
-      height: 17px;
-      place-items: center;
-      border-radius: 50%;
-      background: #f1ead9;
-      color: #a0907a;
-      font-size: 10px;
-      font-style: normal;
-      font-weight: 650;
-      font-variant-numeric: tabular-nums;
-    }
-    .initStepLabel {
-      overflow: hidden;
-      max-width: 100%;
-      color: #2e2922;
-      font-size: 10px;
-      font-weight: 650;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .initStepTimer {
-      overflow: hidden;
-      max-width: 100%;
-      color: #b5ab96;
-      font-size: 9px;
-      font-variant-numeric: tabular-nums;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .initStepDone { border-color: #d8c9a8; background: #faf4e8; }
-    .initStepDone .initStepIcon { background: #96783f; color: #fff; }
-    .initStepCurrent { border-color: #96783f; box-shadow: inset 0 0 0 1px rgba(150 122 66 / 12%); }
-    .initStepCurrent .initStepLabel { color: #96783f; }
-    .initStepFailed { border-color: #c9b6a0; background: #faf4e8; }
-    .initStepFailed .initStepIcon,
-    .initStepFailed .initStepLabel { color: #a0713f; }
-
-    .loading149 {
-      position: relative;
-      display: inline-block;
-      width: 9px;
-      aspect-ratio: 1;
-      border: 1px solid rgba(150 122 66 / 26%);
-      border-top-color: #96783f;
-      border-radius: 50%;
-      animation: loading149Spin 0.8s linear infinite;
-    }
-    @keyframes loading149Spin {
-      to { transform: rotate(1turn); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .loading149 { animation-duration: 2s; }
-    }
-
     .initCaption {
       margin: 8px 0 0;
       color: #8a7f6e;
@@ -483,7 +397,7 @@
     <div class="viewport">
       <div class="page">
         <main class="paper">
-          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>07 / 08</span></div>
+          <div class="runningHead" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>06 / 07</span></div>
 
           <header class="titleCopy">
             <h1>核对命书</h1>
@@ -554,17 +468,11 @@
             <p class="seedHint">相同种子与相同操作，将引向相近的剧情走向。</p>
           </section>
 
-          <section class="section" aria-labelledby="world-init-title">
+          <section class="section" aria-labelledby="world-ready-title">
             <div class="sectionHead">
-              <small id="world-init-title" aria-live="polite">世界已备 · 序幕将启</small>
+              <small id="world-ready-title" aria-live="polite">世界已备 · 序幕将启</small>
             </div>
-            <div class="initStepList">
-              <div class="initStepRow initStepDone" title="AI 推断世界观维度与规则体系"><i class="initStepIcon">✓</i><strong class="initStepLabel">校准</strong><span class="initStepTimer">2s</span></div>
-              <div class="initStepRow initStepDone" title="生成力量体系/文明阶段等标签"><i class="initStepIcon">✓</i><strong class="initStepLabel">标签</strong><span class="initStepTimer">3s</span></div>
-              <div class="initStepRow initStepDone" title="整理世界规则与运行参数"><i class="initStepIcon">✓</i><strong class="initStepLabel">参数</strong><span class="initStepTimer">2s</span></div>
-              <div class="initStepRow initStepDone" title="生成区域概况与生命阶段结构"><i class="initStepIcon">✓</i><strong class="initStepLabel">区域</strong><span class="initStepTimer">4s</span></div>
-            </div>
-            <p class="initCaption">世界已为你备好一切，可以开启这段人生。</p>
+            <p class="initCaption">本地世界信息已就绪，可以开启这段人生。</p>
           </section>
         </main>
       </div>

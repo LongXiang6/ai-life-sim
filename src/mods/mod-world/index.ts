@@ -11,7 +11,6 @@
 // 类型
 export type {
   WorldConfig,
-  WorldInitAIStatus,
   WorldContextInstance,
   WorldContextCollection,
   WorldSnapshot,
@@ -89,18 +88,6 @@ export {
 // Hooks
 export { useWorld, useWorldRegions, useWorldTime } from './hooks'
 
-// AI Prompts
-export { worldConfigPrompt } from './prompts/world-config-prompt'
-export { worldTagsPrompt } from './prompts/world-tags-prompt'
-export {
-  worldRegionProfilePrompt,
-  worldRegionProfileOutputSchema,
-  type WorldRegionProfileOutput,
-} from './prompts/world-region-profile-prompt'
-export { worldCalibrationOutputSchema } from './prompts/world-calibration-prompt'
-export { worldDimensionCalibrationPrompt, worldDimensionCalibrationOutputSchema } from './prompts/world-dimension-calibration-prompt'
-export type { WorldDimensionCalibrationOutput } from './prompts/world-dimension-calibration-prompt'
-
 export {
   buildDefaultCalibration,
   clampCalibration,
@@ -127,41 +114,8 @@ export {
   resolveStaticPoolWorldviewKey,
 } from './utils/world-pool-selectors'
 
-export {
-  buildWorldCoherenceHint,
-  resolveWorldviewStyleHint,
-  NARRATIVE_STYLE_DEFAULT,
-} from './utils/world-coherence-hints'
-
-export {
-  inferWorldCoherenceFromDescription,
-  applyCoherenceToWorldConfig,
-  applyCoherenceKeepUserTags,
-  previewCoherenceCorrection,
-  buildCoherenceNote,
-  configConflictsWithPrehistoric,
-} from './utils/world-coherence-inference'
-export type {
-  WorldCoherenceInference,
-  CoherencePreview,
-  CoherenceFieldChange,
-} from './utils/world-coherence-inference'
-
 // 激活 shared/ 的世界观类型规范化 → 标准化用户输入的世界观标签
 export { normalizeWorldviewType, WORLDVIEW_TYPE_MAP } from '@/core/shared'
-
-export {
-  mapPowerSystemZhToTag,
-  mapWorldviewEssenceZhToTag,
-  buildCoherenceLocksFromUi,
-  COHERENCE_LOCK_FIELD_MAP,
-  CIVILIZATION_ZH_MAP,
-  SPATIAL_FORM_ZH_MAP,
-} from './utils/world-config-mapping'
-
-export {
-  buildWorldInitPromptVars,
-} from './utils/world-init-prompt-vars'
 export {
   createDefaultPowerFramework,
   materializePowerFramework,
@@ -169,22 +123,6 @@ export {
   formatPowerFrameworkForPrompt,
 } from './utils/power-framework'
 
-export {
-  runWorldInitPipeline,
-  createDefaultWorldInitSteps,
-  createWorldInitPipelineContext,
-  fillPromptTemplate,
-} from './utils/world-init-pipeline'
-export type { WorldInitStep, WorldInitPipelineContext } from './utils/world-init-pipeline'
 export { inferAnchorYearFromDescription } from './utils/world-init-anchor-year'
 
-export { parseWorldDimensionCalibrationResponse } from './utils/world-dimension-calibration-parse'
-export { parseWorldTagsResponse } from './utils/world-init-kv'
-export { filterCoherentWorldTags } from './utils/world-coherence-output-guard'
-
 export { resolvePresetWorldCode } from './utils/preset-world-code'
-export {
-  scanWorldCodesWithGeneratedCache,
-  hasWorldGeneratedCache,
-  clearWorldGeneratedCache,
-} from './utils/world-generated-cache'

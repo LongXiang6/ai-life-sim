@@ -109,10 +109,8 @@ const worldSelectStageSrc = readRel('src/mods/mod-pages/pages/world-select/World
 const worldSelectDirectorySrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectDirectory.tsx')
 const worldSelectMainGridSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMainGrid.tsx')
 const worldSelectBottomBarSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectBottomBar.tsx')
-const worldSelectCacheDialogSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx')
 const worldSelectCustomFormSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectCustomForm.tsx')
 const worldSelectCssSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css')
-const worldGeneratedCacheSrc = readRel('src/mods/mod-world/utils/world-generated-cache.ts')
 const bottomActionBarSrc = readRel('src/mods/mod-ui/components/organisms/BottomActionBar.tsx')
 const bottomActionBarCssSrc = readRel('src/mods/mod-ui/components/organisms/BottomActionBar.module.css')
 const characterCreateMobileSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.tsx')
@@ -127,21 +125,12 @@ const talentDrawPageSrc = readCodeDirectory('src/mods/mod-pages/pages/talent-dra
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const attributeAllocPageSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/page.tsx')
 const attributeAllocCssSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css')
-const productDecisionsSrc = readRel('docs/product-decisions.md')
-const worldCustomizeMobileSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.tsx')
-const worldCustomizePageSrc = readRel('src/mods/mod-pages/pages/world-customize/page.tsx')
-const worldCustomizeLogicSrc = readRel('src/mods/mod-pages/pages/world-customize/useWorldCustomize.ts')
-const worldCustomizeDimensionSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeDimensionCard.tsx')
-const worldCustomizeBottomBarSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeBottomBar.tsx')
-const worldCustomizeCssSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css')
 const gameStoryPageSrc = readCodeDirectory('src/mods/mod-pages/pages/game-story')
 const gameStoryCssSrc = readRel('src/mods/mod-pages/pages/game-story/GameStory.module.css')
 const narrativeTimelineSrc = `${readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')}\n${readRel('src/mods/mod-ui/components/organisms/NarrativeTimelineEntryView.tsx')}`
 const narrativeTimelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const fatePreviewPageSrc = readCodeDirectory('src/mods/mod-pages/pages/fate-preview')
 const fatePreviewCssSrc = readRel('src/mods/mod-pages/pages/fate-preview/FatePreview.module.css')
-const worldDimensionLabelsSrc = readRel('src/mods/mod-pages/helpers/world-dimension-labels.ts')
-const worldConfigMappingSrc = readRel('src/mods/mod-world/utils/world-config-mapping.ts')
 const saveManagerPageSrc = readRel('src/mods/mod-pages/pages/save-manager/page.tsx')
 const saveManagerCssSrc = readRel('src/mods/mod-pages/pages/save-manager/save-manager.module.css')
 const gameOverPageSrc = readCodeDirectory('src/mods/mod-pages/pages/game-over')
@@ -192,13 +181,10 @@ const prototypeWorldSelectIterationRound03Src = readRel('docs/ui-prototypes/mobi
 const prototypeWorldSelectIterationRound04Src = readRel('docs/ui-prototypes/mobile/world-select/iteration-round-04.html')
 const prototypeWorldSelectIndexSrc = readRel('docs/ui-prototypes/mobile/world-select/index.html')
 const prototypeWorldSelectCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/world-select/candidates')).sort()
-const prototypeWorldCustomizeIterationSrc = readRel('docs/ui-prototypes/mobile/world-customize/iteration-round-01.html')
-const prototypeWorldCustomizeIterationRound02Src = readRel('docs/ui-prototypes/mobile/world-customize/iteration-round-02.html')
-const prototypeWorldCustomizeIterationRound03Src = readRel('docs/ui-prototypes/mobile/world-customize/iteration-round-03.html')
 const prototypeWorldCustomizeIndexSrc = readRel('docs/ui-prototypes/mobile/world-customize/index.html')
-const prototypeWorldCustomizeCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/world-customize/candidates')).sort()
 const prototypeCharacterCreateIterationSrc = readRel('docs/ui-prototypes/mobile/character-create/iteration-round-01.html')
 const prototypeCharacterCreateIterationRound02Src = readRel('docs/ui-prototypes/mobile/character-create/iteration-round-02.html')
+const prototypeCharacterCreateCurrentIterationSrc = readRel('docs/ui-prototypes/mobile/character-create/iteration-round-07.html')
 const prototypeCharacterCreateIndexSrc = readRel('docs/ui-prototypes/mobile/character-create/index.html')
 const prototypeCharacterCreateCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/character-create/candidates')).sort()
 const prototypeTalentDrawIterationSrc = readRel('docs/ui-prototypes/mobile/talent-draw/iteration-round-01.html')
@@ -213,6 +199,7 @@ const prototypeAttributeAllocCandidateEntries = fs.readdirSync(path.join(root, '
 const prototypeFatePreviewIterationSrc = readRel('docs/ui-prototypes/mobile/fate-preview/iteration-round-01.html')
 const prototypeFatePreviewIndexSrc = readRel('docs/ui-prototypes/mobile/fate-preview/index.html')
 const prototypeFatePreviewCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/fate-preview/candidates')).sort()
+const prototypeFatePreviewCurrentCandidateSrc = readRel('docs/ui-prototypes/mobile/fate-preview/candidates/candidate-round-07-02-roomier-head.html')
 const prototypeGameStoryIterationSrc = readRel('docs/ui-prototypes/mobile/game-story/iteration-round-01.html')
 const prototypeGameStoryIndexSrc = readRel('docs/ui-prototypes/mobile/game-story/index.html')
 const prototypeGameStoryCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/game-story/candidates')).sort()
@@ -239,13 +226,7 @@ assertOk(
 )
 
 assertOk(
-  worldCustomizeLogicSrc.includes('raw.worldCode === currentWorldCode')
-    && worldCustomizeLogicSrc.includes('raw.worldName === currentWorldName'),
-  'world-customize drafts must be isolated to the selected world identity',
-)
-assertOk(
-  worldCustomizePageSrc.includes("router.replace('/new-game/world-select')")
-    && characterCreatePageSrc.includes("router.replace('/new-game/world-select')")
+  characterCreatePageSrc.includes("router.replace('/new-game/world-select')")
     && talentDrawPageSrc.includes("router.replace('/new-game/character-create')")
     && talentDrawPageSrc.includes('useCreationStoresHydrated()'),
   'creation routes must redirect to the nearest missing prerequisite after persisted stores hydrate',
@@ -300,7 +281,6 @@ assertOk(
   [
     welcomeViewSrc,
     worldSelectMobileSrc,
-    worldCustomizeMobileSrc,
     characterCreateMobileSrc,
     talentDrawPageSrc,
     attributeAllocPageSrc,
@@ -314,7 +294,6 @@ assertOk(
 assertOk(
   !/\.runningHead\s*\{/.test(welcomeCssSrc)
     && !/\.runningHead\s*\{/.test(worldSelectCssSrc)
-    && !/\.runningHead\s*\{/.test(worldCustomizeCssSrc)
     && !/\.runningHead\s*\{/.test(characterCreateCssSrc)
     && !/\.runningHead\s*\{/.test(talentDrawCssSrc)
     && !/\.runningHead\s*\{/.test(attributeAllocCssSrc)
@@ -449,7 +428,7 @@ assertOk(
 
 assertOk(!helpModalSrc.includes('useIsMobile'), 'help modal must use one responsive DOM without viewport branching')
 assertOk(helpModalSrc.includes("import styles from './HelpModal.module.css'"), 'help modal must use one responsive CSS module')
-assertOk(helpModalSrc.includes('ApprovedHelpGuide') && helpModalSrc.includes('styles.chapter') && helpModalSrc.includes('06 / 故事'), 'help docs must expose the finalized six chapter-card guide')
+assertOk(helpModalSrc.includes('ApprovedHelpGuide') && helpModalSrc.includes('styles.chapter') && helpModalSrc.includes('05 / 故事'), 'help docs must expose the finalized five chapter-card guide')
 assertOk(helpModalSrc.includes('<footer className={styles.footer}>') && helpModalSrc.includes('<strong>返回上一页</strong>') && helpModalSrc.includes('<strong>完成</strong>'), 'help modal must use the finalized two-action footer')
 assertOk(helpModalSurfaceSrc.includes('role="tablist"') && helpModalSurfaceSrc.includes('aria-selected='), 'help tabs must expose semantic selected state')
 assertOk(helpModalSrc.includes('useHelpModalFocusTrap') && helpModalSrc.includes('tabIndex={-1}') && helpFocusTrapSrc.includes("document.addEventListener('keydown'") && helpFocusTrapSrc.includes("event.key === 'Escape'"), 'help modal must trap focus, close globally on Escape, and restore focus')
@@ -493,7 +472,7 @@ assertOk(
   worldSelectLogicSrc.includes('resolveRestoredWorld(existingWorldConfig, existingWorldCode, custom.savedWorlds)')
     && worldSelectLogicSrc.includes('const selectedWorld = selectedWorldOverride ?? restoredWorld ?? PRESET_WORLDS[0] ?? null')
     && worldSelectLogicSrc.includes("useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')"),
-  'returning from world customization must restore the completed world selection and difficulty',
+  'returning from character creation must restore the completed world selection and difficulty',
 )
 assertOk(worldSelectStageSrc.includes('styles.stageIcon') && worldSelectStageSrc.includes('styles.stageQuote') && worldSelectStageSrc.includes('world.summary || world.description'), 'world focus stage must use the finalized icon, title, quote, and era composition')
 assertOk(
@@ -535,27 +514,13 @@ assertOk(
   'WF2 world select must use the native responsive viewport with a shared viewport-anchored bottom bar',
 )
 assertOk(
-  worldSelectMainGridSrc.includes('event.stopPropagation()')
-    && worldSelectDirectorySrc.includes('event.stopPropagation()')
-    && worldSelectMainGridSrc.includes('handleRequestClearWorldCache')
-    && worldSelectDirectorySrc.includes('handleRequestClearWorldCache')
-    && !/\.cacheButton\s*\{\s*display:\s*none/.test(worldSelectCssSrc)
-    && !/\.inlineCacheButton\s*\{\s*display:\s*none/.test(worldSelectCssSrc),
-  'WF2 cached worlds must expose reset controls without selecting the underlying card',
-)
-assertOk(
-  worldGeneratedCacheSrc.includes("const DESTINY_POOL_CACHE_PREFIX = 'mod-character:cache:destiny-pool:'")
-    && worldGeneratedCacheSrc.includes('parseDestinyPoolWorldCode')
-    && worldGeneratedCacheSrc.includes('parseDestinyPoolWorldCode(stripped) === worldCode'),
-  'world cache scanning and clearing must include versioned destiny pools while remaining worldCode-scoped',
-)
-assertOk(
-  worldSelectCacheDialogSrc.includes('role="alertdialog"')
-    && worldSelectCacheDialogSrc.includes('aria-modal="true"')
-    && worldSelectCacheDialogSrc.includes('不会删除世界、存档或其他世界的数据')
-    && worldSelectCacheDialogSrc.includes("event.key === 'Escape'")
-    && worldSelectCacheDialogSrc.includes("event.key !== 'Tab'"),
-  'WF2 cache reset must use an explicit accessible confirmation dialog and disclose the preserved data',
+  !worldSelectMainGridSrc.includes('handleRequestClearWorldCache')
+    && !worldSelectDirectorySrc.includes('handleRequestClearWorldCache')
+    && !worldSelectLogicSrc.includes('useWorldSelectCache')
+    && !worldSelectCssSrc.includes('cacheButton')
+    && !fs.existsSync(path.join(root, 'src/mods/mod-world/utils/world-generated-cache.ts'))
+    && !fs.existsSync(path.join(root, 'src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx')),
+  'world selection must not expose the retired AI generation-cache controls or state',
 )
 assertOk(!bottomActionBarSrc.includes('confirmArrow') && bottomActionBarSrc.includes('styles.actionCopy'), 'finalized bottom actions must use two-line text without a trailing arrow glyph')
 assertOk(worldSelectMobileSrc.trimEnd().split('\n').length <= 200, 'world select mobile composer must stay at or below the 200-line UI limit')
@@ -606,11 +571,9 @@ assertOk(
   'character lifespan must retain an empty birth-age input, preview edits immediately, and block an age at or beyond the lifespan',
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
-assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 → 角色创建'), 'PD-002 must preserve the live world-customize step before character creation')
-assertOk(worldSelectMobileSrc.includes('<FlowRunningHead stepLabel="01 / 08" />') && worldSelectBottomBarSrc.includes('confirmNumber="02"'), 'world selection must use the selected flow step-01 header and advance to step 02')
-assertOk(worldCustomizeMobileSrc.includes('<FlowRunningHead stepLabel="02 / 08" />') && worldCustomizeBottomBarSrc.includes('confirmNumber="03"'), 'world customization must use the selected flow step-02 header and advance to step 03')
-assertOk(characterCreateMobileSrc.includes('<FlowRunningHead stepLabel="03 / 08" />') && characterBottomBarSrc.includes('confirmNumber="04"'), 'character creation must use the selected flow step-03 header and advance to step 04')
-assertOk(talentDrawPageSrc.includes("<FlowRunningHead stepLabel={`${phase === 'selecting' ? '05' : '04'} / 08`} />") && talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'"), 'talent draw and selection must occupy creation steps 04 and 05 before final review')
+assertOk(worldSelectMobileSrc.includes('<FlowRunningHead stepLabel="01 / 07" />') && worldSelectBottomBarSrc.includes('confirmNumber="02"') && worldSelectBottomBarSrc.includes('下一步角色配置'), 'world selection must advance directly to character creation as step 02')
+assertOk(characterCreateMobileSrc.includes('<FlowRunningHead stepLabel="02 / 07" />') && characterBottomBarSrc.includes('confirmNumber="03"') && characterCreateMobileSrc.includes('<CharacterCustomOptionsSection') && characterCreateLogicSrc.includes('festivalScope') && characterCreateLogicSrc.includes('setWorldConfig({ ...current, festivalScope: value })'), 'character creation must own the festival custom option and advance as step 02')
+assertOk(talentDrawPageSrc.includes("<FlowRunningHead stepLabel={`${phase === 'selecting' ? '04' : '03'} / 07`} />") && talentDrawPageSrc.includes("phase === 'selecting' ? '05' : '04'"), 'talent draw and selection must occupy creation steps 03 and 04 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
     && !talentDrawPageSrc.includes('styles.titleMark')
@@ -699,7 +662,7 @@ assertOk(
     && !fatePreviewPageSrc.includes('转世天赋'),
   'the creation flow must use the current player-facing reincarnation-talent terminology without changing internal mythic contracts',
 )
-assertOk(fatePreviewPageSrc.includes('<FlowRunningHead stepLabel="07 / 08" />') && fatePreviewPageSrc.includes('confirmNumber="08"') && !fatePreviewPageSrc.includes('CREATION FLOW ·') && !fatePreviewPageSrc.includes('FATE · PREVIEW'), 'fate preview must use the selected flow step-07 and close the creation flow')
+assertOk(fatePreviewPageSrc.includes('<FlowRunningHead stepLabel="06 / 07" />') && fatePreviewPageSrc.includes('confirmNumber="07"') && !fatePreviewPageSrc.includes('CREATION FLOW ·') && !fatePreviewPageSrc.includes('FATE · PREVIEW'), 'fate preview must use the selected flow step-06 and close the creation flow')
 assertOk(
   fatePreviewPageSrc.includes('useCreationStoresHydrated()')
     && fatePreviewPageSrc.includes("router.replace('/new-game/world-select')")
@@ -749,7 +712,6 @@ assertOk(
   [
     welcomeCssSrc,
     worldSelectCssSrc,
-    worldCustomizeCssSrc,
     characterCreateCssSrc,
     talentDrawCssSrc,
     attributeAllocCssSrc,
@@ -766,7 +728,6 @@ assertOk(
 assertOk(
   [
     worldSelectCssSrc,
-    worldCustomizeCssSrc,
     characterCreateCssSrc,
     talentDrawCssSrc,
     fatePreviewCssSrc,
@@ -790,7 +751,6 @@ assertOk(
 assertOk(
   welcomePageSrc.includes('final-flow-frame')
     && worldSelectMobileSrc.includes('final-flow-frame')
-    && worldCustomizeMobileSrc.includes('final-flow-frame')
     && characterCreateMobileSrc.includes('final-flow-frame')
     && talentDrawPageSrc.includes('final-flow-frame')
     && fatePreviewPageSrc.includes('final-flow-frame')
@@ -799,7 +759,7 @@ assertOk(
   'all primary flow pages must wrap content in the shared final-flow viewport frame',
 )
 assertOk(
-  [worldSelectMobileSrc, worldCustomizeMobileSrc, characterCreateMobileSrc, talentDrawPageSrc, fatePreviewPageSrc, settingsModalSrc, helpModalSrc]
+  [worldSelectMobileSrc, characterCreateMobileSrc, talentDrawPageSrc, fatePreviewPageSrc, settingsModalSrc, helpModalSrc]
     .every((source) => !source.includes('styles.titleMark')),
   'finalized creation and auxiliary pages must not render retired title marks',
 )
@@ -834,27 +794,6 @@ assertOk(
     && /\.shareSection\s*\{[^}]*display:\s*none/s.test(gameOverCssSrc),
   'game over keeps a local fact-only share card implementation while the selected final prototype hides the share block',
 )
-assertOk(worldCustomizeMobileSrc.includes('<WorldCustomizeDimensionCard') && worldCustomizeMobileSrc.includes('<WorldCustomizeBottomBar'), 'M2 world customization must compose approved dimension cards and bottom bar')
-assertOk(worldCustomizeDimensionSrc.includes("['ai', 'adaptive', 'custom']") && worldCustomizeDimensionSrc.includes('AI') && worldCustomizeDimensionSrc.includes('选择') && worldCustomizeDimensionSrc.includes('自定'), 'M2 dimension card must expose the compact AI / 选择 / 自定 segmented control')
-assertOk(worldCustomizeDimensionSrc.includes('aria-pressed=') && worldCustomizeDimensionSrc.includes('styles.modeActive'), 'M2 mode buttons must expose non-color selected state')
-assertOk(worldCustomizeDimensionSrc.includes('styles.currentValue'), 'M2 dimension card must preserve the full-width current-value row')
-assertOk(worldCustomizeBottomBarSrc.includes('<BottomActionBar') && worldCustomizeBottomBarSrc.includes('onBack={onBack}') && worldCustomizeBottomBarSrc.includes('onConfirm={onConfirm}'), 'world customization must use the shared-size unified bottom actions')
-assertOk(
-  worldCustomizeLogicSrc.includes("field.mode === 'adaptive' && !field.playerValue.trim()")
-    && worldCustomizeLogicSrc.includes("field.mode === 'custom' && !field.customValue.trim()")
-    && worldCustomizeLogicSrc.includes('const canSave = !isSaving && saveBlockReason === null')
-    && worldCustomizeBottomBarSrc.includes('confirmDisabled={disabled}')
-    && worldCustomizeMobileSrc.includes('canConfirm={logic.canSave}'),
-  'world customization must block confirmation while a player-selected or custom rule is blank',
-)
-assertOk(
-  !worldCustomizeMobileSrc.includes('styles.worldBanner')
-    && !worldCustomizeMobileSrc.includes('styles.bannerName')
-    && !worldCustomizeMobileSrc.includes('当前世界</')
-    && !worldCustomizeCssSrc.includes('.worldBanner'),
-  'world customization must omit the removed current-world summary block',
-)
-assertOk(worldCustomizeMobileSrc.trimEnd().split('\n').length <= 200, 'world customization mobile composer must stay at or below the 200-line UI limit')
 
 const informationPanelStart = gameStoryPageSrc.indexOf('id="current-information-panel"')
 const informationActionsStart = gameStoryPageSrc.indexOf('className={styles.moreActions}', informationPanelStart)
@@ -962,16 +901,16 @@ assertOk(
   'game story narrative errors must stay visible and wait for the player to use the normal advance control again',
 )
 assertOk(
-  gameStoryPageSrc.includes('resolveWorldDimensionLabels(worldConfig)')
-    && fatePreviewPageSrc.includes('resolveWorldDimensionLabels(worldConfig)')
-    && worldDimensionLabelsSrc.includes('worldConfig._dimensionValues')
-    && worldDimensionLabelsSrc.includes('values?.powerSystem'),
-  'fate preview and game story must prefer player-facing world dimension values over internal tags',
+  !gameStoryPageSrc.includes('resolveWorldDimensionLabels')
+    && !fatePreviewPageSrc.includes('resolveWorldDimensionLabels')
+    && !gameStoryPageSrc.includes('世界空间')
+    && !fatePreviewPageSrc.includes('世界空间'),
+  'retired world dimension outputs must not remain in fate preview or game story projections',
 )
 assertOk(
-  worldConfigMappingSrc.includes("'普通人的知识、技能与社会资源': 'none'")
-    && worldConfigMappingSrc.includes("POWER_SYSTEM_ZH_MAP[zh.trim()] ?? 'mixed'"),
-  'custom power systems must not silently fall back to cultivation',
+  !fs.existsSync(path.join(root, 'src/mods/mod-world/utils/world-config-mapping.ts'))
+    && !readRel('src/mods/mod-world/utils/world-config-mapping.ts'),
+  'retired world configuration mapping must not remain as a fallback path',
 )
 assertOk(
   (saveManagerPageSrc.match(/aria-label={`加载存档：/g) ?? []).length === 2
@@ -988,15 +927,21 @@ assertOk(
 const newGamePageSrc = readRel('src/mods/mod-pages/pages/new-game/page.tsx')
 const worldConfirmSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldConfirm.ts')
 assertOk(
+  worldConfirmSrc.includes("router.push('/new-game/character-create')")
+    && !worldConfirmSrc.includes('world-customize'),
+  'world confirmation must bypass the removed customization route',
+)
+assertOk(
   newGamePageSrc.includes('void resetForNewLife()')
     && worldConfirmSrc.includes('await prepareNewLifeWorldCommit(worldCode)'),
   'canonical and direct world-selection entry paths must both prevent previous-life state from reaching a new world',
 )
 assertOk(
   !/\balert\s*\(/.test(worldConfirmSrc)
-    && /throw new Error\(\s*'当前主叙事模型不可用/u.test(worldConfirmSrc)
+    && !worldConfirmSrc.includes('hasAvailableApiConfiguration')
+    && !worldConfirmSrc.includes('isApiConfigured')
     && worldSelectMobileSrc.includes('role="alert"'),
-  'unavailable narrative configuration must stay inside the selected page instead of opening a native alert',
+  'world confirmation must not require narrative API configuration or open a native alert',
 )
 assertOk(
   !worldSelectCustomFormSrc.includes('maxLength=')
@@ -1072,13 +1017,6 @@ assertOk(
         'candidate-round-03-01-baseline.html', 'candidate-round-03-02-narrative.html', 'candidate-round-03-03-immersive.html',
         'candidate-round-04-01-baseline.html', 'candidate-round-04-02-tone-inline.html', 'candidate-round-04-03-scenery.html']
       .every(marker => prototypeWorldSelectCandidateEntries.includes(marker))
-    && prototypeWorldCustomizeIterationSrc.includes('data-template-purpose="ui-iteration"')
-    && prototypeWorldCustomizeIterationRound02Src.includes('data-template-purpose="ui-iteration"')
-    && prototypeWorldCustomizeIterationRound03Src.includes('data-template-purpose="ui-iteration"')
-    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
-        'candidate-round-02-01-header-line.html', 'candidate-round-02-02-banner.html', 'candidate-round-02-03-quote.html',
-        'candidate-round-03-01-baseline.html', 'candidate-round-03-02-clean.html', 'candidate-round-03-03-immersive.html']
-      .every(marker => prototypeWorldCustomizeCandidateEntries.includes(marker))
     && prototypeCharacterCreateIterationSrc.includes('data-template-purpose="ui-iteration"')
     && prototypeCharacterCreateIterationRound02Src.includes('data-template-purpose="ui-iteration"')
     && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
@@ -1111,7 +1049,6 @@ assertOk(
     && prototypeIndexSrc.includes('Runtime authority: none')
     && prototypeIndexSrc.includes('href="main-flow/index.html"')
     && prototypeIndexSrc.includes('href="world-select/index.html"')
-    && prototypeIndexSrc.includes('href="world-customize/index.html"')
     && prototypeIndexSrc.includes('href="character-create/index.html"')
     && prototypeIndexSrc.includes('href="talent-draw/index.html"')
     && prototypeIndexSrc.includes('href="talent-select/index.html"')
@@ -1141,18 +1078,20 @@ assertOk(
     && prototypeWorldSelectIndexSrc.includes('href="iteration-round-03.html"')
     && prototypeWorldSelectIndexSrc.includes('href="iteration-round-04.html"')
     && prototypeWorldSelectIndexSrc.includes('iteration-branch-current')
-    && prototypeWorldSelectIndexSrc.includes('Runtime authority: none'),
+    && prototypeWorldSelectIndexSrc.includes('Runtime authority: none')
+    && prototypeWorldSelectIterationRound04Src.includes('角色创建'),
   'the world-select middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
 )
 assertOk(
-  prototypeWorldCustomizeIndexSrc.includes('data-flow-purpose="world-customize-flow"')
+  prototypeWorldCustomizeIndexSrc.includes('data-flow-purpose="retired-world-customize-history"')
     && prototypeWorldCustomizeIndexSrc.includes('href="../index.html"')
     && prototypeWorldCustomizeIndexSrc.includes('href="iteration-round-01.html"')
     && prototypeWorldCustomizeIndexSrc.includes('href="iteration-round-02.html"')
     && prototypeWorldCustomizeIndexSrc.includes('href="iteration-round-03.html"')
-    && prototypeWorldCustomizeIndexSrc.includes('iteration-branch-current')
+    && !prototypeWorldCustomizeIndexSrc.includes('iteration-branch-current')
+    && prototypeWorldCustomizeIndexSrc.includes('现行流程')
     && prototypeWorldCustomizeIndexSrc.includes('Runtime authority: none'),
-  'the world-customize middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+  'the removed world-customize directory must remain a historical archive only and never act as a current flow or acceptance source',
 )
 assertOk(
   prototypeCharacterCreateIndexSrc.includes('data-flow-purpose="character-create-flow"')
@@ -1160,8 +1099,17 @@ assertOk(
     && prototypeCharacterCreateIndexSrc.includes('href="iteration-round-01.html"')
     && prototypeCharacterCreateIndexSrc.includes('href="iteration-round-02.html"')
     && prototypeCharacterCreateIndexSrc.includes('iteration-branch-current')
-    && prototypeCharacterCreateIndexSrc.includes('Runtime authority: none'),
+    && prototypeCharacterCreateIndexSrc.includes('Runtime authority: none')
+    && prototypeCharacterCreateCurrentIterationSrc.includes('runningHead（02 / 07）')
+    && prototypeCharacterCreateCurrentIterationSrc.includes('节日范围自定义选项'),
   'the character-create middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
+)
+assertOk(
+  prototypeFatePreviewCurrentCandidateSrc.includes('world-ready-title')
+    && !prototypeFatePreviewCurrentCandidateSrc.includes('world-init-title')
+    && !prototypeFatePreviewCurrentCandidateSrc.includes('initStepList')
+    && !prototypeFatePreviewCurrentCandidateSrc.includes('loading149Spin'),
+  'the current fate-preview prototype must show local world readiness without the retired world-init AI progress panel',
 )
 assertOk(
   prototypeTalentDrawIndexSrc.includes('data-flow-purpose="talent-draw-flow"')
@@ -1233,15 +1181,13 @@ assertOk(
   globalCssSrc.includes('.semantic-emoji {')
     && worldSelectMainGridSrc.includes('data-semantic-emoji')
     && worldSelectDirectorySrc.includes('data-semantic-emoji')
-    && worldCustomizeDimensionSrc.includes('className="semantic-emoji"')
-    && worldCustomizeDimensionSrc.includes('{field.icon}')
     && characterIdentitySrc.includes('data-semantic-emoji aria-hidden="true">👤</span>核心身份')
     && characterLifespanSrc.includes('data-semantic-emoji aria-hidden="true">⏳</span>寿命与起始')
     && characterBackgroundSrc.includes('data-semantic-emoji aria-hidden="true">📜</span>人生背景')
     && attributeAllocPageSrc.includes("icon: '💪'")
     && attributeAllocPageSrc.includes('className="semantic-emoji"')
     && attributeAllocPageSrc.includes('{attribute.icon}')
-    && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">🗺️</span>世界空间')
+    && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">🎐</span>节日范围')
     && fatePreviewPageSrc.includes('{ATTRIBUTE_ICONS[key]}')
     && gameStoryPageSrc.includes('aria-label="四维属性"')
     && gameStoryPageSrc.includes('aria-hidden="true">{icon}')

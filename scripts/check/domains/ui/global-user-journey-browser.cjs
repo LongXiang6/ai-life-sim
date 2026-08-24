@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress the primary browser journey across welcome, creation, feedback, account, and save flows.
+ * Owner: quality:ui
+ * Responsibility: One Puppeteer session, its fixtures, and ordered cross-page assertions only.
+ */
+
 const fs = require('node:fs')
 const path = require('node:path')
 const puppeteer = require('puppeteer')
@@ -105,72 +111,6 @@ async function testWorldSelection(page) {
   return { difficultyLabels, cacheReset: true, pageMetrics }
 }
 
-async function testWorldCustomize(page) {
-  await page.goto(`${baseUrl}/new-game/world-customize`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('h1')
-  const groups = await page.$$('[aria-label$="设定方式"]')
-  const dialogs = []
-  for (let index = 0; index < groups.length; index += 1) {
-    await page.evaluate((cardIndex) => {
-      const group = [...document.querySelectorAll('[aria-label$="设定方式"]')][cardIndex]
-      group?.closest('li')?.scrollIntoView({ block: 'center', behavior: 'instant' })
-    }, index)
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    const modeClicked = await page.evaluate((cardIndex) => {
-      const group = [...document.querySelectorAll('[aria-label$="设定方式"]')][cardIndex]
-      const button = [...(group?.querySelectorAll('button') || [])].find((node) => node.textContent?.trim() === '选择')
-      button?.click()
-      return Boolean(button)
-    }, index)
-    if (!modeClicked) throw new Error(`world customize card ${index + 1}: missing selection mode`)
-    await page.waitForFunction((cardIndex) => {
-      const group = [...document.querySelectorAll('[aria-label$="设定方式"]')][cardIndex]
-      return group?.closest('li')?.querySelector('button[aria-haspopup="listbox"]') !== null
-    }, {}, index)
-    await page.evaluate((cardIndex) => {
-      const group = [...document.querySelectorAll('[aria-label$="设定方式"]')][cardIndex]
-      const trigger = group?.closest('li')?.querySelector('button[aria-haspopup="listbox"]')
-      if (!(trigger instanceof HTMLElement)) throw new Error(`missing choice trigger: ${cardIndex + 1}`)
-      trigger.click()
-    }, index)
-    await page.waitForSelector('[role="listbox"]')
-    const dialog = await page.$eval('[role="listbox"]', (listbox) => {
-      const container = listbox.parentElement?.parentElement
-      const rect = container?.getBoundingClientRect()
-      return {
-        label: listbox.getAttribute('aria-label'),
-        options: listbox.querySelectorAll('[role="option"]').length,
-        describedOptions: [...listbox.querySelectorAll('[role="option"]')].filter((option) => option.querySelector('small')?.textContent?.trim()).length,
-        insideViewport: Boolean(rect && rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight),
-        scrollable: listbox.scrollHeight <= listbox.clientHeight + 1 || getComputedStyle(listbox).overflowY === 'auto',
-        rect: rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height } : null,
-        viewport: { width: innerWidth, height: innerHeight },
-      }
-    })
-    dialogs.push(dialog)
-    if (!dialog.insideViewport || !dialog.scrollable || dialog.options === 0) {
-      throw new Error(`world customize dialog ${index + 1}: ${JSON.stringify(dialog)}`)
-    }
-    if (dialog.label?.includes('力量上限') && dialog.describedOptions !== dialog.options) {
-      throw new Error(`power descriptions missing: ${JSON.stringify(dialog)}`)
-    }
-    await page.click('[role="listbox"] [role="option"]')
-  }
-  if (groups.length !== 4) throw new Error(`world customize expected 4 dimensions, got ${groups.length}`)
-  const summary = await page.evaluate(() => {
-    const section = document.querySelector('section[aria-label="当前世界规则摘要"]')
-    const rect = section?.getBoundingClientRect()
-    return {
-      visible: Boolean(rect && rect.height > 0),
-      contentContained: Boolean(section && section.scrollHeight <= section.clientHeight + 1),
-      scrollHeight: section?.scrollHeight,
-      clientHeight: section?.clientHeight,
-    }
-  })
-  if (!summary.visible || !summary.contentContained) throw new Error(`world summary clipped: ${JSON.stringify(summary)}`)
-  return { dialogs, summary, pageMetrics: await assertPage(page, 'world-customize') }
-}
-
 async function testFeedback(page) {
   await page.goto(`${baseUrl}/feedback`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('textarea[placeholder="描述问题或建议"]')
@@ -247,15 +187,12 @@ async function main() {
         description: '2000年的现代世界，科技与互联网正在改变日常生活。', worldType: 'materialist' },
       entities: [], initialized: true, worldCode: 1, currentYear: 2000, worldTags: ['现代', '现实'], eraStartYear: 2000,
       eraName: '公元', calibration: null, destinyPatternModifiers: {},
-      worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true, tagsGenerated: true,
-        configGenerated: true, regionProfilesGenerated: true, errors: [] },
     }}))
   })
 
   const results = {
     welcome: await testWelcomeUtilities(page),
     worldSelect: await testWorldSelection(page),
-    worldCustomize: await testWorldCustomize(page),
     feedback: await testFeedback(page),
     account: await testAccount(page),
     saveManager: await testSaveManager(page),

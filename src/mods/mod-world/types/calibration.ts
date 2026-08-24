@@ -7,17 +7,6 @@
 import type { WorldScaleCalibration } from '@/foundation'
 import type { WorldConfig } from './world-config'
 
-export interface WorldInitAIStatus {
-  status: 'idle' | 'running' | 'complete' | 'failed'
-  currentStep?: string
-  stepTimers?: Record<string, { start: number; end?: number }>
-  calibrationGenerated: boolean
-  tagsGenerated: boolean
-  configGenerated: boolean
-  regionProfilesGenerated: boolean
-  errors: string[]
-}
-
 export type EventDistributionStrategy =
   | 'balanced'
   | 'prehistoric'

@@ -47,15 +47,21 @@ const segments = buildSegmentedPrompt(narrativePrompt, {
   characterStatusView: { 年龄: 20 },
   subsystemSummaries: [],
   timelineMemory: ['已成立记忆'],
-  recentDetailedStories: [{ 时间: '1年', 正文: '最近正文' }],
-  narrativeGuidanceText: '本轮引导',
+  narrativeGuidanceText: '本轮事实与方向',
 })
 if (segments.userSegments.length !== 3) fail('dynamic narrative assembly must produce exactly three segments')
 const parsedSegments = segments.userSegments.map((segment) => JSON.parse(segment))
-if (!parsedSegments[0].世界 || !Array.isArray(parsedSegments[1].历史剧情) || !Array.isArray(parsedSegments[2].本轮引导)) {
-  fail('main narrative segments must be standalone world, history-and-character, and round-guidance JSON objects')
+if (
+  JSON.stringify(Object.keys(parsedSegments[0])) !== JSON.stringify(['世界'])
+  || JSON.stringify(Object.keys(parsedSegments[0].世界 ?? {})) !== JSON.stringify(['名称', '描述'])
+  || JSON.stringify(Object.keys(parsedSegments[1])) !== JSON.stringify(['历史连续性事实', '角色'])
+  || !Array.isArray(parsedSegments[1].历史连续性事实)
+  || JSON.stringify(Object.keys(parsedSegments[2])) !== JSON.stringify(['本轮事实与方向'])
+  || !Array.isArray(parsedSegments[2].本轮事实与方向)
+) {
+  fail('main narrative segments must be standalone world, continuity-and-character, and round-facts JSON objects')
 }
-if (segments.userSegments.some((segment) => /⟦(?:全局信息|记忆|本轮引导)⟧/u.test(segment))) {
+if (segments.userSegments.some((segment) => /⟦(?:全局信息|记忆|本轮事实与方向)⟧/u.test(segment))) {
   fail('main narrative JSON segments must not carry object-external labels')
 }
 try {

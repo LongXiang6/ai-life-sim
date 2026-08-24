@@ -80,12 +80,6 @@
       "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
     },
     {
-      "path": "src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css",
-      "owner": "mod-pages",
-      "reviewedLines": 811,
-      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
-    },
-    {
       "path": "src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css",
       "owner": "mod-pages",
       "reviewedLines": 1442,

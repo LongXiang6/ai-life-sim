@@ -90,7 +90,6 @@ configStore.set('mod-pages', 'talent-draw:101', { phase: 'ready' })
 configStore.set('mod-pages', 'attribute-alloc:101', { physique: 10 })
 configStore.set('mod-pages', 'fate-preview:101', { storySeed: '123' })
 configStore.set('mod-pages', 'character-create-form:101', { name: '旧角色' })
-configStore.set('mod-pages', 'mod-pages:world-customize-fields', { worldCode: 101 })
 configStore.set('mod-settings', 'theme', 'dark')
 useThemeStore.getState().setTheme('night')
 useCharacterCreationDraftStore.getState().updateDraft({
@@ -119,7 +118,6 @@ assertOk(historicalResetCount === 1, 'new-life reset must include the active P1 
 assertOk(
   configStore.keys('mod-pages').every((key) => (
     !/^(talent-draw|attribute-alloc|fate-preview|character-create-form):/.test(key)
-    && key !== 'mod-pages:world-customize-fields'
   )),
   'new-life reset must remove every per-life creation draft',
 )

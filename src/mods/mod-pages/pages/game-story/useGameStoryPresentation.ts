@@ -26,7 +26,6 @@ import { formatCurrentNarrativeTimeLabel } from '@/mods/mod-engine/engine-api'
 import { PRESET_WORLDS, resolvePresetWorldCode, useWorldStore } from '@/mods/mod-world'
 import type { NarrativeEntry } from '@/mods/mod-ui'
 
-import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
 import { projectWorldTagsToSections } from './game-story-world-tags'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
@@ -191,11 +190,7 @@ export function useGameStoryPresentation({
   const worldSurrounding = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
     if (!worldConfig) return items
-    const labels = resolveWorldDimensionLabels(worldConfig)
     if (worldConfig.name) items.push({ icon: '🌍', label: '世界', value: worldConfig.name })
-    if (worldConfig.essenceTag) items.push({ icon: '🏷', label: '本质', value: labels.essence })
-    if (worldConfig.powerSystemTag) items.push({ icon: '⚡', label: '体系', value: labels.powerSystem })
-    if (worldConfig.spatialForm) items.push({ icon: '🌌', label: '空间', value: labels.spatialForm })
     return items
   }, [worldConfig])
   const worldBasicStatus = useMemo(() => [

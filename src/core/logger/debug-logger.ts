@@ -12,7 +12,6 @@ const LOG_API = '/api/debug-log'
 /** 日志分类 */
 export type DebugLogCategory =
   | 'narrative-rounds'
-  | 'world-init'
   | 'talent-generate'
   | 'epilogue'
   | 'background-events'

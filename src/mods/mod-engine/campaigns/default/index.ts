@@ -243,11 +243,6 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     },
     worldContext: {
       世界: structuredClone(ctx._promptContext.worldNarrativeView),
-      成立规则: [ctx._promptContext.worldRules, ctx._promptContext.modWorldRules]
-        .flatMap((value) => value?.split(/\r?\n/u) ?? [])
-        .map((value) => value.trim())
-        .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index),
-      力量体系: ctx._promptContext.powerFramework ?? null,
       当前时间: ctx._promptContext.currentTime,
     },
   })
@@ -782,5 +777,3 @@ export function loadStages(
     },
   ]
 }
-
-export { getWorldRules } from '../../prompts/narrative-prompt'

@@ -81,13 +81,6 @@ export const useWorldStore = create<WorldStore>()(
         calibration,
         ...updateCurrentContext(s, (instance) => ({ ...instance, calibration: structuredClone(calibration) })),
       }),),
-      setWorldInitAIStatus: (status) => set((s) => ({
-        worldInitAIStatus: status,
-        ...updateCurrentContext(s, (instance) => ({
-          ...instance,
-          worldInitAIStatus: structuredClone(status),
-        })),
-      }),),
       registerContext: (input, makeActive = false) => set((s) => {
         const instance = structuredClone(input)
         const existing = s.contexts[instance.record.id]
@@ -202,7 +195,7 @@ export const useWorldStore = create<WorldStore>()(
         const {
           setWorldConfig: _a, setInitialized: _c, setWorldCode: _d,
           setCurrentYear: _e, setWorldTags: _f, setEraStartYear: _g, setEraName: _g2, setCalibration: _h2,
-          setWorldInitAIStatus: _h, registerContext: _l, replaceContext: _m,
+          registerContext: _l, replaceContext: _m,
           setCrossContextEdge: _p, recordTransition: _q,
           generateAndSetWorldCode: _i, recycleWorldCode: _j, reset: _k,
           ...rest

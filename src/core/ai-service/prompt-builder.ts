@@ -99,24 +99,12 @@ function buildWordCountInstruction(value: string | undefined): string {
   return `字数要求：正文约${match?.[1] ?? '300'}字。`
 }
 
-function buildWorldRules(context: PromptContext): string[] {
-  return [context.worldRules, context.modWorldRules]
-    .flatMap((value) => nonEmpty(value)?.split(/\r?\n/u) ?? [])
-    .map((value) => value.trim())
-    .filter(Boolean)
-}
-
 /** PromptContext 转为固定键序且字段白名单化的 01 输入。 */
 export function buildNarrativeUserJson(context: PromptContext): Record<string, unknown> {
   const rawWorld = context.worldNarrativeView
-  const rules = buildWorldRules(context)
   const world = {
     名称: nonEmpty(rawWorld.名称) ?? '',
     描述: nonEmpty(rawWorld.描述) ?? '',
-    ...(nonEmpty(rawWorld.空间形态) ? { 空间形态: nonEmpty(rawWorld.空间形态) } : {}),
-    ...(nonEmpty(rawWorld.世界观本质) ? { 世界观本质: nonEmpty(rawWorld.世界观本质) } : {}),
-    ...(context.powerFramework ? { 力量体系: context.powerFramework } : {}),
-    ...(rules.length > 0 ? { 成立规则: rules } : {}),
   }
   const rawCharacter = context.characterProfileView
   const currentAge = context.characterStatusView.年龄
@@ -129,7 +117,7 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
     基础属性: rawCharacter.基础属性 ?? {},
     天赋: context.talents ?? [],
   }
-  const roundGuidance = [
+  const roundFactsAndDirection = [
     buildCurrentTimeInstruction(context.currentTime, context.timeGuideText),
     buildPlayerActionInstruction(context.playerBranchIntent),
     `${buildAgeCapabilityInstruction(currentAge)} 故事保持合理挑战，合理接受玩家行动；若决策不合理、忽视风险或与故事逻辑相悖，则行动很可能失败，并引发可预见的负面连锁反应。剧情走向由决策的合理性决定。`,
@@ -140,17 +128,16 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
 
   return {
     世界: world,
-    历史剧情: context.timelineMemory ?? [],
-    最近两轮详细剧情: context.recentDetailedStories ?? [],
+    历史连续性事实: context.timelineMemory ?? [],
     角色: character,
-    本轮引导: roundGuidance,
+    本轮事实与方向: roundFactsAndDirection,
     ...(Array.isArray(context.currentDueEvents) && context.currentDueEvents.length > 0
       ? { 当前到期事件: context.currentDueEvents.filter((event): event is string => typeof event === 'string' && event.trim().length > 0) }
       : {}),
   }
 }
 
-/** 输出三条独立 user 消息；顺序严格为世界、历史与角色、本轮引导。 */
+/** 输出三条独立 user 消息；顺序严格为世界、连续性事实与角色、本轮事实与方向。 */
 export function buildSegmentedPrompt(
   _template: PromptTemplate,
   context: PromptContext,
@@ -158,12 +145,11 @@ export function buildSegmentedPrompt(
   const input = buildNarrativeUserJson(context)
   const globalSegment = JSON.stringify({ 世界: input.世界 ?? {} })
   const memorySegment = JSON.stringify({
-    历史剧情: input.历史剧情 ?? [],
-    最近两轮详细剧情: input.最近两轮详细剧情 ?? [],
+    历史连续性事实: input.历史连续性事实 ?? [],
     角色: input.角色 ?? {},
   })
   const roundSegment = JSON.stringify({
-    本轮引导: input.本轮引导 ?? [],
+    本轮事实与方向: input.本轮事实与方向 ?? [],
     ...(Array.isArray(input.当前到期事件) && input.当前到期事件.length > 0
       ? { 当前到期事件: input.当前到期事件 }
       : {}),

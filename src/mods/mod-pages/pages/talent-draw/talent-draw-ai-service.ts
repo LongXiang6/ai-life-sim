@@ -5,6 +5,7 @@
  */
 
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
+import type { CachePoolType } from '@/core/ai-service'
 import { useCharacterStore } from '@/mods/mod-character'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
 import { useSettingsStore } from '@/mods/mod-settings'
@@ -28,7 +29,7 @@ export function configureDestinyPatternAIService(): void {
   getDestinyPatternSystem().setAIService(async (systemPrompt: string, userPrompt: string, options?: unknown) => {
     const { callAI, callAIStream } = await import('@/core')
     const opts = options as {
-      pool?: string
+      pool?: CachePoolType
       sessionId?: string
       userSegments?: string[]
       stablePrefixChars?: number
@@ -57,7 +58,7 @@ export function configureDestinyPatternAIService(): void {
     }
     const callOptions = {
       config,
-      pool: (opts?.pool ?? 'fate') as 'narrative' | 'worldInit' | 'fate' | 'lowFrequency',
+      pool: opts?.pool ?? 'fate',
       sessionId: opts?.sessionId,
       userSegments: opts?.userSegments,
       jsonMode: opts?.jsonMode,

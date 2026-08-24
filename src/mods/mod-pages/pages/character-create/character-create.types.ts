@@ -14,6 +14,8 @@ export interface UseCharacterCreateLogicReturn {
   gender: 'male' | 'female'
   race: string
   background: string
+  festivalScope: 'china' | 'china-and-international'
+  setFestivalScope: (value: 'china' | 'china-and-international') => void
   setFormName: (value: string) => void
   setNameError: (value: string) => void
   setFormGender: (value: 'male' | 'female') => void

@@ -87,6 +87,7 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
   let record = source
   delete record.entities
   delete record.entityReferences
+  delete record.worldInitAIStatus
   if (isLegacyScpPresetConfig(record.worldConfig)) {
     const dimensionValues = isRecord(record.worldConfig._dimensionValues)
       ? { ...record.worldConfig._dimensionValues }
@@ -124,6 +125,7 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     for (const [contextId, instance] of Object.entries(contexts)) {
       if (!instance?.record || !instance.scope) continue
       delete (instance as unknown as Record<string, unknown>).entities
+      delete (instance as unknown as Record<string, unknown>).worldInitAIStatus
       delete (instance.spatialGraph as unknown as Record<string, unknown>).entityLocations
       instance.capabilityProfile = alignCapabilityProfileRuntimeMembership(instance.capabilityProfile)
       if (contextId === currentContextId) {
@@ -167,7 +169,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
         eraStartYear: current.eraStartYear,
         eraName: current.eraName,
         calibration: structuredClone(current.calibration),
-        worldInitAIStatus: structuredClone(current.worldInitAIStatus),
       } : {}),
     }
   }
@@ -206,7 +207,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
       : [],
     eraStartYear: typeof record.eraStartYear === 'number' ? record.eraStartYear : 0,
     eraName: typeof record.eraName === 'string' ? record.eraName : '',
-    worldInitAIStatus: isRecord(record.worldInitAIStatus) ? record.worldInitAIStatus as never : null,
     scope: 'active',
     derivedFrom: 'migration',
   })
@@ -226,6 +226,5 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     eraStartYear: instance.eraStartYear,
     eraName: instance.eraName,
     calibration: structuredClone(instance.calibration),
-    worldInitAIStatus: structuredClone(instance.worldInitAIStatus),
   }
 }

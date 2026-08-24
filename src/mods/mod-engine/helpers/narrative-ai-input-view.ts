@@ -19,8 +19,6 @@ const GENDER_LABELS: Record<string, string> = {
 export interface NarrativeAIWorldView extends Record<string, unknown> {
   名称: string
   描述: string
-  空间形态?: string
-  世界观本质?: string
 }
 
 export interface NarrativeAICharacterProfileView extends Record<string, unknown> {
@@ -115,24 +113,10 @@ function projectCharacterBaseAttributes(
 
 export function projectWorldSettingForNarrativeAI(
   worldSetting: WorldSetting,
-  _narrativeTime?: {
-    calendarName: string
-    eraLabel: string
-    month: number
-    seasonName: string
-  },
 ): NarrativeAIWorldView {
-  const spatialForm = typeof worldSetting.config?.spatialForm === 'string'
-    ? worldSetting.config.spatialForm.trim()
-    : ''
-  const worldviewEssence = typeof worldSetting.config?.essenceTag === 'string'
-    ? worldSetting.config.essenceTag.trim()
-    : ''
   return {
     名称: worldSetting.name,
     描述: worldSetting.description,
-    ...(spatialForm ? { 空间形态: spatialForm } : {}),
-    ...(worldviewEssence ? { 世界观本质: worldviewEssence } : {}),
   }
 }
 

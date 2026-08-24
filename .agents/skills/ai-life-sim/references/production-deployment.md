@@ -4,7 +4,7 @@
 
 ## 固定流程
 
-1. 按 `D:\AI\.agents\task-trace.md` 创建部署溯源。
+1. 部署包含主项目运行代码行为变更时，按 `D:\AI\.agents\task-trace.md` 续写或创建部署溯源；仅执行不改变运行行为的运维动作按 `D:\AI\AGENTS.md` 直接处理，用户点名留痕时保留相应记录。
 2. 本地入口用 `git archive HEAD` 生成当前已提交版本的临时归档，不执行 fetch、pull、push、提交、差异计划或工作树清理。
 3. 把归档和固定远端脚本上传到 `tencent-vm:/tmp`。
 4. 远端确认 `/root/ai-life-sim` 是真实目录而不是软链接，只保留 `node_modules` 与 `.env.production.local`，删除其余旧项目文件。

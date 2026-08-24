@@ -78,8 +78,6 @@ export interface ModManifest {
    * 入口文件必须使用 `server-only` 硬门禁，并在架构规则中单独登记。
    */
   serverOnlyPublicEntries?: string[]
-  /** 世界观叙事规则（可选，注入 AI Prompt 的额外规则文本） */
-  worldRules?: string
   /** Campaign 叙事阶段声明（mod-engine 专用，codegen 与 campaigns/default 交叉校验） */
   campaignHooks?: ModCampaignHooks
   /** 功能开关（V2 新增，声明所需引擎能力） */

@@ -95,7 +95,6 @@ export type {
   WorldSetting,
   CharacterState,
   NarrativeTalentPromptView,
-  NarrativeDetailedStoryPromptView,
   CompressedMemoryEvent,
   CompressedSummaryItem,
   CompressedSummaries,

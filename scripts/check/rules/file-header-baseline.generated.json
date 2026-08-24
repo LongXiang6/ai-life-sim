@@ -40,7 +40,7 @@
     {
       "path": "scripts/check/domains/calibration/world-calibration-acceptance.mjs",
       "owner": "quality:calibration",
-      "sha256": "3e0516369454a4e35b65789a3156c973aa5d175a3889b53d7b3ebda3198ccfe1"
+      "sha256": "c7ffe2482a8c0d82ed4c557b7b5aaa8f4f9ac51a3684a6b695134670b1ac8635"
     },
     {
       "path": "scripts/check/domains/calibration/world-calibration-phase5-runner.ts",
@@ -50,7 +50,7 @@
     {
       "path": "scripts/check/domains/calibration/world-calibration-test-helpers.ts",
       "owner": "quality:calibration",
-      "sha256": "87f2a69443e55a1b26bdf889168d73697dbe48ba7a6639f1e380ac157c0b02bc"
+      "sha256": "620b09d078ba13c13b6284c2cd0b10842ba9aa1f81a3f28923bd007e318466ee"
     },
     {
       "path": "scripts/check/domains/narrative/adaptation-calibration-audit.mjs",
@@ -158,19 +158,9 @@
       "sha256": "bd493f2fbf084afc3267852ed3c5d25903cc769489635e7d25fbd8bc1c09b3c2"
     },
     {
-      "path": "scripts/check/domains/ui/account-cloud-browser.cjs",
-      "owner": "quality:ui",
-      "sha256": "2dbc76a1bb76b2286d09097afe344af4a60c5455246d1bf7c690663cae91bdbc"
-    },
-    {
       "path": "scripts/check/domains/ui/character-create-n2a-browser.cjs",
       "owner": "quality:ui",
       "sha256": "5ebb9fe6a91eeb36b7215d1538bc5061a05184fb1ee28c0fd5445df7a1f334ae"
-    },
-    {
-      "path": "scripts/check/domains/ui/global-user-journey-browser.cjs",
-      "owner": "quality:ui",
-      "sha256": "6c60499e99c56a19634f38c5b9380287115826bb4faaa3a438a196024ce4cf1a"
     },
     {
       "path": "scripts/check/domains/ui/help-c3-browser.cjs",
@@ -181,21 +171,6 @@
       "path": "scripts/check/domains/ui/settings-r1-browser.cjs",
       "owner": "quality:ui",
       "sha256": "3bcf5ac9e806e6c9e5e8a24338814053893e4c916b2e7b5480961a55d08b0062"
-    },
-    {
-      "path": "scripts/check/domains/ui/world-customize-m2-browser.cjs",
-      "owner": "quality:ui",
-      "sha256": "855b2793485276b34f360e04f8538a087f37f40bdf515bc320e387e021b26d10"
-    },
-    {
-      "path": "scripts/check/domains/ui/world-generated-cache-smoke.mjs",
-      "owner": "quality:ui",
-      "sha256": "f934ed5db2cdb3f6f1cbb4b9a027ef43b3c12191d7b2267da612293edeaa5154"
-    },
-    {
-      "path": "scripts/check/domains/ui/world-select-wf2-browser.cjs",
-      "owner": "quality:ui",
-      "sha256": "8b1cfff6b5e283c81ff13c95e6b5b65454ac3bc35b1c8aa43c9226580cdd3301"
     },
     {
       "path": "scripts/check/index.mjs",
@@ -595,7 +570,7 @@
     {
       "path": "src/core/logger/debug-logger.ts",
       "owner": "core:logger",
-      "sha256": "940afdc9f7fead07f31a7f0917ce152679b4331a665f9d86231a3f74f894bc69"
+      "sha256": "f827f174f2bd44b81bc3e774a44af5860973d9e4e81415fc38e147f10f8e52b3"
     },
     {
       "path": "src/core/logger/development-system-diagnostic.server.ts",
@@ -910,7 +885,7 @@
     {
       "path": "src/foundation/types/mod.types.ts",
       "owner": "foundation:types",
-      "sha256": "998c7dc68e88ebbf409d5d119a28208c2450bf7a5e7890d612eea09035b47155"
+      "sha256": "2d13b7690ed7747a2a7cf4ac7a28011027bcda7357de04d01a70994049e85dee"
     },
     {
       "path": "src/foundation/types/subsystem.types.ts",
@@ -1120,7 +1095,7 @@
     {
       "path": "src/mods/mod-engine/helpers/narrative-prompt-component-types.ts",
       "owner": "mod-engine",
-      "sha256": "4a06244edad280f0f1950ca178f5b1c630ce25ca6c1f61b33516a0113e73e799"
+      "sha256": "a2268e44e7ed73f4d3c944cdd8de16b7b5766ff4ddb4e261599dfe5ec2dd1979"
     },
     {
       "path": "src/mods/mod-engine/helpers/narrative-repetition-metrics.ts",
@@ -1305,12 +1280,7 @@
     {
       "path": "src/mods/mod-pages/helpers/creation-draft-storage.ts",
       "owner": "mod-pages",
-      "sha256": "fce02a807425831b07dede4349a2b15b90ec21e507ad6d3f109013cf54d73ec0"
-    },
-    {
-      "path": "src/mods/mod-pages/helpers/world-dimension-labels.ts",
-      "owner": "mod-pages",
-      "sha256": "3fb7c0a071bb3b30fd8495b863d5ab4c4ba82658d0ddffcd3799ad57e6777349"
+      "sha256": "1c0f1a7507190a42ddcdaed95bed2182ec45eb93acedc264333ee7728a4551b9"
     },
     {
       "path": "src/mods/mod-pages/hooks/useCreationStoresHydrated.ts",
@@ -1318,24 +1288,14 @@
       "sha256": "fba475ac2a003e87250c01b2bce129999ded6a7147a570500beb579b6ed98185"
     },
     {
-      "path": "src/mods/mod-pages/hooks/useWorldCoherenceConfirm.tsx",
-      "owner": "mod-pages",
-      "sha256": "8eb825eda35cfd16cc6a721275d7488caf251e70ad058d1741ce44cc5ca48cbc"
-    },
-    {
-      "path": "src/mods/mod-pages/hooks/WorldCoherenceConflictModal.tsx",
-      "owner": "mod-pages",
-      "sha256": "a085c5721bde18d11057083e5f1137069cb87d37178b233fadb7f606309d3323"
-    },
-    {
       "path": "src/mods/mod-pages/index.ts",
       "owner": "mod-pages",
-      "sha256": "3598681f667e5f8fbd1d8f6d4c8eb3ad5fbcf2ef39148f8ffb571dc738cc39ee"
+      "sha256": "23814f348acb6b1ef4da7a34f7004157b274d5c5db31f3bb51bbf8acd582d25b"
     },
     {
       "path": "src/mods/mod-pages/manifest.ts",
       "owner": "mod-pages",
-      "sha256": "f31f89601cccdee61e21b89356364b7df76cfb79160a4a52e60719a4239ab6e8"
+      "sha256": "3c0f35f6b46168725c795b330e029ea410ff1ba5a148981c461e41b059a2aafb"
     },
     {
       "path": "src/mods/mod-pages/pages/character-create/page.tsx",
@@ -1388,31 +1348,6 @@
       "sha256": "d0c00b5d842e22f06d5641efadef94aab80fb587a0f6e3c4b32008b1e69e2c3e"
     },
     {
-      "path": "src/mods/mod-pages/pages/world-build/page.tsx",
-      "owner": "mod-pages",
-      "sha256": "24a5e32da102b96f8e9bb9b6ae20602541dde605bd91983a161f8da77e8dfb1c"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/world-customize/page.tsx",
-      "owner": "mod-pages",
-      "sha256": "822c70ee1280ef7ed5f307c300b5f32bfbd7a01d0e23b8931b3989c2a1fba29b"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/world-customize/world-customize.types.ts",
-      "owner": "mod-pages",
-      "sha256": "c46eed7af6a54132b1888866fc83dc98aa870ac3c834e5c0527d44d6718c61fc"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/world-customize/WorldCustomizeBottomBar.tsx",
-      "owner": "mod-pages",
-      "sha256": "ff96570e5162b5117afb893a6c71e4969c9f611bc5ae027d34aee85b5f885ed8"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/world-customize/WorldCustomizeDimensionCard.tsx",
-      "owner": "mod-pages",
-      "sha256": "5f18a054b50d4dd880c15d94facbb3bb3f21927ab36c7274ff4e5a2ff533a85c"
-    },
-    {
       "path": "src/mods/mod-pages/pages/world-select/page.tsx",
       "owner": "mod-pages",
       "sha256": "8271342b7fb18e188ff7f49b36ec82ae01ce391bae987be6c01f18cfde608641"
@@ -1420,12 +1355,7 @@
     {
       "path": "src/mods/mod-pages/pages/world-select/useWorldConfirm.ts",
       "owner": "mod-pages",
-      "sha256": "5d5abb59dc1a9a22937f3365fd80d3a6ad2c4b6f162dbd8bf6a9cfef45f37281"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/world-select/useWorldSelectCache.ts",
-      "owner": "mod-pages",
-      "sha256": "c8be7e601d6c14ed473839474c4d19659333114b632f646911246c6abeb2d62b"
+      "sha256": "157db2cb430baa2e05f2e70d88d339b67612c2628c8758049a11ff9aad5cc45c"
     },
     {
       "path": "src/mods/mod-pages/pages/world-select/useWorldSelectForm.ts",
@@ -1440,12 +1370,7 @@
     {
       "path": "src/mods/mod-pages/pages/world-select/WorldSelectBottomBar.tsx",
       "owner": "mod-pages",
-      "sha256": "09c419c73f0cee43ab98588dc151751f521276076c793b9d0c45a9de9221b308"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx",
-      "owner": "mod-pages",
-      "sha256": "083db9cda2d1c6b032218546ae35218fe7fb02c7f670ba227754b7acb47b753b"
+      "sha256": "a227f2770e622ba4474a9bcd78ddd1182b22ee30132cf664fd0b2828b0884803"
     },
     {
       "path": "src/mods/mod-pages/types.ts",
@@ -1840,7 +1765,7 @@
     {
       "path": "src/mods/mod-ui/components/organisms/help-content.ts",
       "owner": "mod-ui",
-      "sha256": "98bd49b0c2cfabd779eb1d819dbfe21ed5c6b499837d30faa476f808aaa82e54"
+      "sha256": "31f3225386b3663504fbb905a40990e60d0f474582b1a6216e96800673e45e6f"
     },
     {
       "path": "src/mods/mod-ui/components/organisms/help-resource-loader.ts",
@@ -1968,16 +1893,6 @@
       "sha256": "8e72d43b54cabda77a02cd873897764af1848c122751c47e6d7e6f888b6dcf58"
     },
     {
-      "path": "src/mods/mod-world/prompts/dimension-inference-schema.ts",
-      "owner": "mod-world",
-      "sha256": "ea0b27883102bf459011eedcf23bc0eeae9f4b3a77c1451c17747f076138a6fb"
-    },
-    {
-      "path": "src/mods/mod-world/prompts/index.ts",
-      "owner": "mod-world",
-      "sha256": "cb527a3121fd0e3f66114c118e75652b84e55271302195225ebb2b2dcb44b095"
-    },
-    {
       "path": "src/mods/mod-world/subsystems/contextual-capability-profile-system.ts",
       "owner": "mod-world",
       "sha256": "e6743b288f4ccddc9beadda9f4c703a406cb0282b3257a4048826f2cb3a45cdd"
@@ -2028,74 +1943,14 @@
       "sha256": "3d4b5fa8645720732787150f759c5ad97cbd797a5eaa87147ecc09962d16c729"
     },
     {
-      "path": "src/mods/mod-world/utils/world-coherence-hints.ts",
-      "owner": "mod-world",
-      "sha256": "6a9a73ea839fce01be0d4d47af69ebdadbfc9189b686aed247d00252cea9a598"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-coherence-inference.ts",
-      "owner": "mod-world",
-      "sha256": "f89543efb8fce057b0557d39913ee1e2156426c3ea7f33bc1b5510f3241ddb9d"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-coherence-output-guard.ts",
-      "owner": "mod-world",
-      "sha256": "c1a887064e0f9b43e6eae2e2be538cd6dd29d2fb25d27bf21c54aa71ffcbcf2e"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-config-ai.ts",
-      "owner": "mod-world",
-      "sha256": "47a360810ec883c1fe76ea7c2c820d7ba3add31769a31c432fda0246f324d5a7"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-config-mapping.ts",
-      "owner": "mod-world",
-      "sha256": "f3da38dd3a1a9771af3f6147b4f8332cfddece50d667ec337f380fa96faf45ed"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-dimension-calibration-normalize.ts",
-      "owner": "mod-world",
-      "sha256": "e71445ce54d8eede8d46f782b4d1aaf1b10dc6da368e990bd3b88a53cfe0a10a"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-dimension-calibration-parse.ts",
-      "owner": "mod-world",
-      "sha256": "b1335446745360ca8ccf60cbfa77b13f4875ac2773124c7bc8a14ed5f2c66c4d"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-generated-cache.ts",
-      "owner": "mod-world",
-      "sha256": "e13c7cb55dc7cba08d8a0b94d2b6fbd9252a77e01df185f941d33fab254e0a87"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-init-ai-validation.ts",
-      "owner": "mod-world",
-      "sha256": "05bdfc4546796a2299c5a47f1e665cbf747f204ea5e221b1a74b549f107311be"
-    },
-    {
       "path": "src/mods/mod-world/utils/world-init-anchor-year.ts",
       "owner": "mod-world",
       "sha256": "31f339b48ca86f59f7204b1c2e15e63b33da833e8f98fc8317f45a86e56269a7"
     },
     {
-      "path": "src/mods/mod-world/utils/world-init-calibration-cache.ts",
-      "owner": "mod-world",
-      "sha256": "492f382dc098458a7e92cccc8be640332acf7ee4ae2c8360bde6d53cb8dc915a"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-init-kv.ts",
-      "owner": "mod-world",
-      "sha256": "7e14d22f755940dbf7f205c13fbfe2b11676b5ff79ff396c8c68cf9c7a515cf4"
-    },
-    {
-      "path": "src/mods/mod-world/utils/world-init-prompt-vars.ts",
-      "owner": "mod-world",
-      "sha256": "8fde6adb87f375a1cd17e0943da37127fcaccff0cb0931dd6e77c671378710c7"
-    },
-    {
       "path": "src/mods/mod-world/utils/world-pool-selectors.ts",
       "owner": "mod-world",
-      "sha256": "941141ff32540870fc26652f21fc9c2acc4738eb4e346b798962e9c329436350"
+      "sha256": "8391090fe279463174b9d2f22f1f3f1e3424b3b717b18f1f41c5e93bcd62298a"
     },
     {
       "path": "src/mods/mod-world/utils/world-scale-calibration.ts",
@@ -2105,17 +1960,12 @@
     {
       "path": "src/mods/mod-world/utils/world-state-migration.ts",
       "owner": "mod-world",
-      "sha256": "18b7545aa885c056bfa379716ad708d14063b87c83a3c1e3db5c89509d573f22"
+      "sha256": "0e3da3b9936fc1c9c4cf0aac8c55d0fd351cd36b0f7e0962ddc359d69d916ba6"
     },
     {
       "path": "src/mods/mod-world/world-context-api.ts",
       "owner": "mod-world",
       "sha256": "a83e3eeee4b573105271a87a565bf269ebf6d8f00b5559f2868bd78185633733"
-    },
-    {
-      "path": "src/mods/mod-world/world-init-bundle-deps.ts",
-      "owner": "mod-world",
-      "sha256": "4e2124b3e8dff078a99dd557349edcf80f9eaae3f7bb29b8867ac1aead3c6d69"
     },
     {
       "path": "src/mods/registry.ts",
