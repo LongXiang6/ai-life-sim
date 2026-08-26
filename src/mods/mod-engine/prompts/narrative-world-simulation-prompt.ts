@@ -8,11 +8,11 @@ import type { PromptTemplate } from '@/foundation'
 import { z } from 'zod'
 
 export const NARRATIVE_WORLD_SIMULATION_SERVER_PROMPT_ASSET_ID =
-  'mod-engine:narrative-world-simulation:1.0.0'
+  'mod-engine:narrative-world-simulation:1.2.0'
 
 export const narrativeWorldSimulationPrompt: PromptTemplate = {
   name: 'narrative-world-simulation',
-  version: '1.0.0',
+  version: '1.2.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_WORLD_SIMULATION_SERVER_PROMPT_ASSET_ID,

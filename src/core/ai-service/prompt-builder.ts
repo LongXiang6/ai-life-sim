@@ -28,7 +28,7 @@ function nonEmpty(value: unknown): string | undefined {
 
 function buildCurrentTimeInstruction(value: string | undefined, supplemental?: string): string {
   const time = nonEmpty(value) ?? '当前时间'
-  const instruction = `时间窗口：${time}。请在这个时间范围内生成一段合理的故事。`
+  const instruction = `时间窗口：${time}。时间只作为判断事件合理性的背景参考，正文非必要不写年份、季节、节日等时间词，也不要把时间当作开头。`
   const extra = nonEmpty(supplemental)
   return extra
     ? `${instruction}\n本轮时间参考：${extra}`
@@ -43,7 +43,15 @@ function buildPlayerActionInstruction(intent: Record<string, unknown> | undefine
 function buildAgeCapabilityInstruction(value: unknown): string {
   const numeric = typeof value === 'number' ? value : Number(value)
   const age = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0
-  return `年龄边界：角色当前${age}岁；行动须符合其年龄、身体、知识、身份和已经成立的经历。超出能力的行动不得直接视为已完成。`
+  let stage = '行动须符合其年龄、身体、知识、身份和已经成立的经历'
+  if (age <= 2) {
+    stage = '婴幼儿，只能被照料、被观察或被动经历，不能主动行动或推动情节'
+  } else if (age <= 5) {
+    stage = '幼儿，行动以本能和模仿为主，不能独立完成复杂事务'
+  } else if (age <= 12) {
+    stage = '孩童，能参与简单事务，但判断力与体力有限'
+  }
+  return `年龄边界：角色当前${age}岁（${stage}）；超出能力的行动不得直接视为已完成。`
 }
 
 function buildNarrativeStyleInstruction(value: string | undefined): string | undefined {
@@ -72,9 +80,10 @@ function buildWordCountInstruction(value: string | undefined): string {
   const instruction = nonEmpty(value)
   if (instruction) {
     const normalized = instruction.replace(/正文约\s*(\d+)\s*字/u, '正文约$1字')
-    return `字数要求：${/[。！？!?]$/u.test(normalized) ? normalized : `${normalized}。`}`
+    const trimmed = normalized.replace(/[。！？!?]$/u, '')
+    return `字数要求：${trimmed}；这是大约字数，优先以适合剧情为准，可适当增减。`
   }
-  return '字数要求：正文约300字。'
+  return '字数要求：正文约300字；这是大约字数，优先以适合剧情为准，可适当增减。'
 }
 
 function buildEventInjectionInstruction(value: string | undefined): string | undefined {
