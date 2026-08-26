@@ -1156,17 +1156,17 @@
   display: grid;
   place-items: center;
   padding: calc(22 * var(--final-flow-density-px));
-  background: rgba(40, 50, 75, .22);
-  color: var(--ink);
-  font-family: var(--sans);
+  background: color-mix(in srgb, var(--flow-canvas) 62%, transparent);
+  color: var(--flow-ink);
+  font-family: inherit;
 }
 
 .cacheDialog {
   width: 100%;
   padding: calc(17 * var(--final-flow-density-px));
-  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: calc(18 * var(--final-flow-density-px));
-  background: var(--surface);
+  background: var(--flow-paper);
   box-shadow: 0 calc(18 * var(--final-flow-density-px)) calc(44 * var(--final-flow-density-px)) rgba(31, 39, 58, .19);
 }
 
@@ -1179,7 +1179,7 @@
 
 .cacheDialog p {
   margin: calc(7 * var(--final-flow-density-px)) 0 0;
-  color: var(--ink-soft);
+  color: var(--flow-muted);
   font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.55;
 }
@@ -1196,8 +1196,8 @@
   padding: 0 calc(8 * var(--final-flow-density-px));
   border: 0;
   border-radius: calc(11 * var(--final-flow-density-px));
-  background: var(--surface-soft);
-  color: var(--ink-soft);
+  background: var(--color-bg-secondary);
+  color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
   font-size: calc(9 * var(--final-flow-density-px));

@@ -298,7 +298,6 @@ export default function GamePage() {
         advanceText: narrativeAdvanceText,
         advanceHint: narrativeAdvanceHint,
         isGenerating: isAdvancing,
-        showGenerationCursor: isAdvancing && !hasVisiblePendingNarrative,
         hasEndingEvent: isDead,
         onAdvance: handleNarrativeAdvance,
         onGoToGameOver: handleGoToGameOver,

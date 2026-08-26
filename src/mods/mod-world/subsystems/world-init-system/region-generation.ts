@@ -37,8 +37,31 @@ const TERRAIN_DEVELOPMENT_OFFSET: Record<string, number> = {
 }
 
 const FLAT_DISC_RING_NAMES = ['中央圣地', '内环沃土', '中环疆域', '外环荒野', '边缘绝域']
-const PLANE_LAYER_NAMES = ['上层界', '中层界', '下层界', '深渊界']
+const PLANE_LAYER_NAMES = ['青云天', '云梦泽', '幽冥渊', '归墟']
 const STAR_SYSTEM_NAMES = ['恒星核心区', '亚空间航道', '殖民星域', '外星边域', '虚空缓冲区']
+
+const TERRAIN_LABELS: Record<string, string> = {
+  plains: '平原',
+  forest: '林地',
+  savanna: '稀树草原',
+  rainforest: '雨林',
+  desert: '荒漠',
+  tundra: '苔原',
+  ethereal: '灵界',
+  space: '太空',
+  void: '虚空',
+}
+
+const CIVILIZATION_STAGE_LABELS: Record<string, string> = {
+  primitive: '原始',
+  ancient: '古代',
+  medieval: '中世纪',
+  renaissance: '文艺复兴',
+  industrial: '工业时代',
+  modern: '现代',
+  information: '信息时代',
+  space: '星际时代',
+}
 
 function getDevelopmentRange(
   config: WorldConfig,
@@ -105,9 +128,9 @@ function resourceText(terrainTag: string): string[] {
     rainforest: ['稀有生物资源', '药材'],
     desert: ['矿物', '稀缺水源'],
     tundra: ['寒地矿物', '耐寒生物资源'],
-    ethereal: ['当地超常资源'],
+    ethereal: ['特殊灵物', '空间异象', '稀有物种'],
     space: ['能源', '矿物', '人工补给'],
-    void: ['规则性资源'],
+    void: ['规则现象', '概念显化'],
   }
   return values[terrainTag] ?? ['常见生活资源']
 }
@@ -136,7 +159,9 @@ function buildRegion(
   const settlement = levelText(developmentLevel, ['聚落分散', '形成稳定城镇或社区', '聚落体系成熟、核心节点明显'])
   const education = levelText(developmentLevel, ['知识主要靠家庭与师徒传递', '存在稳定教育或训练渠道', '教育与知识传播体系成熟'])
   const pollution = developmentLevel < 45 ? '污染轻微或局部存在' : developmentLevel < 80 ? '存在可感知的人类活动污染' : '污染与治理并存，局部压力明显'
-  const culture = `${config.civilizationStage}阶段的当地文化，与${terrainTag}环境长期互动`
+  const stageLabel = CIVILIZATION_STAGE_LABELS[config.civilizationStage] ?? config.civilizationStage
+  const terrainLabel = TERRAIN_LABELS[terrainTag] ?? terrainTag
+  const culture = `${stageLabel}阶段的当地文化，与${terrainLabel}环境长期互动`
   const socialStructure = levelText(developmentLevel, ['社会关系较松散', '身份与分工较稳定', '社会分层和组织网络较复杂'])
   const factions = levelText(developmentLevel, ['缺少长期稳定的大型组织', '存在若干地方组织与利益群体', '多方组织长期竞争与合作'])
   const law = levelText(developmentLevel, ['主要依靠习俗和即时裁决', '存在稳定规则与地方秩序', '法律和治理结构较完整'])
@@ -145,7 +170,7 @@ function buildRegion(
     name,
     templateType: template.label,
     terrainTag,
-    summary: `${name}处于${climate}环境，${settlement}；${economy}。`,
+    summary: `${name}处于${climate}环境，${settlement}，${socialStructure}；${economy}。`,
     climate,
     ecology,
     resources,
@@ -192,6 +217,7 @@ function generateNamedRegions(
   calibration: WorldCalibration | null,
   names: readonly string[],
   terrainTag: string,
+  namePrefix: string = template.label,
 ): RegionData[] {
   const range = getDevelopmentRange(config, calibration)
   return Array.from({ length: template.regionCount }, (_, index) => {
@@ -202,7 +228,7 @@ function generateNamedRegions(
       config,
       template,
       String(index),
-      `${template.label}·${names[index] ?? `第${index + 1}区`}`,
+      namePrefix ? `${namePrefix}·${names[index] ?? `第${index + 1}区`}` : (names[index] ?? `第${index + 1}区`),
       resolvedTerrain,
       temperature,
       humidity,
@@ -222,7 +248,7 @@ export function generateRegionsByStrategy(
     case 'concentricRings':
       return generateNamedRegions(config, template, calibration, FLAT_DISC_RING_NAMES, 'plains')
     case 'discrete':
-      return generateNamedRegions(config, template, calibration, PLANE_LAYER_NAMES, 'ethereal')
+      return generateNamedRegions(config, template, calibration, PLANE_LAYER_NAMES, 'ethereal', '')
     case 'cosmic':
       return generateNamedRegions(config, template, calibration, STAR_SYSTEM_NAMES, 'space')
     case 'abstract':

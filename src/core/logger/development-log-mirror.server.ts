@@ -37,6 +37,15 @@ function nextMirrorTimestamp(now: Date): Date {
   return new Date(timestamp)
 }
 
+/** 对可解析的 JSON 文本做缩进换行，并把字符串值内的 \n 解码为真实换行，便于本地阅读；非 JSON（如 SSE 流或纯文本错误）原样返回。 */
+function formatMirrorText(text: string): string {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2).replace(/\\n/g, '\n')
+  } catch {
+    return text
+  }
+}
+
 function formatBeijingTimestamp(value: Date): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
@@ -82,7 +91,7 @@ export async function writeDevelopmentLogMirror(input: DevelopmentLogMirrorInput
   await cleanupMirrorFiles(root, now)
   await fs.promises.writeFile(
     path.join(directory, `${input.direction}-${timestamp}.txt`),
-    input.text,
+    formatMirrorText(input.text),
     { encoding: 'utf8', flag: 'wx' },
   )
 }

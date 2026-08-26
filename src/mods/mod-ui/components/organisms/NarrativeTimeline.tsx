@@ -59,7 +59,6 @@ export interface NarrativeTimelineProps {
   advanceBlocked?: boolean
   advanceBlockedText?: string
   isGenerating?: boolean
-  showGenerationCursor?: boolean
   hasEndingEvent?: boolean
   onAdvance?: () => void
   onGoToGameOver?: () => void
@@ -86,7 +85,6 @@ export function NarrativeTimeline({
   advanceBlocked = false,
   advanceBlockedText = '✔ 请先选择命运',
   isGenerating = false,
-  showGenerationCursor = isGenerating,
   hasEndingEvent = false,
   onAdvance,
   onGoToGameOver,
@@ -186,20 +184,11 @@ export function NarrativeTimeline({
         />,
       )
     }
-    if (showGenerationCursor) {
-      nodes.push(
-        <div key="stream-divider" className={styles.separator}><span aria-hidden="true" /></div>,
-        <div key="stream-entry" className={styles.streamEntry}>
-          <div className={styles.entryBody}><p className={styles.entryParagraph}><span className={styles.cursor} /></p></div>
-        </div>,
-      )
-    }
     return nodes
   }, [
     branchCustomText, branchOptions, branchTitle, entries, isGenerating, onBranchCancel,
     onBranchConfirm, onBranchSelect, onCustomInputChange, onDestinyPatternGrowthSelect,
-    renderStart, selectedBranchOptionId,
-    showGenerationCursor, unresolvedBranchIndex,
+    renderStart, selectedBranchOptionId, unresolvedBranchIndex,
   ])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
@@ -219,7 +208,7 @@ export function NarrativeTimeline({
             <span className={styles.timelineHeaderLabel}>故事进程</span>
             <span className={styles.timelineHeaderRound}>第 {displayTurnCount} 轮 · 已走过 {displayTurnCount} 段岁月</span>
           </div>
-          {entries.length === 0 && !showGenerationCursor ? (
+          {entries.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>卷首</div>
               <p>这一生尚未落笔</p>
