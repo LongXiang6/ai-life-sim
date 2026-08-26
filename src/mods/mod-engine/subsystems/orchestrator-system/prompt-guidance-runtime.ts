@@ -15,6 +15,9 @@ export function buildRoundGuidanceInputRuntime(
   roundSystemGuidanceText?: string
   playerBranchIntent?: Record<string, unknown>
 } {
-  const playerBranchIntent = buildPlayerRoundActionProjection(orchestrator['lastPlayerChoice']?.trim())
-  return playerBranchIntent ? { playerBranchIntent } : {}
+  const action = orchestrator['lastPlayerChoice']?.trim()
+  const playerBranchIntent = buildPlayerRoundActionProjection(action)
+  return {
+    ...(playerBranchIntent ? { playerBranchIntent } : {}),
+  }
 }

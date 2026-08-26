@@ -5,7 +5,13 @@
  */
 
 import { BaseSubsystem } from '@/core/subsystem-base'
-import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
+import {
+  basePointsFromCalendarDays,
+  calendarDaysFromBasePoints,
+  type RoundContext,
+  type SubSystemChanges,
+  type SubSystemState,
+} from '@/foundation'
 
 export type PlotPhase =
   | 'setup'
@@ -49,6 +55,11 @@ const PHASE_GUIDANCE: Record<PlotPhase, string> = {
 export interface PlotStructureState {
   enabled: boolean
   currentPhase: PlotPhase
+  /** 年度基础点时钟中的阶段起点；剧情阶段计算只读取此字段。 */
+  phaseStartedAtBasePoints: number
+  /** 当前阶段已经消费的年度基础点。 */
+  phaseElapsedBasePoints: number
+  /** 由基础点派生的旧日历显示字段，仅用于迁移与展示。 */
   phaseStartedAtTotalDays: number
   phaseElapsedDays: number
   chapterCount: number
@@ -57,6 +68,8 @@ export interface PlotStructureState {
   phaseHistory: Array<{
     phase: PlotPhase
     roundSequence: number
+    totalBasePoints: number
+    /** 由 totalBasePoints 派生的旧日历显示字段。 */
     totalDays: number
     contextId?: string
   }>
@@ -66,7 +79,7 @@ export interface PreparedPlotGuidance {
   readonly contextIdentity: {
     readonly contextId: string
     readonly roundSequence?: number
-    readonly totalDays: number
+    readonly totalBasePoints: number
   }
   readonly nextState: PlotStructureState
 }
@@ -75,6 +88,8 @@ function initialState(): PlotStructureState {
   return {
     enabled: true,
     currentPhase: 'setup',
+    phaseStartedAtBasePoints: 0,
+    phaseElapsedBasePoints: 0,
     phaseStartedAtTotalDays: 0,
     phaseElapsedDays: 0,
     chapterCount: 1,
@@ -89,6 +104,34 @@ function normalizeText(value: unknown, label: string): string {
   return value.trim()
 }
 
+function resolveBasePoints(value: unknown, legacyDays: unknown, label: string): number {
+  const direct = typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  const legacy = typeof legacyDays === 'number' && Number.isFinite(legacyDays) ? legacyDays : undefined
+  if ((direct !== undefined && direct < 0) || (legacy !== undefined && legacy < 0)) {
+    throw new Error(`${label}无效`)
+  }
+  const candidate = direct ?? (legacy === undefined ? undefined : basePointsFromCalendarDays(legacy))
+  if (candidate === undefined || candidate < 0 || !Number.isSafeInteger(Math.floor(candidate))) {
+    throw new Error(`${label}无效`)
+  }
+  return Math.floor(candidate)
+}
+
+function resolveContextBasePoints(context: RoundContext): number {
+  if (typeof context.totalBasePoints !== 'number' || !Number.isFinite(context.totalBasePoints)) {
+    throw new Error('剧情回合基础点无效')
+  }
+  return resolveBasePoints(context.totalBasePoints, undefined, '剧情回合基础点')
+}
+
+function elapsedCalendarDays(startBasePoints: number, elapsedBasePoints: number): number {
+  return Math.max(
+    0,
+    calendarDaysFromBasePoints(startBasePoints + elapsedBasePoints)
+      - calendarDaysFromBasePoints(startBasePoints),
+  )
+}
+
 function normalizeState(snapshot: unknown): PlotStructureState {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     throw new Error('剧情结构状态无效')
@@ -100,25 +143,47 @@ function normalizeState(snapshot: unknown): PlotStructureState {
   if (!Number.isInteger(value.tensionLevel) || value.tensionLevel! < 0 || value.tensionLevel! > 100) {
     throw new Error('剧情结构张力无效')
   }
-  if (!Number.isFinite(value.phaseStartedAtTotalDays) || value.phaseStartedAtTotalDays! < 0) {
-    throw new Error('剧情结构阶段起点无效')
-  }
-  if (!Number.isFinite(value.phaseElapsedDays) || value.phaseElapsedDays! < 0) {
-    throw new Error('剧情结构阶段历时无效')
-  }
+  const phaseStartedAtBasePoints = resolveBasePoints(
+    value.phaseStartedAtBasePoints,
+    value.phaseStartedAtTotalDays,
+    '剧情结构阶段基础点起点',
+  )
+  const phaseElapsedBasePoints = resolveBasePoints(
+    value.phaseElapsedBasePoints,
+    value.phaseElapsedDays,
+    '剧情结构阶段基础点历时',
+  )
   if (!Number.isSafeInteger(value.chapterCount) || value.chapterCount! < 1) {
     throw new Error('剧情结构篇章编号无效')
   }
   if (!Array.isArray(value.phaseHistory)) throw new Error('剧情结构历史无效')
+  const phaseHistory = value.phaseHistory.map((entry, index) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error(`剧情结构历史第 ${index + 1} 项无效`)
+    }
+    const item = structuredClone(entry) as PlotStructureState['phaseHistory'][number]
+    const totalBasePoints = resolveBasePoints(
+      item.totalBasePoints,
+      item.totalDays,
+      `剧情结构历史第 ${index + 1} 项基础点`,
+    )
+    return {
+      ...item,
+      totalBasePoints,
+      totalDays: calendarDaysFromBasePoints(totalBasePoints),
+    }
+  })
   return {
     enabled: value.enabled !== false,
     currentPhase: value.currentPhase,
-    phaseStartedAtTotalDays: value.phaseStartedAtTotalDays!,
-    phaseElapsedDays: value.phaseElapsedDays!,
+    phaseStartedAtBasePoints,
+    phaseElapsedBasePoints,
+    phaseStartedAtTotalDays: calendarDaysFromBasePoints(phaseStartedAtBasePoints),
+    phaseElapsedDays: elapsedCalendarDays(phaseStartedAtBasePoints, phaseElapsedBasePoints),
     chapterCount: value.chapterCount!,
     tensionLevel: value.tensionLevel!,
     progressSummary: normalizeText(value.progressSummary, '剧情进展说明'),
-    phaseHistory: structuredClone(value.phaseHistory),
+    phaseHistory,
   }
 }
 
@@ -153,20 +218,24 @@ export class PlotStructureSystem extends BaseSubsystem {
       throw new Error('剧情张力必须是 0 至 100 的整数')
     }
     const progressSummary = normalizeText(input.进展说明, '剧情进展说明')
+    const totalBasePoints = resolveContextBasePoints(context)
+    const totalDays = calendarDaysFromBasePoints(totalBasePoints)
     const phaseChanged = nextPhase !== this.state.currentPhase
     const chapterCount = phaseChanged && nextPhase === 'new_chapter'
       ? this.state.chapterCount + 1
       : this.state.chapterCount
-    const phaseStartedAtTotalDays = phaseChanged
-      ? context.totalDays
-      : this.state.phaseStartedAtTotalDays
+    const phaseStartedAtBasePoints = phaseChanged
+      ? totalBasePoints
+      : this.state.phaseStartedAtBasePoints
+    const phaseStartedAtTotalDays = calendarDaysFromBasePoints(phaseStartedAtBasePoints)
     const phaseHistory = phaseChanged
       ? [
           ...this.state.phaseHistory,
           {
             phase: nextPhase,
             roundSequence: context.roundSequence ?? 0,
-            totalDays: context.totalDays,
+            totalBasePoints,
+            totalDays,
             ...(context.contextId ? { contextId: context.contextId } : {}),
           },
         ]
@@ -176,13 +245,18 @@ export class PlotStructureSystem extends BaseSubsystem {
       contextIdentity: {
         contextId: context.contextId,
         roundSequence: context.roundSequence,
-        totalDays: context.totalDays,
+        totalBasePoints,
       },
       nextState: {
         enabled: this.state.enabled,
         currentPhase: nextPhase,
+        phaseStartedAtBasePoints,
+        phaseElapsedBasePoints: Math.max(0, totalBasePoints - phaseStartedAtBasePoints),
         phaseStartedAtTotalDays,
-        phaseElapsedDays: Math.max(0, context.totalDays - phaseStartedAtTotalDays),
+        phaseElapsedDays: elapsedCalendarDays(
+          phaseStartedAtBasePoints,
+          Math.max(0, totalBasePoints - phaseStartedAtBasePoints),
+        ),
         chapterCount,
         tensionLevel: input.张力,
         progressSummary,
@@ -193,10 +267,11 @@ export class PlotStructureSystem extends BaseSubsystem {
 
   commitPreparedGuidance(prepared: PreparedPlotGuidance, context: RoundContext): void {
     const identity = prepared.contextIdentity
+    const totalBasePoints = resolveContextBasePoints(context)
     if (
       identity.contextId !== context.contextId
       || identity.roundSequence !== context.roundSequence
-      || identity.totalDays !== context.totalDays
+      || identity.totalBasePoints !== totalBasePoints
     ) {
       throw new Error('剧情引导准备结果不属于当前回合')
     }

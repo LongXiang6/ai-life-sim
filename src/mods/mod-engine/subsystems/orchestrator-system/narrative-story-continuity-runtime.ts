@@ -11,6 +11,7 @@ import type {
   ISubSystem,
   PendingCharacterDeath,
 } from '@/foundation'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 import type { NarrativeAIStoryContinuityData } from '../../helpers/narrative-ai-protocol'
 import type { OrchestratorSystem } from '../orchestrator-system'
 import type {
@@ -80,13 +81,17 @@ function dayOfYear(point: { month: number; day: number }): number {
   return DAYS_IN_MONTH.slice(0, point.month - 1).reduce((sum, days) => sum + days, 0) + point.day
 }
 
+function absoluteCalendarDays(point: { year: number; month: number; day: number }): number {
+  return point.year * 365 + dayOfYear(point) - 1
+}
+
 function buildFutureSchedule(
   timeLabel: string,
   sourceTime: StoryContinuitySourceTime,
 ): HistoricalEventCandidateInput['schedule'] {
   const target = parseCalendarPoint(timeLabel)
   const current = parseCalendarPoint(sourceTime.label)
-  if (!target || !current || sourceTime.totalDays === null) {
+  if (!target || !current || sourceTime.totalBasePoints === null && sourceTime.totalDays === null) {
     if (!target) throw new Error(`未来事件缺少可识别的绝对时间：${timeLabel}`)
     return { conditionLabel: timeLabel }
   }
@@ -94,8 +99,15 @@ function buildFutureSchedule(
   if (!Number.isSafeInteger(delta) || delta <= 0) {
     throw new Error(`未来事件时间不晚于来源回合终点：${timeLabel}`)
   }
+  const currentBasePoints = sourceTime.totalBasePoints
+    ?? basePointsFromCalendarDays(sourceTime.totalDays ?? 0)
+  const targetBasePoints = Math.max(
+    currentBasePoints + 1,
+    basePointsFromCalendarDays(absoluteCalendarDays(target)),
+  )
   return {
-    dueTotalDays: sourceTime.totalDays + delta,
+    dueBasePoints: targetBasePoints,
+    dueTotalDays: calendarDaysFromBasePoints(targetBasePoints),
     conditionLabel: timeLabel,
   }
 }
@@ -197,7 +209,7 @@ export function commitPreparedNarrativeStoryContinuityLedgerRuntime(
     preparation.narrativeId !== accepted.narrativeId
     || preparation.roundContext.contextId !== accepted.roundContext.contextId
     || preparation.roundContext.roundSequence !== accepted.roundContext.roundSequence
-    || preparation.roundContext.totalDays !== accepted.roundContext.totalDays
+    || preparation.roundContext.totalBasePoints !== accepted.roundContext.totalBasePoints
   ) {
     throw new Error('故事连续性账本准备包不属于当前冻结回合')
   }

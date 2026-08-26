@@ -174,6 +174,7 @@ export function commitNarrativeResponseRuntime(
     contextId: orchestrator['worldSetting']?.contextId,
     memoryScope: orchestrator['worldSetting']?.contextId ? 'context' : 'global',
     contextName: orchestrator['worldSetting']?.name,
+    totalBasePoints: roundContext.totalBasePoints,
     totalDays: roundContext.totalDays,
     displayAge: prepared.ageAtRound,
     displayTimeLabel: prepared.displayTimeLabel,
@@ -215,7 +216,7 @@ export function commitNarrativeResponseRuntime(
         prepared.deliveredCausalEventIds,
         roundSequence,
         '本轮正文已经完成对应因果事项',
-        { currentTotalDays: roundContext.totalDays },
+        { currentBasePoints: roundContext.totalBasePoints },
       )
     }
     prepared.transitionAudit.historicalCommitPassed = false

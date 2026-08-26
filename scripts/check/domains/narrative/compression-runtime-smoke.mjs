@@ -12,6 +12,8 @@ import { getProjectRoot } from '../../lib/project-root.mjs'
 import { readModuleSource } from '../../lib/read-module-source.mjs'
 import { buildNarrativeStoryContinuityPromptInput } from '../../../../src/mods/mod-engine/helpers/narrative-story-continuity-context.ts'
 import { NarrativeAIStoryContinuityDataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import { buildRecentStoriesForRound } from '../../../../src/mods/mod-engine/helpers/recent-story-context.ts'
+import { deriveSameRoundMemoryRetention, formatNarrativeTimelineForPrompt, projectSummaryToNarrativeTimeline } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
 import { summaryCompressor } from '../../../../src/mods/mod-engine/subsystems/summary-compressor-system.ts'
 import { memoryLifecycle } from '../../../../src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'
 import { buildPromptTimelineMemoryRuntime } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts'
@@ -54,12 +56,42 @@ function compressionResult(sourceRound) {
 summaryCompressor.reset()
 const history = Array.from({ length: 6 }, (_, index) => story(index + 1))
 
+const firstRoundDateStory = {
+  ...story(1),
+  displayTimeLabel: '甲历1年1月1日',
+}
+const firstRoundDateInput = buildNarrativeStoryContinuityPromptInput({
+  currentRound: 1,
+  currentNarrative: firstRoundDateStory,
+  narrativeHistory: [],
+  compressedSummaries: summaryCompressor.getSummaries(),
+  recentStories: buildRecentStoriesForRound({
+    history: [],
+    currentRound: 1,
+    currentStory: {
+      text: firstRoundDateStory.text,
+      totalDays: firstRoundDateStory.totalDays,
+      timeLabel: firstRoundDateStory.displayTimeLabel,
+    },
+  }),
+})
+const firstRoundCurrentSegment = JSON.parse(firstRoundDateInput.userSegments[2]).当前回合
+assert.equal(
+  firstRoundCurrentSegment.时间窗口,
+  firstRoundCurrentSegment.当前时间,
+  '首轮没有此前正文时，时间窗口必须直接等于当前时间，不得生成反向日期范围',
+)
+
 for (const currentRound of [1, 2, 3, 4, 5, 6]) {
-  const recentStories = history.slice(Math.max(0, currentRound - 3), currentRound).map((entry) => ({
-    回合: entry.transitionAudit.round,
-    规范时间: { 总天数: entry.totalDays, 时间标签: entry.displayTimeLabel },
-    故事全文: entry.text,
-  }))
+  const recentStories = buildRecentStoriesForRound({
+    history: history.slice(0, currentRound - 1),
+    currentRound,
+    currentStory: {
+      text: history[currentRound - 1].text,
+      totalDays: history[currentRound - 1].totalDays,
+      timeLabel: history[currentRound - 1].displayTimeLabel,
+    },
+  })
   const input = buildNarrativeStoryContinuityPromptInput({
     currentRound,
     currentNarrative: history[currentRound - 1],
@@ -72,9 +104,14 @@ for (const currentRound of [1, 2, 3, 4, 5, 6]) {
   assert.equal(input.userSegments.length, 3)
   assert.deepEqual(input.userSegments.map((segment) => Object.keys(JSON.parse(segment))[0]), [
     '历史记忆',
-    '最近两轮正文',
+    '最近四轮正文',
     '当前回合',
   ])
+  assert.equal(
+    JSON.parse(input.userSegments[1]).最近四轮正文.length,
+    Math.min(currentRound - 1, 4),
+    `第 ${currentRound} 轮应提供此前最多四轮完整正文`,
+  )
   assert.deepEqual(Object.keys(JSON.parse(input.userSegments[2]).当前回合), ['当前时间', '时间窗口', '正文'])
   assert(!input.userSegments.some((segment) => /⟦[^⟧]+⟧/u.test(segment)))
 
@@ -192,6 +229,92 @@ for (const sourceRound of [1, 2, 3, 4, 5, 6]) {
   assert(!promptMemory.some((entry) => entry.includes(`第${sourceRound}轮完整故事`)))
 }
 assert.equal(summaryCompressor.getSummaries().summaries[0].memoryEvents[0].weight, 6)
+
+const retentionEvents = [
+  {
+    id: 'round-memory:12:event:1',
+    timeSpan: '甲历1年',
+    occurrenceTime: '甲历1年·春',
+    text: '侦查得到关键线索。',
+    weight: 8,
+  },
+  {
+    id: 'round-memory:12:event:2',
+    timeSpan: '甲历1年',
+    occurrenceTime: '甲历1年·春',
+    text: '线索来自旧档案。',
+    weight: 4,
+  },
+  {
+    id: 'round-memory:12:event:3',
+    timeSpan: '甲历1年',
+    occurrenceTime: '甲历1年·春',
+    text: '调查留下轻微伤势。',
+    weight: 2,
+  },
+]
+const retentionSourceSnapshot = structuredClone(retentionEvents)
+assert.deepEqual(
+  deriveSameRoundMemoryRetention(12, retentionEvents),
+  [
+    { causalGroupId: 'round-memory:12', retentionPriority: 8 },
+    { causalGroupId: 'round-memory:12', retentionPriority: 7 },
+    { causalGroupId: 'round-memory:12', retentionPriority: 6 },
+  ],
+  '同轮派生优先级应以最高原始权重为基准，低权重仅影响派生值',
+)
+assert.deepEqual(retentionEvents, retentionSourceSnapshot, '派生计算不得修改原始事件或原始权重')
+
+const retentionSummary = {
+  sourceRound: 12,
+  createdRound: 13,
+  content: '甲历1年：侦查得到关键线索。',
+  memoryEvents: retentionEvents,
+  rawCompressionResponse: '{}',
+}
+const retentionProjection = projectSummaryToNarrativeTimeline(retentionSummary)
+assert.deepEqual(
+  retentionProjection.map((entry) => [entry.text, entry.causalGroupId, entry.retentionPriority]),
+  [
+    ['侦查得到关键线索。', 'round-memory:12', 8],
+    ['线索来自旧档案。', 'round-memory:12', 7],
+    ['调查留下轻微伤势。', 'round-memory:12', 6],
+  ],
+  '摘要投影应按原事件顺序携带同轮派生元数据',
+)
+const lifecycleRetentionProjection = memoryLifecycle.buildNarrativeTimelineProjection(
+  [],
+  { summaries: [retentionSummary, {
+    sourceRound: 13,
+    createdRound: 14,
+    content: '甲历2年：线索得到复核。',
+    memoryEvents: [{
+      id: 'round-memory:13:event:1',
+      timeSpan: '甲历2年',
+      occurrenceTime: '甲历2年·春',
+      text: '线索得到复核。',
+      weight: 3,
+    }],
+    rawCompressionResponse: '{}',
+  }] },
+  { closedContextIds: new Set() },
+)
+assert.deepEqual(
+  lifecycleRetentionProjection.timelineEntries.map((entry) => entry.causalGroupId),
+  ['round-memory:12', 'round-memory:12', 'round-memory:12', 'round-memory:13'],
+  'MemoryLifecycle 时间轴投影应填充同轮因果组且不跨回合混组',
+)
+assert.deepEqual(
+  lifecycleRetentionProjection.timelineEntries.map((entry) => entry.text),
+  ['侦查得到关键线索。', '线索来自旧档案。', '调查留下轻微伤势。', '线索得到复核。'],
+  '派生优先级不得重排回合与事件顺序',
+)
+const retentionPromptProjection = formatNarrativeTimelineForPrompt(
+  lifecycleRetentionProjection.timelineEntries,
+)
+assert.equal(retentionPromptProjection.join('\n').includes('retentionPriority'), false, '内部派生字段不得进入主叙事文本')
+assert.equal(retentionPromptProjection.join('\n').includes('causalGroupId'), false, '内部因果组字段不得进入主叙事文本')
+assert.equal(retentionPromptProjection.length, 2, '同时间事件仍按既有格式合并，不新增展示行')
 
 const removedPaths = [
   'src/app/api/narrative-memory/route.ts',

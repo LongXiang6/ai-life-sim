@@ -30,6 +30,14 @@ export type {
   EventDistributionStrategy,
   MapTemplateId,
   EntityCountRange,
+  WorldEventCandidate,
+  WorldEventCandidateBatch,
+  WorldEventCandidateInput,
+  WorldEventCategory,
+  WorldEventCooldownState,
+  WorldEventIntensity,
+  WorldEventTrigger,
+  WorldEventTriggerKind,
 } from './types'
 
 // 常量

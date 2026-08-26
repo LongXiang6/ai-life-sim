@@ -1,3 +1,9 @@
+/**
+ * Purpose: Apply generic skill and ability growth over canonical annual base points.
+ * Owner: mod-progression
+ * Responsibility: Progression state, records, and validation only; narrative choice remains outside.
+ */
+
 import { BaseSubsystem } from '@/core'
 import {
   GROWTH_SYSTEM_OPERATION_FIELDS,
@@ -13,6 +19,7 @@ import {
   type SubSystemChanges,
   type SubSystemState,
 } from '@/foundation'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 
 import {
   assertEntityVisible,
@@ -64,11 +71,24 @@ function validatePayload(
   return value
 }
 
+function readTimestampBasePoints(
+  value: Record<string, unknown>,
+  baseField: string,
+  legacyDaysField: string,
+  label: string,
+): number {
+  if (value[baseField] !== undefined) {
+    return requireInteger(value[baseField], `${label}.${baseField}`, 0, Number.MAX_SAFE_INTEGER)
+  }
+  const legacyDays = requireTotalDays(value[legacyDaysField], `${label}.${legacyDaysField}`)
+  return basePointsFromCalendarDays(legacyDays)
+}
+
 function validateSkill(value: unknown, index: number): GrowthSkill {
   if (!isRecord(value)) throw new Error(`skills[${index}]必须是对象`)
   assertKnownKeys(value, [
     'skillId', 'entityId', 'name', 'category', 'description', 'scope', 'experience',
-    'useCount', 'potentialCap', 'mastery', 'learnedAtTotalDays', 'sourceEventIds',
+    'useCount', 'potentialCap', 'mastery', 'learnedAtBasePoints', 'learnedAtTotalDays', 'sourceEventIds',
   ], `skills[${index}]`)
   const potentialCap = requireInteger(value.potentialCap, `skills[${index}].potentialCap`, 1, 100000)
   const experience = requireInteger(value.experience, `skills[${index}].experience`, 0, potentialCap)
@@ -76,6 +96,12 @@ function validateSkill(value: unknown, index: number): GrowthSkill {
   if (!MASTERY_LEVELS.has(mastery) || mastery !== masteryFor(experience, potentialCap)) {
     throw new Error(`skills[${index}].mastery 与经验不一致`)
   }
+  const learnedAtBasePoints = readTimestampBasePoints(
+    value,
+    'learnedAtBasePoints',
+    'learnedAtTotalDays',
+    `skills[${index}]`,
+  )
   return {
     skillId: requireString(value.skillId, `skills[${index}].skillId`),
     entityId: requireString(value.entityId, `skills[${index}].entityId`),
@@ -87,7 +113,8 @@ function validateSkill(value: unknown, index: number): GrowthSkill {
     useCount: requireInteger(value.useCount, `skills[${index}].useCount`, 0, Number.MAX_SAFE_INTEGER),
     potentialCap,
     mastery,
-    learnedAtTotalDays: requireTotalDays(value.learnedAtTotalDays, `skills[${index}].learnedAtTotalDays`),
+    learnedAtBasePoints,
+    learnedAtTotalDays: calendarDaysFromBasePoints(learnedAtBasePoints),
     sourceEventIds: requireStringList(value.sourceEventIds, `skills[${index}].sourceEventIds`),
   }
 }
@@ -96,10 +123,16 @@ function validateAbility(value: unknown, index: number): StableAbility {
   if (!isRecord(value)) throw new Error(`abilities[${index}]必须是对象`)
   assertKnownKeys(value, [
     'abilityId', 'entityId', 'name', 'description', 'scope', 'potential',
-    'learningConstraints', 'status', 'acquiredAtTotalDays', 'sourceEventIds',
+    'learningConstraints', 'status', 'acquiredAtBasePoints', 'acquiredAtTotalDays', 'sourceEventIds',
   ], `abilities[${index}]`)
   const status = requireString(value.status, `abilities[${index}].status`) as AbilityStatus
   if (!ABILITY_STATUSES.has(status)) throw new Error(`abilities[${index}].status 无效`)
+  const acquiredAtBasePoints = readTimestampBasePoints(
+    value,
+    'acquiredAtBasePoints',
+    'acquiredAtTotalDays',
+    `abilities[${index}]`,
+  )
   return {
     abilityId: requireString(value.abilityId, `abilities[${index}].abilityId`),
     entityId: requireString(value.entityId, `abilities[${index}].entityId`),
@@ -109,7 +142,8 @@ function validateAbility(value: unknown, index: number): StableAbility {
     potential: requireInteger(value.potential, `abilities[${index}].potential`, 0, 100),
     learningConstraints: requireStringList(value.learningConstraints, `abilities[${index}].learningConstraints`),
     status,
-    acquiredAtTotalDays: requireTotalDays(value.acquiredAtTotalDays, `abilities[${index}].acquiredAtTotalDays`),
+    acquiredAtBasePoints,
+    acquiredAtTotalDays: calendarDaysFromBasePoints(acquiredAtBasePoints),
     sourceEventIds: requireStringList(value.sourceEventIds, `abilities[${index}].sourceEventIds`),
   }
 }
@@ -118,10 +152,16 @@ function validateRecord(value: unknown, index: number): GrowthRecord {
   if (!isRecord(value)) throw new Error(`records[${index}]必须是对象`)
   assertKnownKeys(value, [
     'growthRecordId', 'entityId', 'targetId', 'operation', 'experienceDelta',
-    'potentialDelta', 'description', 'occurredAtTotalDays', 'evidenceEventIds',
+    'potentialDelta', 'description', 'occurredAtBasePoints', 'occurredAtTotalDays', 'evidenceEventIds',
   ], `records[${index}]`)
   const operation = requireString(value.operation, `records[${index}].operation`) as GrowthSystemInstructionOperation
   if (!OPERATIONS.has(operation)) throw new Error(`records[${index}].operation 无效`)
+  const occurredAtBasePoints = readTimestampBasePoints(
+    value,
+    'occurredAtBasePoints',
+    'occurredAtTotalDays',
+    `records[${index}]`,
+  )
   return {
     growthRecordId: requireString(value.growthRecordId, `records[${index}].growthRecordId`),
     entityId: requireString(value.entityId, `records[${index}].entityId`),
@@ -130,7 +170,8 @@ function validateRecord(value: unknown, index: number): GrowthRecord {
     experienceDelta: requireInteger(value.experienceDelta, `records[${index}].experienceDelta`, 0, 100000),
     potentialDelta: requireInteger(value.potentialDelta, `records[${index}].potentialDelta`, -100, 100),
     description: requireString(value.description, `records[${index}].description`),
-    occurredAtTotalDays: requireTotalDays(value.occurredAtTotalDays, `records[${index}].occurredAtTotalDays`),
+    occurredAtBasePoints,
+    occurredAtTotalDays: calendarDaysFromBasePoints(occurredAtBasePoints),
     evidenceEventIds: requireStringList(value.evidenceEventIds, `records[${index}].evidenceEventIds`),
   }
 }
@@ -261,6 +302,7 @@ export class GrowthSystem extends BaseSubsystem {
     if (operation === 'learn-skill') {
       const scope = normalizeProgressionScope(payload.scopeKind, payload.scopeContextIds, context.contextId)
       const potentialCap = payload.potentialCap as number
+      const learnedAtBasePoints = context.totalBasePoints
       const skill: GrowthSkill = {
         skillId: stableId('skill', targetObjectId, payload.name as string, scope),
         entityId: targetObjectId,
@@ -272,7 +314,8 @@ export class GrowthSystem extends BaseSubsystem {
         useCount: 0,
         potentialCap,
         mastery: 'novice',
-        learnedAtTotalDays: context.totalDays,
+        learnedAtBasePoints,
+        learnedAtTotalDays: calendarDaysFromBasePoints(learnedAtBasePoints),
         sourceEventIds: evidenceEventIds,
       }
       this.state.skills.push(skill)
@@ -292,6 +335,7 @@ export class GrowthSystem extends BaseSubsystem {
       entityId = current.entityId
     } else if (operation === 'gain-ability') {
       const scope = normalizeProgressionScope(payload.scopeKind, payload.scopeContextIds, context.contextId)
+      const acquiredAtBasePoints = context.totalBasePoints
       const ability: StableAbility = {
         abilityId: stableId('ability', targetObjectId, payload.name as string, scope),
         entityId: targetObjectId,
@@ -301,7 +345,8 @@ export class GrowthSystem extends BaseSubsystem {
         potential: payload.potential as number,
         learningConstraints: optionalStringList(payload.learningConstraints, '能力学习约束'),
         status: 'active',
-        acquiredAtTotalDays: context.totalDays,
+        acquiredAtBasePoints,
+        acquiredAtTotalDays: calendarDaysFromBasePoints(acquiredAtBasePoints),
         sourceEventIds: evidenceEventIds,
       }
       this.state.abilities.push(ability)
@@ -319,15 +364,17 @@ export class GrowthSystem extends BaseSubsystem {
       entityId = current.entityId
     }
 
+    const occurredAtBasePoints = context.totalBasePoints
     this.state.records.push({
-      growthRecordId: `growth-record:${encodeURIComponent(targetId)}:${context.totalDays}:${this.state.records.length}`,
+      growthRecordId: `growth-record:${encodeURIComponent(targetId)}:${occurredAtBasePoints}:${this.state.records.length}`,
       entityId,
       targetId,
       operation,
       experienceDelta,
       potentialDelta,
       description: changes.description.trim(),
-      occurredAtTotalDays: context.totalDays,
+      occurredAtBasePoints,
+      occurredAtTotalDays: calendarDaysFromBasePoints(occurredAtBasePoints),
       evidenceEventIds,
     })
   }

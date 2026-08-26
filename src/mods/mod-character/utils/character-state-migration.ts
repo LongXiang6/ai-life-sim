@@ -20,6 +20,7 @@ import {
   DESTINY_PATTERN_GROWTH_MINIMUM_AGE,
   getNextDestinyPatternRarity,
 } from '../destiny-pattern-growth'
+import { basePointsFromCalendarDays } from '@/foundation'
 import { sanitizeDestinyPatternCategory } from './destiny-pattern-category-migration'
 import { normalizeCommonDestinyPatternCandidate } from '../subsystems/destiny-pattern-system/validation'
 
@@ -202,6 +203,10 @@ function sanitizeGrowthHistoryEntry(value: unknown): DestinyPatternGrowthHistory
     source,
     result,
     committedAt: value.committedAt,
+    totalBasePoints: typeof value.totalBasePoints === 'number' && Number.isFinite(value.totalBasePoints)
+      ? Math.max(0, Math.floor(value.totalBasePoints))
+      : basePointsFromCalendarDays(typeof value.totalDays === 'number' && Number.isFinite(value.totalDays)
+          ? Math.max(0, Math.floor(value.totalDays)) : 0),
     totalDays: typeof value.totalDays === 'number' && Number.isFinite(value.totalDays)
       ? Math.max(0, Math.floor(value.totalDays))
       : 0,

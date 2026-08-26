@@ -1,5 +1,11 @@
+/**
+ * Purpose: Advance culture and technology domains using annual base points.
+ * Owner: mod-tech-level
+ * Responsibility: Technology state and formulas only; world and history systems retain their own state.
+ */
+
 import { BaseSubsystem } from '@/core'
-import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
+import { BASE_POINTS_PER_YEAR, basePointsToCalendarDays, calendarDaysToBasePoints, type RoundContext, type SubSystemChanges, type SubSystemState } from '@/foundation'
 import { getHistoricalEvent } from '@/mods/mod-history-dynamics/historical-event-api'
 import { listWorldContexts } from '@/mods/mod-world'
 import { DEFAULT_KNOWLEDGE_DOMAINS, KNOWLEDGE_DOMAIN_LABELS } from '../constants'
@@ -35,6 +41,7 @@ function createInitialState(context: RoundContext): CultureTechState {
     diffusion: clamp((baselines[id] ?? 0) * 0.78),
     annualResearchCapacity: capacity,
     applications: [],
+    updatedAtBasePoints: context.totalBasePoints,
     updatedAtTotalDays: context.totalDays,
   }))
   return {
@@ -44,6 +51,7 @@ function createInitialState(context: RoundContext): CultureTechState {
     activeTrends: [],
     knowledgeBonus: domains.reduce((sum, item) => sum + item.maturity, 0) / domains.length / 100,
     workQualityBonus: 0,
+    lastUpdateBasePoints: context.totalBasePoints,
     lastUpdateTotalDays: context.totalDays,
     activeEvents: [],
   }
@@ -65,30 +73,47 @@ export class CultureTechSystem extends BaseSubsystem {
   private states: Record<string, CultureTechState> = {}
 
   private ensure(context: RoundContext): CultureTechState {
+    const existing = this.states[context.contextId]
+    if (existing) {
+      existing.lastUpdateBasePoints ??= calendarDaysToBasePoints(existing.lastUpdateTotalDays ?? 0)
+      for (const domain of existing.domains) {
+        domain.updatedAtBasePoints ??= calendarDaysToBasePoints(domain.updatedAtTotalDays ?? 0)
+      }
+      for (const trend of existing.activeTrends) {
+        trend.remainingBasePoints ??= calendarDaysToBasePoints(trend.remainingDays ?? 0)
+      }
+      return existing
+    }
     return this.states[context.contextId] ??= createInitialState(context)
   }
 
   advance(context: RoundContext): void {
     const state = this.ensure(context)
-    if (context.daysPassed <= 0) return
+    if (context.basePointsPassed <= 0) return
     // Education is now a regional narrative profile, not an independent runtime owner.
     // Keep the knowledge system's own research baseline and let regional context shape prose.
     const access = 10
-    const years = context.daysPassed / 365
+    const years = context.basePointsPassed / BASE_POINTS_PER_YEAR
     for (const domain of state.domains) {
       const annualGain = (100 - domain.maturity) * (state.researchCapacity / 100) * 0.006
       domain.maturity = clamp(domain.maturity + annualGain * years)
       const diffusionGain = (domain.maturity - domain.diffusion) * (access / 100) * 0.015
       domain.diffusion = clamp(domain.diffusion + diffusionGain * years)
       domain.annualResearchCapacity = state.researchCapacity
+      domain.updatedAtBasePoints = context.totalBasePoints
       domain.updatedAtTotalDays = context.totalDays
     }
     state.activeTrends = state.activeTrends
-      .map((trend) => ({ ...trend, remainingDays: Math.max(0, trend.remainingDays - context.daysPassed) }))
-      .filter((trend) => trend.remainingDays > 0)
+      .map((trend) => ({
+        ...trend,
+        remainingBasePoints: Math.max(0, trend.remainingBasePoints - context.basePointsPassed),
+        remainingDays: basePointsToCalendarDays(Math.max(0, trend.remainingBasePoints - context.basePointsPassed)),
+      }))
+      .filter((trend) => trend.remainingBasePoints > 0)
     state.knowledgeBonus = state.domains.reduce((sum, item) => sum + item.maturity, 0) / state.domains.length / 100
     state.workQualityBonus = state.domains.reduce((sum, item) => sum + item.diffusion, 0) / state.domains.length / 500
     state.activeEvents = []
+    state.lastUpdateBasePoints = context.totalBasePoints
     state.lastUpdateTotalDays = context.totalDays
   }
 
@@ -119,16 +144,19 @@ export class CultureTechSystem extends BaseSubsystem {
         if (!domain.applications.includes(application)) domain.applications.push(application)
         if (typeof changes.changes.diffusionDelta === 'number') domain.diffusion = clamp(domain.diffusion + changes.changes.diffusionDelta)
       }
+      domain.updatedAtBasePoints = context.totalBasePoints
       domain.updatedAtTotalDays = context.totalDays
     } else if (operation === 'record-trend') {
       const name = typeof changes.changes.name === 'string' ? changes.changes.name.trim() : ''
       const type = changes.changes.type as CultureTrendCategory
       const durationDays = changes.changes.durationDays
       if (!name || !['art', 'philosophy', 'science', 'military', 'commerce', 'religion'].includes(type) || typeof durationDays !== 'number' || !Number.isInteger(durationDays) || durationDays <= 0) throw new Error('思想传播输入无效')
-      const id = changes.targetObjectId ?? `trend:${encodeURIComponent(context.contextId)}:${context.totalDays}:${state.activeTrends.length}`
-      const trend: CultureTrend = { id, type, name, intensity: clamp(typeof changes.changes.intensity === 'number' ? changes.changes.intensity : 50), remainingDays: durationDays, originContextId: context.contextId }
+      const durationBasePoints = Math.max(1, calendarDaysToBasePoints(durationDays))
+      const id = changes.targetObjectId ?? `trend:${encodeURIComponent(context.contextId)}:${context.totalBasePoints}:${state.activeTrends.length}`
+      const trend: CultureTrend = { id, type, name, intensity: clamp(typeof changes.changes.intensity === 'number' ? changes.changes.intensity : 50), remainingBasePoints: durationBasePoints, remainingDays: basePointsToCalendarDays(durationBasePoints), originContextId: context.contextId }
       state.activeTrends = [...state.activeTrends.filter((item) => item.id !== id), trend]
     } else throw new Error(`未知知识技术操作：${operation}`)
+    state.lastUpdateBasePoints = context.totalBasePoints
     state.lastUpdateTotalDays = context.totalDays
   }
 

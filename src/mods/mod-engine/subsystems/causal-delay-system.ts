@@ -9,12 +9,12 @@
  *
  * 设计理念：
  *   因果系统记录角色一生中的叙事承诺（恩情、仇恨、承诺、债务），
- *   按规范全局天数确定性进入待兑现状态。与长期记忆引擎和记忆遗忘系统联动。
+ *   按规范全局基础点确定性进入待兑现状态。与长期记忆引擎和记忆遗忘系统联动。
  *
  * 核心机制：
  *   - 记录重大事件类型：恩情(kindness)、仇恨(grudge)、承诺(promise)、债务(debt)
  *   - 每轮按作用域检查是否有因果事项到期
- *   - 新事项使用全局累计天数；旧存档保留原始回合调度
+ *   - 新事项使用全局累计基础点；旧存档保留原始回合调度
  *   - 与记忆遗忘系统联动：因果标记的事件永不遗忘
  *   - 与长期记忆引擎联动：共享事件数据
  */
@@ -25,6 +25,7 @@ import type {
   SubSystemChanges,
   RoundContext,
 } from '@/foundation'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 
 import {
   MemoryLifecycleSystem,
@@ -67,6 +68,33 @@ export type {
   CausalTriggerResult,
 } from './causal-delay-system/contracts'
 
+const SEVERITIES = ['minor', 'normal', 'major', 'critical'] as const
+
+function toBasePoints(basePoints: number | undefined, totalDays: number | undefined): number | undefined {
+  if (basePoints !== undefined) return basePoints
+  return totalDays === undefined ? undefined : basePointsFromCalendarDays(totalDays)
+}
+
+function normalizeBasePointDelay(basePoints: number | undefined, days: number | undefined): number | undefined {
+  const resolved = toBasePoints(basePoints, days)
+  return resolved === undefined ? undefined : Math.max(0, Math.floor(resolved))
+}
+
+function withCalendarSnapshot(event: CausalEvent): CausalEvent {
+  return {
+    ...event,
+    ...(event.createdBasePoints === undefined
+      ? {}
+      : { createdTotalDays: calendarDaysFromBasePoints(event.createdBasePoints) }),
+    ...(event.dueBasePoints === undefined
+      ? {}
+      : { dueTotalDays: calendarDaysFromBasePoints(event.dueBasePoints) }),
+    ...(event.triggeredBasePoints === undefined
+      ? {}
+      : { triggeredTotalDays: calendarDaysFromBasePoints(event.triggeredBasePoints) }),
+  }
+}
+
 // ============================================================
 // CausalDelaySystem
 // ============================================================
@@ -107,19 +135,33 @@ export class CausalDelaySystem implements ISubSystem {
 
   /** 设置配置 */
   setConfig(newConfig: Partial<CausalConfig>): void {
-    const delayDaysBySeverity = {
-      ...this.config.delayDaysBySeverity,
-      ...(newConfig.delayDaysBySeverity ?? {}),
+    const legacyDelayBasePoints = newConfig.delayDaysBySeverity
+      ? Object.fromEntries(
+          SEVERITIES.map((severity) => [
+            severity,
+            basePointsFromCalendarDays(
+              newConfig.delayDaysBySeverity?.[severity] ?? this.config.delayDaysBySeverity[severity],
+            ),
+          ]),
+        ) as CausalConfig['delayBasePointsBySeverity']
+      : undefined
+    const delayBasePointsBySeverity = {
+      ...this.config.delayBasePointsBySeverity,
+      ...(legacyDelayBasePoints ?? {}),
+      ...(newConfig.delayBasePointsBySeverity ?? {}),
     }
-    for (const severity of ['minor', 'normal', 'major', 'critical'] as const) {
-      const delayDays = delayDaysBySeverity[severity]
-      if (!Number.isSafeInteger(delayDays) || delayDays < 0) {
-        throw new Error(`[${this.id}] Invalid delayDaysBySeverity.${severity}`)
+    for (const severity of SEVERITIES) {
+      const delayBasePoints = delayBasePointsBySeverity[severity]
+      if (!Number.isSafeInteger(delayBasePoints) || delayBasePoints < 0) {
+        throw new Error(`[${this.id}] Invalid delayBasePointsBySeverity.${severity}`)
       }
     }
 
     this.config = {
-      delayDaysBySeverity,
+      delayBasePointsBySeverity,
+      delayDaysBySeverity: Object.fromEntries(
+        SEVERITIES.map((severity) => [severity, calendarDaysFromBasePoints(delayBasePointsBySeverity[severity])]),
+      ) as CausalConfig['delayDaysBySeverity'],
     }
   }
 
@@ -180,7 +222,7 @@ export class CausalDelaySystem implements ISubSystem {
    * @param description 事件描述
    * @param relatedPerson 相关人物
    * @param relatedFaction 相关势力
-   * @param registration 作用域、规范创建天数和可选来源事件编号
+   * @param registration 作用域、规范创建基础点和可选来源事件编号
    * @returns 因果事件ID
    */
   recordCausalEvent(
@@ -196,9 +238,10 @@ export class CausalDelaySystem implements ISubSystem {
     if (registration.scope === 'context' && !registration.contextId?.trim()) {
       throw new Error(`[${this.id}] Context-scoped causal event requires contextId`)
     }
-    if (registration.createdTotalDays !== undefined
-      && (!Number.isSafeInteger(registration.createdTotalDays) || registration.createdTotalDays < 0)) {
-      throw new Error(`[${this.id}] Invalid createdTotalDays`)
+    const createdBasePoints = toBasePoints(registration.createdBasePoints, registration.createdTotalDays)
+    if (createdBasePoints !== undefined
+      && (!Number.isSafeInteger(createdBasePoints) || createdBasePoints < 0)) {
+      throw new Error(`[${this.id}] Invalid createdBasePoints`)
     }
 
     const fingerprint = this.assertCausalEventRegistrationAvailable({
@@ -209,13 +252,12 @@ export class CausalDelaySystem implements ISubSystem {
       registration,
     })
 
-    const createdTotalDays = registration.createdTotalDays
-    const delayDays = this.config.delayDaysBySeverity[severity]
-    const dueTotalDays = createdTotalDays === undefined
+    const delayBasePoints = this.config.delayBasePointsBySeverity[severity]
+    const dueBasePoints = createdBasePoints === undefined
       ? undefined
-      : createdTotalDays + delayDays
-    if (dueTotalDays !== undefined && !Number.isSafeInteger(dueTotalDays)) {
-      throw new Error(`[${this.id}] dueTotalDays exceeds the canonical time range`)
+      : createdBasePoints + delayBasePoints
+    if (dueBasePoints !== undefined && !Number.isSafeInteger(dueBasePoints)) {
+      throw new Error(`[${this.id}] dueBasePoints exceeds the canonical time range`)
     }
 
     // 本地系统分配稳定唯一 ID。仅使用 Date.now 会让同毫秒的同轮同类型事项碰撞，
@@ -241,10 +283,12 @@ export class CausalDelaySystem implements ISubSystem {
       description,
       relatedPerson,
       relatedFaction,
-      schedule: createdTotalDays === undefined ? 'legacy-round' : 'canonical-days',
-      createdTotalDays,
-      dueTotalDays,
-      triggerDelay: createdTotalDays === undefined
+      schedule: createdBasePoints === undefined ? 'legacy-round' : 'canonical-points',
+      createdBasePoints,
+      dueBasePoints,
+      createdTotalDays: createdBasePoints === undefined ? undefined : calendarDaysFromBasePoints(createdBasePoints),
+      dueTotalDays: dueBasePoints === undefined ? undefined : calendarDaysFromBasePoints(dueBasePoints),
+      triggerDelay: createdBasePoints === undefined
         ? LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS[severity]
         : undefined,
       originEventId: registration.originEventId?.trim() || undefined,
@@ -269,8 +313,8 @@ export class CausalDelaySystem implements ISubSystem {
       contextId: registration.contextId,
     })
 
-    const scheduleDescription = event.schedule === 'canonical-days'
-      ? `全局第${event.dueTotalDays}天到期`
+    const scheduleDescription = event.schedule === 'canonical-points'
+      ? `全局第${event.dueBasePoints}基础点到期`
       : `兼容旧调用，延迟${event.triggerDelay}轮`
     console.debug(`[CausalDelay] 记录因果事件：${CAUSAL_TYPE_DESCRIPTIONS[type]}（${severity}），${scheduleDescription}`)
 
@@ -311,9 +355,10 @@ export class CausalDelaySystem implements ISubSystem {
         }
       : (currentContextOrOptions ?? {})
 
-    if (options.currentTotalDays !== undefined
-      && (!Number.isSafeInteger(options.currentTotalDays) || options.currentTotalDays < 0)) {
-      throw new Error(`[${this.id}] Invalid currentTotalDays`)
+    const currentBasePoints = toBasePoints(options.currentBasePoints, options.currentTotalDays)
+    if (currentBasePoints !== undefined
+      && (!Number.isSafeInteger(currentBasePoints) || currentBasePoints < 0)) {
+      throw new Error(`[${this.id}] Invalid currentBasePoints`)
     }
 
     // 找出待触发的事件
@@ -327,12 +372,14 @@ export class CausalDelaySystem implements ISubSystem {
       return Boolean(options.contextId && event.contextId === options.contextId)
     })
 
-    // canonical-days 只读规范全局天数；legacy-round 只读原始回合延迟。
+    // canonical-points 只读基础点；legacy-round 只读原始回合延迟。
     const readyEvents = pendingEvents.filter((event) => {
-      if (event.schedule === 'canonical-days') {
-        return options.currentTotalDays !== undefined
-          && event.dueTotalDays !== undefined
-          && options.currentTotalDays >= event.dueTotalDays
+      if (event.schedule === 'canonical-points' || event.schedule === 'canonical-days') {
+        const dueBasePoints = event.dueBasePoints
+          ?? toBasePoints(undefined, event.dueTotalDays)
+        return currentBasePoints !== undefined
+          && dueBasePoints !== undefined
+          && currentBasePoints >= dueBasePoints
       }
       return event.triggerDelay !== undefined
         && currentRound - event.round >= event.triggerDelay
@@ -348,11 +395,11 @@ export class CausalDelaySystem implements ISubSystem {
     readyEvents.sort((a, b) => {
       const severityDifference = severityOrder[b.severity] - severityOrder[a.severity]
       if (severityDifference !== 0) return severityDifference
-      const aDue = a.schedule === 'canonical-days'
-        ? (a.dueTotalDays ?? Number.POSITIVE_INFINITY)
+      const aDue = a.schedule === 'canonical-points' || a.schedule === 'canonical-days'
+        ? (a.dueBasePoints ?? toBasePoints(undefined, a.dueTotalDays) ?? Number.POSITIVE_INFINITY)
         : a.round + (a.triggerDelay ?? Number.POSITIVE_INFINITY)
-      const bDue = b.schedule === 'canonical-days'
-        ? (b.dueTotalDays ?? Number.POSITIVE_INFINITY)
+      const bDue = b.schedule === 'canonical-points' || b.schedule === 'canonical-days'
+        ? (b.dueBasePoints ?? toBasePoints(undefined, b.dueTotalDays) ?? Number.POSITIVE_INFINITY)
         : b.round + (b.triggerDelay ?? Number.POSITIVE_INFINITY)
       return aDue - bDue || a.id.localeCompare(b.id)
     })
@@ -372,7 +419,7 @@ export class CausalDelaySystem implements ISubSystem {
     return {
       hasTriggered: true,
       triggeredEvents: structuredClone(readyEvents.map((event) => ({
-        ...event,
+        ...withCalendarSnapshot(event),
         deliveryState: 'presented' as const,
       }))),
       narrativeText,
@@ -430,10 +477,10 @@ export class CausalDelaySystem implements ISubSystem {
   deferCausalEventsAfterRecognitionFailure(
     eventIds: readonly string[],
     narrativeId: string,
-    currentTotalDays: number,
+    currentBasePoints: number,
   ): CausalEvent[] {
-    if (!Number.isSafeInteger(currentTotalDays) || currentTotalDays < 0) {
-      throw new Error(`[${this.id}] Invalid recognition failure currentTotalDays`)
+    if (!Number.isSafeInteger(currentBasePoints) || currentBasePoints < 0) {
+      throw new Error(`[${this.id}] Invalid recognition failure currentBasePoints`)
     }
     const idSet = new Set(eventIds)
     const matching = this.causalEvents.filter((event) => idSet.has(event.id))
@@ -450,10 +497,12 @@ export class CausalDelaySystem implements ISubSystem {
     }
 
     return matching.map((event) => {
-      const delayDays = Math.max(1, this.config.delayDaysBySeverity[event.severity])
-      event.schedule = 'canonical-days'
-      event.createdTotalDays = currentTotalDays
-      event.dueTotalDays = currentTotalDays + delayDays
+      const delayBasePoints = Math.max(1, this.config.delayBasePointsBySeverity[event.severity])
+      event.schedule = 'canonical-points'
+      event.createdBasePoints = currentBasePoints
+      event.dueBasePoints = currentBasePoints + delayBasePoints
+      event.createdTotalDays = calendarDaysFromBasePoints(currentBasePoints)
+      event.dueTotalDays = calendarDaysFromBasePoints(event.dueBasePoints)
       event.triggerDelay = undefined
       event.deliveryState = 'continuing'
       event.presentedNarrativeId = undefined
@@ -468,10 +517,10 @@ export class CausalDelaySystem implements ISubSystem {
     dispositions: readonly CausalDispositionInput[],
     narrativeId: string,
     currentRound: number,
-    currentTotalDays: number,
+    currentBasePoints: number,
   ): CausalEvent[] {
-    if (!Number.isSafeInteger(currentTotalDays) || currentTotalDays < 0) {
-      throw new Error(`[${this.id}] Invalid disposition currentTotalDays`)
+    if (!Number.isSafeInteger(currentBasePoints) || currentBasePoints < 0) {
+      throw new Error(`[${this.id}] Invalid disposition currentBasePoints`)
     }
     const ids = new Set<string>()
     for (const disposition of dispositions) {
@@ -491,13 +540,16 @@ export class CausalDelaySystem implements ISubSystem {
         throw new Error(`[${this.id}] Causal disposition requires reason: ${event.id}`)
       }
       if (disposition.status !== 'resolved') {
-        const delayDays = disposition.continuationDelayDays
-        if (!Number.isSafeInteger(delayDays) || (delayDays as number) <= 0) {
-          throw new Error(`[${this.id}] Continuing causal event requires positive delay days: ${event.id}`)
+        const delayBasePoints = normalizeBasePointDelay(
+          disposition.continuationDelayBasePoints,
+          disposition.continuationDelayDays,
+        )
+        if (!Number.isSafeInteger(delayBasePoints) || (delayBasePoints as number) <= 0) {
+          throw new Error(`[${this.id}] Continuing causal event requires positive delay base points: ${event.id}`)
         }
-        const dueTotalDays = currentTotalDays + (delayDays as number)
-        if (!Number.isSafeInteger(dueTotalDays) || dueTotalDays <= currentTotalDays) {
-          throw new Error(`[${this.id}] Continuing causal event has invalid future point: ${event.id}`)
+        const dueBasePoints = currentBasePoints + (delayBasePoints as number)
+        if (!Number.isSafeInteger(dueBasePoints) || dueBasePoints <= currentBasePoints) {
+          throw new Error(`[${this.id}] Continuing causal event has invalid future base point: ${event.id}`)
         }
       }
     }
@@ -508,7 +560,8 @@ export class CausalDelaySystem implements ISubSystem {
       if (disposition.status === 'resolved') {
         event.triggered = true
         event.triggeredRound = currentRound
-        event.triggeredTotalDays = currentTotalDays
+        event.triggeredBasePoints = currentBasePoints
+        event.triggeredTotalDays = calendarDaysFromBasePoints(currentBasePoints)
         event.resolutionEventId = disposition.resolutionEventId?.trim() || undefined
         event.triggerResult = disposition.reason.trim()
         event.deliveryState = 'resolved'
@@ -516,9 +569,15 @@ export class CausalDelaySystem implements ISubSystem {
         this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
         this.memoryLifecycleRuntime.resolveCausalMark(event.round, event.type, event.contextId)
       } else {
-        event.schedule = 'canonical-days'
-        event.createdTotalDays = currentTotalDays
-        event.dueTotalDays = currentTotalDays + disposition.continuationDelayDays!
+        const delayBasePoints = normalizeBasePointDelay(
+          disposition.continuationDelayBasePoints,
+          disposition.continuationDelayDays,
+        )!
+        event.schedule = 'canonical-points'
+        event.createdBasePoints = currentBasePoints
+        event.dueBasePoints = currentBasePoints + delayBasePoints
+        event.createdTotalDays = calendarDaysFromBasePoints(currentBasePoints)
+        event.dueTotalDays = calendarDaysFromBasePoints(event.dueBasePoints)
         event.triggerDelay = undefined
         event.deliveryState = disposition.status === 'continuing' ? 'continuing' : 'pending'
         event.presentedNarrativeId = undefined
@@ -541,9 +600,10 @@ export class CausalDelaySystem implements ISubSystem {
     triggerResult?: string,
     options: CausalTriggerCommitOptions = {},
   ): CausalEvent[] {
-    if (options.currentTotalDays !== undefined
-      && (!Number.isSafeInteger(options.currentTotalDays) || options.currentTotalDays < 0)) {
-      throw new Error(`[${this.id}] Invalid currentTotalDays`)
+    const currentBasePoints = toBasePoints(options.currentBasePoints, options.currentTotalDays)
+    if (currentBasePoints !== undefined
+      && (!Number.isSafeInteger(currentBasePoints) || currentBasePoints < 0)) {
+      throw new Error(`[${this.id}] Invalid currentBasePoints`)
     }
     const idSet = new Set(eventIds)
     if (idSet.size === 0) return []
@@ -565,7 +625,10 @@ export class CausalDelaySystem implements ISubSystem {
     for (const event of matching) {
       event.triggered = true
       event.triggeredRound = currentRound
-      event.triggeredTotalDays = options.currentTotalDays
+      event.triggeredBasePoints = currentBasePoints
+      event.triggeredTotalDays = currentBasePoints === undefined
+        ? undefined
+        : calendarDaysFromBasePoints(currentBasePoints)
       event.resolutionEventId = options.resolutionEventId?.trim() || undefined
       event.triggerResult = triggerResult?.trim() || undefined
       event.deliveryState = 'resolved'
@@ -593,8 +656,8 @@ export class CausalDelaySystem implements ISubSystem {
    */
   private buildTriggerNarrative(events: CausalEvent[]): string {
     const parts: string[] = [
-      '【本轮到期因果；必须纳入同一条剧情主线】',
-      '以下只陈述已经成立并到达处理节点的事实，不预设必然成功、报恩、复仇或清偿结果；请依据当前世界、人物能力、关系与阻力裁决具体展开。',
+      '【本轮到期因果；可采用的已确认事实】',
+      '以下只陈述已经成立并到达处理节点的事实，不预设必须成为本轮主线，也不预设必然成功、报恩、复仇或清偿结果；故事 AI 可依据当前世界、人物能力、关系与阻力直接采用、合理改写其表现、暂留背景或安排后续合理处理。只有正文实际写出的结果进入状态提取与兑现。',
     ]
 
     for (const event of events) {
@@ -602,8 +665,8 @@ export class CausalDelaySystem implements ISubSystem {
         `类型：${CAUSAL_TYPE_DESCRIPTIONS[event.type]}`,
         `严重程度：${CAUSAL_SEVERITY_DESCRIPTIONS[event.severity]}`,
         `成立于第${event.round}轮、${event.age}岁时`,
-        event.schedule === 'canonical-days'
-          ? `规范时间：全局第${event.createdTotalDays}天成立，第${event.dueTotalDays}天到期`
+        event.schedule === 'canonical-points' || event.schedule === 'canonical-days'
+          ? `规范时间：全局第${event.createdBasePoints ?? toBasePoints(undefined, event.createdTotalDays)}基础点成立，第${event.dueBasePoints ?? toBasePoints(undefined, event.dueTotalDays)}基础点到期`
           : `调度：旧存档回合制（延迟${event.triggerDelay ?? '未知'}轮）`,
         `已成立事实：${event.description}`,
         event.relatedPerson ? `相关人物：${event.relatedPerson}` : undefined,
@@ -700,6 +763,7 @@ export class CausalDelaySystem implements ISubSystem {
         relatedFaction,
         scope,
         contextId,
+        createdBasePoints,
         createdTotalDays,
         originEventId,
         originNarrativeId,
@@ -714,6 +778,7 @@ export class CausalDelaySystem implements ISubSystem {
           relatedFaction?: string
           scope?: CausalEventScope
           contextId?: string
+          createdBasePoints?: number
           createdTotalDays?: number
           originEventId?: string
           originNarrativeId?: string
@@ -729,7 +794,14 @@ export class CausalDelaySystem implements ISubSystem {
         {
           scope: scope ?? (contextId ? 'context' : 'global'),
           contextId,
-          createdTotalDays: createdTotalDays ?? context.totalDays,
+          // New callers already have the canonical point clock in context.
+          // Only an explicit legacy day field is migrated at this boundary;
+          // the derived calendar snapshot must never become the business time source.
+          createdBasePoints: createdBasePoints !== undefined
+            ? createdBasePoints
+            : createdTotalDays !== undefined
+              ? toBasePoints(undefined, createdTotalDays)
+              : context.totalBasePoints,
           originEventId,
           originNarrativeId,
         },
@@ -760,25 +832,34 @@ export class CausalDelaySystem implements ISubSystem {
     const stats = record.stats
     const idSequence = record.idSequence
 
-    if (schemaVersion !== undefined && schemaVersion !== 1 && schemaVersion !== CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
+    if (schemaVersion !== undefined && ![1, 2, CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION].includes(schemaVersion as number)) {
       throw new Error(`[${this.id}] Unsupported causal snapshot schemaVersion: ${String(schemaVersion)}`)
     }
 
     let nextConfig = structuredClone(this.config)
     if (config && typeof config === 'object' && !Array.isArray(config)) {
       const next = config as Record<string, unknown>
+      const restoredDelayBasePoints = next.delayBasePointsBySeverity
       const restoredDelayDays = next.delayDaysBySeverity
-      const delayDaysBySeverity = structuredClone(DEFAULT_CAUSAL_CONFIG.delayDaysBySeverity)
-      if (restoredDelayDays && typeof restoredDelayDays === 'object' && !Array.isArray(restoredDelayDays)) {
-        for (const severity of ['minor', 'normal', 'major', 'critical'] as const) {
+      const delayBasePointsBySeverity = structuredClone(DEFAULT_CAUSAL_CONFIG.delayBasePointsBySeverity)
+      if (restoredDelayBasePoints && typeof restoredDelayBasePoints === 'object' && !Array.isArray(restoredDelayBasePoints)) {
+        for (const severity of SEVERITIES) {
+          const value = (restoredDelayBasePoints as Record<string, unknown>)[severity]
+          if (Number.isSafeInteger(value) && (value as number) >= 0) delayBasePointsBySeverity[severity] = value as number
+        }
+      } else if (restoredDelayDays && typeof restoredDelayDays === 'object' && !Array.isArray(restoredDelayDays)) {
+        for (const severity of SEVERITIES) {
           const value = (restoredDelayDays as Record<string, unknown>)[severity]
           if (Number.isSafeInteger(value) && (value as number) >= 0) {
-            delayDaysBySeverity[severity] = value as number
+            delayBasePointsBySeverity[severity] = basePointsFromCalendarDays(value as number)
           }
         }
       }
       nextConfig = {
-        delayDaysBySeverity,
+        delayBasePointsBySeverity,
+        delayDaysBySeverity: Object.fromEntries(
+          SEVERITIES.map((severity) => [severity, calendarDaysFromBasePoints(delayBasePointsBySeverity[severity])]),
+        ) as CausalConfig['delayDaysBySeverity'],
       }
     }
 
@@ -797,7 +878,7 @@ export class CausalDelaySystem implements ISubSystem {
         originalIds.add(event.id)
       }
 
-      if (schemaVersion === 1 || schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
+      if (schemaVersion === 1 || schemaVersion === 2 || schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
         const seenIds = new Set<string>()
         for (const event of restoredEvents) {
           if (seenIds.has(event.id)) {
@@ -831,8 +912,14 @@ export class CausalDelaySystem implements ISubSystem {
       }
 
       nextEvents = restoredEvents.map((event) => {
-        const hasCanonicalSchedule = Number.isSafeInteger(event.createdTotalDays)
-          && Number.isSafeInteger(event.dueTotalDays)
+        const createdBasePoints = Number.isSafeInteger(event.createdBasePoints)
+          ? event.createdBasePoints
+          : toBasePoints(undefined, event.createdTotalDays)
+        const dueBasePoints = Number.isSafeInteger(event.dueBasePoints)
+          ? event.dueBasePoints
+          : toBasePoints(undefined, event.dueTotalDays)
+        const hasCanonicalSchedule = Number.isSafeInteger(createdBasePoints)
+          && Number.isSafeInteger(dueBasePoints)
         const scope = event.scope ?? 'global'
         const fingerprint = event.fingerprint || buildCausalEventFingerprint({
           type: event.type,
@@ -851,7 +938,7 @@ export class CausalDelaySystem implements ISubSystem {
             : 'pending'
         const retainsPresentation = deliveryState === 'presented' || deliveryState === 'pending-recognition'
         if (
-          schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION
+          (schemaVersion === 2 || schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION)
           && (
             !event.fingerprint?.trim()
             || !['pending', 'presented', 'pending-recognition', 'continuing', 'resolved'].includes(event.deliveryState)
@@ -871,9 +958,19 @@ export class CausalDelaySystem implements ISubSystem {
           presentedRound: retainsPresentation && Number.isSafeInteger(event.presentedRound)
             ? event.presentedRound
             : undefined,
-          // 旧存档没有规范天数字段时，保留原始 round + triggerDelay，不猜测天数。
-          schedule: event.schedule === 'canonical-days' && hasCanonicalSchedule
-            ? 'canonical-days'
+          createdBasePoints,
+          dueBasePoints,
+          createdTotalDays: createdBasePoints === undefined ? event.createdTotalDays : calendarDaysFromBasePoints(createdBasePoints),
+          dueTotalDays: dueBasePoints === undefined ? event.dueTotalDays : calendarDaysFromBasePoints(dueBasePoints),
+          triggeredBasePoints: Number.isSafeInteger(event.triggeredBasePoints)
+            ? event.triggeredBasePoints
+            : toBasePoints(undefined, event.triggeredTotalDays),
+          triggeredTotalDays: Number.isSafeInteger(event.triggeredBasePoints)
+            ? calendarDaysFromBasePoints(event.triggeredBasePoints!)
+            : event.triggeredTotalDays,
+          // 旧存档没有规范基础点字段时，先将旧天数迁移；无法迁移则保留原始 round + triggerDelay。
+          schedule: (event.schedule === 'canonical-points' || event.schedule === 'canonical-days') && hasCanonicalSchedule
+            ? 'canonical-points'
             : 'legacy-round',
         }
       })

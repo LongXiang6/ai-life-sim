@@ -38,12 +38,6 @@
       "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
     },
     {
-      "path": "scripts/check/domains/narrative/time-step-resolver-smoke.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 401,
-      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
-    },
-    {
       "path": "scripts/check/domains/structural/execution-flow-contracts-runner.ts",
       "owner": "quality:structural",
       "reviewedLines": 415,

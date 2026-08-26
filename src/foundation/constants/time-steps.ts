@@ -1,10 +1,18 @@
 /**
+ * Purpose: Define the shared calendar and event-node time-step options.
+ * Owner: foundation:constants
+ * Responsibility: Expose stable time-step labels and codecs for UI and engine consumers.
+ *
  * @module time-steps.ts
  * @description 全局时间步进档位（UI + 引擎共用）
  * @mod foundation
  */
 
 import type { TimeStep } from '../types'
+import {
+  DEFAULT_ANNUAL_EVENT_COUNT,
+  normalizeAnnualEventCount,
+} from '../utils/annual-clock'
 
 export type TimeStepOption = TimeStep & {
   label: string
@@ -13,19 +21,17 @@ export type TimeStepOption = TimeStep & {
 }
 
 const STEP_ICONS: Record<string, string> = {
-  'day:1': '🌅',
-  'month:1': '🌙',
-  'season:1': '🍂',
   'year:1': '📅',
   'year:3': '⚡',
   'year:5': '🚀',
   'year:10': '⏩',
+  [`event:${DEFAULT_ANNUAL_EVENT_COUNT}`]: '🧭',
+  'event:24': '🧭',
 }
 
 const RAW_STEPS: Array<TimeStep & { label: string; experimental?: boolean }> = [
-  { unit: 'day', value: 1, label: '日', experimental: true },
-  { unit: 'month', value: 1, label: '月', experimental: true },
-  { unit: 'season', value: 1, label: '季', experimental: true },
+  { unit: 'event', value: DEFAULT_ANNUAL_EVENT_COUNT, label: '12节点/年' },
+  { unit: 'event', value: 24, label: '24节点/年', experimental: true },
   { unit: 'year', value: 1, label: '年' },
   { unit: 'year', value: 3, label: '3年' },
   { unit: 'year', value: 5, label: '5年' },
@@ -43,7 +49,7 @@ export const AVAILABLE_TIME_STEPS: TimeStepOption[] = RAW_STEPS.map((s) => ({
   icon: STEP_ICONS[`${s.unit}:${s.value}`] ?? '📅',
 }))
 
-/** UI 默认展示（正式年步进 + 常用跨度） */
+/** UI 默认展示（事件轮次 + 年度宏观快进） */
 export const PRIMARY_TIME_STEPS: TimeStepOption[] = AVAILABLE_TIME_STEPS.filter(
   (s) => !s.experimental,
 )
@@ -57,14 +63,15 @@ export function encodeTimeStepKey(step: TimeStep): string {
 export function decodeTimeStepKey(key: string): TimeStep {
   const [unit, raw] = key.split(':')
   const value = Number(raw)
-  if (
-    (unit === 'day' || unit === 'month' || unit === 'season' || unit === 'year')
-    && Number.isFinite(value)
-    && value > 0
-  ) {
-    return { unit, value }
+  if (unit === 'year' && Number.isFinite(value) && value > 0) {
+    return { unit: 'year', value: Math.floor(value) }
   }
-  return { unit: 'year', value: 1 }
+  if (unit === 'event' && Number.isFinite(value) && value > 0) {
+    return { unit: 'event', value: normalizeAnnualEventCount(value) }
+  }
+  // Legacy day/month/season keys are accepted only at this boundary and are
+  // normalized to the canonical annual event clock.
+  return { unit: 'event', value: DEFAULT_ANNUAL_EVENT_COUNT }
 }
 
 export function findTimeStepOption(key: string): TimeStepOption | undefined {

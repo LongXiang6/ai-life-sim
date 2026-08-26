@@ -44,7 +44,13 @@ export interface LocalCalendarProfile {
 }
 
 export interface LocalClockState {
+  /** 当地模拟游标；每年固定 1000 基础点，作为唯一业务推进真源。 */
+  totalBasePoints: number
+  /** 上次同步时对应的全局基础点游标。 */
+  lastGlobalTotalBasePoints: number
+  /** 由 totalBasePoints 按当地历法派生的显示天数。 */
   totalLocalDays: number
+  /** 由 lastGlobalTotalBasePoints 派生的兼容日期快照。 */
   lastGlobalTotalDays: number
 }
 
@@ -56,6 +62,9 @@ export interface WorldContextRecord {
   description: string
   lifecycle: WorldContextLifecycle
   rootSpatialNodeId: SpatialNodeId
+  /** 上下文创建时的全局基础点；全局时间的业务审计真源。 */
+  createdAtGlobalBasePoints: number
+  /** 由 createdAtGlobalBasePoints 派生的日期快照。 */
   createdAtGlobalDay: number
   localCalendar: LocalCalendarProfile
   localClock: LocalClockState
@@ -126,6 +135,8 @@ export interface SimulationScopeRecord {
   contextId: WorldContextId
   scope: SimulationScope
   reason: string
+  /** 范围变更时的全局基础点；日期字段仅为派生快照。 */
+  changedAtGlobalBasePoints: number
   changedAtGlobalDay: number
 }
 
@@ -145,8 +156,15 @@ export interface ContextTransitionRecord {
   sourceRegionId: SpatialNodeId
   targetRegionId: SpatialNodeId
   exitEdgeId: SpatialEdgeId
+  /** 切换提交时的全局基础点。 */
+  globalTotalBasePoints: number
+  /** 由 globalTotalBasePoints 派生的日期快照。 */
   globalTotalDays: number
+  /** 来源上下文当地基础点游标。 */
+  sourceLocalBasePoints: number
   sourceLocalDays: number
+  /** 目标上下文当地基础点游标。 */
+  targetLocalBasePoints: number
   targetLocalDays: number
   status: 'committed' | 'rejected' | 'failed'
   reason?: string

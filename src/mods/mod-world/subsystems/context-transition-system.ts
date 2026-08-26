@@ -15,11 +15,13 @@ import type {
   SubSystemChanges,
   SubSystemState,
 } from '@/foundation'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 
 import { useWorldStore } from '../store'
 import type { WorldContextInstance } from '../types'
 import {
   createRuntimeId,
+  localCalendarDaysFromBasePoints,
   projectWorldContextInstance,
   syncLocalClock,
 } from '../utils/world-context-runtime'
@@ -62,10 +64,19 @@ function buildRecord(input: {
   target: WorldContextInstance
   request: ContextTransitionRequest
   edge?: SpatialEdge | null
-  globalTotalDays: number
+  globalTotalBasePoints: number
   status: ContextTransitionRecord['status']
   reason?: string
 }): ContextTransitionRecord {
+  const globalTotalBasePoints = Number.isFinite(input.globalTotalBasePoints)
+    ? Math.max(0, Math.floor(input.globalTotalBasePoints))
+    : 0
+  const sourceLocalBasePoints = Number.isFinite(input.source.record.localClock.totalBasePoints)
+    ? Math.max(0, Math.floor(input.source.record.localClock.totalBasePoints))
+    : basePointsFromCalendarDays(input.source.record.localClock.totalLocalDays)
+  const targetLocalBasePoints = Number.isFinite(input.target.record.localClock.totalBasePoints)
+    ? Math.max(0, Math.floor(input.target.record.localClock.totalBasePoints))
+    : basePointsFromCalendarDays(input.target.record.localClock.totalLocalDays)
   return {
     id: createRuntimeId('ctx_transition'),
     sourceContextId: input.source.record.id,
@@ -73,9 +84,12 @@ function buildRecord(input: {
     sourceRegionId: input.source.spatialGraph.currentRegionId,
     targetRegionId: input.target.spatialGraph.currentRegionId,
     exitEdgeId: input.edge?.id ?? input.request.exitEdgeId ?? 'region-transition',
-    globalTotalDays: input.globalTotalDays,
-    sourceLocalDays: input.source.record.localClock.totalLocalDays,
-    targetLocalDays: input.target.record.localClock.totalLocalDays,
+    globalTotalBasePoints,
+    globalTotalDays: calendarDaysFromBasePoints(globalTotalBasePoints),
+    sourceLocalBasePoints,
+    sourceLocalDays: localCalendarDaysFromBasePoints(sourceLocalBasePoints, input.source.record.localCalendar),
+    targetLocalBasePoints,
+    targetLocalDays: localCalendarDaysFromBasePoints(targetLocalBasePoints, input.target.record.localCalendar),
     status: input.status,
     reason: input.reason,
   }
@@ -89,7 +103,7 @@ export class ContextTransitionSystem extends BaseSubsystem {
 
   async transition(
     request: ContextTransitionRequest,
-    globalTotalDays: number,
+    globalTotalBasePoints: number,
     runtimeAdapter: RuntimeContextAdapter,
   ): Promise<ContextTransitionResult> {
     const before = useWorldStore.getState()
@@ -102,15 +116,15 @@ export class ContextTransitionSystem extends BaseSubsystem {
         source: source ?? fallback,
         target: target ?? fallback,
         request,
-        globalTotalDays,
+        globalTotalBasePoints,
         status: 'rejected',
         reason: !source ? '当前上下文不存在' : '目标上下文不存在',
       })
       before.recordTransition(record)
       return { ok: false, record }
     }
-    if (!Number.isFinite(globalTotalDays) || globalTotalDays < 0) {
-      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '切换时间无效' })
+    if (!Number.isFinite(globalTotalBasePoints) || globalTotalBasePoints < 0) {
+      const record = buildRecord({ source, target, request, globalTotalBasePoints, status: 'rejected', reason: '切换时间无效' })
       before.recordTransition(record)
       return { ok: false, record }
     }
@@ -118,14 +132,14 @@ export class ContextTransitionSystem extends BaseSubsystem {
     const targetRegionId = regionIdOf(target, request.targetRegionId)
     if (source.record.id === target.record.id) {
       const next = {
-        ...syncLocalClock(source, globalTotalDays),
+        ...syncLocalClock(source, globalTotalBasePoints),
         spatialGraph: { ...source.spatialGraph, currentRegionId: targetRegionId },
       }
       const record = buildRecord({
         source,
         target: next,
         request,
-        globalTotalDays,
+        globalTotalBasePoints,
         status: 'committed',
       })
       useWorldStore.setState({
@@ -140,50 +154,59 @@ export class ContextTransitionSystem extends BaseSubsystem {
       .filter((instance) => instance.scope.scope === 'active')
       .map((instance) => instance.record.id)
     if (activeContextIds.length !== 1 || activeContextIds[0] !== source.record.id || source.record.lifecycle !== 'open') {
-      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '当前上下文注册表不满足唯一 active 不变量' })
+      const record = buildRecord({ source, target, request, globalTotalBasePoints, status: 'rejected', reason: '当前上下文注册表不满足唯一 active 不变量' })
       before.recordTransition(record)
       return { ok: false, record }
     }
     if (target.scope.scope === 'closed' || target.record.lifecycle === 'closed') {
-      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '目标上下文已关闭' })
+      const record = buildRecord({ source, target, request, globalTotalBasePoints, status: 'rejected', reason: '目标上下文已关闭' })
       before.recordTransition(record)
       return { ok: false, record }
     }
 
-    const latestKnownGlobalDay = Math.max(source.record.localClock.lastGlobalTotalDays, target.record.localClock.lastGlobalTotalDays)
-    if (globalTotalDays < latestKnownGlobalDay) {
-      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '切换时间早于上下文已知时间' })
+    const latestKnownGlobalBasePoints = Math.max(
+      Number.isFinite(source.record.localClock.lastGlobalTotalBasePoints)
+        ? source.record.localClock.lastGlobalTotalBasePoints
+        : basePointsFromCalendarDays(source.record.localClock.lastGlobalTotalDays),
+      Number.isFinite(target.record.localClock.lastGlobalTotalBasePoints)
+        ? target.record.localClock.lastGlobalTotalBasePoints
+        : basePointsFromCalendarDays(target.record.localClock.lastGlobalTotalDays),
+    )
+    if (globalTotalBasePoints < latestKnownGlobalBasePoints) {
+      const record = buildRecord({ source, target, request, globalTotalBasePoints, status: 'rejected', reason: '切换时间早于上下文已知时间' })
       before.recordTransition(record)
       return { ok: false, record }
     }
     const edge = findTransitionEdge(source, target, before.crossContextEdges, request.exitEdgeId)
     if (!edge) {
-      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '不存在可用的跨上下文出口' })
+      const record = buildRecord({ source, target, request, globalTotalBasePoints, status: 'rejected', reason: '不存在可用的跨上下文出口' })
       before.recordTransition(record)
       return { ok: false, record }
     }
     const satisfied = new Set(request.satisfiedRequirementIds ?? [])
     const missing = (edge.requirements ?? []).filter((item) => !satisfied.has(item))
     if (missing.length > 0) {
-      const record = buildRecord({ source, target, edge, request, globalTotalDays, status: 'rejected', reason: `未满足出口资格：${missing.join('、')}` })
+      const record = buildRecord({ source, target, edge, request, globalTotalBasePoints, status: 'rejected', reason: `未满足出口资格：${missing.join('、')}` })
       before.recordTransition(record)
       return { ok: false, record }
     }
 
-    const nextSource = syncLocalClock(source, globalTotalDays)
+    const nextSource = syncLocalClock(source, globalTotalBasePoints)
     nextSource.scope = {
       contextId: source.record.id,
       scope: request.leaveScope ?? 'dormant',
       reason: '角色离开上下文',
-      changedAtGlobalDay: globalTotalDays,
+      changedAtGlobalBasePoints: Math.floor(globalTotalBasePoints),
+      changedAtGlobalDay: calendarDaysFromBasePoints(globalTotalBasePoints),
     }
     nextSource.record.lifecycle = nextSource.scope.scope === 'background' ? 'open' : 'dormant'
-    const nextTarget = syncLocalClock(target, globalTotalDays)
+    const nextTarget = syncLocalClock(target, globalTotalBasePoints)
     nextTarget.scope = {
       contextId: target.record.id,
       scope: 'active',
       reason: '角色到达上下文',
-      changedAtGlobalDay: globalTotalDays,
+      changedAtGlobalBasePoints: Math.floor(globalTotalBasePoints),
+      changedAtGlobalDay: calendarDaysFromBasePoints(globalTotalBasePoints),
     }
     nextTarget.record.lifecycle = 'open'
     nextTarget.spatialGraph.currentRegionId = targetRegionId
@@ -193,7 +216,7 @@ export class ContextTransitionSystem extends BaseSubsystem {
       target: nextTarget,
       edge,
       request,
-      globalTotalDays,
+      globalTotalBasePoints,
       status: 'committed',
     })
     useWorldStore.setState({

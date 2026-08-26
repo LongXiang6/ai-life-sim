@@ -19,6 +19,10 @@ const GENDER_LABELS: Record<string, string> = {
 export interface NarrativeAIWorldView extends Record<string, unknown> {
   名称: string
   描述: string
+  /** Prompt-facing fixed calendar and scope labels; source world state remains elsewhere. */
+  当前历法: '统一游戏历法'
+  当前上下文类型: string
+  当前模拟范围: string
 }
 
 export interface NarrativeAICharacterProfileView extends Record<string, unknown> {
@@ -114,9 +118,34 @@ function projectCharacterBaseAttributes(
 export function projectWorldSettingForNarrativeAI(
   worldSetting: WorldSetting,
 ): NarrativeAIWorldView {
+  const contextKindLabels: Record<WorldSetting['contextKind'], string> = {
+    'campaign-root': '战役',
+    universe: '宇宙',
+    galaxy: '星系',
+    planet: '行星',
+    plane: '位面',
+    world: '世界',
+    continent: '大陆',
+    region: '区域',
+    settlement: '聚落',
+    scene: '场景',
+    vehicle: '载具',
+    dream: '梦境',
+    digital: '数字空间',
+    abstract: '抽象空间',
+  }
+  const scopeLabels: Record<WorldSetting['simulationScope'], string> = {
+    active: '当前完整模拟',
+    background: '后台世界模拟',
+    dormant: '休眠世界模拟',
+    closed: '已关闭世界',
+  }
   return {
     名称: worldSetting.name,
     描述: worldSetting.description,
+    当前历法: '统一游戏历法',
+    当前上下文类型: contextKindLabels[worldSetting.contextKind] ?? '世界',
+    当前模拟范围: scopeLabels[worldSetting.simulationScope] ?? '当前完整模拟',
   }
 }
 

@@ -91,6 +91,9 @@ function buildSummary(input: {
     memoryEvents,
     rawCompressionResponse: input.rawResponse,
     ...(input.sourceNarrative.contextId ? { contextId: input.sourceNarrative.contextId } : {}),
+    ...(typeof input.sourceNarrative.totalBasePoints === 'number'
+      ? { totalBasePoints: input.sourceNarrative.totalBasePoints }
+      : {}),
     ...(typeof input.sourceNarrative.totalDays === 'number'
       ? { totalDays: input.sourceNarrative.totalDays }
       : {}),

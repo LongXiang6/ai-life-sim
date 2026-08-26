@@ -29,7 +29,8 @@ export interface WorldContextCreationOptions {
   makeActive?: boolean
   connectFromCurrent?: boolean
   initialScope?: Exclude<SimulationScope, 'closed'>
-  globalTotalDays?: number
+  /** 全局基础点游标；由唯一 TimeSystem 提供。 */
+  globalTotalBasePoints?: number
 }
 
 export interface AdditionalWorldContextOptions extends WorldContextCreationOptions {

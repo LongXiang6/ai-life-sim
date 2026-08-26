@@ -1,7 +1,7 @@
 /**
  * Purpose: Build the deterministic timeline-memory projection used by the main narrative prompt.
  * Owner: mod-engine
- * Responsibility: Merge older per-round compressed memory, the latest three full stories, and creations in time order.
+ * Responsibility: Merge older per-round compressed memory, the latest two committed full stories, and creations in time order.
  */
 
 import type { NarrativeChunk } from '../../orchestrator-shared'

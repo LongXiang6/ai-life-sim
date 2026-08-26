@@ -60,8 +60,6 @@ export interface NarrativeTimelineProps {
   advanceBlockedText?: string
   isGenerating?: boolean
   showGenerationCursor?: boolean
-  generatingText?: string
-  generatingHint?: string
   hasEndingEvent?: boolean
   onAdvance?: () => void
   onGoToGameOver?: () => void
@@ -89,8 +87,6 @@ export function NarrativeTimeline({
   advanceBlockedText = '✔ 请先选择命运',
   isGenerating = false,
   showGenerationCursor = isGenerating,
-  generatingText = '命书正在续写……',
-  generatingHint = '下一段人生正在生成',
   hasEndingEvent = false,
   onAdvance,
   onGoToGameOver,
@@ -208,9 +204,11 @@ export function NarrativeTimeline({
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
   const displayTurnCount = Math.max(turnCount, 1)
-  const advanceTitle = isGenerating ? generatingText : advanceBlocked ? advanceBlockedText : advanceText
+  // Loading only changes availability and tone; the control keeps the ready-state copy
+  // so its two-line footprint remains stable while the story is being finalized.
+  const advanceTitle = !isGenerating && advanceBlocked ? advanceBlockedText : advanceText
   const computedAdvanceHint = isGenerating
-    ? generatingHint
+    ? advanceHint
     : advanceBlocked ? '当前故事仍在等待处理' : advanceHint
 
   return (

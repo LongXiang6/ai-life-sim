@@ -107,17 +107,20 @@ function contextFixture(contextId, name, scope, parentContextId) {
 }
 
 function roundContext(contextId, totalDays = 20) {
+  const totalBasePoints = Math.ceil(totalDays * 1000 / 365)
   return {
     contextId,
     contextScope: contextId === 'ctx_p0_root' ? 'active' : 'dormant',
     worldId: contextId,
     characterId: 'character:p0-fixture',
     round: { year: 1, season: 1, month: 1 },
-    timeStep: { unit: 'month', value: 1 },
+    timeStep: { unit: 'event', value: 12 },
     difficulty: 'normal',
     subsystemStates: {},
     roundSequence: 1,
-    daysPassed: 20,
+    basePointsPassed: totalBasePoints,
+    totalBasePoints,
+    daysPassed: totalDays,
     totalDays,
   }
 }

@@ -52,13 +52,33 @@ const FIELD_ALIASES = {
   items: ['天赋', '命格', '候选', '候选命格', 'patterns', 'talents', 'candidates', 'items'],
 } as const
 
+/**
+ * Canonical identity for an ordinary destiny-pattern name.
+ *
+ * This is deliberately narrower than semantic similarity: Unicode compatibility
+ * forms, surrounding/internal whitespace, and letter case are normalized, while
+ * wording, punctuation, and effect text remain untouched.
+ */
+export function canonicalizeDestinyPatternName(name: string): string {
+  return name
+    .normalize('NFKC')
+    .trim()
+    .replace(/\s+/gu, '')
+    .toLocaleLowerCase()
+}
+
 export function dedupeDestinyPatterns(patterns: DestinyPattern[]): DestinyPattern[] {
   const result: DestinyPattern[] = []
   const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
   for (const pattern of patterns) {
-    if (!pattern?.id || seenIds.has(pattern.id)) continue
+    if (!pattern?.id || typeof pattern.name !== 'string') continue
+    const name = pattern.name.trim()
+    const nameKey = canonicalizeDestinyPatternName(name)
+    if (!nameKey || seenIds.has(pattern.id) || seenNames.has(nameKey)) continue
     seenIds.add(pattern.id)
-    result.push({ ...pattern, name: pattern.name.trim() })
+    seenNames.add(nameKey)
+    result.push({ ...pattern, name })
   }
   return result
 }

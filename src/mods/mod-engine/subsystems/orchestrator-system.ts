@@ -16,6 +16,7 @@ import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instr
 import {
   executionSequenceError,
   runExecutionSequence,
+  BASE_POINTS_PER_YEAR,
 } from '@/foundation'
 import { getMvpRuntimeSubsystemOrder } from '../helpers/mvp-runtime-policy'
 import type {
@@ -24,10 +25,10 @@ import type {
   YearEvent,
 } from '@/foundation'
 import type { NarrativeRepetitionMetric } from '../helpers/narrative-repetition-metrics'
+import type { NarrativeAIWorldSimulationResult } from '../helpers/narrative-ai-protocol'
 import { saveManager } from '@/core/storage/save-manager'
 import {
   DEFAULT_ENGINE_CONFIG,
-  buildStyleInstruction,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
   isMvpRuntimeSubsystem,
@@ -339,7 +340,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   private state: EngineState = {
     lifeRunId: createNarrativeLifeRunId(),
     status: 'idle',
-    round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
+    round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, totalBasePoints: 0, basePointsPassed: 0, eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined, eventNodeIndex: 0, ...TimeSystem.resolveDisplayEra(0) },
     timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
     totalRounds: 0,
     narrativeHistory: [],
@@ -382,6 +383,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     day: 0,
     dayOfYear: 1,
     totalDays: 0,
+    totalBasePoints: 0,
+    basePointsPassed: 0,
+    eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined,
+    eventNodeIndex: 0,
     ...TimeSystem.resolveDisplayEra(0),
   }
 
@@ -424,6 +429,15 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 当前 Prompt 实际投递、尚未随正文接纳的到期历史候选。 */
   private pendingNarrativeEventCandidateIds: string[] = []
+
+  /** 上一轮世界模拟 04 产出，下一轮主故事投影后一次性消费；仅运行态，不进入存档。 */
+  private pendingWorldSimulationResult: NarrativeAIWorldSimulationResult | null = null
+
+  /** 世界模拟候选冷却表（确定性键 → 上次采用轮次）；仅运行态，不持久化。 */
+  private worldSimulationCooldownState = new Map<string, number>()
+
+  /** 本轮已确认世界事实投影（当前区域 + 历史账本），供世界模拟 04 输入使用；仅运行态。 */
+  private pendingConfirmedWorldFacts: string | undefined = undefined
 
   /** 已随正文接纳、当前运行态已屏蔽重复投影的历史候选；候选账本状态仍由其所属系统保持。 */
   private readonly inFlightNarrativeEventCandidateIds = new Set<string>()
@@ -658,6 +672,41 @@ export class OrchestratorSystem extends BaseSubsystem {
     return { ...this.state, compressionStats: { ...this.state.compressionStats } }
   }
 
+  /** 写入本轮已确认世界事实投影，供世界模拟 04 输入读取。 */
+  setConfirmedWorldFacts(text: string | undefined): void {
+    this.pendingConfirmedWorldFacts = text
+  }
+
+  /** 读取本轮已确认世界事实投影（当前区域 + 历史账本）。 */
+  getConfirmedWorldFacts(): string | undefined {
+    return this.pendingConfirmedWorldFacts
+  }
+
+  /** 写入上一轮世界模拟 04 产出，供下一轮主故事投影。 */
+  setWorldSimulationResult(result: NarrativeAIWorldSimulationResult | null): void {
+    this.pendingWorldSimulationResult = result
+  }
+
+  /** 读取并一次性消费上一轮世界模拟 04 产出。 */
+  takeWorldSimulationResult(): NarrativeAIWorldSimulationResult | null {
+    const result = this.pendingWorldSimulationResult
+    this.pendingWorldSimulationResult = null
+    return result
+  }
+
+  /** 世界模拟候选冷却判断：冷却期内同一确定性键不重复采用。 */
+  isWorldSimulationCandidateReady(key: string, currentRound: number, cooldownRounds: number): boolean {
+    if (cooldownRounds <= 0) return true
+    const lastUsed = this.worldSimulationCooldownState.get(key)
+    if (lastUsed === undefined) return true
+    return currentRound - lastUsed >= cooldownRounds
+  }
+
+  /** 记录世界模拟候选本轮采用，写入冷却表。 */
+  markWorldSimulationCandidateUsed(key: string, currentRound: number): void {
+    this.worldSimulationCooldownState.set(key, currentRound)
+  }
+
   getSubsystemStateSnapshot(): Record<string, SubSystemState> {
     return structuredClone(this.lastSubsystemStates)
   }
@@ -733,7 +782,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.state.totalRounds++
   }
 
-  /** 叙事用年龄：按绝对天数计算，细粒度回合不会错误增加整岁。 */
+  /** 叙事用年龄：按绝对基础点计算，派生日历只用于展示。 */
   private computeNarrativeAge(context: RoundContext): number {
     const characterBase = context.subsystemStates?.['character-base']?.data as {
       status?: CharacterNarrativeStatus
@@ -741,7 +790,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     } | undefined
     if (characterBase?.status) return Math.floor(characterBase.status.ageDays / 365)
     const startingAge = characterBase?.startingAge ?? 0
-    const completedYears = Math.floor(Math.max(0, context.totalDays - 365) / 365)
+    const completedYears = Math.floor(
+      Math.max(0, context.totalBasePoints - BASE_POINTS_PER_YEAR) / BASE_POINTS_PER_YEAR,
+    )
     return startingAge + completedYears
   }
 
@@ -1070,6 +1121,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastExecutedFullContent = state.lastExecutedFullContent ?? null
     this.pendingNarrativeCausalEventIds = []
     this.pendingNarrativeEventCandidateIds = []
+    this.pendingWorldSimulationResult = null
+    this.worldSimulationCooldownState.clear()
+    this.pendingConfirmedWorldFacts = undefined
     this.inFlightNarrativeEventCandidateIds.clear()
     this.lastPlayerChoice = state.lastPlayerChoice
     this.pendingNarrativeRoundPreparation = undefined
@@ -1139,14 +1193,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.releaseAllPreparedNarratives()
   }
 
-  /** 返回本轮实际生效的完整文风及其显式保存版本。 */
+  /** 返回本轮已保存的自定义文风快照；未启用时以空文本表示。 */
   getNarrativeStyleSnapshot(): {
     source: 'default' | 'custom'
     text: string
     version: number
   } {
     const settings = useSettingsStore.getState()
-    if (settings.narrativeStyleText.length > 0) {
+    if (settings.narrativeStyleText.trim().length > 0) {
       return {
         source: 'custom',
         text: settings.narrativeStyleText,
@@ -1155,7 +1209,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     return {
       source: 'default',
-      text: buildStyleInstruction('default'),
+      text: '',
       version: 0,
     }
   }
@@ -1365,6 +1419,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       difficulty: (this.worldSetting?.config?.difficulty as RoundContext['difficulty']) ?? 'normal',
       subsystemStates: this.lastSubsystemStates,
       roundSequence: this.state.totalRounds,
+      basePointsPassed: this.runtime.time.getBasePointsPassed(),
+      totalBasePoints: this.state.round.totalBasePoints,
       daysPassed: this.runtime.time.getDaysPassed(),
       totalDays: this.state.round.totalDays,
       eraStartYear: eraStartYear || undefined,
@@ -1601,7 +1657,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.state = {
       lifeRunId: createNarrativeLifeRunId(),
       status: 'idle',
-      round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
+      round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, totalBasePoints: 0, basePointsPassed: 0, eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined, eventNodeIndex: 0, ...TimeSystem.resolveDisplayEra(0) },
       timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
       totalRounds: 0,
       narrativeHistory: [],
@@ -1623,6 +1679,10 @@ export class OrchestratorSystem extends BaseSubsystem {
       day: 0,
       dayOfYear: 1,
       totalDays: 0,
+      totalBasePoints: 0,
+      basePointsPassed: 0,
+      eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined,
+      eventNodeIndex: 0,
       ...TimeSystem.resolveDisplayEra(0),
     }
     this.lastNarratedTimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
@@ -1632,6 +1692,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastExecutedFullContent = null
     this.pendingNarrativeCausalEventIds = []
     this.pendingNarrativeEventCandidateIds = []
+    this.pendingWorldSimulationResult = null
+    this.worldSimulationCooldownState.clear()
+    this.pendingConfirmedWorldFacts = undefined
     this.inFlightNarrativeEventCandidateIds.clear()
     this.acceptedNarrativeRecords.clear()
     this.lastPlayerChoice = undefined

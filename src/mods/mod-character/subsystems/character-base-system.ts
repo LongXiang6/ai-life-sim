@@ -65,7 +65,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
 
   advance(context: RoundContext): void {
     const status = this.ensureStatus(context)
-    this.state.status = advanceCharacterNarrativeStatus(status, this.state.startingAge, context.totalDays)
+    this.state.status = advanceCharacterNarrativeStatus(status, this.state.startingAge, context.totalBasePoints)
   }
 
   collectState(context: RoundContext): SubSystemState {
@@ -118,6 +118,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
       status: candidate,
       payload: changes.changes,
       contextId: context.contextId,
+      totalBasePoints: context.totalBasePoints,
       totalDays: context.totalDays,
       evidenceEventIds: changes.evidenceEventIds ?? [],
     })
@@ -130,7 +131,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
       for (const key of ATTR_KEYS) {
         const raw = changes.changes[`${key}Delta`]
         if (typeof raw !== 'number') continue
-        const delta = clampCharacterAttributeDelta(raw, key, context.daysPassed)
+        const delta = clampCharacterAttributeDelta(raw, key, context.basePointsPassed)
         this.state.base[key] = round(this.clampAttr(key, this.state.base[key] + delta))
       }
       this.recalculateCurrent()
@@ -141,6 +142,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
       status,
       payload: changes.changes,
       contextId: context.contextId,
+      totalBasePoints: context.totalBasePoints,
       totalDays: context.totalDays,
       evidenceEventIds: changes.evidenceEventIds ?? [],
     }) ?? this.pendingDeath
@@ -244,6 +246,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
     return createCharacterNarrativeStatus({
       entityId: context.characterId || store.characterId || undefined,
       startingAgeYears: this.state.startingAge,
+      totalBasePoints: context.totalBasePoints,
       totalDays: context.totalDays,
       lifespanDraft: store.lifespanDraft,
       lifeStageTemplate: getCurrentWorldContext()?.worldConfig.lifeStageTemplate,
@@ -269,7 +272,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
       if (typeof value !== 'number' || !Number.isInteger(value) || value === 0) {
         throw new Error(`${key}变化必须是非零整数`)
       }
-      clampCharacterAttributeDelta(value, key, context.daysPassed)
+      clampCharacterAttributeDelta(value, key, context.basePointsPassed)
     }
   }
 

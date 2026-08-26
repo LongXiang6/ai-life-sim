@@ -28,8 +28,16 @@ export interface RoundInfo {
   month: number
   day: number
   dayOfYear: number
-  /** 从纪元起点（year=0,day=1）累计的绝对天数，单调递增，用于防倒退校验 */
+  /** 从基础点派生的绝对日历天数；仅用于日期显示与旧存档兼容。 */
   totalDays: number
+  /** 每年1000点制的绝对基础点；totalDays由此派生。 */
+  totalBasePoints: number
+  /** 最近一次推进消费的基础点，仅用于运行态投影。 */
+  basePointsPassed?: number
+  /** 事件节点模式下，本自然年配置的叙事节点预算；旧日/月/季/年存档可省略。 */
+  eventNodeCount?: number
+  /** 事件节点模式下，本自然年已经消费的节点数（0 到 eventNodeCount）；旧存档可省略。 */
+  eventNodeIndex?: number
   /** 当前纪元名称（如"神话纪元"） */
   eraName: string,
   /** 当前纪元内的年数（从 1 开始） */
@@ -94,6 +102,8 @@ export interface NarrativeChunk {
   contextName?: string,
   /** 写入时规范全局累计天数 */
   totalDays?: number,
+  /** 写入时年度基础点；业务时间真源，totalDays 仅为派生日历快照。 */
+  totalBasePoints?: number,
   /** 重置信号：AI 重试/降级时通知 UI 丢弃上一次尝试已累积的流式文本，避免拼接重复 */
   isReset?: boolean,
   /** 命运分叉点 */
@@ -172,4 +182,3 @@ export interface RoundResult {
   /** AI 回复中的结构化世界方向指令（如 {market:{direction:"繁荣",magnitude:0.3}}），为空时由关键词检测兜底 */
   direction?: Record<string, { direction?: string; magnitude?: number }>
 }
-

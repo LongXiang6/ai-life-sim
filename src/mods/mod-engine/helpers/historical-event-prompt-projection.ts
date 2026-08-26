@@ -61,10 +61,7 @@ function isCurrentPromptScope(scope: HistoricalEventScope, currentContextId: str
 }
 
 function formatScope(scope: HistoricalEventScope): string {
-  const ids = scope.contextIds.length > 0
-    ? `[${scope.contextIds.join('、')}]`
-    : ''
-  return `${SCOPE_LABELS[scope.kind]}${ids}`
+  return SCOPE_LABELS[scope.kind]
 }
 
 function formatSchedule(schedule: HistoricalEventSchedule | undefined): string | undefined {
@@ -88,7 +85,7 @@ function formatEvent(event: HistoricalEventView): string {
   const status = event.status === 'active' ? 'active' : 'scheduled'
   const schedule = formatSchedule(event.schedule)
   return [
-    `历史事件[${event.eventId}]`,
+    '已确认世界事件',
     `状态：${STATUS_LABELS[status]}`,
     `作用域：${formatScope(event.scope)}`,
     `标题：${event.title}`,
@@ -101,7 +98,7 @@ function formatCandidate(audit: HistoricalEventCandidateAudit): string {
   const candidate = audit.candidate
   const schedule = formatSchedule(candidate.schedule)
   return [
-    `到期事件候选[${candidate.candidateId}]`,
+    '已确认待处理事项',
     `作用域：${formatScope(candidate.scope)}`,
     `标题：${candidate.title}`,
     `已经建立的未来事项：${candidate.description}`,
@@ -110,11 +107,16 @@ function formatCandidate(audit: HistoricalEventCandidateAudit): string {
   ].filter(Boolean).join('；')
 }
 
-function formatEdge(edge: HistoricalCausalEdge): string {
+function formatEdge(
+  edge: HistoricalCausalEdge,
+  labels: ReadonlyMap<string, string>,
+): string {
+  const from = labels.get(edge.fromEventId) ?? '前项事件'
+  const to = labels.get(edge.toEventId) ?? '后项事件'
   return [
-    `显式因果边[${edge.edgeId}]`,
+    '已确认因果关系',
     `作用域：${formatScope(edge.scope)}`,
-    `关系：事件[${edge.fromEventId}]${RELATION_LABELS[edge.relation]}事件[${edge.toEventId}]`,
+    `关系：${from}${RELATION_LABELS[edge.relation]}${to}`,
     edge.label ? `说明：${edge.label}` : undefined,
   ].filter(Boolean).join('；')
 }
@@ -158,6 +160,8 @@ export function buildHistoricalEventPromptProjection(
   if (events.length === 0 && dueCandidates.length === 0) return undefined
 
   const relevantEventIds = new Set(events.map((event) => event.eventId))
+  const labels = new Map<string, string>(events.map((event) => [event.eventId, event.title]))
+  for (const audit of dueCandidates) labels.set(audit.candidateId, audit.candidate.title)
   const edges = contract.relevantCausalEdges.filter((edge) => (
     isCurrentPromptScope(edge.scope, currentContextId)
     && (relevantEventIds.has(edge.fromEventId) || relevantEventIds.has(edge.toEventId))
@@ -165,11 +169,12 @@ export function buildHistoricalEventPromptProjection(
 
   return [
     '【历史事件账本：当前待续事实与到期候选】',
+    '历史事件和待处理事项是本窗口可用的背景事实；按合理叙事使用。',
     ...events.map(formatEvent),
-    ...edges.map(formatEdge),
+    ...edges.map((edge) => formatEdge(edge, labels)),
     ...(dueCandidates.length > 0
       ? [
-          '以下到期候选已完整投递；正文逐项呈现发生、继续等待、被拒绝或已经过期的真实结果，并在对应结果中保留候选编号。',
+          '以下待处理事项已经投影给本轮故事；是否进入正文及其表现由合理叙事决定。',
           ...dueCandidates.map(formatCandidate),
         ]
       : []),

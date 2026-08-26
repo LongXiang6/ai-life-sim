@@ -1,9 +1,14 @@
 /**
+ * Purpose: Migrate and sanitize persisted world-context state to canonical base points.
+ * Owner: mod-world / persistence
+ * Responsibility: Boundary migration only; live world calculations remain in runtime owners.
+ *
  * @module world-state-migration
  * @description 世界持久化与存档快照的兼容清洗
  * @mod mod-world
  */
 
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 import type { WorldConfig, WorldContextInstance, WorldTagsV2 } from '../types'
 import { WORLDVIEW_TAG_DEFAULTS } from '../constants/world-tag-defaults'
 import {
@@ -11,6 +16,8 @@ import {
   alignCapabilityProfileRuntimeMembership,
   buildWorldContextInstance,
   createWorldContextId,
+  localCalendarBasePointsFromDays,
+  localCalendarDaysFromBasePoints,
 } from './world-context-runtime'
 
 const SCP_PRESET_NAME = 'SCP基金会'
@@ -30,6 +37,73 @@ const LEGACY_SCP_CONTRADICTORY_WORLD_TAGS = new Set([
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function nonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : undefined
+}
+
+function nonNegativeFinite(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined
+}
+
+/** Normalize persisted local clocks to the canonical base-point cursor. */
+function normalizeContextClock(instance: WorldContextInstance): void {
+  const calendar = instance.record.localCalendar
+  const rawRecord = instance.record as unknown as Record<string, unknown>
+  const rawClock = isRecord(rawRecord.localClock) ? rawRecord.localClock : {}
+  const legacyLocalDays = nonNegativeInteger(rawClock.totalLocalDays) ?? 0
+  const totalBasePoints = nonNegativeFinite(rawClock.totalBasePoints)
+    ?? localCalendarBasePointsFromDays(legacyLocalDays, calendar)
+  const legacyGlobalDays = nonNegativeInteger(rawClock.lastGlobalTotalDays) ?? 0
+  const lastGlobalTotalBasePoints = nonNegativeInteger(rawClock.lastGlobalTotalBasePoints)
+    ?? basePointsFromCalendarDays(legacyGlobalDays)
+  const normalizedClock = {
+    totalBasePoints,
+    lastGlobalTotalBasePoints,
+    totalLocalDays: localCalendarDaysFromBasePoints(totalBasePoints, calendar),
+    lastGlobalTotalDays: calendarDaysFromBasePoints(lastGlobalTotalBasePoints),
+  }
+  instance.record.localClock = normalizedClock
+
+  const createdAtLegacyDays = nonNegativeInteger(rawRecord.createdAtGlobalDay) ?? 0
+  const createdAtGlobalBasePoints = nonNegativeInteger(rawRecord.createdAtGlobalBasePoints)
+    ?? basePointsFromCalendarDays(createdAtLegacyDays)
+  rawRecord.createdAtGlobalBasePoints = createdAtGlobalBasePoints
+  rawRecord.createdAtGlobalDay = calendarDaysFromBasePoints(createdAtGlobalBasePoints)
+
+  const rawScope = isRecord((instance as unknown as Record<string, unknown>).scope)
+    ? (instance as unknown as Record<string, unknown>).scope as Record<string, unknown>
+    : undefined
+  if (rawScope) {
+    const changedAtLegacyDays = nonNegativeInteger(rawScope.changedAtGlobalDay) ?? 0
+    const changedAtGlobalBasePoints = nonNegativeInteger(rawScope.changedAtGlobalBasePoints)
+      ?? basePointsFromCalendarDays(changedAtLegacyDays)
+    rawScope.changedAtGlobalBasePoints = changedAtGlobalBasePoints
+    rawScope.changedAtGlobalDay = calendarDaysFromBasePoints(changedAtGlobalBasePoints)
+  }
+}
+
+function normalizeTransitionHistory(value: unknown): unknown[] {
+  if (!Array.isArray(value)) return []
+  return value.map((entry) => {
+    if (!isRecord(entry)) return entry
+    const globalTotalBasePoints = nonNegativeInteger(entry.globalTotalBasePoints)
+      ?? basePointsFromCalendarDays(nonNegativeInteger(entry.globalTotalDays) ?? 0)
+    return {
+      ...entry,
+      globalTotalBasePoints,
+      globalTotalDays: calendarDaysFromBasePoints(globalTotalBasePoints),
+      sourceLocalBasePoints: nonNegativeInteger(entry.sourceLocalBasePoints)
+        ?? basePointsFromCalendarDays(nonNegativeInteger(entry.sourceLocalDays) ?? 0),
+      targetLocalBasePoints: nonNegativeInteger(entry.targetLocalBasePoints)
+        ?? basePointsFromCalendarDays(nonNegativeInteger(entry.targetLocalDays) ?? 0),
+    }
+  })
 }
 
 /**
@@ -124,6 +198,7 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     const contexts = structuredClone(existingContexts) as Record<string, WorldContextInstance>
     for (const [contextId, instance] of Object.entries(contexts)) {
       if (!instance?.record || !instance.scope) continue
+      normalizeContextClock(instance)
       delete (instance as unknown as Record<string, unknown>).entities
       delete (instance as unknown as Record<string, unknown>).worldInitAIStatus
       delete (instance.spatialGraph as unknown as Record<string, unknown>).entityLocations
@@ -157,9 +232,7 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
       crossContextEdges: isRecord(record.crossContextEdges)
         ? structuredClone(record.crossContextEdges)
         : {},
-      transitionHistory: Array.isArray(record.transitionHistory)
-        ? structuredClone(record.transitionHistory)
-        : [],
+      transitionHistory: normalizeTransitionHistory(record.transitionHistory),
       ...(current ? {
         worldConfig: structuredClone(current.worldConfig),
         initialized: current.initialized,
@@ -208,6 +281,8 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     eraStartYear: typeof record.eraStartYear === 'number' ? record.eraStartYear : 0,
     eraName: typeof record.eraName === 'string' ? record.eraName : '',
     scope: 'active',
+    globalTotalBasePoints: nonNegativeInteger(record.totalBasePoints)
+      ?? basePointsFromCalendarDays(nonNegativeInteger(record.totalDays) ?? 0),
     derivedFrom: 'migration',
   })
   instance.currentYear = typeof record.currentYear === 'number' ? record.currentYear : 0
@@ -217,7 +292,7 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     contexts: { [contextId]: instance },
     currentContextId: contextId,
     crossContextEdges: {},
-    transitionHistory: [],
+    transitionHistory: normalizeTransitionHistory(record.transitionHistory),
     worldConfig: structuredClone(instance.worldConfig),
     initialized: instance.initialized,
     worldCode: instance.worldCode,

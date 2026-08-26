@@ -1,4 +1,8 @@
 /**
+ * Purpose: Synchronize world simulation scope and local clocks at round boundaries.
+ * Owner: mod-world / simulation-scope
+ * Responsibility: Scope transitions and local-clock sync only; global time remains owned by mod-engine.
+ *
  * SimulationScopePolicySystem
  *
  * 职责：拥有 active/background/dormant/closed 范围与当地时钟同步策略。
@@ -13,6 +17,7 @@
 
 import { BaseSubsystem } from '@/core/subsystem-base'
 import type { RoundContext, SimulationScope, SubSystemChanges, SubSystemState } from '@/foundation'
+import { calendarDaysFromBasePoints } from '@/foundation'
 
 import { useWorldStore } from '../store'
 import { syncLocalClock } from '../utils/world-context-runtime'
@@ -23,7 +28,7 @@ export class SimulationScopePolicySystem extends BaseSubsystem {
   readonly label = '模拟范围策略' as const
   readonly description = '决定当前完整模拟、后台聚合、休眠冻结和关闭状态' as const
 
-  setScope(contextId: string, scope: SimulationScope, reason: string, globalTotalDays: number): void {
+  setScope(contextId: string, scope: SimulationScope, reason: string, globalTotalBasePoints: number): void {
     const state = useWorldStore.getState()
     const instance = state.contexts[contextId]
     if (!instance) throw new Error(`未知上下文：${contextId}`)
@@ -36,8 +41,18 @@ export class SimulationScopePolicySystem extends BaseSubsystem {
     if (instance.scope.scope === 'closed' && scope !== 'closed') {
       throw new Error('已关闭上下文不能重新开放')
     }
-    const next = syncLocalClock(instance, globalTotalDays)
-    next.scope = { contextId, scope, reason, changedAtGlobalDay: globalTotalDays }
+    if (!Number.isFinite(globalTotalBasePoints) || globalTotalBasePoints < 0) {
+      throw new Error('范围变更必须提供规范的非负 globalTotalBasePoints')
+    }
+    const normalizedBasePoints = Math.floor(globalTotalBasePoints)
+    const next = syncLocalClock(instance, normalizedBasePoints)
+    next.scope = {
+      contextId,
+      scope,
+      reason,
+      changedAtGlobalBasePoints: normalizedBasePoints,
+      changedAtGlobalDay: calendarDaysFromBasePoints(normalizedBasePoints),
+    }
     next.record.lifecycle = scope === 'closed' ? 'closed' : scope === 'dormant' ? 'dormant' : 'open'
     state.replaceContext(next)
   }
@@ -56,7 +71,7 @@ export class SimulationScopePolicySystem extends BaseSubsystem {
     const state = useWorldStore.getState()
     const instance = state.contexts[context.contextId]
     if (!instance) return
-    state.replaceContext(syncLocalClock(instance, context.totalDays))
+    state.replaceContext(syncLocalClock(instance, context.totalBasePoints))
   }
 
   collectState(context: RoundContext): SubSystemState {

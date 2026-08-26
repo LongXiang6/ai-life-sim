@@ -386,11 +386,13 @@ export class DestinyPatternAiPoolService {
       }
     }
     if (additions.length === 0) return 0
+    const existingIds = new Set(this.currentPatterns.map((pattern) => pattern.id))
     this.currentPatterns = dedupeDestinyPatterns([...this.currentPatterns, ...additions])
+    const addedCount = this.currentPatterns.filter((pattern) => !existingIds.has(pattern.id)).length
     this.poolFillStatus.count = this.currentPatterns.length
     saveDestinyPatternPool(useWorldStore.getState().worldCode, this.currentPatterns)
     this.publish()
-    return additions.length
+    return addedCount
   }
 
   private countCategory(category: DestinyPatternCategory): number {

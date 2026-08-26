@@ -19,6 +19,8 @@ export interface CompressedSummaryItem {
   memoryEvents: CompressedMemoryEvent[]
   rawCompressionResponse: string
   contextId?: string
+  /** 年度基础点真源；totalDays 仅为派生日历快照。 */
+  totalBasePoints?: number
   totalDays?: number
 }
 
@@ -48,6 +50,8 @@ export interface YearEventKeyEvent {
 export interface YearEvent {
   id: number
   contextId?: string
+  /** 年度基础点真源；totalDays 仅为派生日历快照。 */
+  totalBasePoints?: number
   totalDays?: number
   age: number
   totalMonths: number

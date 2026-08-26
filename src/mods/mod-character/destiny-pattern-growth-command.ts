@@ -196,11 +196,11 @@ export function resolveDestinyPatternGrowthChoice(
   const pending = runtimeBefore.pendingGrowth
   if (!pending) return { ok: false, error: '当前没有等待选择的天赋成长' }
   const committedAt = Date.now()
-  const totalDays = orchestrator.getRoundContextSnapshot().totalDays
+  const totalBasePoints = orchestrator.getRoundContextSnapshot().totalBasePoints
 
   try {
-    const runtimePreview = resolvePendingDestinyPatternGrowthInState(runtimeBefore, optionId, committedAt, totalDays)
-    const storePreview = resolvePendingDestinyPatternGrowthInState(storeBefore, optionId, committedAt, totalDays)
+    const runtimePreview = resolvePendingDestinyPatternGrowthInState(runtimeBefore, optionId, committedAt, totalBasePoints)
+    const storePreview = resolvePendingDestinyPatternGrowthInState(storeBefore, optionId, committedAt, totalBasePoints)
     if (!sameGrowthResult(runtimePreview.historyEntry, storePreview.historyEntry)) {
       throw new Error('天赋成长选择无法形成唯一结果')
     }
@@ -210,7 +210,7 @@ export function resolveDestinyPatternGrowthChoice(
       optionId,
     )
 
-    const historyEntry = system.resolvePendingGrowth(optionId, committedAt, totalDays)
+    const historyEntry = system.resolvePendingGrowth(optionId, committedAt, totalBasePoints)
     useCharacterStore.setState({ destinyPatterns: storePreview.state })
     orchestrator.refreshCommittedSubsystemStateSnapshot()
     orchestrator.resolveDestinyPatternGrowthProjection(

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Commit a selected world and route the player into character creation.
+ * Owner: mod-pages / world-select
+ * Responsibility: UI command orchestration only; world state remains owned by mod-world.
+ *
  * @module useWorldConfirm.ts
  * @description 世界选择确认 —— 本地初始化 + 一致性确认 + 跳转角色创建
  * @mod mod-pages
@@ -65,7 +69,7 @@ export function useWorldConfirm() {
       worldCode,
       eraStartYear,
       hasExistingContext
-        ? { globalTotalDays: orchestrator.getState().round.totalDays }
+        ? { globalTotalBasePoints: orchestrator.getState().round.totalBasePoints }
         : undefined,
     )
 

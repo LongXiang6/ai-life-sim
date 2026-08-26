@@ -9,9 +9,11 @@ import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
   NarrativeAIStoryContinuityDataSchema,
   NarrativeAITalentGrowthDataSchema,
+  NarrativeAIWorldSimulationResultSchema,
   parseNarrativeAIJson,
   type NarrativeAIStoryContinuityData,
   type NarrativeAITalentGrowthData,
+  type NarrativeAIWorldSimulationResult,
 } from './narrative-ai-protocol'
 import {
   narrativeParser,
@@ -43,6 +45,12 @@ export interface NarrativeStoryContinuityQuality {
   reason: string
   result?: NarrativeAIStoryContinuityData
   futureEventReason?: string
+}
+
+export interface NarrativeWorldSimulationQuality {
+  valid: boolean
+  reason: string
+  result?: NarrativeAIWorldSimulationResult
 }
 
 function errorMessage(error: unknown): string {
@@ -299,6 +307,75 @@ export function inspectNarrativeStoryContinuityQuality(
       result,
       ...(futureErrors.length > 0 ? { futureEventReason: futureErrors.join('；') } : {}),
     }
+  } catch (error) {
+    return { valid: false, reason: errorMessage(error) }
+  }
+}
+
+const WORLD_CATEGORY_TO_LABEL: Record<string, string> = {
+  环境: '环境', environment: '环境',
+  社会: '社会', social: '社会',
+  经济: '经济', economic: '经济',
+  政治: '政治', political: '政治',
+  生态: '生态', ecological: '生态',
+  技术: '技术', technology: '技术',
+  迁徙: '迁徙', migration: '迁徙',
+  发现: '发现', discovery: '发现',
+  风险: '风险', hazard: '风险',
+  机遇: '机遇', opportunity: '机遇',
+}
+
+const WORLD_INTENSITY_TO_LABEL: Record<string, string> = {
+  轻微: '轻微', minor: '轻微',
+  中等: '中等', moderate: '中等',
+  重大: '重大', major: '重大',
+}
+
+const WORLD_RELATION_TO_LABEL: Record<string, string> = {
+  导致: '导致', causes: '导致',
+  使之成为可能: '使之成为可能', enables: '使之成为可能',
+  阻止: '阻止', blocks: '阻止',
+  解决: '解决', resolves: '解决',
+  放大: '放大', amplifies: '放大',
+  传播到: '传播到', propagates: '传播到',
+}
+
+function normalizeWorldEnum(value: unknown, map: Record<string, string>): string | undefined {
+  const raw = asText(value)
+  if (!raw) return undefined
+  return map[raw.trim()] ?? map[raw.trim().toLocaleLowerCase()]
+}
+
+export function inspectNarrativeWorldSimulationQuality(content: string): NarrativeWorldSimulationQuality {
+  try {
+    const envelope = asRecord(parseNarrativeAIJson(content))
+    if (!envelope) throw new Error('世界演变响应不是对象')
+    const rawEvents = asArray(pick(envelope, ['世界变化', '世界演变', '变化', 'worldChanges']))
+    const events = rawEvents.slice(0, 5).map((value, index) => {
+      const item = asRecord(value) ?? {}
+      const 标题 = asText(pick(item, ['标题', '名称', 'title', 'name']))
+      const 类别 = normalizeWorldEnum(pick(item, ['类别', '类型', 'category', 'type']), WORLD_CATEGORY_TO_LABEL)
+      const 强度 = normalizeWorldEnum(pick(item, ['强度', '等级', 'intensity', 'level']), WORLD_INTENSITY_TO_LABEL)
+      const 描述 = asText(pick(item, ['描述', '说明', '内容', 'description']))
+      const 影响区域 = asText(pick(item, ['影响区域', '区域', '影响范围', 'region']))
+      const 触发条件 = asText(pick(item, ['触发条件', '条件', 'trigger'])) ?? ''
+      const 冷却 = Math.min(99, Math.max(0, asInteger(pick(item, ['冷却', 'cooldown']), 0)))
+      if (!标题 || !类别 || !强度 || !描述 || !影响区域) {
+        throw new Error(`世界变化[${index}]字段不完整`)
+      }
+      return { 标题, 类别, 强度, 描述, 影响区域, 触发条件, 冷却 }
+    })
+    const rawEdges = asArray(pick(envelope, ['因果边', '因果', 'edges', 'causalEdges']))
+    const edges = rawEdges.map((value, index) => {
+      const item = asRecord(value) ?? {}
+      const 前因 = asText(pick(item, ['前因', '原因', 'from', 'cause']))
+      const 后果 = asText(pick(item, ['后果', '结果', 'to', 'effect']))
+      const 关系 = normalizeWorldEnum(pick(item, ['关系', 'relation', 'type']), WORLD_RELATION_TO_LABEL)
+      if (!前因 || !后果 || !关系) throw new Error(`因果边[${index}]字段不完整`)
+      return { 前因, 后果, 关系 }
+    })
+    const result = NarrativeAIWorldSimulationResultSchema.parse({ 世界变化: events, 因果边: edges })
+    return { valid: true, reason: '', result }
   } catch (error) {
     return { valid: false, reason: errorMessage(error) }
   }

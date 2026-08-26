@@ -27,18 +27,18 @@ import type {
   WorldContextCreationOptions,
 } from './contracts'
 
-function resolveCreationGlobalTotalDays(
-  requestedGlobalTotalDays: number | undefined,
+function resolveCreationGlobalTotalBasePoints(
+  requestedGlobalTotalBasePoints: number | undefined,
   contexts: ReturnType<typeof useWorldStore.getState>['contexts'],
 ): number {
-  if (requestedGlobalTotalDays !== undefined) {
-    if (!Number.isFinite(requestedGlobalTotalDays) || requestedGlobalTotalDays < 0) {
-      throw new Error('创建上下文的 globalTotalDays 必须为非负有限数')
+  if (requestedGlobalTotalBasePoints !== undefined) {
+    if (!Number.isFinite(requestedGlobalTotalBasePoints) || requestedGlobalTotalBasePoints < 0) {
+      throw new Error('创建上下文的 globalTotalBasePoints 必须为非负有限数')
     }
-    return requestedGlobalTotalDays
+    return Math.floor(requestedGlobalTotalBasePoints)
   }
   if (Object.keys(contexts).length === 0) return 0
-  throw new Error('已有上下文时必须由唯一 TimeSystem 显式提供 globalTotalDays')
+  throw new Error('已有上下文时必须由唯一 TimeSystem 显式提供 globalTotalBasePoints')
 }
 
 export async function commitWorldInitialization(
@@ -80,7 +80,10 @@ export async function commitWorldInitialization(
 
   const registry = getWorldContextRegistrySystem()
   registry.validateContextParent(contextId, parentContextId)
-  const globalTotalDays = resolveCreationGlobalTotalDays(options?.globalTotalDays, store.contexts)
+  const globalTotalBasePoints = resolveCreationGlobalTotalBasePoints(
+    options?.globalTotalBasePoints,
+    store.contexts,
+  )
   const defaultCalibration = buildDefaultCalibration(resolvedConfig)
   const snapshot = new WorldInitSystem().initialize(resolvedConfig, {
     contextId,
@@ -102,7 +105,7 @@ export async function commitWorldInitialization(
     localCalendar,
     capabilities,
     scope: makeActive ? 'active' : (options?.initialScope ?? 'dormant'),
-    globalTotalDays,
+    globalTotalBasePoints,
   })
   registry.registerContext(instance, makeActive)
 
@@ -147,7 +150,7 @@ export async function createAdditionalWorldContext(
       connectFromCurrent: options?.connectFromCurrent ?? true,
       makeActive: options?.makeActive ?? false,
       initialScope: options?.initialScope ?? 'dormant',
-      globalTotalDays: options?.globalTotalDays,
+      globalTotalBasePoints: options?.globalTotalBasePoints,
     },
   )
 }

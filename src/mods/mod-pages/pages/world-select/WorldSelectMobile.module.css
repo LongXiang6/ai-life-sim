@@ -463,6 +463,47 @@
 
 .selectedMark { display: none; }
 
+/* Cache control is an overlay so card text keeps the same horizontal origin. */
+.worldCardWithCache,
+.moreWorldCardWithCache {
+  padding-right: calc(3.333 * var(--final-flow-density-px));
+}
+
+.cacheButton,
+.inlineCacheButton {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: calc(24 * var(--final-flow-density-px));
+  height: calc(24 * var(--final-flow-density-px));
+  place-items: center;
+  padding: 0;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: 50%;
+  background: var(--flow-paper);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(13 * var(--final-flow-density-px));
+  line-height: 1;
+}
+
+.cacheButton {
+  top: calc(3 * var(--final-flow-density-px));
+  right: calc(3 * var(--final-flow-density-px));
+}
+
+.inlineCacheButton {
+  top: calc(6 * var(--final-flow-density-px));
+  right: calc(6 * var(--final-flow-density-px));
+}
+
+.cacheButton:hover,
+.inlineCacheButton:hover {
+  border-color: var(--flow-line-strong);
+  background: var(--flow-paper);
+}
+
 /* More Trigger */
 .moreTrigger {
   display: flex;
@@ -548,6 +589,10 @@
 .moreWorldCardSelected {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.moreWorldCardWithCache {
+  padding-right: calc(10 * var(--final-flow-density-px));
 }
 
 /* Empty Hint */
@@ -1082,6 +1127,8 @@
 /* Disabled States */
 .sourceTabs button:disabled,
   .worldCard:disabled,
+  .cacheButton:disabled,
+  .inlineCacheButton:disabled,
   .moreWorldCard:disabled,
   .moreTrigger:disabled,
   .difficultyOptions:disabled,
@@ -1095,12 +1142,88 @@
 }
 
 .difficultyOptions:focus-visible,
+.cacheButton:focus-visible,
+.inlineCacheButton:focus-visible,
 .eraFieldset > button:focus-visible {
   outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 55%, transparent);
   outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
+.cacheDialogLayer {
+  position: absolute;
+  z-index: 140;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(22 * var(--final-flow-density-px));
+  background: rgba(40, 50, 75, .22);
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.cacheDialog {
+  width: 100%;
+  padding: calc(17 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
+  border-radius: calc(18 * var(--final-flow-density-px));
+  background: var(--surface);
+  box-shadow: 0 calc(18 * var(--final-flow-density-px)) calc(44 * var(--final-flow-density-px)) rgba(31, 39, 58, .19);
+}
+
+.cacheDialog h2 {
+  margin: 0;
+  font-size: calc(15 * var(--final-flow-density-px));
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.cacheDialog p {
+  margin: calc(7 * var(--final-flow-density-px)) 0 0;
+  color: var(--ink-soft);
+  font-size: calc(9 * var(--final-flow-density-px));
+  line-height: 1.55;
+}
+
+.cacheDialogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-top: calc(14 * var(--final-flow-density-px));
+}
+
+.cacheDialogActions button {
+  min-height: calc(38 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
+  border: 0;
+  border-radius: calc(11 * var(--final-flow-density-px));
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(9 * var(--final-flow-density-px));
+}
+
+.cacheDialogActions .cacheDialogConfirm {
+  background: var(--color-error-bg);
+  color: var(--color-error, #8a5663);
+  font-weight: 700;
+}
+
+.cacheDialogActions button:focus-visible {
+  outline: calc(2 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 55%, transparent);
+  outline-offset: calc(2 * var(--final-flow-density-px));
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .spinning,
   .directoryPanel[data-active="true"] {
     animation: none;
   }
@@ -1111,6 +1234,7 @@
 }
 
 .screen {
+      position: relative;
       display: flex;
       min-height: 0;
       flex-direction: column;

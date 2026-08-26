@@ -1,7 +1,7 @@
 /**
- * Purpose: Regress that the local historical-event ledger stays outside the 01 story Prompt.
+ * Purpose: Regress that confirmed world facts reach the 01 story Prompt through a read-only projection.
  * Owner: quality:narrative
- * Responsibility: Keep ledger facts local while the approved 01 messages remain field-whitelisted.
+ * Responsibility: Keep ledger ownership local while the approved 01 messages receive readable, scoped world facts.
  */
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
@@ -11,6 +11,7 @@ import { orchestrator } from '../../../../src/mods/mod-engine/subsystems/orchest
 import {
   HISTORICAL_EVENT_LEDGER_ID,
 } from '../../../../src/mods/mod-engine/helpers/historical-event-prompt-projection.ts'
+import { prepareNarrativeRoundPromptContext } from '../../../../src/mods/mod-engine/helpers/narrative-round-prompt-preparation.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 
 let failed = 0
@@ -301,6 +302,9 @@ const compiledWorldInput = JSON.parse(compiledSegments.userSegments[0])
 const compiledMemoryInput = JSON.parse(compiledSegments.userSegments[1])
 const compiledRoundInput = JSON.parse(compiledSegments.userSegments[2])
 const localLedgerState = ledgerSubsystem.collectState().data
+const eventInjectionText = '【本轮系统事件】潮门的第七响已经传到码头。'
+const injectedPrepared = prepareNarrativeRoundPromptContext(orchestrator, eventInjectionText)
+const injectedRoundInput = JSON.parse(buildSegmentedPrompt(narrativePrompt, injectedPrepared.promptContext).userSegments[2])
 
 assertOk(
   Array.isArray(localLedgerState.relevantEvents)
@@ -309,8 +313,8 @@ assertOk(
   'historical facts and candidates must continue to exist in their local ledger owner',
 )
 assertOk(
-  narrativePrompt.version === '7.4.1'
-    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.4.1',
+  narrativePrompt.version === '7.8.0'
+    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.8.0',
   'the story Prompt must use the approved 01 asset and version',
 )
 assertOk(
@@ -319,15 +323,18 @@ assertOk(
     && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史连续性事实', '角色'])
     && JSON.stringify(Object.keys(compiledRoundInput)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
     && Array.isArray(compiledRoundInput.本轮事实与方向)
-    && compiledRoundInput.本轮事实与方向.length === 6,
-  '01 must retain exactly three user messages and inject current due events only when available',
+    && compiledRoundInput.本轮事实与方向.length >= 5
+    && compiledRoundInput.本轮事实与方向.some((item) => item.includes('本轮事件材料'))
+    && compiledRoundInput.本轮事实与方向.some((item) => item.includes('历史事件账本'))
+    && !compiledRoundInput.本轮事实与方向.some((item) => item.startsWith('叙述风格：')),
+  '01 must retain exactly three user messages, omit unset custom style, and inject scoped world facts when available',
 )
 assertOk(
   promptContext.subsystemSummaries.length === 0,
   '01 PromptContext must not expose subsystem status summaries',
 )
 const forbiddenPromptValues = [
-  ...ledgerContract.relevantEvents.flatMap((item) => [item.eventId, item.description]),
+  ...ledgerContract.relevantEvents.map((item) => item.eventId),
   ...ledgerContract.relevantCausalEdges.map((item) => item.edgeId),
   dueCandidate.candidateId,
   dueCandidate.candidateId,
@@ -345,6 +352,13 @@ assertOk(
     && compiledRoundInput.当前到期事件[0].includes(dueCandidate.candidate.title)
     && compiledRoundInput.当前到期事件[0].includes(dueCandidate.candidate.description),
   '01 current due events must expose only readable time/title/fact content',
+)
+assertOk(
+  injectedRoundInput.本轮事实与方向.filter((item) => item.includes(eventInjectionText)).length === 1
+    && injectedRoundInput.本轮事实与方向.some((item) => item.includes('这些材料作为本轮事实参考'))
+    && !JSON.stringify(injectedRoundInput).includes('candidate:prompt-due')
+    && !JSON.stringify(injectedRoundInput).includes('candidate-audit:prompt-due'),
+  '01 must carry one readable lifecycle event through the shared prompt-preparation path without leaking candidate internals',
 )
 
 assertOk(

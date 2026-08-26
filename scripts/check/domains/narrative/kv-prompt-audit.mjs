@@ -66,9 +66,18 @@ if (segments.userSegments.some((segment) => /⟦(?:全局信息|记忆|本轮事
 }
 try {
   const parsed = JSON.parse(COMPILED_NARRATIVE_SYSTEM_PROMPT)
-  const expectedKeys = ['身份', '目标', '输入映射', '决策流程', '正文规则', '终态边界', '输出契约']
-  if (JSON.stringify(Object.keys(parsed)) !== JSON.stringify(expectedKeys)) {
-    fail('main narrative fixed Prompt must keep the approved 01 top-level order')
+   const expectedKeys = ['身份', '目标', '输出契约']
+   if (JSON.stringify(Object.keys(parsed)) !== JSON.stringify(expectedKeys)) {
+     fail('main narrative fixed Prompt must contain one reasonable-narrative target and the output contract')
+   }
+   if (parsed.身份 !== '故事叙事生成器' || !parsed.目标?.includes('合理的当前故事') || parsed.目标.includes('连贯、可继续')) {
+     fail('main narrative fixed Prompt must contain only the reasonable-narrative target')
+   }
+  if (!parsed.输出契约?.字段定义 || !Array.isArray(parsed.输出契约?.不变量)) {
+    fail('main narrative fixed Prompt must expose field definitions and invariants')
+  }
+   for (const forbiddenKey of ['输入映射', '决策流程', '正文规则', '终态边界']) {
+    if (Object.prototype.hasOwnProperty.call(parsed, forbiddenKey)) fail(`main narrative fixed Prompt must not retain ${forbiddenKey}`)
   }
 } catch {
   fail('main narrative fixed Prompt must be valid JSON')

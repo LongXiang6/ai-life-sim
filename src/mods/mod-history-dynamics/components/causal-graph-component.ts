@@ -1,4 +1,8 @@
 /**
+ * Purpose: Maintain historical causal-edge projections for the ledger owner.
+ * Owner: mod-history-dynamics
+ * Responsibility: Causal graph data operations only; event truth and persistence stay in the ledger.
+ *
  * @module causal-graph-component.ts
  * @description P1 内部因果图组件；无 ISubSystem、无独立队列、无正文语义猜测
  * @mod mod-history-dynamics
@@ -13,6 +17,7 @@ import type {
 } from '@/foundation'
 
 import { cloneValue, createLedgerId } from '../utils'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 
 export interface CausalGraphValidationResult {
   ok: boolean
@@ -54,6 +59,8 @@ export class CausalGraphComponent {
     source: HistoricalEventSource,
     context: HistoricalEventValidationContext,
   ): HistoricalCausalEdge {
+    const createdBasePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
     return {
       edgeId: input.edgeId?.trim() || createLedgerId('causal-edge'),
       fromEventId: input.fromEventId,
@@ -64,7 +71,8 @@ export class CausalGraphComponent {
       evidenceIds: cloneValue(input.evidenceIds ?? []),
       source: cloneValue(source),
       createdRoundSequence: context.roundSequence,
-      createdTotalDays: context.totalDays,
+      createdBasePoints,
+      createdTotalDays: calendarDaysFromBasePoints(createdBasePoints),
     }
   }
 }

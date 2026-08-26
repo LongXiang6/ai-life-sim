@@ -666,6 +666,13 @@
   line-height: 1.45;
 }
 
+.advanceText {
+  display: grid;
+  grid-template-rows: minmax(25px, auto) minmax(12px, auto);
+  min-height: 47px;
+  align-content: center;
+}
+
 .advanceText small,
 .settleBtn small {
   margin-top: 4px;

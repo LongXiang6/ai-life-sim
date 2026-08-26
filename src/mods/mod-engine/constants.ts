@@ -11,11 +11,17 @@
  */
 
 import type { EngineConfig, } from './types'
+import {
+  BASE_POINTS_PER_YEAR,
+  CALENDAR_DAYS_PER_YEAR,
+} from '@/foundation'
 
 /** 历法常量 */
 export const CALENDAR = {
   /** 每年正常天数 */
-  DAYS_PER_YEAR: 365,
+  DAYS_PER_YEAR: CALENDAR_DAYS_PER_YEAR,
+  /** 每年基础模拟点数；事件轮次按此值分配。 */
+  BASE_POINTS_PER_YEAR,
   /** 每年月数 */
   MONTHS_PER_YEAR: 12,
   /** 每月天数（1月~12月，真实公历分布，2月28天） */
@@ -83,7 +89,7 @@ export const REIGN_DURATION = 40
 /** 默认引擎配置 */
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   model: 'deepseek-chat',
-  timeStep: { unit: 'year', value: 1, },
+  timeStep: { unit: 'year', value: 1 },
   temperature: 0.8,
 }
 
@@ -114,4 +120,4 @@ export const STORAGE_KEYS = {
 /**
  * 主故事 Prompt 保留的最近完整故事轮数；更早内容读取逐轮压缩派生记忆。
  */
-export const RECENT_NARRATIVE_WINDOW = 3
+export const RECENT_NARRATIVE_WINDOW = 5

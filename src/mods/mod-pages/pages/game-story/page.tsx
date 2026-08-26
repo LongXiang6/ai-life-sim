@@ -299,8 +299,6 @@ export default function GamePage() {
         advanceHint: narrativeAdvanceHint,
         isGenerating: isAdvancing,
         showGenerationCursor: isAdvancing && !hasVisiblePendingNarrative,
-        generatingText: hasVisiblePendingNarrative ? '本轮正在完成' : '命书正在续写……',
-        generatingHint: hasVisiblePendingNarrative ? '故事已返回，正在完成本轮' : '下一段人生正在生成',
         hasEndingEvent: isDead,
         onAdvance: handleNarrativeAdvance,
         onGoToGameOver: handleGoToGameOver,

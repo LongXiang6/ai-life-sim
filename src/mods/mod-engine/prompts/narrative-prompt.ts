@@ -14,11 +14,11 @@
 import type { PromptTemplate } from '@/foundation'
 
 /** 公开 ID 只用于请求服务端资产；不包含任何固定 Prompt 文本。 */
-export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:7.4.1'
+export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:7.8.0'
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '7.4.1',
+  version: '7.8.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID,

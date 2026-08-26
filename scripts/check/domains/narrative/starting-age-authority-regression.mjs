@@ -127,11 +127,6 @@ const storeAgeProperty = storeArgument && ts.isObjectLiteralExpression(storeArgu
       ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === 'age')
   : undefined
 
-const applyRoundChangesCall = handleStartLife && findDescendant(handleStartLife, (node) =>
-  isNamedCall(node, 'orchestrator', 'applyRoundChanges'),
-)
-const manualChangesArgument = applyRoundChangesCall?.arguments[0]
-const manualChangesText = manualChangesArgument?.getText(sourceFile) ?? ''
 const ageSyncIndex = handleBody.indexOf('useCharacterStore.setState({ age: startingAge })')
 const contextSyncIndex = handleBody.indexOf('ensureOrchestratorContextFromStores()')
 const characterStateIndex = handleBody.indexOf('setCharacterBase({')
@@ -197,28 +192,30 @@ assertOk(
   'handleStartLife must sync the character store age from startingAge',
 )
 assertOk(
-  /id:\s*'destiny-pattern'/.test(manualChangesText)
-    && !/id:\s*'(character-base|lifespan)'/.test(manualChangesText),
-  'handleStartLife must commit only selected destiny patterns after character-base consumes the confirmed draft',
+  !handleBody.includes('orchestrator.applyRoundChanges([')
+    && !handleBody.includes("id: 'destiny-pattern'")
+    && !handleBody.includes('MAX_CREATION_COMMIT_ATTEMPTS')
+    && !handleBody.includes('isTransientCreationCommitReason'),
+  'handleStartLife must pass the already-confirmed Store loadout into the core context without a page-level destiny re-commit or retry gate',
 )
 assertOk(!/\bage\s*:\s*0\b/.test(handleBody), 'handleStartLife must not hard-reset any age field to 0')
 assertOk(
   handleBody.includes('if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return'),
-  'handleStartLife must enforce creation and local world-readiness prerequisites even if invoked outside the disabled button',
+  'handleStartLife must enforce character, four-slot loadout, and local world-readiness prerequisites even if invoked outside the disabled button',
 )
 assertOk(
-  handleBody.includes('MAX_CREATION_COMMIT_ATTEMPTS')
-    && handleBody.includes('commitResult.rejected.length === 0')
-    && handleBody.includes('commitResult.committed.length === 1')
-    && handleBody.includes('isTransientCreationCommitReason'),
-  'handleStartLife must retry transient creation-commit readiness failures and stop on a complete commit',
+  /allModsLoaded|核心模拟系统尚未加载完成/u.test(handleBody)
+    && handleBody.includes('ensureOrchestratorContextFromStores()'),
+  'handleStartLife must retain the core-runtime readiness check and restore the engine context from Store state',
 )
 assertOk(
   sourceText.includes('const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)')
     && sourceText.includes('const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)')
     && sourceText.includes('const worldReady = worldInitialized && !!worldConfig && worldCode > 0')
-    && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}'),
-  'fate preview must require a complete four-slot pattern loadout, local world confirmation, and ready MOD runtime before start',
+    && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}')
+    && !sourceText.includes("getSubsystemBindings().some(({ id }) => id === 'destiny-pattern')")
+    && !sourceText.includes('命格系统尚未准备完成'),
+  'fate preview must require a complete four-slot pattern loadout, local world confirmation, and ready core runtime, without a destiny-subsystem binding gate',
 )
 assertOk(
   /export const PATTERN_LOADOUT_SLOT_COUNT = 4\b/.test(characterConstantsSourceText),

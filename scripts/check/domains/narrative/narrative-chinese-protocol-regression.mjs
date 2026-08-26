@@ -65,7 +65,6 @@ const promptContext = {
     本轮明确行动: '利用低潮窗口复测闸槽，确认安全后完成临时封堵。',
     当前可叙述状态: '不应发送',
   },
-  narrativeStyle: '保留古典用词质感，但使用略微白话、直接易读的句式。',
   wordCountInstruction: '正文约 300 字',
   subsystemStates: { hidden: true },
 }
@@ -81,27 +80,24 @@ assertOk(
   JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['历史连续性事实', '角色']),
   '01 第二条消息必须先连续性事实，再角色',
 )
-assertOk(
-  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['本轮事实与方向'])
-    && storyMessages[2].本轮事实与方向.length === 6
-    && storyMessages[2].本轮事实与方向[0].includes('317年4月')
-    && storyMessages[2].本轮事实与方向[1].startsWith('玩家行动：')
-    && storyMessages[2].本轮事实与方向[2].includes('角色当前19岁')
-    && storyMessages[2].本轮事实与方向[2].includes('故事保持合理挑战')
-    && storyMessages[2].本轮事实与方向[3].includes('第二人称“你”')
-    && storyMessages[2].本轮事实与方向[5] === '字数要求：正文约300字。',
-  '01 第三条消息必须只含时间、行动、年龄与难度、称呼、文风和篇幅六项事实与方向',
-)
-for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '当前角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[2]).本轮事实与方向[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
+const defaultFacts = storyMessages[2].本轮事实与方向
+assertOk(JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['本轮事实与方向']) && defaultFacts.length === 5 && defaultFacts[0].includes('时间窗口：317年4月') && defaultFacts[1].startsWith('玩家行动：') && defaultFacts[2].includes('角色当前19岁') && defaultFacts[2].includes('超出能力的行动不得直接视为已完成') && defaultFacts[3].includes('第二人称“你”') && defaultFacts[3].includes('不规定叙事主语') && defaultFacts[4] === '字数要求：正文约300字。' && !defaultFacts.some((item) => item.startsWith('叙述风格：')) && !defaultFacts.join('\n').includes('保留古典用词质感'), '01 无自定义文风时第三条消息不得追加叙述风格项或旧默认文风')
+const roundFactsFor = (narrativeStyle) => JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeStyle }).userSegments[2]).本轮事实与方向
+const rawCustomStyle = '  用克制短句写潮湿空气。\n第二行  保留两个空格。  '
+const customStyleFacts = roundFactsFor(rawCustomStyle)
+const customStyleFact = customStyleFacts.find((item) => item.startsWith('叙述风格：'))
+assertOk(customStyleFact === `叙述风格：${rawCustomStyle}` && !customStyleFact.includes('窗口覆盖义务') && customStyleFacts[0].includes('时间窗口：317年4月') && !customStyleFacts[0].includes('至少完成一条主事件链'), '01 非空自定义文风逐字保留，时间项只提供时间边界')
+assertOk(['', '  \n\t  '].every((style) => !roundFactsFor(style).some((item) => item.startsWith('叙述风格：'))), '01 空文风或纯空白文风必须省略叙述风格项')
+for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[2]).本轮事实与方向[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
 const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
   characterStatusView: { 年龄: 1 },
 })
 const infantGuidance = JSON.parse(infantSegments.userSegments[2]).本轮事实与方向
 assertOk(
-  infantGuidance[2].includes('叙事以在照料下感知、哭闹、抓握、爬行或扶物蹒跚为主')
-    && infantGuidance[2].includes('本轮事件与选择由照料者、监护人和环境承载'),
-  '01 必须把 1 岁角色限制为依赖照料的婴幼儿行动，不得写成学龄儿童或成人',
+  infantGuidance[2].includes('角色当前1岁')
+    && infantGuidance[2].includes('行动须符合其年龄、身体、知识、身份'),
+  '01 必须保留年龄与能力边界，但不把低龄生活细节写成叙事模板',
 )
 const dueSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
@@ -313,40 +309,37 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.4.1'
-    && narrativeStoryContinuityPrompt.version === '2.7.0'
-    && narrativeTalentGrowthPrompt.version === '3.3.0'
+  narrativePrompt.version === '7.8.0'
+    && narrativeStoryContinuityPrompt.version === '2.8.0'
+    && narrativeTalentGrowthPrompt.version === '3.4.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('把玩家行动视为已经选定的做法')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前时间、玩家行动、年龄边界、挑战与失败取向、称呼方式、叙述风格和字数要求')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('角色当前身份、当前年龄、能力语义与天赋')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('0至2岁写婴幼儿能够成立的感知')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前已生效天赋')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前到期事件中的每项都要在正文中实际处理')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"当前到期事件":')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('本轮记忆')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('每条事实只用最精简的现代白话')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('领悟某事可以直接作为已经发生的事实')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('不得把同一持续行动链按场景、地点或段落拆开')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('不因某个词单独删除或强制改写事实')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('构成因果链或能力边界的必要内容不得省略')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('关键发现')
-    && !COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('不得用领悟')
-    && COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('客观最简白话事实')
-    && !COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('输出示例')
-    && !COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT.includes('317年')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('转变强化改变作用方式，不额外扩大影响总量')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('长期积累')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('时间沉淀')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('明确契机')
-    && COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('三项共同成立')
-    && !COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('不得转为直接'),
-  '固定 Prompt 必须与 01/02/03 样品语义一致',
+  (() => {
+    let parsed
+    try {
+      parsed = JSON.parse(COMPILED_NARRATIVE_SYSTEM_PROMPT)
+    } catch {
+      return false
+    }
+    return JSON.stringify(Object.keys(parsed)) === JSON.stringify(['身份', '目标', '输出契约'])
+      && parsed.身份 === '故事叙事生成器'
+      && parsed.目标.includes('合理的当前故事')
+      && !parsed.目标.includes('连贯、可继续')
+      && parsed.输出契约?.调用?.includes('submit_story_turn')
+      && parsed.输出契约?.字段定义?.正文?.includes('非空字符串')
+      && parsed.输出契约?.字段定义?.分支?.includes('选项')
+      && parsed.输出契约?.字段定义?.结局?.includes('四字评语')
+      && Array.isArray(parsed.输出契约?.不变量)
+      && parsed.输出契约.不变量.some((item) => item.includes('顶层恰好包含正文、分支、结局三个键'))
+      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界故事模拟器')
+      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
+      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
+      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程')
+  })(),
+  '固定主故事 Prompt 只增加唯一合理叙事目标并保留输出结构协议，02/03 固定资产继续保留各自状态提取职责',
 )
 
-if (failed > 0) process.exit(1)
-console.log('[narrative-chinese-protocol-regression] PASS')
+if (failed > 0) process.exit(1); console.log('[narrative-chinese-protocol-regression] PASS')

@@ -514,13 +514,14 @@ assertOk(
   'WF2 world select must use the native responsive viewport with a shared viewport-anchored bottom bar',
 )
 assertOk(
-  !worldSelectMainGridSrc.includes('handleRequestClearWorldCache')
-    && !worldSelectDirectorySrc.includes('handleRequestClearWorldCache')
-    && !worldSelectLogicSrc.includes('useWorldSelectCache')
-    && !worldSelectCssSrc.includes('cacheButton')
+  worldSelectMainGridSrc.includes('handleRequestClearWorldCache')
+    && worldSelectDirectorySrc.includes('handleRequestClearWorldCache')
+    && worldSelectLogicSrc.includes('useWorldSelectCache')
+    && worldSelectCssSrc.includes('cacheButton')
+    && worldSelectMobileSrc.includes('WorldSelectCacheResetDialog')
     && !fs.existsSync(path.join(root, 'src/mods/mod-world/utils/world-generated-cache.ts'))
-    && !fs.existsSync(path.join(root, 'src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx')),
-  'world selection must not expose the retired AI generation-cache controls or state',
+    && fs.existsSync(path.join(root, 'src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx')),
+  'world selection must expose only the current per-world cache reset controls',
 )
 assertOk(!bottomActionBarSrc.includes('confirmArrow') && bottomActionBarSrc.includes('styles.actionCopy'), 'finalized bottom actions must use two-line text without a trailing arrow glyph')
 assertOk(worldSelectMobileSrc.trimEnd().split('\n').length <= 200, 'world select mobile composer must stay at or below the 200-line UI limit')

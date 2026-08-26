@@ -86,6 +86,39 @@ export type NarrativeAIStoryResult = z.infer<typeof NarrativeAIStoryResultSchema
 export type NarrativeAITalentGrowthData = z.infer<typeof NarrativeAITalentGrowthDataSchema>
 export type NarrativeAIStoryContinuityData = z.infer<typeof NarrativeAIStoryContinuityDataSchema>
 
+const NarrativeAIWorldSimulationCategories = [
+  '环境', '社会', '经济', '政治', '生态', '技术', '迁徙', '发现', '风险', '机遇',
+] as const
+
+const NarrativeAIWorldSimulationIntensities = ['轻微', '中等', '重大'] as const
+
+const NarrativeAIWorldSimulationRelations = [
+  '导致', '使之成为可能', '阻止', '解决', '放大', '传播到',
+] as const
+
+export const NarrativeAIWorldSimulationEventSchema = z.object({
+  标题: z.string().trim().min(1).max(80),
+  类别: z.enum(NarrativeAIWorldSimulationCategories),
+  强度: z.enum(NarrativeAIWorldSimulationIntensities),
+  描述: z.string().trim().min(1).max(1000),
+  影响区域: z.string().trim().min(1).max(200),
+  触发条件: z.string().trim().max(200),
+  冷却: z.number().int().min(0).max(99),
+})
+
+export const NarrativeAIWorldSimulationCausalEdgeSchema = z.object({
+  前因: z.string().trim().min(1).max(80),
+  后果: z.string().trim().min(1).max(80),
+  关系: z.enum(NarrativeAIWorldSimulationRelations),
+})
+
+export const NarrativeAIWorldSimulationResultSchema = z.object({
+  世界变化: z.array(NarrativeAIWorldSimulationEventSchema).min(0).max(5),
+  因果边: z.array(NarrativeAIWorldSimulationCausalEdgeSchema).min(0),
+})
+
+export type NarrativeAIWorldSimulationResult = z.infer<typeof NarrativeAIWorldSimulationResultSchema>
+
 /** Read one JSON candidate; field ownership remains with each post-call normalizer. */
 export function parseNarrativeAIJson(source: string): unknown {
   const parsed = parseAIJSON(source)

@@ -7,23 +7,30 @@
 export type CausalEventType = 'kindness' | 'grudge' | 'promise' | 'debt'
 export type CausalSeverity = 'minor' | 'normal' | 'major' | 'critical'
 export type CausalEventScope = 'global' | 'context' | 'travel'
-export type CausalSchedule = 'canonical-days' | 'legacy-round'
+export type CausalSchedule = 'canonical-points' | 'legacy-round'
+export type LegacyCausalSchedule = CausalSchedule | 'canonical-days'
 
 export interface CausalEventRegistration {
   scope: CausalEventScope
   contextId?: string
+  createdBasePoints?: number
+  /** @deprecated 仅用于旧存档/调用边界迁移。 */
   createdTotalDays?: number
   originEventId?: string
   originNarrativeId?: string
 }
 
 export interface CausalTriggerCheckOptions {
+  currentBasePoints?: number
+  /** @deprecated 仅用于旧调用边界迁移。 */
   currentTotalDays?: number
   scope?: CausalEventScope
   contextId?: string
 }
 
 export interface CausalTriggerCommitOptions {
+  currentBasePoints?: number
+  /** @deprecated 仅用于旧调用边界迁移。 */
   currentTotalDays?: number
   resolutionEventId?: string
 }
@@ -40,8 +47,13 @@ export interface CausalEvent {
   description: string
   relatedPerson?: string
   relatedFaction?: string
-  schedule: CausalSchedule
+  schedule: LegacyCausalSchedule
+  createdBasePoints?: number
+  dueBasePoints?: number
+  triggeredBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   createdTotalDays?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   dueTotalDays?: number
   triggerDelay?: number
   originEventId?: string
@@ -52,6 +64,7 @@ export interface CausalEvent {
   presentedRound?: number
   triggered: boolean
   triggeredRound?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   triggeredTotalDays?: number
   resolutionEventId?: string
   triggerResult?: string
@@ -64,6 +77,8 @@ export interface CausalTriggerResult {
 }
 
 export interface CausalConfig {
+  delayBasePointsBySeverity: Record<CausalSeverity, number>
+  /** @deprecated 派生日历快照；设置时会迁移到 delayBasePointsBySeverity。 */
   delayDaysBySeverity: Record<CausalSeverity, number>
 }
 
@@ -71,11 +86,19 @@ export interface CausalDispositionInput {
   causalId: string
   status: 'resolved' | 'continuing' | 'not-touched'
   reason: string
+  continuationDelayBasePoints?: number
+  /** @deprecated 仅用于旧协议边界迁移。 */
   continuationDelayDays?: number
   resolutionEventId?: string
 }
 
 export const DEFAULT_CAUSAL_CONFIG: CausalConfig = {
+  delayBasePointsBySeverity: {
+    minor: 82,
+    normal: 247,
+    major: 493,
+    critical: 1000,
+  },
   delayDaysBySeverity: {
     minor: 30,
     normal: 90,
@@ -91,7 +114,7 @@ export const LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS: Record<CausalSeverity, number> 
   critical: 25,
 }
 
-export const CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION = 2 as const
+export const CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION = 3 as const
 
 export interface CausalDelaySnapshotV2 {
   schemaVersion: typeof CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION

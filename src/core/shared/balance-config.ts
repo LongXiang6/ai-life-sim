@@ -1,10 +1,15 @@
 /**
+ * Purpose: Provide shared balance constants and canonical annual-point rates.
+ * Owner: core/shared
+ * Responsibility: Cross-MOD numeric defaults only; subsystem state remains with each MOD.
+ *
  * @module balance-config.ts
  * @description 跨 MOD 平衡系数单一入口
  * @mod core/shared
  */
 
 import type { DifficultyLevel } from '@/foundation'
+import { BASE_POINTS_PER_YEAR } from '@/foundation'
 
 import { clamp } from './common-utils'
 
@@ -16,13 +21,13 @@ export type CharacterBalanceAttributeKey =
 
 export type NumericRange = readonly [number, number]
 
-/** 365 天制游戏年，和 TimeSystem / RoundContext.daysPassed 保持一致。 */
-export const BALANCE_DAYS_PER_YEAR = 365
+/** 每个自然年的业务基础点，和事件轮次时钟保持一致。 */
+export const BALANCE_POINTS_PER_YEAR = BASE_POINTS_PER_YEAR
 
 /**
  * 短步长最小可感知属性变化。
  *
- * 日/月步长按年缩放后会得到小于 1 的上限，AI 输出的明确变化会被钳成近零；
+ * 事件轮次按年缩放后会得到小于 1 的上限，AI 输出的明确变化会被钳成近零；
  * 因此只要本轮确实推进了时间，就允许至少 1 点变化，长步长仍按年上限放大。
  */
 export const MIN_PERCEPTIBLE_ATTRIBUTE_DELTA = 1
@@ -44,7 +49,7 @@ export const WORLD_DIFFICULTY_MULTIPLIERS: Readonly<Record<DifficultyLevel, numb
  * 角色基础属性每游戏年的 AI 增量上限。
  *
  * 四项基础属性沿用旧的一年步长 ±8 手感。
- * 实际单轮上限由 daysPassed / 365 缩放，避免日/月步长被 AI 一次拉爆。
+ * 实际单轮上限由 basePointsPassed / 1000 缩放，派生日历天数不参与业务速率。
  */
 export const CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR: Readonly<Record<CharacterBalanceAttributeKey, NumericRange>> = {
   physique: [-8, 8],
@@ -78,41 +83,41 @@ export function getWorldDifficultyMultiplier(
 }
 
 /**
- * 将本轮推进天数换算为游戏年数。
+ * 将本轮推进基础点换算为游戏年数。
  *
- * @param daysPassed - TimeSystem 注入的 RoundContext.daysPassed
+ * @param basePointsPassed - TimeSystem 注入的 RoundContext.basePointsPassed
  * @returns 非负游戏年数；非法输入按 0 处理
  *
  * @example
  * ```ts
- * getElapsedGameYears(365) // 1
- * getElapsedGameYears(30) // 约 0.0822
+ * getElapsedGameYears(1000) // 1
+ * getElapsedGameYears(250) // 0.25
  * ```
  */
-export function getElapsedGameYears(daysPassed: number): number {
-  if (!Number.isFinite(daysPassed) || daysPassed <= 0) return 0
-  return daysPassed / BALANCE_DAYS_PER_YEAR
+export function getElapsedGameYears(basePointsPassed: number): number {
+  if (!Number.isFinite(basePointsPassed) || basePointsPassed <= 0) return 0
+  return basePointsPassed / BALANCE_POINTS_PER_YEAR
 }
 
 /**
  * 解析某项角色属性在本轮允许的增量范围。
  *
  * @param key - 角色基础属性键
- * @param daysPassed - 本轮推进天数，来自 RoundContext.daysPassed
+ * @param basePointsPassed - 本轮推进基础点，来自 RoundContext.basePointsPassed
  * @returns 已按本轮游戏时间缩放后的 [min, max] 范围
  *
  * @example
  * ```ts
- * resolveCharacterAttributeDeltaLimit('physique', 1) // [-1, 1]
- * resolveCharacterAttributeDeltaLimit('physique', 365) // [-8, 8]
+ * resolveCharacterAttributeDeltaLimit('physique', 250) // [-2, 2]
+ * resolveCharacterAttributeDeltaLimit('physique', 1000) // [-8, 8]
  * ```
  */
 export function resolveCharacterAttributeDeltaLimit(
   key: CharacterBalanceAttributeKey,
-  daysPassed: number,
+  basePointsPassed: number,
 ): NumericRange {
   const [min, max] = CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR[key]
-  const elapsedYears = getElapsedGameYears(daysPassed)
+  const elapsedYears = getElapsedGameYears(basePointsPassed)
   if (elapsedYears <= 0) return [0, 0]
 
   const scaledMin = min * elapsedYears
@@ -131,19 +136,19 @@ export function resolveCharacterAttributeDeltaLimit(
  *
  * @param rawDelta - AI 或兜底提取出的原始增量
  * @param key - 角色基础属性键
- * @param daysPassed - 本轮推进天数，来自 RoundContext.daysPassed
+ * @param basePointsPassed - 本轮推进基础点，来自 RoundContext.basePointsPassed
  * @returns 钳制后的实际落地增量
  *
  * @example
  * ```ts
- * clampCharacterAttributeDelta(20, 'physique', 365) // 8
+ * clampCharacterAttributeDelta(20, 'physique', 1000) // 8
  * ```
  */
 export function clampCharacterAttributeDelta(
   rawDelta: number,
   key: CharacterBalanceAttributeKey,
-  daysPassed: number,
+  basePointsPassed: number,
 ): number {
-  const [min, max] = resolveCharacterAttributeDeltaLimit(key, daysPassed)
+  const [min, max] = resolveCharacterAttributeDeltaLimit(key, basePointsPassed)
   return clamp(rawDelta, min, max)
 }

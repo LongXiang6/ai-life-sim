@@ -11,15 +11,15 @@ import {
 } from '@/foundation'
 
 // ============================================================
-// 叙事风格（4 种）—— Prompt 指令文本
+// 历史叙事风格映射（仅供旧存档迁移；运行时只消费用户保存的自定义文本）
 // ============================================================
 
 /** 叙事风格 ID */
 export type NarrativeStyleId = 'default' | 'epic' | 'realistic' | 'poetic'
 
-/** 叙事风格 Prompt 指令 */
+/** 旧版叙事风格 Prompt 指令；default 保持为空，不能作为运行时回退。 */
 export const NARRATIVE_STYLE_PROMPTS: Record<NarrativeStyleId, string> = {
-  default: '【叙事风格：剧情默认】根据世界事实、人生阶段和时间跨度选择合理剧情材料，再按当前时间尺度写角色亲历的具体事件或阶段节点。语言自然克制，少用作文式开头、主题升华、空泛总结或报告腔。',
+  default: '',
   epic: '【叙事风格：史诗】宏大感来自时代格局与角色命运之间可追踪的联系。可以有历史感和象征，但必须服从当前时间尺度：日级选择足以折射格局的具体事件，长跨度选择前后承接的时代节点，再写角色或其延续主体的行动与结果。',
   realistic: '【叙事风格：写实】以现实条件、社会规则和人物动机推进剧情。多写行动、对话、手续、资源状况和关系反应；少用报告腔、抒情作文和无因巧合。',
   poetic: '【叙事风格：诗意】意象服务已经发生的剧情变化和人物选择。可以语言凝练、有画面感，但每段仍尽量推进事件、关系或结果；少写成散文化独白或纯情绪描写。',
@@ -62,37 +62,18 @@ export function resolveNarrativeWordCountRange(target: unknown): NarrativeWordCo
   }
 }
 
-const NARRATIVE_DENSITY_INSTRUCTIONS: Record<NarrativeWordCountTarget, string> = {
-  50: '写成一个短段、1至2个短句；只保留本轮视角不可缺少的因果节点，每句都推进时间、行动或格局。',
-  100: '写成1至2个短段、2至3个短句；压缩背景，把篇幅用于本轮视角要求的起点、变化和结果。',
-  150: '写成2个短段、3至4个短句；按本轮视角分配关键节点，每句增加新的行动、关系或阶段变化。',
-  200: '写成2至3个短段、4至6个短句；按本轮视角分配必要节点，每句推进时间、行动、关系或格局，不重复铺陈。',
-  250: '写成2至3个短段、5至7句；围绕同一因果主线展开本轮视角要求的节点，并形成明确新格局。',
-  300: '写成3至4个短段、6至8句；完整覆盖本轮视角要求的起点、推进、阶段变化与结果。',
-  400: '充分展开同一因果主线，按本轮视角分配行动、关系、环境和阶段变化。',
-  500: '分层呈现本轮视角要求的条件、行动、关系回应和后续格局。',
-  600: '围绕同一主线安排两到三个连续节拍或阶段节点，兼顾人物反应、环境变化与结果。',
-  700: '展开多节拍或多阶段因果，让行动、关系、内在判断和外部后果相互推进。',
-  800: '细致呈现完整因果链，允许次要人物或局部变化，但始终服务本轮视角与主线。',
-  1000: '以章节级密度展开关键互动、阶段变化及其直接和延迟结果。',
-  1200: '写成完整章节，充分呈现本轮视角要求的起点、发展、关键变化、结果与余波。',
-  1500: '写成长章节，以多个连续场景或阶段节点推进同一因果主线，并完成关键人物或延续主体的变化。',
-  1800: '写成层次完整的长章节，容纳多场景或多阶段推进、关系变化、关键节点和明确收束。',
-  2000: '写成充分展开的长章节，完整覆盖本轮因果链、人物群像反应、阶段变化、结果、余波与下一局面。',
-}
-
 /**
- * 根据大致字数生成 Prompt 字数约束文本
+ * 根据玩家偏好生成宽松的字数目标，不规定段落、句数或叙事节拍。
  */
 export function buildWordCountInstruction(target: NarrativeWordCountTarget): string {
   const normalizedTarget = resolveNarrativeWordCountTarget(target)
-  return `正文约${normalizedTarget}字。${NARRATIVE_DENSITY_INSTRUCTIONS[normalizedTarget]}`
+  return `正文约${normalizedTarget}字。`
 }
 
 export { DEFAULT_WORD_COUNT_TARGET }
 
 /**
- * 根据叙事风格生成 Prompt 风格指令
+ * 读取旧版叙事风格映射；主叙事运行时不调用此函数作为文风回退。
  */
 export function buildStyleInstruction(style: NarrativeStyleId): string {
   return NARRATIVE_STYLE_PROMPTS[style] || ''

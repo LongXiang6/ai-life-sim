@@ -6,8 +6,10 @@
 
 import {
   CHARACTER_DAYS_PER_YEAR,
-  resolveCharacterAgeDays,
-  resolveInitialAgeAnchorTotalDays,
+  basePointsFromCalendarDays,
+  calendarDaysFromBasePoints,
+  resolveCharacterAgeDaysFromBasePoints,
+  resolveInitialAgeAnchorBasePoints,
   type CharacterConditionState,
   type CharacterFortuneLevel,
   type CharacterLifeStageDefinition,
@@ -120,18 +122,22 @@ export function refreshCharacterGuidance(status: CharacterNarrativeStatus): Char
 export function createCharacterNarrativeStatus(input: {
   entityId?: string
   startingAgeYears: number
-  totalDays: number
+  totalBasePoints: number
+  totalDays?: number
   lifespanDraft: LifespanDraftState
   lifeStageTemplate?: CharacterLifeStageDefinition[]
 }): CharacterNarrativeStatus {
   const maximumLifespanDays = Math.max(1, Math.round(input.lifespanDraft.maximumLifespanYears * CHARACTER_DAYS_PER_YEAR))
+  const ageAnchorBasePoints = resolveInitialAgeAnchorBasePoints(input.totalBasePoints)
+  const derivedTotalDays = input.totalDays ?? calendarDaysFromBasePoints(input.totalBasePoints)
   const fortune = { value: 0, level: 'ordinary' as const, guidance: fortuneGuidance('ordinary') }
   const status: CharacterNarrativeStatus = {
     ...(input.entityId ? { entityId: input.entityId } : {}),
     raceId: input.lifespanDraft.raceId,
     raceName: input.lifespanDraft.race.name,
     clockMode: input.lifespanDraft.race.clockMode,
-    ageAnchorTotalDays: resolveInitialAgeAnchorTotalDays(input.totalDays),
+    ageAnchorBasePoints,
+    ageAnchorTotalDays: calendarDaysFromBasePoints(ageAnchorBasePoints),
     ageDays: Math.max(0, Math.round(input.startingAgeYears * CHARACTER_DAYS_PER_YEAR)),
     maximumLifespanDays,
     lifeStages: scaleLifeStages(input.lifeStageTemplate, maximumLifespanDays),
@@ -143,11 +149,11 @@ export function createCharacterNarrativeStatus(input: {
       spirit: DEFAULT_SPIRIT,
       alive: true,
       conditions: [],
-      updatedAtTotalDays: input.totalDays,
+      updatedAtTotalDays: derivedTotalDays,
     },
     fortune,
     guidance: [],
-    lastAnalyzedAtTotalDays: input.totalDays,
+    lastAnalyzedAtTotalDays: derivedTotalDays,
   }
   status.endRisk = endRisk(status)
   return refreshCharacterGuidance(status)
@@ -156,10 +162,16 @@ export function createCharacterNarrativeStatus(input: {
 export function advanceCharacterNarrativeStatus(
   status: CharacterNarrativeStatus,
   startingAgeYears: number,
-  totalDays: number,
+  totalBasePoints: number,
 ): CharacterNarrativeStatus {
   const next = structuredClone(status)
-  next.ageDays = resolveCharacterAgeDays(startingAgeYears, totalDays, next.ageAnchorTotalDays)
+  const anchorBasePoints = typeof next.ageAnchorBasePoints === 'number'
+    && Number.isSafeInteger(next.ageAnchorBasePoints)
+    ? next.ageAnchorBasePoints
+    : basePointsFromCalendarDays(next.ageAnchorTotalDays)
+  next.ageAnchorBasePoints = anchorBasePoints
+  next.ageAnchorTotalDays = calendarDaysFromBasePoints(anchorBasePoints)
+  next.ageDays = resolveCharacterAgeDaysFromBasePoints(startingAgeYears, totalBasePoints, anchorBasePoints)
   next.endRisk = endRisk(next)
   return refreshCharacterGuidance(next)
 }

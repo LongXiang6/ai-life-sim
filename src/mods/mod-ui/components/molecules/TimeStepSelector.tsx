@@ -1,6 +1,8 @@
-'use client'
-
 /**
+ * Purpose: Render the selectable calendar and event-node pacing controls.
+ * Owner: mod-ui
+ * Responsibility: Present and emit a normalized TimeStep without owning time state.
+ *
  * @module TimeStepSelector.tsx
  * @description 时间步进选择器分子组件 —— 9 档时间步进选择（日/月/季/年/3/5/10/50/100/200/500/1000年）
  * @mod mod-ui
@@ -11,11 +13,13 @@
  *   - Depth：选中态背景色高亮，视觉反馈明确
  */
 
-import { AVAILABLE_TIME_STEPS } from '@/foundation'
+'use client'
+
+import { AVAILABLE_TIME_STEPS, type TimeStep } from '@/foundation'
 
 export interface TimeStepSelectorProps {
-  value: { unit: 'day' | 'month' | 'season' | 'year'; value: number }
-  onChange: (step: { unit: 'day' | 'month' | 'season' | 'year'; value: number }) => void
+  value: TimeStep
+  onChange: (step: TimeStep) => void
   className?: string
 }
 
@@ -25,9 +29,9 @@ function encodeTimeStep(step: { unit: string; value: number }): string {
 }
 
 /** 从字符串 key 解码时间步长 */
-function decodeTimeStep(key: string): { unit: 'day' | 'month' | 'season' | 'year'; value: number } {
+function decodeTimeStep(key: string): TimeStep {
   const [unit, value] = key.split(':')
-  return { unit: unit as 'day' | 'month' | 'season' | 'year', value: Number(value) }
+  return { unit: unit as TimeStep['unit'], value: Number(value) }
 }
 
 export function TimeStepSelector({ value, onChange, className = '' }: TimeStepSelectorProps) {

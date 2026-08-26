@@ -13,6 +13,7 @@ import {
   type DestinyPattern,
   type DestinyPatternGrowthHistoryEntry,
 } from '@/mods/mod-character'
+import { BASE_POINTS_PER_YEAR, basePointsFromCalendarDays, basePointsToCalendarDays } from '@/foundation'
 import type { RecentStoryProjection } from './recent-story-context'
 
 const NEXT_RARITY_LABEL: Readonly<Record<Exclude<DestinyPattern['rarity'], 'legendary' | 'mythic'>, string>> = {
@@ -36,7 +37,7 @@ export function getDestinyPatternMinimumEvidenceWindows(
 }
 
 const TALENT_GROWTH_COOLDOWN_ROUNDS = 20
-const TALENT_GROWTH_COOLDOWN_DAYS = 20 * 365
+const TALENT_GROWTH_COOLDOWN_BASE_POINTS = 20 * BASE_POINTS_PER_YEAR
 const TALENT_GROWTH_PER_LINEAGE_LIMIT = 2
 const TALENT_GROWTH_TOTAL_LIMIT = 6
 export const TALENT_GROWTH_MINIMUM_AGE = DESTINY_PATTERN_GROWTH_MINIMUM_AGE
@@ -73,7 +74,7 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
   compressedSummaries: CompressedSummaries
   recentStories: readonly RecentStoryProjection[]
   currentRound: number
-  totalDays: number
+  totalBasePoints: number
   currentAge: number
   growthHistory: readonly DestinyPatternGrowthHistoryEntry[]
   characterContext?: Record<string, unknown>
@@ -140,8 +141,10 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
     if (availableEvidenceWindows.length < minimumWindows) return false
     const roundReady = !lastGrowth
       || input.currentRound - lastGrowth.roundSequence >= TALENT_GROWTH_COOLDOWN_ROUNDS
+    const lastGrowthBasePoints = lastGrowth?.totalBasePoints
+      ?? basePointsFromCalendarDays(lastGrowth?.totalDays ?? 0)
     const timeReady = !lastGrowth
-      || input.totalDays - lastGrowth.totalDays > TALENT_GROWTH_COOLDOWN_DAYS
+      || input.totalBasePoints - lastGrowthBasePoints > TALENT_GROWTH_COOLDOWN_BASE_POINTS
     const eligible = roundReady
       && timeReady
     if (eligible) evidenceWindowsByLineage[pattern.lineageId] = availableEvidenceWindows
@@ -170,7 +173,8 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
   const growthHistorySummary = input.growthHistory.map((entry) => ({
     天赋血脉编号: entry.lineageId,
     成长回合: entry.roundSequence,
-    成长总天数: entry.totalDays,
+    成长基础点: entry.totalBasePoints ?? basePointsFromCalendarDays(entry.totalDays),
+    成长派生日历天数: entry.totalDays,
     结果名称: entry.result.name,
     结果等级: DESTINY_PATTERN_RARITY_CONFIG[entry.result.rarity].label,
   }))
@@ -185,7 +189,8 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
       }),
       JSON.stringify({
         当前回合: input.currentRound,
-        当前总天数: input.totalDays,
+        当前基础点: input.totalBasePoints,
+        当前派生日历天数: basePointsToCalendarDays(input.totalBasePoints),
         当前年龄: currentAge,
         玩家已选天赋: patterns,
         天赋成长历史: growthHistorySummary,

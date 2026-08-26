@@ -40,7 +40,8 @@ export interface PreparedRoundCommit {
     readonly contextId: string
     readonly characterId: string
     readonly roundSequence?: number
-    readonly totalDays: number
+    /** 年度基础点时钟中的冻结回合身份；totalDays 不参与业务身份校验。 */
+    readonly totalBasePoints: number
   }
   readonly changes: readonly SubSystemChanges[]
 }
@@ -66,6 +67,13 @@ const ENTITY_ID_LIST_FIELDS: ReadonlySet<string> = new Set([
 
 function resolvePlayerEntityAlias(value: unknown, context: RoundContext): unknown {
   return value === 'player:current' && context.characterId ? context.characterId : value
+}
+
+function requireRoundBasePoints(context: RoundContext): number {
+  if (!Number.isSafeInteger(context.totalBasePoints) || context.totalBasePoints < 0) {
+    throw new Error('回合提交上下文缺少有效 totalBasePoints')
+  }
+  return context.totalBasePoints
 }
 
 /** 将 Prompt 层唯一允许的当前玩家别名收口到真实稳定实体 ID。 */
@@ -95,6 +103,7 @@ export class RoundCommitBus {
   ) {}
 
   prepare(commit: RoundCommit, context: RoundContext): RoundCommitPreparationResult {
+    const totalBasePoints = requireRoundBasePoints(context)
     const rejected: RoundCommitRejected[] = []
     const prepared: SubSystemChanges[] = []
 
@@ -157,7 +166,7 @@ export class RoundCommitBus {
           contextId: context.contextId,
           characterId: context.characterId,
           roundSequence: context.roundSequence,
-          totalDays: context.totalDays,
+          totalBasePoints,
         },
         changes: structuredClone(prepared),
       },
@@ -169,6 +178,7 @@ export class RoundCommitBus {
     preparedCommit: PreparedRoundCommit,
     context: RoundContext,
   ): RoundCommitResult {
+    const totalBasePoints = requireRoundBasePoints(context)
     const committed: SubSystemChanges[] = []
     const rejected: RoundCommitRejected[] = []
     const identity = preparedCommit.contextIdentity
@@ -176,7 +186,7 @@ export class RoundCommitBus {
       identity.contextId !== context.contextId
       || identity.characterId !== context.characterId
       || identity.roundSequence !== context.roundSequence
-      || identity.totalDays !== context.totalDays
+      || identity.totalBasePoints !== totalBasePoints
     ) {
       return {
         committed,

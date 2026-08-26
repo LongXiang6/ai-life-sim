@@ -1,4 +1,8 @@
 /**
+ * Purpose: Define subsystem, round-context, and state-change contracts.
+ * Owner: foundation:types
+ * Responsibility: Provide the shared type boundary consumed by runtime subsystems.
+ *
  * @module subsystem.types.ts
  * @description 子系统接口类型定义 —— ISubSystem、状态快照、变更指令、回合上下文
  * @mod foundation
@@ -34,10 +38,16 @@ export interface SubSystemChanges {
   changes: Record<string, unknown>,
 }
 
-/** 时间步长（365 天历法） */
+/** Canonical player-facing time-step units. */
+export type TimeStepUnit = 'year' | 'event'
+
+/** Legacy persisted units accepted only by migration/decoding boundaries. */
+export type LegacyTimeStepUnit = TimeStepUnit | 'day' | 'month' | 'season'
+
+/** 时间步长（年或年内事件轮次） */
 export interface TimeStep {
   /** 步长单位 */
-  unit: 'day' | 'month' | 'season' | 'year'
+  unit: TimeStepUnit
   /** 步长值 */
   value: number,
 }
@@ -57,6 +67,10 @@ export interface RoundContext {
     year: number,
     season: number,
     month: number,
+    /** 事件节点模式下本年已消费的节点数（跨年后从0开始）。 */
+    eventNodeIndex?: number,
+    /** 事件节点模式下本年的节点预算。 */
+    eventNodeCount?: number,
   },
   /** 时间步长 */
   timeStep: TimeStep,
@@ -66,13 +80,13 @@ export interface RoundContext {
   subsystemStates: Record<string, SubSystemState>,
   /** 引擎累计推进次数（每轮 +1，用于子系统幂等 guard） */
   roundSequence?: number,
-  /**
-   * 本轮推进天数（自上次推进以来的天数增量，整数，唯一时间增量源）
-   * 由 TimeSystem 产出（TimeSystem.getDaysPassed()），子系统只读。
-   * 取代旧的 ageYearsDelta / simulationTicks / calendarDaysDelta（已删除）。
-   */
+  /** 本轮推进的年度基础点（唯一业务时间增量源）。 */
+  basePointsPassed: number,
+  /** 游戏累计年度基础点（每年固定 1000 点）。 */
+  totalBasePoints: number,
+  /** 派生日历增量，仅供旧显示/历史适配；业务速率不得读取。 */
   daysPassed: number,
-  /** 游戏总天数（整数，唯一权威累计时间源），由 TimeSystem 产出，子系统只读 */
+  /** 派生日历总天数，仅供日期/旧存档兼容。 */
   totalDays: number,
   /** 世界叙事锚定年（如 1991），0 = 未设定 */
   eraStartYear?: number,
@@ -218,10 +232,16 @@ export interface ReadonlyRoundContext {
     readonly year: number
     readonly season: number
     readonly month: number
+    readonly eventNodeIndex?: number
+    readonly eventNodeCount?: number
   }
   readonly timeStep: TimeStep
   readonly difficulty: 'normal' | 'hard' | 'nightmare' | 'hell'
   readonly subsystemStates: Readonly<Record<string, SubSystemState>>
+  readonly basePointsPassed: number
+  readonly totalBasePoints: number
+  readonly daysPassed: number
+  readonly totalDays: number
 }
 
 /**
@@ -267,4 +287,3 @@ export interface ISubSystemV3<
   // 方法签名继承自 ISubSystemV2，泛型参数仅作为类型级文档标记
   // 子系统实现时可以显式标注更具体的上下文类型
 }
-

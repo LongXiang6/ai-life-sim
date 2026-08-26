@@ -14,6 +14,7 @@ import {
   NarrativeAIBranchSchema,
   NarrativeAIStoryContinuityDataSchema,
   NarrativeAITalentGrowthDataSchema,
+  NarrativeAIWorldSimulationResultSchema,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 
 const root = getProjectRoot(import.meta.url)
@@ -37,12 +38,12 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.4\.1'/u)
-assert.match(sources.mainSystemPrompt, /人生模拟器的故事生成器/u)
+assert.match(sources.mainPrompt, /version: '7\.8\.0'/u)
+assert.match(sources.mainSystemPrompt, /输出契约/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
-assert.match(sources.mainSystemPrompt, /默认以第二人称‘你’作为当前角色的叙事主语/u)
-assert.match(sources.mainSystemPrompt, /历史连续性事实只用于识别已完成状态、持续关系和未解决结果/u)
-assert.match(sources.mainSystemPrompt, /本轮事实与方向提供称呼方式，则以该动态称呼方式为准/u)
+assert.match(sources.mainSystemPrompt, /submit_story_turn/u)
+assert.match(sources.mainSystemPrompt, /顶层恰好包含正文、分支、结局三个键/u)
+assert.doesNotMatch(sources.mainSystemPrompt, /世界故事模拟器|正文规则|终态边界|决策流程/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /最近两轮详细剧情|先读取最近两轮/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /examples\s*:/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /详细示例|示例正文|例如：/u)
@@ -51,7 +52,7 @@ assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你先观察', '你请求�
 assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查'] }).success, false)
 assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['一', '二', '三', '四', '五'] }).success, false)
 
-assert.match(sources.continuityPrompt, /故事连续性提取器/u)
+assert.match(sources.continuityPrompt, /故事状态提取器/u)
 assert.match(sources.continuityPrompt, /本轮记忆/u)
 assert.match(sources.continuityPrompt, /未来事件/u)
 assert.match(sources.continuityPrompt, /时间、事实和权重/u)
@@ -69,7 +70,7 @@ for (const prompt of [sources.continuityPrompt, sources.talentPrompt]) {
   assert.doesNotMatch(prompt, /详细故事输出示例|示例正文|few-shot|examples\s*:/iu)
 }
 
-for (const stage of ['ai-story-continuity', 'ai-talent-growth']) {
+for (const stage of ['ai-story-continuity', 'ai-talent-growth', 'ai-world-simulation']) {
   assert.match(
     sources.campaign,
     new RegExp(`name: '${stage}'[\\s\\S]{0,220}dependsOn: \\[\\s*'prepare-narrative'\\s*\\][\\s\\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP`, 'u'),
@@ -77,9 +78,9 @@ for (const stage of ['ai-story-continuity', 'ai-talent-growth']) {
 }
 assert.match(
   sources.campaign,
-  /dependsOn:\s*\[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u,
+  /dependsOn:\s*\[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-world-simulation',?\s*\]/u,
 )
-assert.equal([...sources.campaign.matchAll(/name: '(ai-[^']+)'/gu)].length, 3)
+assert.equal([...sources.campaign.matchAll(/name: '(ai-[^']+)'/gu)].length, 4)
 
 assert.match(sources.parser, /parseNarrativeResponseEnvelope\(content, options\)/u)
 assert.match(sources.parser, /endingTitle/u)
@@ -110,8 +111,20 @@ assert(NarrativeAITalentGrowthDataSchema.safeParse({
     ],
   },
 }).success, 'Schema 必须允许转变路线从感知判断质变为直接操控类')
+assert(NarrativeAIWorldSimulationResultSchema.safeParse({
+  世界变化: [{
+    标题: '北境雪线南移',
+    类别: '环境',
+    强度: '中等',
+    描述: '连续寒冬使北境雪线南移，沿途聚落面临食物与取暖压力。',
+    影响区域: '北境',
+    触发条件: '',
+    冷却: 3,
+  }],
+  因果边: [{ 前因: '北境雪线南移', 后果: '沿途聚落迁徙', 关系: '导致' }],
+}).success)
 
-const continuityOrder = ['历史记忆:', '最近两轮正文:', '当前回合:']
+const continuityOrder = ['历史记忆:', '最近四轮正文:', '当前回合:']
 let continuityCursor = -1
 for (const fragment of continuityOrder) {
   const index = sources.continuityContext.indexOf(fragment)

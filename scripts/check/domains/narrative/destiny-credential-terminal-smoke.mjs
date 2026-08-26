@@ -12,6 +12,11 @@ import {
   DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
 } from '../../../../src/mods/mod-character/constants.ts'
+import {
+  getDestinyPatternPoolCacheKey,
+  loadDestinyPatternPool,
+  saveDestinyPatternPool,
+} from '../../../../src/mods/mod-character/utils/destiny-pattern-pool-cache.ts'
 import { DestinyPatternSystem } from '../../../../src/mods/mod-character/subsystems/destiny-pattern-system.ts'
 
 class MemoryStorage {
@@ -138,6 +143,20 @@ restoredSystem.hydratePool(initialPatterns)
 assert.equal(restoredSystem.getPoolFillStatus().initialReady, true, 'cached five-category candidates must restore the selection handoff')
 assert.equal(restoredSystem.getCandidates().length, 20, 'cached hydration must restore the candidate pool without a second source')
 
+const duplicateCacheFixture = [
+  initialPatterns[0],
+  { ...initialPatterns[0], id: 'ai-cache-duplicate-name', name: ` ${initialPatterns[0].name} ` },
+]
+saveDestinyPatternPool(2, duplicateCacheFixture)
+const restoredCache = loadDestinyPatternPool(2)
+assert.equal(restoredCache.length, 1, 'cache owner must canonicalize duplicate names on write and restore')
+assert.equal(
+  restoredCache[0]?.id,
+  initialPatterns[0]?.id,
+  'cache owner must preserve the first valid candidate for a canonical name',
+)
+localStorage.removeItem(`ai-life-sim:mod-character:cache:${getDestinyPatternPoolCacheKey(2)}`)
+
 const sameContentSystem = new DestinyPatternSystem()
 let sameContentRequestCount = 0
 sameContentSystem.setAIService(async (_systemPrompt, _userPrompt, options) => {
@@ -147,18 +166,39 @@ sameContentSystem.setAIService(async (_systemPrompt, _userPrompt, options) => {
   assert.ok(category, 'same-content fixture must resolve its assigned category')
   const label = categoryLabels[category]
   return JSON.stringify({
-    命格: Array.from({ length: 4 }, () => ({
-      类别: label,
-      名称: `${label}同名倾向`,
-      设定描述: `${label}方向完全相同的候选内容。`,
-      效果: `${label}方向完全相同的候选效果。`,
-      属性加成: { 体魄: 1 },
-    })),
+    命格: [
+      {
+        类别: label,
+        名称: `${label}同名倾向`,
+        设定描述: `${label}方向完全相同的候选内容。`,
+        效果: `${label}方向完全相同的候选效果。`,
+        属性加成: { 体魄: 1 },
+      },
+      {
+        类别: label,
+        名称: `${label}同名倾向`,
+        设定描述: `${label}方向完全相同的候选内容（重复）。`,
+        效果: `${label}方向完全相同的候选效果（重复）。`,
+        属性加成: { 体魄: 1 },
+      },
+      ...Array.from({ length: 3 }, (_, index) => ({
+        类别: label,
+        名称: `${label}独立倾向${index + 1}`,
+        设定描述: `${label}方向独立的候选内容${index + 1}。`,
+        效果: `${label}方向独立的候选效果${index + 1}。`,
+        属性加成: { 体魄: 1 },
+      })),
+    ],
   })
 })
 const sameContentPatterns = await sameContentSystem.generateWithAI(context)
 assert.equal(sameContentRequestCount, 5, 'same-content candidates must not trigger retries')
-assert.equal(sameContentPatterns.length, 20, 'same-name and same-meaning candidates must not be discarded locally')
+assert.equal(sameContentPatterns.length, 20, 'same-name candidates must retain one canonical name plus three unique names per category')
+assert.equal(
+  sameContentPatterns.filter((pattern) => pattern.name === '行动同名倾向').length,
+  1,
+  'same-name candidates must retain only the first candidate in each category',
+)
 assert.equal(sameContentSystem.getPoolFillStatus().initialReady, true, 'four structurally valid candidates per category must hand off')
 
 const overflowSystem = new DestinyPatternSystem()
@@ -184,7 +224,7 @@ const injectedSystem = new DestinyPatternSystem()
 const injected = injectedSystem.generateFromAI([
   {
     category: 'action',
-    name: '手眼协调',
+    name: ' 手眼　协调 ',
     description: '处理细小物件时动作较稳。',
     effects: '日常操作中较少出现明显失误。',
   },
@@ -195,7 +235,7 @@ const injected = injectedSystem.generateFromAI([
     effects: '日常操作中较少出现明显失误。',
   },
 ])
-assert.equal(injected.length, 2, 'public AI injection must retain same-name and same-meaning candidates with distinct IDs')
+assert.equal(injected.length, 1, 'public AI injection must retain only the first canonical name')
 
 const pollutedHydrationSystem = new DestinyPatternSystem()
 pollutedHydrationSystem.hydratePool([

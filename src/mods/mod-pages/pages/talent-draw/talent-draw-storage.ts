@@ -46,6 +46,36 @@ function storageKey(): string {
   return `talent-draw:${worldCode || 0}`
 }
 
+function storageKeyForWorld(worldCode: number): string {
+  return `talent-draw:${worldCode || 0}`
+}
+
+/** Whether this world's persisted draw state exists. */
+export function hasTalentDrawState(worldCode: number): boolean {
+  if (!worldCode) return false
+  return configStore.get<unknown>('mod-pages', storageKeyForWorld(worldCode)) !== null
+}
+
+/** Clear only the persisted draw state for the requested world. */
+export function clearTalentDrawState(worldCode: number): void {
+  if (!worldCode) return
+  configStore.remove('mod-pages', storageKeyForWorld(worldCode))
+}
+
+/** Enumerate all worlds with persisted draw-page state. */
+export function listTalentDrawStateWorldCodes(): Set<number> {
+  const worldCodes = new Set<number>()
+  for (const key of configStore.keys('mod-pages')) {
+    if (!key.startsWith('talent-draw:')) continue
+    const rawWorldCode = key.slice('talent-draw:'.length)
+    const worldCode = Number.parseInt(rawWorldCode, 10)
+    if (Number.isFinite(worldCode) && worldCode > 0 && String(worldCode) === rawWorldCode) {
+      worldCodes.add(worldCode)
+    }
+  }
+  return worldCodes
+}
+
 function loadState(): SavedTalentDrawState | null {
   const value = configStore.get<unknown>('mod-pages', storageKey())
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null

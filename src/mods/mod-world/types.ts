@@ -29,3 +29,13 @@ export type {
   WorldTagConstraints,
   WorldTagsV2,
 } from './types/world-tags'
+export type {
+  WorldEventCandidate,
+  WorldEventCandidateBatch,
+  WorldEventCandidateInput,
+  WorldEventCategory,
+  WorldEventCooldownState,
+  WorldEventIntensity,
+  WorldEventTrigger,
+  WorldEventTriggerKind,
+} from './types/world-event-candidates'

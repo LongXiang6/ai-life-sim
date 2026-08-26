@@ -1,13 +1,17 @@
 /**
+ * Purpose: Read the canonical simulation round sequence from a round context.
+ * Owner: foundation:time
+ * Responsibility: Round-sequence projection only; annual clock ownership stays in TimeSystem.
+ *
  * @module round-advance.ts
  * @description 子系统轮次序号辅助 —— roundSequence 读取
  * @mod foundation
  *
  * 历史：本文件曾提供 getAgeYearsDelta / consumeSimulationYears / getSimulationTicks /
- * getCalendarDaysDelta / shouldAdvanceSubsystem 等"年制"时间辅助。模拟系统全面重写
- * （2026-07 起，以"日"为唯一整数时间粒度）后，时间读取统一走 TimeSystem 产出的
- * RoundContext.daysPassed / totalDays，上述年制函数全部删除，仅保留与时间无关的
- * roundSequence 读取。
+ * getCalendarDaysDelta / shouldAdvanceSubsystem 等旧时间辅助。模拟系统切换为每年
+ * 1000 个年度基础点、年内事件轮次后，业务时间统一走 TimeSystem 产出的
+ * RoundContext.basePointsPassed / totalBasePoints；daysPassed / totalDays 仅是派生日历
+ * 与旧存档适配字段。本文件只保留与时间推进无关的 roundSequence 读取。
  */
 
 import type { RoundContext } from '../types'

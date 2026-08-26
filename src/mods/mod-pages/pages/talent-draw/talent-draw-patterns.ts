@@ -9,6 +9,7 @@ import {
   DESTINY_PATTERN_DISPLAY_COUNT,
   PATTERN_LOADOUT_SLOT_COUNT,
 } from '@/mods/mod-character'
+import { canonicalizeDestinyPatternName } from '@/mods/mod-character/destiny-pattern-access'
 
 import type { DestinyPattern } from '@/mods/mod-character'
 import type {
@@ -46,9 +47,14 @@ export function isAIGeneratedPattern(pattern: DestinyPattern): boolean {
 
 export function uniquePatternsByIdentity(patterns: DestinyPattern[]): DestinyPattern[] {
   const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
   return patterns.filter((pattern) => {
-    if (!pattern.id || seenIds.has(pattern.id)) return false
+    const nameKey = typeof pattern.name === 'string'
+      ? canonicalizeDestinyPatternName(pattern.name)
+      : ''
+    if (!pattern.id || !nameKey || seenIds.has(pattern.id) || seenNames.has(nameKey)) return false
     seenIds.add(pattern.id)
+    seenNames.add(nameKey)
     return true
   })
 }
@@ -77,12 +83,17 @@ export function mergeSlotsWithPatterns(
     ? [...currentSlots]
     : Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null) as TalentDrawSlots
   const visibleIds = new Set(nextSlots.flatMap((pattern) => pattern ? [pattern.id] : []))
+  const visibleNames = new Set(nextSlots.flatMap((pattern) => (
+    pattern ? [canonicalizeDestinyPatternName(pattern.name)] : []
+  )))
   for (const pattern of uniquePatternsByIdentity(patterns)) {
-    if (visibleIds.has(pattern.id)) continue
+    const nameKey = canonicalizeDestinyPatternName(pattern.name)
+    if (visibleIds.has(pattern.id) || visibleNames.has(nameKey)) continue
     const emptyIndex = nextSlots.findIndex((slot) => slot === null)
     if (emptyIndex < 0) break
     nextSlots[emptyIndex] = pattern
     visibleIds.add(pattern.id)
+    visibleNames.add(nameKey)
   }
   return nextSlots
 }

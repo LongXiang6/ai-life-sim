@@ -10,6 +10,7 @@ import type {
   CharacterNarrativeStatus,
   PendingCharacterDeath,
 } from '@/foundation'
+import { basePointsToCalendarDays } from '@/foundation'
 
 import {
   refreshCharacterGuidance,
@@ -35,10 +36,12 @@ export function applyCharacterStatusUpdate(input: {
   status: CharacterNarrativeStatus
   payload: Record<string, unknown>
   contextId: string
-  totalDays: number
+  totalBasePoints: number
+  totalDays?: number
   evidenceEventIds: readonly string[]
 }): PendingCharacterDeath | undefined {
   const { status, payload } = input
+  const totalDays = input.totalDays ?? basePointsToCalendarDays(input.totalBasePoints)
   const meaningfulEntries = Object.entries(payload).filter(([, value]) => value !== undefined)
   if (meaningfulEntries.length === 0) throw new Error('角色状态更新至少需要一个变化字段')
   if (!status.health.alive) throw new Error('已死亡角色不能再接受状态更新')
@@ -75,7 +78,7 @@ export function applyCharacterStatusUpdate(input: {
     if (conditionStatus === 'resolved' && !existing) throw new Error('待解决的健康问题不存在')
     const conditionId = existing?.conditionId
       ?? requestedId
-      ?? `condition:${encodeURIComponent(status.entityId ?? 'player')}:${input.totalDays}:${status.health.conditions.length}`
+      ?? `condition:${encodeURIComponent(status.entityId ?? 'player')}:${input.totalBasePoints}:${status.health.conditions.length}`
     const condition: CharacterConditionState = {
       conditionId,
       contextId: existing?.contextId ?? input.contextId,
@@ -89,7 +92,7 @@ export function applyCharacterStatusUpdate(input: {
         ? existing?.summary ?? (() => { throw new Error('新增健康问题必须提供说明') })()
         : text(payload.conditionSummary, '健康问题说明'),
       status: conditionStatus as CharacterConditionState['status'],
-      onsetTotalDays: existing?.onsetTotalDays ?? input.totalDays,
+      onsetTotalDays: existing?.onsetTotalDays ?? totalDays,
       evidenceEventIds: [...new Set([...(existing?.evidenceEventIds ?? []), ...input.evidenceEventIds])],
     }
     upsertCondition(status, condition)
@@ -112,15 +115,15 @@ export function applyCharacterStatusUpdate(input: {
       contextId: input.contextId,
       causeKind,
       causeLabel: text(payload.deathCauseLabel, '死亡原因说明'),
-      occurredAtTotalDays: input.totalDays,
+      occurredAtTotalDays: totalDays,
       finalAgeDays: status.ageDays,
     }
     status.health.alive = false
     status.health.vitality = 0
   }
 
-  status.health.updatedAtTotalDays = input.totalDays
-  status.lastAnalyzedAtTotalDays = input.totalDays
+  status.health.updatedAtTotalDays = totalDays
+  status.lastAnalyzedAtTotalDays = totalDays
   Object.assign(status, refreshCharacterGuidance(status))
   return pendingDeath
 }

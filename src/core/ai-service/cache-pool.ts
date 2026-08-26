@@ -12,6 +12,7 @@ export const INTERNAL_CACHE_POOLS = [
   'narrative-main',
   'narrative-story-continuity',
   'narrative-talent-growth',
+  'narrative-world-simulation',
 ] as const
 
 export type InternalCachePool = typeof INTERNAL_CACHE_POOLS[number]
@@ -31,6 +32,7 @@ export function resolveInternalCachePool(
   if (kind === 'narrative-main' || kind === 'immersion-warmup') return 'narrative-main'
   if (kind === 'narrative-story-continuity') return 'narrative-story-continuity'
   if (kind === 'narrative-talent-growth') return 'narrative-talent-growth'
+  if (kind === 'narrative-world-simulation') return 'narrative-world-simulation'
   if (kind.startsWith('narrative-')) return 'narrative-main'
   if (pool === 'adaptation') return 'adaptation'
   if (pool === 'fate') return 'fate-talent'

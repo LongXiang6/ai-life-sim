@@ -19,6 +19,7 @@ import type {
   HistoricalEventEvidence,
 } from '@/foundation'
 import { useWorldStore } from '@/mods/mod-world'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 
 import type {
   LegacyCausalEventV1,
@@ -291,6 +292,42 @@ export function normalizeHistoryLedgerPersistenceState(
   snapshot: HistoricalEventLedgerPersistenceState,
 ): HistoricalEventLedgerPersistenceState {
   const normalized = cloneValue(snapshot)
+  for (const event of normalized.events) {
+    event.createdBasePoints ??= basePointsFromCalendarDays(event.createdTotalDays)
+    event.createdTotalDays = calendarDaysFromBasePoints(event.createdBasePoints)
+    if (event.schedule) {
+      event.schedule.dueBasePoints ??= event.schedule.dueTotalDays === undefined
+        ? undefined
+        : basePointsFromCalendarDays(event.schedule.dueTotalDays)
+      if (event.schedule.dueBasePoints !== undefined) {
+        event.schedule.dueTotalDays = calendarDaysFromBasePoints(event.schedule.dueBasePoints)
+      }
+    }
+  }
+  for (const transition of normalized.transitions) {
+    transition.basePoints ??= basePointsFromCalendarDays(transition.totalDays)
+    transition.totalDays = calendarDaysFromBasePoints(transition.basePoints)
+  }
+  for (const evidence of normalized.evidence) {
+    evidence.basePoints ??= basePointsFromCalendarDays(evidence.totalDays)
+    evidence.totalDays = calendarDaysFromBasePoints(evidence.basePoints)
+  }
+  for (const edge of normalized.causalEdges) {
+    edge.createdBasePoints ??= basePointsFromCalendarDays(edge.createdTotalDays)
+    edge.createdTotalDays = calendarDaysFromBasePoints(edge.createdBasePoints)
+  }
+  for (const audit of normalized.candidateAudits) {
+    audit.basePoints ??= basePointsFromCalendarDays(audit.totalDays)
+    audit.totalDays = calendarDaysFromBasePoints(audit.basePoints)
+    if (audit.candidate.schedule) {
+      audit.candidate.schedule.dueBasePoints ??= audit.candidate.schedule.dueTotalDays === undefined
+        ? undefined
+        : basePointsFromCalendarDays(audit.candidate.schedule.dueTotalDays)
+      if (audit.candidate.schedule.dueBasePoints !== undefined) {
+        audit.candidate.schedule.dueTotalDays = calendarDaysFromBasePoints(audit.candidate.schedule.dueBasePoints)
+      }
+    }
+  }
   for (const audit of normalized.candidateAudits) {
     if (
       isPlainRecord(audit)

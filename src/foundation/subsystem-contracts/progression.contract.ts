@@ -1,4 +1,8 @@
-/** Generic character skill and ability growth contracts. */
+/**
+ * Purpose: Define cross-MOD progression and growth record contracts.
+ * Owner: foundation / progression boundary
+ * Responsibility: Shared types only; growth calculations and persistence remain with mod-progression.
+ */
 
 import type { GlobalEntityId, WorldContextId } from './world-context.contract'
 import type { HistoricalEventId } from './historical-event.contract'
@@ -23,6 +27,9 @@ export interface GrowthSkill {
   useCount: number
   potentialCap: number
   mastery: SkillMastery
+  /** 年度基础点真源；旧存档仅有 learnedAtTotalDays 时在恢复边界迁移。 */
+  learnedAtBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   learnedAtTotalDays: number
   sourceEventIds: HistoricalEventId[]
 }
@@ -38,6 +45,9 @@ export interface StableAbility {
   potential: number
   learningConstraints: string[]
   status: AbilityStatus
+  /** 年度基础点真源；旧存档仅有 acquiredAtTotalDays 时在恢复边界迁移。 */
+  acquiredAtBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   acquiredAtTotalDays: number
   sourceEventIds: HistoricalEventId[]
 }
@@ -50,6 +60,9 @@ export interface GrowthRecord {
   experienceDelta: number
   potentialDelta: number
   description: string
+  /** 年度基础点真源；旧存档仅有 occurredAtTotalDays 时在恢复边界迁移。 */
+  occurredAtBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   occurredAtTotalDays: number
   evidenceEventIds: HistoricalEventId[]
 }

@@ -48,6 +48,8 @@ export type {
   SubSystemChanges,
   RoundContext,
   TimeStep,
+  TimeStepUnit,
+  LegacyTimeStepUnit,
 } from './subsystem.types'
 
 export {

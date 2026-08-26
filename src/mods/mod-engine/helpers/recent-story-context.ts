@@ -1,4 +1,8 @@
 /**
+ * Purpose: Project the recent complete stories used by continuity calls.
+ * Owner: mod-engine
+ * Responsibility: Select and normalize the current story plus the preceding four rounds.
+ *
  * @module recent-story-context.ts
  * @description 后台 AI 共用的最近故事完整投影
  * @mod mod-engine
@@ -8,11 +12,14 @@ import type { YearEvent } from '@/foundation'
 
 import type { NarrativeChunk } from '../types'
 
-const RECENT_STORY_COUNT = 3
+/** 02/03 的详细故事派生窗口：当前来源回合加此前最多四轮。 */
+export const RECENT_STORY_WINDOW = 5
+export const RECENT_STORY_PREVIOUS_WINDOW = RECENT_STORY_WINDOW - 1
 
 export interface RecentStorySource {
   round: number
   text: string
+  totalBasePoints?: number
   totalDays?: number
   timeLabel?: string
   branchTitle?: string
@@ -24,6 +31,7 @@ export interface RecentStorySource {
 export interface RecentStoryProjection {
   回合: number
   规范时间: {
+    基础点: number | null
     总天数: number | null
     时间标签: string | null
   }
@@ -49,6 +57,7 @@ function projectRecentStory(source: RecentStorySource): RecentStoryProjection {
   return {
     回合: source.round,
     规范时间: {
+      基础点: Number.isSafeInteger(source.totalBasePoints) ? source.totalBasePoints! : null,
       总天数: Number.isSafeInteger(source.totalDays) ? source.totalDays! : null,
       时间标签: timeLabel || null,
     },
@@ -74,12 +83,12 @@ function projectRecentStory(source: RecentStorySource): RecentStoryProjection {
   }
 }
 
-/** 只选择当前调用所需的最近三轮；每轮正文和字段均完整保留。 */
+/** 只选择当前调用所需的最近五轮；每轮正文和字段均完整保留。 */
 export function buildRecentStoryProjection(
   sources: readonly RecentStorySource[],
 ): RecentStoryProjection[] {
   const projected: RecentStoryProjection[] = []
-  const startIndex = Math.max(0, sources.length - RECENT_STORY_COUNT)
+  const startIndex = Math.max(0, sources.length - RECENT_STORY_WINDOW)
   for (let index = startIndex; index < sources.length; index += 1) {
     projected.push(projectRecentStory(sources[index]))
   }
@@ -96,6 +105,7 @@ export function buildRecentStoriesForRound(input: {
     round: firstCommittedRound + index,
     text: entry.text,
     totalDays: entry.totalDays,
+    totalBasePoints: entry.totalBasePoints,
     timeLabel: entry.displayTimeLabel,
     branchTitle: entry.branchTitle,
     branchOptions: entry.branchOptions,
@@ -113,6 +123,7 @@ export function buildRecentStoriesFromYearEvents(
     round: event.id,
     text: event.narrative,
     totalDays: event.totalDays,
+    totalBasePoints: event.totalBasePoints,
     timeLabel: event.timeLabel,
     branchTitle: event.branchTitle,
     branchOptions: event.branchOptions,

@@ -721,6 +721,7 @@
         "src/foundation/utils/execution-sequence"
       ],
       "files": [
+        "src/foundation/utils/annual-clock.ts",
         "src/foundation/utils/cn-number.ts",
         "src/foundation/utils/cn.ts",
         "src/foundation/utils/decimal-integer.ts",
@@ -927,6 +928,7 @@
         "src/mods/mod-engine/helpers/narrative-semantic-signals.ts",
         "src/mods/mod-engine/helpers/narrative-story-continuity-context.ts",
         "src/mods/mod-engine/helpers/narrative-talent-growth-context.ts",
+        "src/mods/mod-engine/helpers/narrative-world-simulation-context.ts",
         "src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts",
         "src/mods/mod-engine/helpers/orchestrator-pipeline-support.ts",
         "src/mods/mod-engine/helpers/orchestrator-world-setting.ts",
@@ -943,6 +945,7 @@
         "src/mods/mod-engine/helpers/time-bridge-summary.ts",
         "src/mods/mod-engine/helpers/time-scale-narrative.ts",
         "src/mods/mod-engine/helpers/timeline-memory.ts",
+        "src/mods/mod-engine/helpers/world-event-prompt-projection.ts",
         "src/mods/mod-engine/hooks.ts",
         "src/mods/mod-engine/index.ts",
         "src/mods/mod-engine/manifest.ts",
@@ -961,10 +964,12 @@
         "src/mods/mod-engine/prompts/narrative-prompt.ts",
         "src/mods/mod-engine/prompts/narrative-story-continuity-prompt.ts",
         "src/mods/mod-engine/prompts/narrative-talent-growth-prompt.ts",
+        "src/mods/mod-engine/prompts/narrative-world-simulation-prompt.ts",
         "src/mods/mod-engine/server-prompt-assets.ts",
         "src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts",
         "src/mods/mod-engine/server/narrative-system-prompt.ts",
         "src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts",
+        "src/mods/mod-engine/server/narrative-world-simulation-system-prompt.ts",
         "src/mods/mod-engine/simulation/simulation-bridge.ts",
         "src/mods/mod-engine/simulation/simulation-types.ts",
         "src/mods/mod-engine/store.ts",
@@ -1004,11 +1009,12 @@
       ],
       "oversized": [
         "src/mods/mod-engine/campaigns/default/index.ts",
+        "src/mods/mod-engine/helpers/narrative-response-quality.ts",
         "src/mods/mod-engine/hooks.ts",
         "src/mods/mod-engine/subsystems/causal-delay-system.ts",
         "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
         "src/mods/mod-engine/subsystems/orchestrator-system.ts",
-        "src/mods/mod-engine/subsystems/time-system.ts"
+        "src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts"
       ]
     },
     {
@@ -1182,6 +1188,7 @@
         "src/mods/mod-pages/pages/welcome/WelcomeView.tsx",
         "src/mods/mod-pages/pages/world-select/page.tsx",
         "src/mods/mod-pages/pages/world-select/useWorldConfirm.ts",
+        "src/mods/mod-pages/pages/world-select/useWorldSelectCache.ts",
         "src/mods/mod-pages/pages/world-select/useWorldSelectCustomWorlds.ts",
         "src/mods/mod-pages/pages/world-select/useWorldSelectForm.ts",
         "src/mods/mod-pages/pages/world-select/useWorldSelectLogic.ts",
@@ -1189,6 +1196,7 @@
         "src/mods/mod-pages/pages/world-select/world-select-worlds.ts",
         "src/mods/mod-pages/pages/world-select/world-select.types.ts",
         "src/mods/mod-pages/pages/world-select/WorldSelectBottomBar.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx",
         "src/mods/mod-pages/pages/world-select/WorldSelectCustomForm.tsx",
         "src/mods/mod-pages/pages/world-select/WorldSelectDirectory.tsx",
         "src/mods/mod-pages/pages/world-select/WorldSelectMainGrid.tsx",
@@ -1453,6 +1461,7 @@
         "src/mods/mod-world/types/regions.ts",
         "src/mods/mod-world/types/world-config.ts",
         "src/mods/mod-world/types/world-context.ts",
+        "src/mods/mod-world/types/world-event-candidates.ts",
         "src/mods/mod-world/types/world-tags.ts",
         "src/mods/mod-world/utils/adaptation-prompt-calibration.ts",
         "src/mods/mod-world/utils/calibration-access.ts",
@@ -1470,6 +1479,9 @@
         "src/mods/mod-world/utils/world-context-runtime/hierarchy-validation.ts",
         "src/mods/mod-world/utils/world-context-runtime/identifiers.ts",
         "src/mods/mod-world/utils/world-context-runtime/spatial-graph.ts",
+        "src/mods/mod-world/utils/world-event-candidates.ts",
+        "src/mods/mod-world/utils/world-event-catalog-entries.ts",
+        "src/mods/mod-world/utils/world-event-catalog.ts",
         "src/mods/mod-world/utils/world-init-anchor-year.ts",
         "src/mods/mod-world/utils/world-pool-selectors.ts",
         "src/mods/mod-world/utils/world-scale-calibration.ts",
@@ -1861,6 +1873,7 @@
         "scripts/check/domains/mod/run-pattern-contracts.ps1",
         "scripts/check/domains/mod/run-source-contracts.ps1",
         "scripts/check/domains/mod/runtime-import-cycle-scanner.mjs",
+        "scripts/check/domains/mod/world-context-clock-smoke.mjs",
         "scripts/check/domains/mod/world-context-p0-smoke.mjs",
         "scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs"
       ],
@@ -1881,6 +1894,7 @@
         "scripts/check/domains/narrative/ai-error-translation-smoke.mjs",
         "scripts/check/domains/narrative/ai-proxy-observability-regression.mjs",
         "scripts/check/domains/narrative/ai-response-truncation-smoke.mjs",
+        "scripts/check/domains/narrative/annual-clock-smoke.mjs",
         "scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
         "scripts/check/domains/narrative/cache-stats-smoke.mjs",
         "scripts/check/domains/narrative/character-first-narrative-slice.mjs",
@@ -1919,12 +1933,12 @@
         "scripts/check/domains/narrative/stream-response-smoke.mjs",
         "scripts/check/domains/narrative/time-bridge-smoke.mjs",
         "scripts/check/domains/narrative/time-step-resolver-smoke.mjs",
-        "scripts/check/domains/narrative/validate-narrative-wiring.mjs"
+        "scripts/check/domains/narrative/validate-narrative-wiring.mjs",
+        "scripts/check/domains/narrative/world-event-candidate-smoke.mjs"
       ],
       "oversized": [
         "scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
-        "scripts/check/domains/narrative/playtest-quality-regression.mjs",
-        "scripts/check/domains/narrative/time-step-resolver-smoke.mjs"
+        "scripts/check/domains/narrative/playtest-quality-regression.mjs"
       ]
     },
     {

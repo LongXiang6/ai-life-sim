@@ -141,7 +141,7 @@ interface SettingsState {
   // ---- 叙事偏好 ----
   /** 叙事风格 */
   narrativeStyle: NarrativeStyle
-  /** 已显式保存并用于后续主叙事的完整自定义文风；空值表示项目默认。 */
+  /** 已显式保存并用于后续主叙事的完整自定义文风；空值不向 Prompt 注入文风。 */
   narrativeStyleText: string
   /** 每次保存不同的生效文风时递增。 */
   narrativeStyleVersion: number

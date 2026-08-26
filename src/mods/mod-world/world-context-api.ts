@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose world-context creation, transition, and query operations.
+ * Owner: mod-world
+ * Responsibility: Public API wiring only; context state remains in the world store and systems.
+ *
  * @module world-context-api.ts
  * @description P0 多世界上下文重 API；创建、连接、切换与查询
  * @mod mod-world
@@ -27,13 +31,13 @@ export async function createAdditionalWorldContext(
   config: WorldConfig,
   options?: AdditionalWorldContextOptions,
 ) {
-  if (options?.globalTotalDays !== undefined || Object.keys(useWorldStore.getState().contexts).length === 0) {
+  if (options?.globalTotalBasePoints !== undefined || Object.keys(useWorldStore.getState().contexts).length === 0) {
     return createAdditionalWorldContextInternal(config, options)
   }
   const { orchestrator } = await import('@/mods/mod-engine/engine-api')
   return createAdditionalWorldContextInternal(config, {
     ...options,
-    globalTotalDays: orchestrator.getState().round.totalDays,
+    globalTotalBasePoints: orchestrator.getState().round.totalBasePoints,
   })
 }
 
@@ -95,14 +99,14 @@ export function connectWorldContexts(
 export function closeWorldContext(
   contextId: string,
   reason: string,
-  globalTotalDays: number,
+  globalTotalBasePoints: number,
 ): void {
   const state = useWorldStore.getState()
   if (state.currentContextId === contextId) throw new Error('不能关闭当前 active 上下文')
-  if (!Number.isFinite(globalTotalDays) || globalTotalDays < 0) {
-    throw new Error('关闭上下文必须提供规范的非负 globalTotalDays')
+  if (!Number.isFinite(globalTotalBasePoints) || globalTotalBasePoints < 0) {
+    throw new Error('关闭上下文必须提供规范的非负 globalTotalBasePoints')
   }
-  getSimulationScopePolicySystem().setScope(contextId, 'closed', reason, globalTotalDays)
+  getSimulationScopePolicySystem().setScope(contextId, 'closed', reason, globalTotalBasePoints)
 }
 
 export async function transitionToWorldContext(
@@ -111,7 +115,7 @@ export async function transitionToWorldContext(
   const { ensureOrchestratorContextFromStores, orchestrator } = await import('@/mods/mod-engine/engine-api')
   const result = await getContextTransitionSystem().transition(
     request,
-    orchestrator.getState().round.totalDays,
+    orchestrator.getState().round.totalBasePoints,
     {
       apply: () => ensureOrchestratorContextFromStores(),
     },

@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Purpose: Live regression for world-first narrative openings and event variation.
+ * Owner: quality:narrative
+ * Responsibility: Validate prompt behavior without owning runtime state.
+ */
+
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -14,6 +20,12 @@ const PROVIDER = 'deepseek'
 const MODEL = 'deepseek-v4-flash'
 const ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const ROUNDS = 4
+const WORLD_EVENT_FIXTURES = [
+  '【本轮世界候选】迁徙：北港外海的季风航线提前改变，几批陌生船队正在寻找新的停泊点；候选不是已确认状态，可采用、合理改写或暂不采用。',
+  '【本轮世界候选】经济：邻近城邦突然暂停盐税互认，沿岸商船开始改道，鱼市价格和修船订单出现波动；候选不是已确认状态，可采用、合理改写或暂不采用。',
+  '【本轮世界候选】生态：北侧潮滩出现成群发光鱼群，渔民、学者和祭司给出了互相冲突的解释；候选不是已确认状态，可采用、合理改写或暂不采用。',
+  '【本轮世界候选】政治：港务局发布与旧航海图无关的临时禁航令，理由是外海出现未登记船队；候选不是已确认状态，可采用、合理改写或暂不采用。',
+]
 
 function readLocalEnv(name) {
   if (process.env[name]) return process.env[name]
@@ -41,19 +53,30 @@ function firstNarrativeLine(body) {
 function buildMessages(round, history) {
   const year = 1998 + round
   const context = {
-    worldNarrativeView: '潮汐群岛由航海城邦与旧灯塔共同维系。海雾、贸易和潮汐术都服从已建立的资源与社会规则。',
-    characterProfileView: '你出身修船匠家庭，擅长辨认潮声，重视承诺，但没有未经训练的超凡能力。',
-    characterStatusView: `你${17 + round}岁，目前在北港灯塔做学徒，正在追查父亲失踪前留下的航线缺口。`,
+    worldNarrativeView: {
+      名称: '潮汐群岛',
+      描述: '由航海城邦与旧灯塔共同维系的群岛世界；海雾、贸易和潮汐术都服从已建立的资源与社会规则。',
+    },
+    characterProfileView: {
+      姓名: '林汐',
+      性别: '女',
+      种族: '人类',
+      背景: '修船匠家庭出身，擅长辨认潮声，重视承诺，但没有未经训练的超凡能力。',
+      基础属性: {},
+    },
+    characterStatusView: {
+      年龄: 17 + round,
+      当前处境: '目前在北港灯塔做学徒，正在追查父亲失踪前留下的航线缺口。',
+    },
     currentTime: `${year}年 · 春 · 4月`,
     timelineMemory: history.length > 0
-      ? ['【时间轴记忆】', ...history.map((text, index) => (
+      ? history.map((text, index) => (
           `【时间阶段：第${index + 1}轮】\n- [第${index + 1}轮] ${text}`
-        ))].join('\n\n')
+        ))
       : undefined,
-    narrativeGuidanceText: [
-      '本轮围绕同一条主线推进：港务官突然封存旧航海图，你必须决定如何保住调查线索。',
-      '直接写可感知现场、具体动作、他人回应和本轮后果；不要写年度总结。',
-    ].join('\n'),
+    narrativeAddressing: 'second-person',
+    talents: [],
+    eventInjectionText: WORLD_EVENT_FIXTURES[round - 1],
     timeGuideText: buildTimeScaleNarrativeHint({ unit: 'year', value: 1 }),
     wordCountInstruction: '篇幅约200字，只作节奏参考；剧情需要时可以自然超出。',
   }
@@ -123,6 +146,7 @@ async function main() {
     const genericTimeOpening = /^(?:这一年|这一月|这一天)(?:[，。！？、\s]|$)/.test(result.firstLine)
     results.push({
       round,
+      body: result.body,
       firstLine: result.firstLine,
       genericTimeOpening,
       latencyMs: result.latencyMs,
@@ -139,12 +163,13 @@ async function main() {
   const repeatedOpeningCount = normalizedOpenings.length - new Set(normalizedOpenings).size
   const genericOpeningCount = results.filter((result) => result.genericTimeOpening).length
   console.log(JSON.stringify({
-    requirement: 'four sequential annual narratives avoid generic repeated time openings',
+    requirement: 'four sequential annual narratives allow independent world events without generic repeated openings',
     promptVersion: narrativePrompt.version,
     provider: PROVIDER,
     model: MODEL,
     genericOpeningCount,
     repeatedOpeningCount,
+    worldEventFixtureCount: WORLD_EVENT_FIXTURES.length,
     results,
   }, null, 2))
 

@@ -4,8 +4,12 @@
  * Responsibility: Select one source round and serialize the approved 02 input only.
  */
 
+import { basePointsFromCalendarDays } from '@/foundation'
 import type { CompressedSummaries } from '@/foundation'
-import type { RecentStoryProjection } from './recent-story-context'
+import {
+  RECENT_STORY_PREVIOUS_WINDOW,
+  type RecentStoryProjection,
+} from './recent-story-context'
 import type { NarrativeChunk } from '../types'
 
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
@@ -16,6 +20,7 @@ export interface NarrativeStoryContinuityPromptInput {
   sourceNarrative: NarrativeChunk
   sourceTime: {
     label: string
+    totalBasePoints: number | null
     totalDays: number | null
   }
 }
@@ -106,21 +111,37 @@ export function buildNarrativeStoryContinuityPromptInput(input: {
     : input.narrativeHistory.find((entry) => entry.transitionAudit?.round === sourceRound)
       ?? input.narrativeHistory[sourceRound - firstHistoricalRound]
   if (!sourceNarrative) throw new Error(`故事连续性提取缺少第 ${sourceRound} 轮完整故事`)
-  const recentPreviousStories = input.narrativeHistory
-    .map((entry, index) => ({
-      round: firstHistoricalRound + index,
-      time: entry.displayTimeLabel?.trim() || `第${firstHistoricalRound + index}轮`,
+  const previousStoriesByRound = new Map<number, { round: number; time: string; text: string }>()
+  for (const [index, entry] of input.narrativeHistory.entries()) {
+    const round = entry.transitionAudit?.round ?? firstHistoricalRound + index
+    if (round >= sourceRound) continue
+    previousStoriesByRound.set(round, {
+      round,
+      time: entry.displayTimeLabel?.trim() || `第${round}轮`,
       text: entry.text,
-    }))
-    .filter((story) => story.round < sourceRound)
-    .slice(-2)
-  const previousTime = recentPreviousStories.at(-1)?.time ?? currentTime
+    })
+  }
+  for (const story of input.recentStories) {
+    if (story.回合 >= sourceRound) continue
+    previousStoriesByRound.set(story.回合, {
+      round: story.回合,
+      time: storyTime(story),
+      text: story.故事全文,
+    })
+  }
+  const recentPreviousStories = [...previousStoriesByRound.values()]
+    .sort((left, right) => left.round - right.round)
+    .slice(-RECENT_STORY_PREVIOUS_WINDOW)
+  const previousTime = recentPreviousStories.at(-1)?.time
+  const currentTimeWindow = previousTime
+    ? formatCurrentStoryWindow(previousTime, currentTime)
+    : currentTime
 
   return {
     userSegments: [
       JSON.stringify({ 历史记忆: history }),
       JSON.stringify({
-        最近两轮正文: recentPreviousStories.map((story) => ({
+        最近四轮正文: recentPreviousStories.map((story) => ({
           时间窗口: story.time,
           正文: story.text,
         })),
@@ -128,7 +149,7 @@ export function buildNarrativeStoryContinuityPromptInput(input: {
       JSON.stringify({
         当前回合: {
           当前时间: currentTime,
-          时间窗口: formatCurrentStoryWindow(previousTime, currentTime),
+          时间窗口: currentTimeWindow,
           正文: sourceStory.故事全文,
         },
       }),
@@ -137,6 +158,10 @@ export function buildNarrativeStoryContinuityPromptInput(input: {
     sourceNarrative: structuredClone(sourceNarrative),
     sourceTime: {
       label: currentTime,
+      totalBasePoints: sourceStory.规范时间.基础点
+        ?? (sourceStory.规范时间.总天数 === null
+          ? null
+          : basePointsFromCalendarDays(sourceStory.规范时间.总天数)),
       totalDays: sourceStory.规范时间.总天数,
     },
   }

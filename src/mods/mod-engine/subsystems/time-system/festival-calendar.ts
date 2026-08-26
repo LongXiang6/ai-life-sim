@@ -45,17 +45,6 @@ function festivalsForScope(scope: FestivalScope): readonly GameCalendarFestival[
     : CHINA_FESTIVALS
 }
 
-function seasonMonths(month: number): number[] {
-  if (month >= 3 && month <= 5) return [3, 4, 5]
-  if (month >= 6 && month <= 8) return [6, 7, 8]
-  if (month >= 9 && month <= 11) return [9, 10, 11]
-  return [12, 1, 2]
-}
-
-function festivalLabel(festival: GameCalendarFestival): string {
-  return `${festival.month}月${festival.day}日${festival.name}`
-}
-
 export function buildFestivalNarrativeHint(input: {
   scope: FestivalScope
   timeStep: TimeStep
@@ -66,41 +55,18 @@ export function buildFestivalNarrativeHint(input: {
   characterBackground?: string
 }): string | undefined {
   const festivals = festivalsForScope(input.scope)
-  const stageName = input.characterStageName?.trim()
-  const hasBackground = Boolean(input.characterBackground?.trim())
-  const identity = [
-    stageName ? `生命阶段“${stageName}”` : '',
-    hasBackground ? '既有身份与背景' : '',
-  ].filter(Boolean).join('和')
-  const identityRule = identity
-    ? `结合角色当前的${identity}，判断是否放假、休息、工作、上学或参与节庆。`
-    : '结合角色的生命阶段与身份，判断是否放假、休息、工作、上学或参与节庆。'
+  const matchingFestivals = festivals
+    .filter((festival) => festival.month === input.month && festival.day === input.day)
+    .map((festival) => festival.name)
+  const dateFact = matchingFestivals.length > 0
+    ? `当前日期对应已配置节日：${matchingFestivals.join('、')}。`
+    : '当前日期没有已配置节日。'
+  const scopeFact = input.scope === 'china-and-international'
+    ? '节日数据范围：中国节日与国际节日。'
+    : '节日数据范围：中国节日。'
 
-  const exact = festivals.filter((festival) => festival.month === input.month && festival.day === input.day)
-  if (input.timeStep.unit === 'day' && exact.length > 0) {
-    return `【当前节日】今天是统一游戏历法${input.month}月${input.day}日：${exact.map((festival) => festival.name).join('、')}。正文必须体现至少一个对应的生活场景或社会节律（${exact.map((festival) => festival.activities).join('；')}）。${identityRule}`
+  if (input.timeStep.unit === 'event') {
+    return `【节日范围】本轮按事件节点推进；${scopeFact}${dateFact}`
   }
-
-  let candidates: readonly GameCalendarFestival[]
-  let rangeLabel: string
-  switch (input.timeStep.unit) {
-    case 'day':
-      return undefined
-    case 'month':
-      candidates = festivals.filter((festival) => festival.month === input.month)
-      rangeLabel = `本月`
-      break
-    case 'season': {
-      const months = new Set(seasonMonths(input.month))
-      candidates = festivals.filter((festival) => months.has(festival.month))
-      rangeLabel = `当前${input.seasonName?.trim() || '季节'}`
-      break
-    }
-    case 'year':
-    default:
-      return `【节日范围】本轮按统一游戏历法推进，中国节日默认可用${input.scope === 'china-and-international' ? '，并可选用国际节日' : ''}；只在对应时间节点选择有助于本轮因果主线的节日情节。${identityRule}`
-  }
-
-  if (candidates.length === 0) return undefined
-  return `【节日候选】${rangeLabel}包含：${candidates.map(festivalLabel).join('、')}。它们是可选的剧情节点，不必全部出现；选用时必须与当前地区、世界语境和因果主线一致。${identityRule}`
+  return `【节日范围】本轮按统一游戏历法推进；${scopeFact}${dateFact}`
 }

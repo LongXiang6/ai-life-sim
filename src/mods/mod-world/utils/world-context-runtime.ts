@@ -28,6 +28,8 @@ export {
 export {
   buildWorldContextInstance,
   cloneWorldTags,
+  localCalendarBasePointsFromDays,
+  localCalendarDaysFromBasePoints,
   projectWorldContextInstance,
   syncLocalClock,
 } from './world-context-runtime/context-instance'

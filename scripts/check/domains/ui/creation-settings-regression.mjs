@@ -95,7 +95,13 @@ assert.doesNotMatch(characterCreateForm, /MAX_ATTRIBUTE_POINTS|handleAttrChange/
 assert.doesNotMatch(characterCreateLogic, /toBaseAttributes|confirmedAttributes/)
 assert.match(characterCreateLogic, /setCharacterBase\(\{ startingAge \}\)/)
 assert.doesNotMatch(fatePage, /FatePreviewWorldInit|getWorldInitState|persistFatePreviewSeed/)
-assert.match(startHook, /MAX_CREATION_COMMIT_ATTEMPTS/)
-assert.match(startHook, /isTransientCreationCommitReason/)
+assert.match(startHook, /ensureOrchestratorContextFromStores\(\)/)
+assert.doesNotMatch(
+  startHook,
+  /orchestrator\.applyRoundChanges\(\[|MAX_CREATION_COMMIT_ATTEMPTS|isTransientCreationCommitReason|命格系统尚未准备完成/,
+)
+assert.match(fatePage, /const patternLoadoutConfirmed = isPatternLoadoutComplete\(selectedPatterns, equippedReincarnationTalents\)/)
+assert.match(fatePage, /const worldReady = worldInitialized && !!worldConfig && worldCode > 0/)
+assert.match(fatePage, /const runtimeGateReason = allModsLoaded \? null/)
 
 console.log('PASS: creation-settings-regression')

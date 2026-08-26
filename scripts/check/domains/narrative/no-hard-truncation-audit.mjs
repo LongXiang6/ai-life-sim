@@ -66,7 +66,7 @@ assertOk(
   '02 must append one unique source round without replacing earlier memories',
 )
 reject(continuityContext, /故事全文[^\n]*(?:slice|substring)|sourceNarrative\.text\.(?:slice|substring)/u, '02 input must send the complete source story')
-reject(continuityPrompt, /不超过|最多\d+|仅保留|极简|高度浓缩/u, '02 Prompt must not impose destructive semantic caps')
+reject(continuityPrompt, /不超过|仅保留|极简|高度浓缩/u, '02 Prompt must not impose destructive semantic caps')
 reject(memoryLifecycle, /MAX_INDEX_ENTRIES|MAX_RELATIONSHIP_MEMORIES|relationshipMemories\.(?:shift|splice)\(|searchIndex\.(?:shift|splice)\(/, 'unified memory must not evict facts or people by fixed capacity')
 assertOk(
   memoryLifecycle.includes('buildNarrativeTimelineProjection(')

@@ -114,6 +114,7 @@ function activateContext(contextId) {
 }
 
 function roundContext(contextId, characterId, totalDays = 800) {
+  const totalBasePoints = Math.ceil(totalDays * 1000 / 365)
   return {
     contextId,
     contextScope: 'active',
@@ -124,6 +125,8 @@ function roundContext(contextId, characterId, totalDays = 800) {
     difficulty: 'normal',
     subsystemStates: {},
     roundSequence: 8,
+    basePointsPassed: totalBasePoints,
+    totalBasePoints,
     daysPassed: 365,
     totalDays,
   }
@@ -143,7 +146,7 @@ useWorldStore.getState().registerContext(instanceB, false)
 useCharacterStore.getState().reset()
 useCharacterStore.setState({ characterId, name: '历史验收角色', background: '验证历史与状态证据。' })
 
-const validation = { contextId: contextA, roundSequence: 8, totalDays: 800 }
+const validation = { contextId: contextA, roundSequence: 8, totalBasePoints: 2192, totalDays: 800 }
 const ledger = getHistoricalEventLedgerSystem()
 ledger.reset()
 
@@ -413,7 +416,7 @@ assertOk(
 const activated = ledger.commitBatch({
   source: { kind: 'system', sourceId: 'scheduled-transition-smoke' },
   transitions: [{ eventId: 'event:global:scheduled', toStatus: 'active', reason: '进入处理窗口' }],
-}, { ...validation, roundSequence: 9, totalDays: 900 })
+}, { ...validation, roundSequence: 9, totalBasePoints: 2466, totalDays: 900 })
 const round = roundContext(contextA, characterId, 900)
 assertOk(scheduled.ok && activated.ok, 'scheduled fact and legal transition must append')
 assertOk(

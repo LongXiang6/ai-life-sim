@@ -59,8 +59,13 @@ export type {
 export {
   CHARACTER_BASE_OPERATION_FIELDS,
   CHARACTER_DAYS_PER_YEAR,
+  CHARACTER_BASE_POINTS_PER_YEAR,
   resolveCharacterAgeDays,
+  resolveCharacterAgeBasePoints,
+  resolveCharacterAgeDaysFromBasePoints,
   resolveInitialAgeAnchorTotalDays,
+  resolveInitialAgeAnchorBasePoints,
+  migrateAgeAnchorDaysToBasePoints,
 } from './character-state.contract'
 
 export type {

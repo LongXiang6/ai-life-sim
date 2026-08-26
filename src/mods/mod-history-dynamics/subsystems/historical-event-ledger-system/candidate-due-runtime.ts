@@ -11,6 +11,7 @@ import type {
   RoundContext,
 } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { basePointsFromCalendarDays } from '@/foundation'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { cloneValue } from '../../utils'
@@ -34,6 +35,9 @@ export function toHistoricalValidationContext(
   return {
     contextId: context.contextId,
     roundSequence: isRoundContext ? getRoundSequence(context) : context.roundSequence,
+    totalBasePoints: isRoundContext
+      ? context.totalBasePoints
+      : (context.totalBasePoints ?? basePointsFromCalendarDays(context.totalDays)),
     totalDays: context.totalDays,
     legacyYear: isRoundContext ? context.round.year : context.legacyYear,
     origin: isRoundContext ? 'round-context' : 'explicit-context',
@@ -46,10 +50,14 @@ export function toHistoricalValidationContext(
 
 export function isHistoricalScheduleDue(
   schedule: HistoricalEventRecord['schedule'],
-  context: Pick<HistoricalEventValidationContext, 'totalDays' | 'roundSequence' | 'legacyYear'>,
+  context: Pick<HistoricalEventValidationContext, 'totalBasePoints' | 'totalDays' | 'roundSequence' | 'legacyYear'>,
 ): boolean {
   if (!schedule) return true
-  if (schedule.dueTotalDays !== undefined && schedule.dueTotalDays > context.totalDays) return false
+  const dueBasePoints = schedule.dueBasePoints
+    ?? (schedule.dueTotalDays === undefined ? undefined : basePointsFromCalendarDays(schedule.dueTotalDays))
+  const currentBasePoints = context.totalBasePoints
+    ?? basePointsFromCalendarDays(context.totalDays)
+  if (dueBasePoints !== undefined && dueBasePoints > currentBasePoints) return false
   if (
     schedule.dueRoundSequence !== undefined
     && schedule.dueRoundSequence > context.roundSequence

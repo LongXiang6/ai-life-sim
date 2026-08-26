@@ -211,7 +211,7 @@ function loadTalentPoolHelpers(sourceText) {
   assertSame(declarations.length, helperNames.size, 'talent draw pool helpers must remain executable regression targets')
 
   const transpiled = ts.transpileModule(
-    `${declarations.join('\n')}\nmodule.exports = { uniquePatternsByIdentity, drawSlotsFromPool }`,
+    `function canonicalizeDestinyPatternName(name) { return name.normalize('NFKC').trim().replace(/\\s+/gu, '').toLocaleLowerCase() }\n${declarations.join('\n')}\nmodule.exports = { uniquePatternsByIdentity, drawSlotsFromPool }`,
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText
   const module = { exports: {} }
@@ -266,7 +266,7 @@ assertOk(
 )
 assertOk(
   TIME_SCALE_NARRATIVE_PROFILES.every((profile, index, profiles) => index === 0 || profile.macroLevel > profiles[index - 1].macroLevel),
-  'time-scale macro levels must increase strictly from day to millennium',
+  'time-scale macro levels must increase strictly from event nodes to millennium',
 )
 for (const option of AVAILABLE_TIME_STEPS) {
   const profile = getTimeScaleNarrativeProfile(option)
@@ -275,68 +275,79 @@ for (const option of AVAILABLE_TIME_STEPS) {
   assertIncludes(hint, profile.prompt, `${profile.id} prompt must enter the assembled time guidance`)
 }
 
+// Persisted/custom settings can carry a positive year or event count that is
+// not one of the visible presets; those values still receive neutral time facts.
+const fallbackYearStep = { unit: 'year', value: 7 }
+const fallbackYearProfile = getTimeScaleNarrativeProfile(fallbackYearStep)
+assertSame(fallbackYearProfile.key, 'year:7', 'unlisted year step must retain its normalized key')
+assertIncludes(fallbackYearProfile.prompt, '覆盖7年', 'unlisted year step must retain its time span')
+assertOk(!buildTimeScaleNarrativeHint(fallbackYearStep).includes('事件链'), 'unlisted year hint must not force an event chain')
+const fallbackEventStep = { unit: 'event', value: 7 }
+const fallbackEventProfile = getTimeScaleNarrativeProfile(fallbackEventStep)
+assertSame(fallbackEventProfile.key, 'event:7', 'unlisted event step must retain its normalized key')
+assertIncludes(fallbackEventProfile.prompt, '事件节点推进', 'unlisted event step must retain event-node timing')
+assertOk(!buildTimeScaleNarrativeHint(fallbackEventStep).includes('至少完成一条事件链'), 'unlisted event hint must not force an event chain')
+
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
-assertIncludes(oneYearHint, '年度故事弧线视角', 'one-year hint must use a connected annual story arc')
-assertIncludes(oneYearHint, '二至三个彼此照应的代表性场景', 'one-year hint must cover the annual arc with connected representative scenes')
-assertIncludes(oneYearHint, '旧主线只能作为承接背景，不能占据多数篇幅', 'one-year hint must move away from a repeated recent main line')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '根据世界名称与描述、历史连续性事实、角色当前叙事语义和本轮事实与方向', 'fixed prompt must use the approved 01 story sources')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '多个并列事项都要形成实际尝试', 'fixed prompt must cover every selected parallel action')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前时间、玩家行动、年龄边界、挑战与失败取向、称呼方式、叙述风格和字数要求', 'fixed prompt must map the approved age, challenge and failure guidance')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '角色当前身份、当前年龄、能力语义与天赋', 'fixed prompt must map age and talent under the character input')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '0至2岁写婴幼儿能够成立的感知', 'fixed prompt must enforce infant capability boundaries')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '当前已生效天赋', 'fixed prompt must use the unified talent terminology')
-assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前到期事件中的每项都要在正文中实际处理'), 'fixed prompt must not add a per-item due-event obligation')
-assertOk(COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"当前到期事件":'), 'fixed prompt must describe the optional due-event input')
+assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
+assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
+let parsedFixedNarrativePrompt
+try {
+  parsedFixedNarrativePrompt = JSON.parse(COMPILED_NARRATIVE_SYSTEM_PROMPT)
+} catch {
+  parsedFixedNarrativePrompt = null
+}
+assertOk(
+  JSON.stringify(Object.keys(parsedFixedNarrativePrompt ?? {})) === JSON.stringify(['身份', '目标', '输出契约'])
+    && parsedFixedNarrativePrompt?.身份 === '故事叙事生成器'
+    && parsedFixedNarrativePrompt?.目标?.includes('合理的当前故事')
+    && !parsedFixedNarrativePrompt?.目标?.includes('连贯、可继续')
+    && parsedFixedNarrativePrompt?.输出契约?.调用?.includes('submit_story_turn')
+    && parsedFixedNarrativePrompt?.输出契约?.字段定义?.正文?.includes('非空字符串')
+    && parsedFixedNarrativePrompt?.输出契约?.字段定义?.分支?.includes('选项')
+    && parsedFixedNarrativePrompt?.输出契约?.字段定义?.结局?.includes('四字评语')
+    && Array.isArray(parsedFixedNarrativePrompt?.输出契约?.不变量)
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界故事模拟器')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程'),
+  'fixed Prompt must contain only one narrative target and the machine-readable output contract',
+)
 const storySystemPromptSample = storyPromptSampleSrc.match(/## 系统 Prompt\s*```json\s*([\s\S]*?)\s*```/u)?.[1]
 assertSame(storySystemPromptSample, COMPILED_NARRATIVE_SYSTEM_PROMPT, '01 sample system Prompt must exactly match the protected runtime asset')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
-assertIncludes(tenYearHint, '十年人生转型视角', 'ten-year hint must use character-scale decade transformation')
+assertIncludes(tenYearHint, '覆盖10年', 'ten-year hint must expose the decade span')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
-assertIncludes(fiftyYearHint, '半世纪历史视角', 'fifty-year hint must use historical perspective')
-assertIncludes(fiftyYearHint, '选择少量能够代表转折的时代场景', 'fifty-year hint must use connected historical nodes')
-assertIncludes(fiftyYearHint, '追踪同一个选择、事业、关系或遗产如何改变形态并反过来塑造人生', 'fifty-year hint must sustain one historical causal thread')
+assertIncludes(fiftyYearHint, '覆盖50年', 'fifty-year hint must expose the historical span')
+assertOk(!fiftyYearHint.includes('事件链') && !fiftyYearHint.includes('单一人物线'), 'fifty-year hint must not add a historical causal template')
 const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
-assertIncludes(millenniumHint, '千年时代与遗产视角', 'millennium hint must use civilizational legacy perspective')
+assertIncludes(millenniumHint, '覆盖1000年', 'millennium hint must expose the millennium span')
 
 const januaryCalendar = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'day', value: 1 },
+  timeStep: { unit: 'event', value: 12 },
   calendarYear: 2026,
   month: 1,
   day: 2,
 })
-assertIncludes(januaryCalendar, '3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季', 'calendar hint must define canonical solar months')
-assertIncludes(januaryCalendar, '结束节点属于冬季', 'January must resolve to winter')
-assertIncludes(januaryCalendar, '其中1月称冬季', 'cold January weather must retain its calendar season')
-assertIncludes(januaryCalendar, '异常寒冷或炎热作为该季节中的特殊天气呈现', 'calendar guidance must separate weather from season naming')
+assertIncludes(januaryCalendar, '1月属于冬', 'calendar hint must retain the canonical January season')
+assertIncludes(januaryCalendar, '日期、季节和节日仅作为可用背景事实', 'calendar hint must keep calendar facts optional')
+assertOk(!januaryCalendar.includes('天气、衣着、农事'), 'calendar guidance must not prescribe scene background details')
+assertIncludes(januaryCalendar, '本轮按事件节点推进', 'event calendar guidance must use the canonical event clock')
+assertIncludes(januaryCalendar, '12个故事节点', 'event calendar guidance must expose the annual event budget')
 
-const crossYearDays = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'day', value: 3 },
+const crossYearEvents = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'event', value: 3 },
   calendarYear: 2026,
   month: 1,
   day: 2,
+  eventNodeIndex: 1,
+  eventNodeCount: 3,
 })
-assertIncludes(crossYearDays, '2025年12月31日至2026年1月2日，共3天', 'day span must cross the year canonically')
-
-const crossSeasonMonths = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'month', value: 3 },
-  calendarYear: 2026,
-  month: 2,
-  day: 1,
-})
-assertIncludes(crossSeasonMonths, '2025年12月至2026年2月，共3个月', 'month span must cross year and season')
-assertIncludes(crossSeasonMonths, '结束节点属于冬季', 'February must resolve to winter')
-
-const multiSeasonCalendar = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'season', value: 2 },
-  calendarYear: 2026,
-  month: 8,
-  day: 1,
-})
-assertIncludes(multiSeasonCalendar, '连续推进2个季度（6个月）', 'season hint must respect requested amount')
-assertIncludes(multiSeasonCalendar, '环境与社会节律随跨季过程自然变化', 'multi-season hint must require seasonal change')
+assertIncludes(crossYearEvents, '本轮按事件节点推进', 'event span must stay in the event clock')
+assertIncludes(crossYearEvents, '本自然年已消费1/3个故事节点', 'event span must expose the current annual node position')
 
 const multiYearCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'year', value: 10 },
@@ -358,31 +369,31 @@ assertOk(!oneYearCalendar.includes('代表性场景'), 'single-year calendar gui
 assertOk(!oneYearCalendar.includes('多年推进必须'), 'single-year calendar guidance must not request a multi-year composition')
 
 const coarseToFineWindow = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'month', value: 1 },
+  timeStep: { unit: 'event', value: 12 },
   calendarYear: 2026,
   month: 2,
   day: 1,
   previousNode: { calendarYear: 2026, month: 1, day: 1 },
-  daysPassed: 31,
+  basePointsPassed: 85,
 })
 assertIncludes(coarseToFineWindow, '上一叙事节点为2026年1月1日', 'runtime calendar hint must name the previous narrative node')
 assertIncludes(coarseToFineWindow, '当前结束节点为2026年2月1日', 'runtime calendar hint must name the current end node')
-assertIncludes(coarseToFineWindow, '已推进31天（1月）', 'runtime calendar hint must use actual elapsed days after a coarse-to-fine switch')
-assertIncludes(coarseToFineWindow, '开端承接上一节点的既成结果', 'runtime calendar hint must advance from the completed period')
-assertOk(!coarseToFineWindow.includes('本轮覆盖2026年2月'), 'runtime month span must not mislabel the ended February node as the narrated month')
+assertIncludes(coarseToFineWindow, '已推进85个年度基础点（12事件节点/年）', 'runtime calendar hint must use actual elapsed base points')
+assertIncludes(coarseToFineWindow, '本轮实际时间窗口', 'runtime calendar hint must only preserve the actual time boundary')
+assertOk(!coarseToFineWindow.includes('本轮覆盖2026年2月'), 'runtime event span must not mislabel the ended node as a year-only window')
 
 const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'month', value: 1 },
+  timeStep: { unit: 'event', value: 1 },
   calendarYear: 1003,
   month: 1,
   day: 1,
   previousNode: { calendarYear: 1002, month: 1, day: 1 },
-  daysPassed: 365,
+  basePointsPassed: 1000,
   timeStepAlignment: { fromUnit: 'year', fromValue: 1 },
 })
-assertIncludes(alignedBridgeWindow, '边界对齐桥接', 'coarse-to-fine bridge must be explicit in the calendar prompt')
-assertIncludes(alignedBridgeWindow, '前一粗粒度窗口已经完成', 'bridge prompt must preserve the completed coarse window')
-assertIncludes(alignedBridgeWindow, '正文从当前合法节点建立一个代表性现场、后果或新线索', 'bridge prompt must continue from the current legal node')
+assertIncludes(alignedBridgeWindow, '边界对齐', 'coarse-to-fine bridge must preserve the time boundary')
+assertIncludes(alignedBridgeWindow, '前一窗口已经完成', 'bridge prompt must preserve the completed coarse window')
+assertOk(!alignedBridgeWindow.includes('正文写法由合理叙事决定'), 'bridge prompt must not add a writing-style rule')
 
 const validPromotionOutput = {
   name: '照夜升阶',
@@ -587,24 +598,24 @@ assertSame(sameNameCustomWorld.worldConfig.powerSystemTag, 'none', 'same-name cu
 
 const newYearFestivalHint = buildFestivalNarrativeHint({
   scope: 'china',
-  timeStep: { unit: 'day', value: 1 },
+  timeStep: { unit: 'event', value: 12 },
   month: 1,
   day: 1,
 })
-assertOk(newYearFestivalHint?.includes('春节'), 'game calendar must expose Spring Festival on first day of the year')
+assertOk(newYearFestivalHint?.includes('按事件节点推进'), 'event clock must treat festivals as optional calendar rhythm')
 assertSame(
-  buildFestivalNarrativeHint({ scope: 'china', timeStep: { unit: 'day', value: 1 }, month: 1, day: 2 }),
-  undefined,
-  'game calendar must match festivals by exact month and day',
+  buildFestivalNarrativeHint({ scope: 'china', timeStep: { unit: 'year', value: 1 }, month: 1, day: 2 })?.includes('节日数据范围：中国节日。'),
+  true,
+  'annual calendar guidance must expose the configured festival scope',
 )
 assertOk(
   buildFestivalNarrativeHint({
     scope: 'china-and-international',
-    timeStep: { unit: 'day', value: 1 },
+    timeStep: { unit: 'year', value: 1 },
     month: 2,
     day: 14,
-  })?.includes('情人节'),
-  'international festival scope must add optional international dates',
+  })?.includes('节日数据范围：中国节日与国际节日。'),
+  'international festival scope must remain available to annual guidance',
 )
 
 assertOk(isEligibleNarrativeBranch({
@@ -676,13 +687,13 @@ const sameNamePool = [
 ]
 assertSame(
   talentPoolHelpers.uniquePatternsByIdentity(sameNamePool).length,
-  5,
-  'display identity must retain same-name candidates when their IDs differ',
+  4,
+  'display identity must retain only the first candidate for a canonicalized name',
 )
 assertSame(
   talentPoolHelpers.drawSlotsFromPool(sameNamePool).filter(Boolean).length,
-  5,
-  'a five-item pool with distinct IDs must expose all five candidates despite repeated names',
+  4,
+  'a repeated-name pool must expose one candidate per canonicalized name',
 )
 assertSame(
   talentPoolHelpers.uniquePatternsByIdentity([
@@ -690,8 +701,8 @@ assertSame(
     { id: 'extra', name: '补足命格' },
     { id: 'extra-2', name: '再补命格' },
   ]).length,
-  7,
-  'adding two new IDs must retain all seven candidates regardless of display-name similarity',
+  6,
+  'adding two new IDs must retain only one candidate per canonicalized name',
 )
 
 assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
@@ -705,15 +716,14 @@ assertSame(resolveNarrativeWordCountRange(200).preferredMin, 160, 'the 200-chara
 assertSame(resolveNarrativeWordCountRange(200).preferredMax, 240, 'the 200-character option must expose a focused upper guidance bound')
 assertOk(
   new Set(NARRATIVE_WORD_COUNT_TARGETS.map((target) => buildWordCountInstruction(target))).size === 16
-    && buildWordCountInstruction(200).includes('2至3个短段、4至6个短句')
-    && buildWordCountInstruction(200).startsWith('正文约200字。'),
-  'every length option must select distinct density guidance and state the configured approximate target',
+    && buildWordCountInstruction(200) === '正文约200字。',
+  'every length option must state only its configured approximate target',
 )
 assertOk(
-  buildWordCountInstruction(200).includes('按本轮视角分配必要节点')
-    && !buildWordCountInstruction(200).includes('一个感官锚点')
-    && !buildWordCountInstruction(200).includes('一组关键行动或对话'),
-  'word-count guidance must own density without forcing every time scale into one scene',
+  !buildWordCountInstruction(200).includes('短段')
+    && !buildWordCountInstruction(200).includes('短句')
+    && !buildWordCountInstruction(200).includes('场景'),
+  'word-count guidance must not prescribe scene, paragraph, or sentence structure',
 )
 const lifecycleStatus = createCharacterNarrativeStatus({
   startingAgeYears: 2,
@@ -858,10 +868,19 @@ assertOk(
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.5\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.6\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 8.5.0',
+  'destiny prompt builder and cache version must share version 8.6.0',
+)
+assertOk(
+  destinyPromptSrc.includes('首句直接落到能力机制、触发条件、动作、可观察现象或世界反馈')
+    && destinyPromptSrc.includes('此人')
+    && destinyPromptSrc.includes('该角色')
+    && destinyPromptSrc.includes('这位人物')
+    && destinyPromptSrc.includes('此天赋')
+    && destinyPromptSrc.includes('拥有……'),
+  'destiny prompt must vary direct openings and replace fixed person/talent templates',
 )
 assertOk(
   destinyPromptSrc.includes('全池已经被占用的天赋名称')
@@ -982,7 +1001,12 @@ assertOk(
   /sanitizeDestinyPatternState/.test(characterMigrationSrc) && /sanitizeAttrBonus/.test(characterMigrationSrc),
   'old character saves and destiny pools must remove retired attribute bonuses',
 )
-assertOk(/z\.object\(\{[\s\S]*name:[\s\S]*description:[\s\S]*effect:/.test(reincarnationPromptSrc), 'reincarnation promotion schema must require exactly name, description, and effect')
+assertOk(
+  /z\.object\(\{[\s\S]*name:[\s\S]*description:[\s\S]*effect:/.test(reincarnationPromptSrc)
+    && /version:\s*'2\.1\.0'/.test(reincarnationPromptSrc)
+    && reincarnationPromptSrc.includes('模板化起句'),
+  'reincarnation promotion must keep its schema and vary direct openings',
+)
 assertOk(
   /非数值概念规则/.test(reincarnationPromptSrc) && /持续生效/.test(reincarnationPromptSrc),
   'reincarnation promotion must remain a non-numeric conceptual rule',
@@ -1046,10 +1070,13 @@ assertOk(
   'destiny category calls must build category-scoped prompts without strict schema validation or the retired generation contract',
 )
 assertOk(
-  /function dedupeDestinyPatterns[\s\S]{0,260}seenIds[\s\S]{0,180}seenIds\.has\(pattern\.id\)[\s\S]{0,180}seenIds\.add\(pattern\.id\)/.test(destinyValidationSrc)
+  /function canonicalizeDestinyPatternName/.test(destinyValidationSrc)
+    && /function dedupeDestinyPatterns/.test(destinyValidationSrc)
+    && /seenNames\.has\(nameKey\)/.test(destinyValidationSrc)
+    && /seenNames\.add\(nameKey\)/.test(destinyValidationSrc)
     && /this\.currentPatterns = dedupeDestinyPatterns/.test(destinyPoolServiceSrc)
     && /countCategory\(category\)/.test(destinyPoolServiceSrc),
-  'the AI authority must dedupe only repeated IDs while tracking each category independently',
+  'the AI authority must dedupe canonicalized names and repeated IDs while tracking each category independently',
 )
 assertOk(
   /getPoolFillStatus\(\)\.phase === 'initial'[\s\S]{0,80}abortPoolFill\(\)/.test(talentDrawPageSrc),
@@ -1083,10 +1110,10 @@ assertOk(
   'the completed destiny handoff must expose an explicit enter-selection action',
 )
 assertOk(
-  /function uniquePatternsByIdentity[\s\S]{0,500}seenIds[\s\S]{0,240}seenIds\.has\(pattern\.id\)[\s\S]{0,160}seenIds\.add\(pattern\.id\)/.test(talentDrawPageSrc)
-    && !talentDrawPageSrc.includes('seenNames')
-    && !talentDrawPageSrc.includes('patternNameKey'),
-  'the destiny draw must remove duplicate IDs without treating display names as identity',
+  /function uniquePatternsByIdentity/.test(talentDrawPageSrc)
+    && /seenIds\.has\(pattern\.id\)/.test(talentDrawPageSrc)
+    && /seenNames\.has\(nameKey\)/.test(talentDrawPageSrc),
+  'the destiny draw must dedupe both repeated IDs and canonicalized names',
 )
 assertOk(
   /const savedSlotsMatchMode[\s\S]{0,360}savedPatterns\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,260}uniquePatternsByIdentity\(savedPatterns\)\.length === savedPatterns\.length/.test(talentDrawPageSrc),
@@ -1111,10 +1138,10 @@ assertOk(
   'DeepSeek reasoning must transmit an explicit enabled/disabled type and supported reasoning effort',
 )
 assertOk(
-  /const visibleIds = new Set\([\s\S]{0,700}visibleIds\.has\(pattern\.id\)\) continue[\s\S]{0,300}visibleIds\.add\(pattern\.id\)/.test(talentDrawPageSrc)
-    && !talentDrawPageSrc.includes('visibleNames')
-    && !talentDrawPageSrc.includes('patternNameKey'),
-  'destiny redraw must reject repeated IDs without filtering same-name candidates',
+  /const visibleIds = new Set/.test(talentDrawPageSrc)
+    && /const visibleNames = new Set/.test(talentDrawPageSrc)
+    && /visibleNames\.has\(nameKey\)/.test(talentDrawPageSrc),
+  'destiny redraw must reject repeated IDs and canonicalized names',
 )
 assertOk(
   /\.aura\s*\{[^}]*width:\s*calc\(220 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
@@ -1141,65 +1168,70 @@ assertOk(
   'failed real rounds must never restore an earlier runtime snapshot',
 )
 
-assertOk(timeScaleSrc.includes('年度故事弧线视角'), 'year step must use connected annual scenes')
 assertOk(
-  timeScaleSrc.includes('从窗口内正在发生的行动、关系或世界变化进入场景')
-    && timeScaleSrc.includes('日期、年龄与阶段名称在需要定位转折时自然出现')
+  !timeScaleSrc.includes('根据当前事实自然展开')
+    && timeScaleSrc.includes('历史和本轮事实供合理叙事参考'),
+  'time-scale guidance must only provide time facts alongside the single reasonable-narrative rule',
+)
+assertOk(
+    timeScaleSrc.includes('本轮实际时间窗口')
+    && !timeScaleSrc.includes('进入场景')
     && !narrativePromptComponentsSrc.includes('日期、年龄与阶段名称'),
-  'time-scale guidance must own scene entry and time-anchor placement',
+  'time guidance must own only time-boundary facts',
 )
 assertOk(
-  timeScaleSrc.includes('十年人生转型视角')
-    && timeScaleSrc.includes('半世纪历史视角')
-    && narrativePromptComponentsSrc.includes('多个并列事项都要形成实际尝试'),
-  'time guidance must own scale-specific distance while the fixed Prompt owns selected-action completion',
+  !timeScaleSrc.includes('至少完整呈现一条事件链')
+    && !timeScaleSrc.includes('不能用单一现场代替整段跨度')
+    && promptBuilderSrc.includes('本轮事件材料'),
+  'time guidance and dynamic facts must not add story composition pressure',
 )
-assertOk(timeScaleSrc.includes('季度阶段视角'), 'season step must use quarterly stage perspective')
-assertOk(timeScaleSrc.includes('月度变化视角'), 'month step must use monthly change perspective')
-assertOk(timeScaleSrc.includes('单日现场视角'), 'day step must use daily scene perspective')
+assertOk(timeScaleSrc.includes('事件节点推进'), 'event step must retain event timing')
+assertOk(timeScaleSrc.includes('覆盖一年'), 'year step must retain annual timing')
 assertOk(/case 'year'[\s\S]{0,120}return eraLabel/.test(narrativeCalendarSrc), 'year label must contain only the year/era')
 assertOk(
   /seasonName/.test(narrativeCalendarSrc)
-    && /getSeasonForMonth\(round\.month\)/.test(narrativeCalendarSrc),
+    && /getSeasonForMonth\(round\.month\)/.test(narrativeCalendarSrc)
+    && /getSeasonForMonth/.test(timeScaleSrc),
   'season label must derive the season from the solar month',
 )
-assertOk(/case 'month'[\s\S]{0,220}round\.month \+ 1/.test(narrativeCalendarSrc), 'month label must include year, season and month')
-assertOk(/case 'day'[\s\S]{0,260}dayNum/.test(narrativeCalendarSrc), 'day label must include year, season, month and day')
+assertOk(/case 'event'[\s\S]{0,260}故事节点/.test(narrativeCalendarSrc), 'event label must include the annual story-node position')
 assertOk(orchestratorSrc.includes('currentTime: narrativeTime.timeLabel'), 'AI currentTime must use the authoritative formatted time label')
 
-// 2007年春季5月切到季推进：连续推进5/6/7月后应落在8月，即夏季，不回到本年冬季。
-const mayIndex = 4
-const monthAfterSeasonStep = (mayIndex + 3) % 12
-assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
+// 年度事件节点不再通过旧日/月/季边界对齐；年度预算由基础点时钟统一分配。
+assertOk(timeScaleSrc.includes('本自然年配置'), 'event clock must describe the annual event budget')
+assertOk(!timeScaleSrc.includes('节点数量只用于确定叙事节奏和年界'), 'event count must not become a prose quota')
 assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
 assertOk(
-  narrativePromptComponentsSrc.includes('实质互斥的玩家选择')
-    && narrativePromptComponentsSrc.includes('不同选择会改变后续走向'),
-  'branch prompt must require a blocking choice with materially different futures',
+  narrativeSignalsSrc.includes('命运分支的重要程度必须为高')
+    && narrativeSignalsSrc.includes('命运分支必须是不可逆变化')
+    && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
+  'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.4\.1'/.test(narrativePromptSrc), 'pure narrative contract must use version 7.4.1')
+assertOk(/version:\s*'7\.8\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.8.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('默认以第二人称‘你’作为当前角色的叙事主语')
-    && narrativePromptComponentsSrc.includes('本轮事实与方向提供称呼方式，则以该动态称呼方式为准')
-    && narrativePromptComponentsSrc.includes('不得伪造证据、身份、秘密答案、过去言行或后续结果'),
-  'narrative prompt must preserve the approved second-person and fact-boundary rules',
+  promptBuilderSrc.includes('第二人称“你”指代主角')
+    && promptBuilderSrc.includes('不规定叙事主语')
+    && promptBuilderSrc.includes('本轮事件材料'),
+  'dynamic narrative assembly must own addressing and minimal fact-boundary guidance',
 )
 assertOk(
-  timeScaleSrc.includes('从窗口内正在发生的行动、关系或世界变化进入场景')
-    && promptBuilderSrc.includes('保留古典用词质感，但使用略微白话、直接易读的句式')
-    && promptBuilderSrc.includes('以具体动作、工具、材料、身体限制、关系反应和可追踪因果推进'),
-  'time-scale entry and the approved dynamic narrative style must remain live',
+  !timeScaleSrc.includes('根据当前事实自然展开')
+    && timeScaleSrc.includes('历史和本轮事实供合理叙事参考')
+    && promptBuilderSrc.includes("typeof value === 'string' && value.trim().length > 0")
+    && promptBuilderSrc.includes('`叙述风格：${value}`')
+    && !promptBuilderSrc.includes('DEFAULT_NARRATIVE_STYLE'),
+  'time-scale entry must remain live while custom style is conditionally injected without a default fallback',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('历史连续性事实只用于识别已完成状态、持续关系和未解决结果')
-    && narrativePromptComponentsSrc.includes('未在连续性事实中近期体现的天赋')
-    && timeScaleSrc.includes('不能只换时间继续复述'),
-  '01 must use continuity facts without template reuse and give naturally relevant underused talents room to act',
+  promptBuilderSrc.includes('历史连续性事实: context.timelineMemory')
+    && timeScaleSrc.includes('历史和本轮事实供合理叙事参考')
+    && !timeScaleSrc.includes('上一节点的既成结果'),
+  '01 must pass continuity facts through dynamic assembly without adding a story template',
 )
 assertOk(
   talentGrowthPromptSrc.includes('程序筛选')
@@ -1235,7 +1267,7 @@ assertOk(
     && !orchestratorSrc.includes('opening-information-priority'),
   'the retired attribute-over-background opening priority must not be injected',
 )
-assertOk(timeScaleSrc.includes('3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'dynamic time guidance must define the canonical solar season mapping')
+assertOk(timeScaleSrc.includes('getSeasonForMonth') && timeScaleSrc.includes('SEASON_NAMES'), 'dynamic time guidance must derive the season from the canonical calendar mapping')
 assertOk(!/commit\.changes\.slice\(/.test(roundCommitBusSrc), 'round commit must never partially truncate structured changes')
 assertOk(
   roundCommitBusSrc.includes("export type RoundCommitSource = 'manual'")

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Provide the shared subsystem lifecycle base class and transaction helpers.
+ * Owner: core
+ * Responsibility: Common lifecycle contract only; business calculations remain in owning subsystems.
+ *
  * @module subsystem-base.ts
  * @description 子系统抽象基类 —— 统一子系统必实现方法、共享工具方法，实现 ISubSystemV2
  * @mod core
@@ -17,10 +21,9 @@
  *   项目内零采用（仅类型声明，无任何子系统或引擎代码引用），暂不引入，避免无人使用的
  *   额外复杂度——待实际有子系统需要编译期阶段隔离时再评估升级。
  *
- * daysPassed 字段说明：RoundContext 已正式扩展 `daysPassed`/`totalDays` 两个字段
- * （2026-07 时间引擎重写落地，取代旧的 ageYearsDelta/simulationTicks/calendarDaysDelta）。
- * TimeSystem 是这两个字段的唯一写入者，子系统只读。getDaysPassed() 保留运行时非空校验，
- * 防止上游未正确注入 context 时子系统按 0 天静默推进。
+ * 时间字段说明：RoundContext 的 `basePointsPassed`/`totalBasePoints` 是业务时间真源；
+ * `daysPassed`/`totalDays` 仅是派生日历和旧存档适配。TimeSystem 是它们的唯一写入者，
+ * 子系统只读。旧的 getDaysPassed() 保留给显示/迁移边界，业务推进应使用 getBasePointsPassed()。
  */
 
 import type { ISubSystemV2, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
@@ -81,6 +84,16 @@ export abstract class BaseSubsystem implements ISubSystemV2 {
       )
     }
     return context.daysPassed
+  }
+
+  /** 读取本轮年度基础点增量；所有业务速率、期限和冷却的唯一时间入口。 */
+  protected getBasePointsPassed(context: RoundContext): number {
+    if (context.basePointsPassed === undefined || context.basePointsPassed === null) {
+      throw new Error(
+        `[${this.id}] RoundContext.basePointsPassed 未设置 —— 时间引擎是否正确注入？`,
+      )
+    }
+    return context.basePointsPassed
   }
 
   /**

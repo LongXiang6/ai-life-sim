@@ -78,7 +78,6 @@ function FatePreviewContent() {
     patternLoadoutConfirmed,
     gender,
     name,
-    selectedPatterns,
     startingAge,
     storySeed,
     worldConfig,

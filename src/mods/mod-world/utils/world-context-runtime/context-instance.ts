@@ -13,6 +13,11 @@ import type {
   WorldContextKind,
   WorldContextRecord,
 } from '@/foundation'
+import {
+  BASE_POINTS_PER_YEAR,
+  basePointsFromCalendarDays,
+  calendarDaysFromBasePoints,
+} from '@/foundation'
 import type {
   WorldCalibration,
   WorldConfig,
@@ -45,6 +50,57 @@ function validateLocalCalendar(calendar: LocalCalendarProfile): LocalCalendarPro
   return structuredClone(calendar)
 }
 
+function normalizeBasePoints(value: number | undefined, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : fallback
+}
+
+/**
+ * Local calendars may advance by a fractional canonical point when their
+ * timeScale is below one. Keep that fractional cursor so repeated small
+ * event advances are accumulated instead of being discarded on every sync;
+ * the global event cursor remains integer-based.
+ */
+function normalizeLocalBasePoints(value: number | undefined, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : fallback
+}
+
+function roundLocalBasePoints(value: number): number {
+  // Avoid binary floating-point noise in persisted snapshots while retaining
+  // enough precision for ordinary timeScale values.
+  return Math.round(Math.max(0, value) * 1_000_000_000) / 1_000_000_000
+}
+
+/** Convert a local canonical cursor to its calendar-day display projection. */
+export function localCalendarDaysFromBasePoints(
+  totalBasePoints: number,
+  calendar: Pick<LocalCalendarProfile, 'daysPerYear'>,
+): number {
+  const points = normalizeBasePoints(totalBasePoints)
+  return Math.floor((points * calendar.daysPerYear) / BASE_POINTS_PER_YEAR)
+}
+
+/** One-time migration helper for legacy local day cursors. */
+export function localCalendarBasePointsFromDays(
+  totalLocalDays: number,
+  calendar: Pick<LocalCalendarProfile, 'daysPerYear'>,
+): number {
+  if (!Number.isFinite(totalLocalDays) || totalLocalDays <= 0) return 0
+  return Math.floor((Math.floor(totalLocalDays) * BASE_POINTS_PER_YEAR) / calendar.daysPerYear)
+}
+
+function resolveLegacyGlobalBasePoints(
+  totalBasePoints: number | undefined,
+  totalDays: number | undefined,
+): number {
+  return totalBasePoints !== undefined
+    ? normalizeBasePoints(totalBasePoints)
+    : basePointsFromCalendarDays(totalDays ?? 0)
+}
+
 export function buildWorldContextInstance(input: {
   contextId: string
   config: WorldConfig
@@ -59,7 +115,7 @@ export function buildWorldContextInstance(input: {
   localCalendar?: LocalCalendarProfile
   capabilities?: ContextCapability[]
   scope?: SimulationScope
-  globalTotalDays?: number
+  globalTotalBasePoints?: number
   derivedFrom?: ContextCapabilityProfile['derivedFrom']
 }): WorldContextInstance {
   const contextKind = input.contextKind ?? inferContextKind(input.config)
@@ -71,7 +127,6 @@ export function buildWorldContextInstance(input: {
     input.config.spatialForm,
     regions,
   )
-  const globalTotalDays = Math.max(0, input.globalTotalDays ?? 0)
   const localCalendar = validateLocalCalendar(input.localCalendar ?? {
     calendarId: 'canonical-365',
     displayName: input.eraName || input.config.eraName || '当地历法',
@@ -80,6 +135,8 @@ export function buildWorldContextInstance(input: {
     timeScale: 1,
     pausedWhenInactive: true,
   })
+  const globalTotalBasePoints = normalizeBasePoints(input.globalTotalBasePoints)
+  const globalTotalDays = calendarDaysFromBasePoints(globalTotalBasePoints)
   const record: WorldContextRecord = {
     id: input.contextId,
     parentContextId: input.parentContextId,
@@ -88,9 +145,12 @@ export function buildWorldContextInstance(input: {
     description: input.config.description,
     lifecycle: input.scope === 'closed' ? 'closed' : input.scope === 'active' ? 'open' : 'dormant',
     rootSpatialNodeId: spatialGraph.rootNodeId,
+    createdAtGlobalBasePoints: globalTotalBasePoints,
     createdAtGlobalDay: globalTotalDays,
     localCalendar,
     localClock: {
+      totalBasePoints: 0,
+      lastGlobalTotalBasePoints: globalTotalBasePoints,
       totalLocalDays: 0,
       lastGlobalTotalDays: globalTotalDays,
     },
@@ -100,6 +160,7 @@ export function buildWorldContextInstance(input: {
     contextId: input.contextId,
     scope: input.scope ?? 'dormant',
     reason: input.scope === 'active' ? '当前玩家上下文' : '新建上下文等待激活',
+    changedAtGlobalBasePoints: globalTotalBasePoints,
     changedAtGlobalDay: globalTotalDays,
   }
 
@@ -128,16 +189,33 @@ export function buildWorldContextInstance(input: {
 
 export function syncLocalClock(
   instance: WorldContextInstance,
-  globalTotalDays: number,
+  globalTotalBasePoints: number,
 ): WorldContextInstance {
   const next = structuredClone(instance)
-  const elapsedGlobalDays = Math.max(0, globalTotalDays - next.record.localClock.lastGlobalTotalDays)
+  const localClock = next.record.localClock
+  const globalBasePoints = normalizeBasePoints(globalTotalBasePoints)
+  const lastGlobalBasePoints = resolveLegacyGlobalBasePoints(
+    localClock.lastGlobalTotalBasePoints,
+    localClock.lastGlobalTotalDays,
+  )
+  const elapsedGlobalBasePoints = Math.max(0, globalBasePoints - lastGlobalBasePoints)
+  const currentLocalBasePoints = localClock.totalBasePoints !== undefined
+    ? normalizeLocalBasePoints(localClock.totalBasePoints)
+    : localCalendarBasePointsFromDays(localClock.totalLocalDays, next.record.localCalendar)
   const shouldAdvance = next.scope.scope === 'active'
     || (next.scope.scope === 'background' && !next.record.localCalendar.pausedWhenInactive)
   if (shouldAdvance) {
-    next.record.localClock.totalLocalDays += elapsedGlobalDays * next.record.localCalendar.timeScale
+    const localDelta = elapsedGlobalBasePoints * next.record.localCalendar.timeScale
+    localClock.totalBasePoints = roundLocalBasePoints(currentLocalBasePoints + Math.max(0, localDelta))
+  } else {
+    localClock.totalBasePoints = roundLocalBasePoints(currentLocalBasePoints)
   }
-  next.record.localClock.lastGlobalTotalDays = globalTotalDays
+  localClock.lastGlobalTotalBasePoints = globalBasePoints
+  localClock.totalLocalDays = localCalendarDaysFromBasePoints(
+    localClock.totalBasePoints,
+    next.record.localCalendar,
+  )
+  localClock.lastGlobalTotalDays = calendarDaysFromBasePoints(globalBasePoints)
   return next
 }
 

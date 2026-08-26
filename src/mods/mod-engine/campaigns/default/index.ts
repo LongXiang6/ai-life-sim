@@ -48,8 +48,13 @@ import {
   type NarrativeStoryContinuityPromptInput,
 } from '../../helpers/narrative-story-continuity-context'
 import {
+  buildNarrativeWorldSimulationPromptInput,
+  type NarrativeWorldSimulationPromptInput,
+} from '../../helpers/narrative-world-simulation-context'
+import {
   inspectNarrativeStoryContinuityQuality,
   inspectNarrativeTalentGrowthQuality,
+  inspectNarrativeWorldSimulationQuality,
 } from '../../helpers/narrative-response-quality'
 import {
   buildRecentStoriesForRound,
@@ -62,6 +67,7 @@ import {
 } from '../../helpers/narrative-talent-growth-context'
 import { narrativeStoryContinuityPrompt } from '../../prompts/narrative-story-continuity-prompt'
 import { narrativeTalentGrowthPrompt } from '../../prompts/narrative-talent-growth-prompt'
+import { narrativeWorldSimulationPrompt } from '../../prompts/narrative-world-simulation-prompt'
 import { prepareNarrativeRoundPromptContext } from '../../helpers/narrative-round-prompt-preparation'
 import { useEngineStore } from '../../store'
 import type { ParsedNarrative } from '../../subsystems/narrative-parser-system'
@@ -91,6 +97,7 @@ export interface StageRuntimeContext extends RoundContext {
   _frozenNarrativeHistory?: NarrativeChunk[]
   _talentInput?: NarrativeTalentGrowthPromptInput
   _continuityInput?: NarrativeStoryContinuityPromptInput
+  _worldSimulationInput?: NarrativeWorldSimulationPromptInput
   _preparedTalentGrowth?: PreparedDestinyPatternGrowthChoice | null
   _preparedStoryContinuity?: PreparedStoryContinuity
   _preparedStoryContinuityLedger?: PreparedStoryContinuityLedger
@@ -208,7 +215,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     currentRound: ctx._preparedNarrative.roundSequence,
     currentStory: {
       text: ctx._narrativeParsed.narrative,
-      totalDays: roundContext.totalDays,
+      totalBasePoints: roundContext.totalBasePoints,
       timeLabel: ctx._promptContext.currentTime,
       branchTitle: ctx._narrativeParsed.branchTitle,
       branchOptions: ctx._narrativeParsed.branchOptions,
@@ -220,7 +227,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     timestamp: Date.now(),
     contextId: roundContext.contextId,
     memoryScope: 'context',
-    totalDays: roundContext.totalDays,
+    totalBasePoints: roundContext.totalBasePoints,
     displayTimeLabel: ctx._promptContext.currentTime,
     branchTitle: ctx._narrativeParsed.branchTitle,
     branchOptions: ctx._narrativeParsed.branchOptions,
@@ -234,7 +241,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     compressedSummaries: structuredClone(engineState.compressedSummaries),
     recentStories,
     currentRound: ctx._preparedNarrative.roundSequence,
-    totalDays: roundContext.totalDays,
+    totalBasePoints: roundContext.totalBasePoints,
     currentAge: Number(ctx._promptContext.characterStatusView.年龄),
     growthHistory: structuredClone(useCharacterStore.getState().destinyPatterns.growthHistory),
     characterContext: {
@@ -252,6 +259,15 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     narrativeHistory,
     compressedSummaries: structuredClone(engineState.compressedSummaries),
     recentStories,
+  })
+  ctx._worldSimulationInput = buildNarrativeWorldSimulationPromptInput({
+    currentRound: ctx._preparedNarrative.roundSequence,
+    currentNarrative,
+    compressedSummaries: structuredClone(engineState.compressedSummaries),
+    worldNarrativeView: structuredClone(ctx._promptContext.worldNarrativeView),
+    worldFactsText: orchestrator.getConfirmedWorldFacts(),
+    currentTime: ctx._promptContext.currentTime,
+    timeScaleText: ctx._promptContext.timeGuideText,
   })
 }
 
@@ -676,11 +692,73 @@ export function loadStages(
       maxRounds: 1,
     },
     {
+      name: 'ai-world-simulation',
+      phase: 'execute',
+      dependsOn: ['prepare-narrative'],
+      order: 700,
+      parallelGroup: SPECIALIST_PARALLEL_GROUP,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onUpdate: async (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        const prepared = requirePreparedNarrative(ctx, '世界模拟')
+        if (!ctx._worldSimulationInput) {
+          throw specialistRejection('WorldSimulation', '世界模拟', '缺少冻结输入。')
+        }
+        try {
+          const response = await callStructuredSpecialist({
+            label: '世界模拟',
+            errorKind: 'WorldSimulation',
+            callKind: 'narrative-world-simulation',
+            prompt: narrativeWorldSimulationPrompt,
+            userSegments: ctx._worldSimulationInput.userSegments,
+            aiConfig,
+            sessionId,
+          })
+          const quality = inspectNarrativeWorldSimulationQuality(response)
+          if (!quality.valid || !quality.result) {
+            throw specialistRejection(
+              'WorldSimulation',
+              '世界模拟',
+              `响应未通过世界演变契约：${quality.reason}`,
+            )
+          }
+          const currentRound = prepared.roundSequence
+          const survivors = quality.result.世界变化.filter((event) => {
+            const key = `ai:${event.类别}:${event.标题}`
+            if (!orchestrator.isWorldSimulationCandidateReady(key, currentRound, event.冷却)) return false
+            orchestrator.markWorldSimulationCandidateUsed(key, currentRound)
+            return true
+          })
+          const survivorTitles = new Set(survivors.map((event) => event.标题))
+          orchestrator.setWorldSimulationResult({
+            世界变化: survivors,
+            因果边: quality.result.因果边.filter((edge) => (
+              survivorTitles.has(edge.前因) || survivorTitles.has(edge.后果)
+            )),
+          })
+          logger.info('narrative-quality', 'world-simulation-response-accepted', {
+            round: prepared.roundSequence,
+            eventCount: survivors.length,
+          })
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error)
+          orchestrator.setWorldSimulationResult(null)
+          logger.info('narrative-quality', 'world-simulation-response-deferred', {
+            round: prepared.roundSequence,
+            reason,
+          })
+        }
+      },
+      maxRounds: 1,
+    },
+    {
       name: 'commit-round',
       phase: 'transition',
       dependsOn: [
         'ai-story-continuity',
         'ai-talent-growth',
+        'ai-world-simulation',
       ],
       order: 800,
       owner: STAGE_OWNER,

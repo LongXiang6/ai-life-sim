@@ -1,4 +1,8 @@
 /**
+ * Purpose: Build historical event candidate projections from confirmed inputs.
+ * Owner: mod-history-dynamics
+ * Responsibility: Candidate shaping only; selection, validation, and persistence stay with the ledger.
+ *
  * @module event-candidate-provider.ts
  * @description P1 内部事件候选提供器；无 ISubSystem、无独立 Store、无事实所有权
  * @mod mod-history-dynamics
@@ -12,6 +16,7 @@ import type {
   HistoricalEventCandidateSubmission,
   HistoricalEventValidationContext,
 } from '@/foundation'
+import { basePointsFromCalendarDays, calendarDaysFromBasePoints } from '@/foundation'
 
 import { cloneValue, createLedgerId } from '../utils'
 
@@ -24,6 +29,8 @@ export class EventCandidateProvider {
     submission: HistoricalEventCandidateSubmission,
     context: HistoricalEventValidationContext,
   ): HistoricalEventCandidateAudit[] {
+    const basePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
     return submission.candidates.map((input) => {
       const candidate = this.normalizeCandidate(input, submission, context)
       return {
@@ -33,7 +40,8 @@ export class EventCandidateProvider {
         candidate,
         reason: '候选已登记，尚未成为历史事实',
         roundSequence: context.roundSequence,
-        totalDays: context.totalDays,
+        basePoints,
+        totalDays: calendarDaysFromBasePoints(basePoints),
       }
     })
   }
@@ -45,6 +53,8 @@ export class EventCandidateProvider {
     context: HistoricalEventValidationContext,
     promotedEventId?: string,
   ): HistoricalEventCandidateAudit {
+    const basePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
     return {
       auditId: createLedgerId('candidate-audit'),
       candidateId: candidate.candidateId,
@@ -53,7 +63,8 @@ export class EventCandidateProvider {
       reason,
       promotedEventId,
       roundSequence: context.roundSequence,
-      totalDays: context.totalDays,
+      basePoints,
+      totalDays: calendarDaysFromBasePoints(basePoints),
     }
   }
 
@@ -62,6 +73,8 @@ export class EventCandidateProvider {
     reason: string,
     context: HistoricalEventValidationContext,
   ): HistoricalEventCandidateAudit {
+    const basePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
     return {
       auditId: createLedgerId('candidate-audit'),
       candidateId: candidate.candidateId,
@@ -69,7 +82,8 @@ export class EventCandidateProvider {
       candidate: cloneValue(candidate),
       reason,
       roundSequence: context.roundSequence,
-      totalDays: context.totalDays,
+      basePoints,
+      totalDays: calendarDaysFromBasePoints(basePoints),
     }
   }
 
@@ -86,6 +100,15 @@ export class EventCandidateProvider {
     submission: HistoricalEventCandidateSubmission,
     _context: HistoricalEventValidationContext,
   ): HistoricalEventCandidate {
+    const schedule = input.schedule ? cloneValue(input.schedule) : undefined
+    if (schedule) {
+      schedule.dueBasePoints ??= schedule.dueTotalDays === undefined
+        ? undefined
+        : basePointsFromCalendarDays(schedule.dueTotalDays)
+      if (schedule.dueBasePoints !== undefined) {
+        schedule.dueTotalDays = calendarDaysFromBasePoints(schedule.dueBasePoints)
+      }
+    }
     return {
       candidateId: typeof input.candidateId === 'string' && input.candidateId.trim()
         ? input.candidateId.trim()
@@ -96,7 +119,7 @@ export class EventCandidateProvider {
       scope: cloneValue(input.scope),
       participants: cloneValue(input.participants ?? []),
       locations: cloneValue(input.locations ?? []),
-      schedule: input.schedule ? cloneValue(input.schedule) : undefined,
+      schedule,
       triggerConditionLabel: typeof input.triggerConditionLabel === 'string'
         ? input.triggerConditionLabel.trim() || undefined
         : undefined,

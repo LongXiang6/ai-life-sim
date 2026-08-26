@@ -8,7 +8,7 @@
  * @mod mod-engine
  */
 
-import { CALENDAR, SEASON_NAMES } from './constants'
+import { SEASON_NAMES } from './constants'
 import { getSeasonForMonth } from './helpers/calendar-season.js'
 
 import type { RoundInfo, TimeStep } from './types'
@@ -25,16 +25,19 @@ export function formatRound(round: RoundInfo): string {
  * 计算两个回合之间的天数差
  */
 export function daysBetween(a: RoundInfo, b: RoundInfo): number {
-  const aTotal = (a.year - 1) * CALENDAR.DAYS_PER_YEAR + a.dayOfYear
-  const bTotal = (b.year - 1) * CALENDAR.DAYS_PER_YEAR + b.dayOfYear
-  return Math.abs(bTotal - aTotal)
+  return Math.abs(Math.floor(b.totalDays) - Math.floor(a.totalDays))
+}
+
+/** Exact simulation-point distance; unlike daysBetween this does not lose same-day events. */
+export function basePointsBetween(a: RoundInfo, b: RoundInfo): number {
+  return Math.abs(Math.floor(b.totalBasePoints) - Math.floor(a.totalBasePoints))
 }
 
 /**
  * 获取时间步长的显示名称
  */
 export function timeStepLabel(step: TimeStep): string {
-  return { year: '年', season: '季', month: '月', day: '日' }[step.unit]
+  return { year: '年', event: '事件节点/年' }[step.unit]
 }
 
 /**

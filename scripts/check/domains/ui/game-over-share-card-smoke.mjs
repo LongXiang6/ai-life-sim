@@ -223,7 +223,7 @@ assertOk(
 assertOk(!scoringSource.includes('calculateGameOverScore'), 'the page helper must not retain a second score calculation owner')
 assertOk(!talentCssSource.includes('-webkit-line-clamp'), 'talent detail text must not be hidden by line clamping')
 assertOk(
-  promptSource.includes("version: '2.0.0'")
+  promptSource.includes("version: '2.1.0'")
     && promptAccessSource.includes('endingScore: input.endingScore')
     && promptAccessSource.includes('reincarnationStrengthTier: input.strengthTier')
     && promptAccessSource.includes('promotionDecision: input.promotionDecision'),

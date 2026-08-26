@@ -10,6 +10,7 @@ import type {
   PendingCharacterDeath,
   RoundContext,
 } from '@/foundation'
+import { calendarDaysFromBasePoints } from '@/foundation'
 
 export interface HistoricalDeathTransactionPlan {
   batch: HistoricalEventCommitBatch
@@ -31,7 +32,7 @@ export function buildHistoricalDeathTransactionPlanRuntime(
 ): HistoricalDeathTransactionPlan {
   const eventId = createHistoricalTransactionId('event')
   const evidenceId = createHistoricalTransactionId('evidence')
-  const sourceId = `narrative-round:${context.contextId}:${context.roundSequence}:${context.totalDays}`
+  const sourceId = `narrative-round:${context.contextId}:${context.roundSequence}:${context.totalBasePoints}`
   return {
     eventId,
     batch: {
@@ -58,7 +59,8 @@ export function buildHistoricalDeathTransactionPlanRuntime(
           narrativeId,
           causeKind: pendingDeath.causeKind,
           finalAgeDays: pendingDeath.finalAgeDays,
-          occurredAtTotalDays: pendingDeath.occurredAtTotalDays,
+          occurredAtBasePoints: context.totalBasePoints,
+          occurredAtTotalDays: calendarDaysFromBasePoints(context.totalBasePoints),
         },
       }],
       evidence: [{

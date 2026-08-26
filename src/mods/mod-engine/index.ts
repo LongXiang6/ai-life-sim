@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose the mod-engine public API and shared runtime types.
+ * Owner: mod-engine
+ * Responsibility: Public export wiring only; simulation state remains in owning systems.
+ *
  * @module index.ts
  * @description MOD 公共 API 导出 —— AI 人生模拟器引擎
  * @mod mod-engine
@@ -64,6 +68,7 @@ export type { SimulationSnapshot } from './simulation/simulation-types'
 export {
   formatRound,
   daysBetween,
+  basePointsBetween,
   timeStepLabel,
   estimateTokens,
 } from './utils'

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Resolve canonical calendar labels for narrative prompts.
+ * Owner: mod-engine
+ * Responsibility: Translate round time state into stable era, season, and event-node context.
+ *
  * @module narrative-calendar.ts
  * @description 叙事纪年解析 —— 对齐废弃项目 calcEraYear / formatEraYear
  * @mod mod-engine
@@ -67,28 +71,27 @@ export interface NarrativeTimeContext {
   localTotalDays: number
   age: number
   timeLabel: string
+  eventNodeIndex?: number
+  eventNodeCount?: number
 }
 
-/** 按推进步长格式化叙事时间（年步进不附季节；季/月/日步进逐级增加粒度） */
+/** 按年/事件推进步长格式化叙事时间。 */
 export function formatNarrativeTimeLabel(
   timeStep: TimeStep,
   eraLabel: string,
-  round: { season: number; month: number; day?: number },
+  round: {
+    season: number
+    month: number
+    day?: number
+    eventNodeIndex?: number
+    eventNodeCount?: number
+  },
 ): string {
   const seasonName = SEASON_NAMES[getSeasonForMonth(round.month)] ?? ''
   switch (timeStep.unit) {
-    case 'day': {
-      const monthName = `${round.month + 1}月`
-      const dayNum = (round.day ?? 0) + 1
-      return `${eraLabel} · ${seasonName}季 · ${monthName}${dayNum}日`
-    }
-    case 'month': {
-      return `${eraLabel} · ${seasonName}季 · ${round.month + 1}月`
-    }
-    case 'season':
-      return `${eraLabel} · ${seasonName}季`
+    case 'event':
+      return `${eraLabel} · 年内故事节点${Math.max(0, round.eventNodeIndex ?? 0)}/${Math.max(1, round.eventNodeCount ?? timeStep.value)}`
     case 'year':
-    default:
       return eraLabel
   }
 }
@@ -137,7 +140,7 @@ export function buildNarrativeTimeContext(
     : (eraStartYear !== 0 ? '' : '创世纪元')
   const eraLabel = formatEraYear(calendarYear, defaultEraName)
   const seasonName = timeSystem.getSeasonName()
-  const timeStep = context.timeStep ?? { unit: 'year', value: 1 }
+  const timeStep = context.timeStep ?? { unit: 'event', value: 12 }
   const timeLabel = formatNarrativeTimeLabel(timeStep, eraLabel, context.round)
 
   return {
@@ -150,5 +153,11 @@ export function buildNarrativeTimeContext(
     localTotalDays: context.totalDays,
     age,
     timeLabel,
+    ...(timeStep.unit === 'event'
+      ? {
+          eventNodeIndex: context.round.eventNodeIndex ?? 0,
+          eventNodeCount: context.round.eventNodeCount ?? timeStep.value,
+        }
+      : {}),
   }
 }

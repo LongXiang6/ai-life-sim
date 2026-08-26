@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 
 import {
   PRESET_WORLDS,
+  resolvePresetWorldCode,
   useWorldStore,
   type PresetWorld,
 } from '@/mods/mod-world'
@@ -18,6 +19,7 @@ import {
 import { LABELS } from './world-select-labels'
 import { resolveRestoredWorld } from './world-select-worlds'
 import { useWorldConfirm } from './useWorldConfirm'
+import { useWorldSelectCache } from './useWorldSelectCache'
 import { useWorldSelectCustomWorlds } from './useWorldSelectCustomWorlds'
 import {
   DIFFICULTY_CONFIG,
@@ -62,6 +64,15 @@ export function useWorldSelectLogic() {
     presetMain: PRESET_WORLDS.slice(0, 6),
     presetMore: PRESET_WORLDS.slice(6),
   }), [])
+  const worldCodes = useMemo(
+    () => [
+      ...presetMain.map(resolvePresetWorldCode),
+      ...presetMore.map(resolvePresetWorldCode),
+      ...custom.savedWorlds.map((world) => world.worldCode),
+    ],
+    [custom.savedWorlds, presetMain, presetMore],
+  )
+  const cache = useWorldSelectCache(worldCodes)
   const difficultyItems = useMemo(
     () => DIFFICULTY_ORDER.map((item) => ({
       label: DIFFICULTY_CONFIG[item].label,
@@ -165,6 +176,13 @@ export function useWorldSelectLogic() {
     difficultyItems,
     selectedDifficultyLabel: LABELS.difficultyItems[difficulty].label,
     confirmTitle,
+    worldCodesWithCache: cache.worldCodesWithCache,
+    rotatingWorldCode: cache.rotatingWorldCode,
+    pendingCacheReset: cache.pendingCacheReset,
+    handleRequestClearWorldCache: cache.handleRequestClearWorldCache,
+    handleCancelClearWorldCache: cache.handleCancelClearWorldCache,
+    handleConfirmClearWorldCache: cache.handleConfirmClearWorldCache,
+    handleClearWorldCache: cache.handleClearWorldCache,
     LABELS,
   }
 }

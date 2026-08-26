@@ -53,7 +53,11 @@ import type {
   SubSystemChanges,
   SubSystemState,
 } from '@/foundation'
-import { getRoundSequence } from '@/foundation'
+import {
+  basePointsFromCalendarDays,
+  calendarDaysFromBasePoints,
+  getRoundSequence,
+} from '@/foundation'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
 
@@ -229,6 +233,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
         && isRelevantHistoricalScope(event.scope, context.contextId)
       ) {
         if (status === 'scheduled' && !isHistoricalScheduleDue(event.schedule, {
+          totalBasePoints: context.totalBasePoints,
           totalDays: context.totalDays,
           roundSequence: getRoundSequence(context),
           legacyYear: context.round.year,
@@ -1052,8 +1057,10 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       if (!Number.isInteger(event.createdRoundSequence) || event.createdRoundSequence < 0) {
         errors.push(`${path}.createdRoundSequence 必须是非负整数`)
       }
-      if (!Number.isFinite(event.createdTotalDays) || event.createdTotalDays < 0) {
-        errors.push(`${path}.createdTotalDays 必须是非负规范时间`)
+      const eventBasePoints = event.createdBasePoints
+        ?? basePointsFromCalendarDays(event.createdTotalDays)
+      if (!Number.isFinite(eventBasePoints) || eventBasePoints < 0) {
+        errors.push(`${path}.createdBasePoints 必须是非负基础点`)
       }
       if (nonEmptyText(event.eventId)) {
         eventIds.add(event.eventId)
@@ -1090,8 +1097,10 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       if (!Number.isInteger(item.roundSequence) || item.roundSequence < 0) {
         errors.push(`${path}.roundSequence 必须是非负整数`)
       }
-      if (!Number.isFinite(item.totalDays) || item.totalDays < 0) {
-        errors.push(`${path}.totalDays 必须是非负规范时间`)
+      const evidenceBasePoints = item.basePoints
+        ?? basePointsFromCalendarDays(item.totalDays)
+      if (!Number.isFinite(evidenceBasePoints) || evidenceBasePoints < 0) {
+        errors.push(`${path}.basePoints 必须是非负基础点`)
       }
       if (nonEmptyText(item.evidenceId)) evidenceIds.add(item.evidenceId)
     }
@@ -1137,8 +1146,10 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       if (!Number.isInteger(transition.roundSequence) || transition.roundSequence < 0) {
         errors.push(`${path}.roundSequence 必须是非负整数`)
       }
-      if (!Number.isFinite(transition.totalDays) || transition.totalDays < 0) {
-        errors.push(`${path}.totalDays 必须是非负规范时间`)
+      const transitionBasePoints = transition.basePoints
+        ?? basePointsFromCalendarDays(transition.totalDays)
+      if (!Number.isFinite(transitionBasePoints) || transitionBasePoints < 0) {
+        errors.push(`${path}.basePoints 必须是非负基础点`)
       }
       if (nonEmptyText(transition.transitionId)) transitionIds.add(transition.transitionId)
       if (current && EVENT_STATUS_SET.has(String(transition.toStatus))) {
@@ -1174,8 +1185,10 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       if (!Number.isInteger(edge.createdRoundSequence) || edge.createdRoundSequence < 0) {
         errors.push(`${path}.createdRoundSequence 必须是非负整数`)
       }
-      if (!Number.isFinite(edge.createdTotalDays) || edge.createdTotalDays < 0) {
-        errors.push(`${path}.createdTotalDays 必须是非负规范时间`)
+      const edgeBasePoints = edge.createdBasePoints
+        ?? basePointsFromCalendarDays(edge.createdTotalDays)
+      if (!Number.isFinite(edgeBasePoints) || edgeBasePoints < 0) {
+        errors.push(`${path}.createdBasePoints 必须是非负基础点`)
       }
       const graphResult = this.causalGraph.validateEdge(
         edge as unknown as HistoricalCausalEdgeInput,
@@ -1216,8 +1229,10 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       if (!Number.isInteger(audit.roundSequence) || audit.roundSequence < 0) {
         errors.push(`${path}.roundSequence 必须是非负整数`)
       }
-      if (!Number.isFinite(audit.totalDays) || audit.totalDays < 0) {
-        errors.push(`${path}.totalDays 必须是非负规范时间`)
+      const auditBasePoints = audit.basePoints
+        ?? basePointsFromCalendarDays(audit.totalDays)
+      if (!Number.isFinite(auditBasePoints) || auditBasePoints < 0) {
+        errors.push(`${path}.basePoints 必须是非负基础点`)
       }
       const promotedEventId = nonEmptyText(audit.promotedEventId)
       if (audit.status === 'accepted' && (!promotedEventId || !eventIds.has(promotedEventId))) {
@@ -1341,6 +1356,17 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (!eventType || !title || !description || !EVENT_STATUS_SET.has(String(input.status))) {
       return undefined
     }
+    const createdBasePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
+    const schedule = input.schedule ? cloneValue(input.schedule) : undefined
+    if (schedule) {
+      schedule.dueBasePoints ??= schedule.dueTotalDays === undefined
+        ? undefined
+        : basePointsFromCalendarDays(schedule.dueTotalDays)
+      if (schedule.dueBasePoints !== undefined) {
+        schedule.dueTotalDays = calendarDaysFromBasePoints(schedule.dueBasePoints)
+      }
+    }
     return {
       eventId,
       eventType,
@@ -1350,11 +1376,12 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       initialStatus: input.status,
       participants: cloneValue(input.participants ?? []),
       locations: cloneValue(input.locations ?? []),
-      schedule: input.schedule ? cloneValue(input.schedule) : undefined,
+      schedule,
       tags: cloneValue(input.tags ?? []),
       source: cloneValue(source),
       createdRoundSequence: context.roundSequence,
-      createdTotalDays: context.totalDays,
+      createdBasePoints,
+      createdTotalDays: calendarDaysFromBasePoints(createdBasePoints),
       metadata: cloneValue(input.metadata ?? {}),
     }
   }
@@ -1384,6 +1411,8 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (!eventId || !description || !sourceId || !EVIDENCE_KIND_SET.has(String(input.kind))) {
       return undefined
     }
+    const basePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
     return {
       evidenceId: nonEmptyText(input.evidenceId) ?? createLedgerId('evidence'),
       eventId,
@@ -1392,7 +1421,8 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       sourceId,
       contextId,
       roundSequence: context.roundSequence,
-      totalDays: context.totalDays,
+      basePoints,
+      totalDays: calendarDaysFromBasePoints(basePoints),
       payload: input.payload === undefined ? undefined : cloneValue(input.payload),
     }
   }
@@ -1431,6 +1461,8 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (!eventId || !reason || !current || !EVENT_STATUS_SET.has(String(input.toStatus))) {
       return undefined
     }
+    const basePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
     return {
       transitionId: nonEmptyText(input.transitionId) ?? createLedgerId('event-transition'),
       eventId,
@@ -1440,7 +1472,8 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       evidenceIds: cloneValue(normalizedEvidenceIds),
       source: cloneValue(source),
       roundSequence: context.roundSequence,
-      totalDays: context.totalDays,
+      basePoints,
+      totalDays: calendarDaysFromBasePoints(basePoints),
     }
   }
 
@@ -1473,8 +1506,10 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (!Number.isInteger(context.roundSequence) || context.roundSequence < 0) {
       errors.push('validationContext.roundSequence 必须是非负整数')
     }
-    if (!Number.isFinite(context.totalDays) || context.totalDays < 0) {
-      errors.push('validationContext.totalDays 必须是非负规范时间')
+    const contextBasePoints = context.totalBasePoints
+      ?? basePointsFromCalendarDays(context.totalDays)
+    if (!Number.isFinite(contextBasePoints) || contextBasePoints < 0) {
+      errors.push('validationContext.totalBasePoints 必须是非负基础点')
     }
     if (
       context.legacyYear !== undefined
@@ -1737,7 +1772,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       errors.push(`${path} 必须是对象`)
       return
     }
-    const numeric = ['dueTotalDays', 'legacyYear']
+    const numeric = ['dueBasePoints', 'dueTotalDays', 'legacyYear']
     for (const field of numeric) {
       const value = schedule[field]
       if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0)) {
@@ -1755,7 +1790,8 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       errors.push(`${path}.conditionLabel 必须是非空字符串`)
     }
     if (
-      schedule.dueTotalDays === undefined
+      schedule.dueBasePoints === undefined
+      && schedule.dueTotalDays === undefined
       && schedule.dueRoundSequence === undefined
       && !nonEmptyText(schedule.conditionLabel)
       && schedule.legacyYear === undefined
@@ -1871,6 +1907,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
           }) : location)
         : candidate.locations,
       schedule: isPlainRecord(candidate.schedule) ? {
+        dueBasePoints: candidate.schedule.dueBasePoints,
         dueTotalDays: candidate.schedule.dueTotalDays,
         dueRoundSequence: candidate.schedule.dueRoundSequence,
         conditionLabel: candidate.schedule.conditionLabel,

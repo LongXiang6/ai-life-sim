@@ -30,7 +30,7 @@ export interface DetectionStates {
   }
   cultureTechState?: {
     activeEvents?: string[]
-    activeTrends?: Array<{ name?: string; intensity?: number; remainingDays?: number }>
+    activeTrends?: Array<{ name?: string; intensity?: number; remainingBasePoints?: number; remainingDays?: number }>
   }
   combatPowerState?: {
     rankLabel?: string
@@ -67,7 +67,7 @@ function detectRawEvents(states: DetectionStates): SystemEventNotice[] {
   const cultureChanges = [
     ...(culture?.activeEvents ?? []),
     ...(culture?.activeTrends ?? [])
-      .filter((trend) => (trend.intensity ?? 0) >= 70 && (trend.remainingDays ?? 0) > 0)
+      .filter((trend) => (trend.intensity ?? 0) >= 70 && (trend.remainingBasePoints ?? trend.remainingDays ?? 0) > 0)
       .map((trend) => trend.name ?? '')
       .filter(Boolean),
   ]

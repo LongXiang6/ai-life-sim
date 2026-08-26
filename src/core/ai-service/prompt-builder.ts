@@ -20,8 +20,7 @@ export interface PromptSegments {
   totalChars: number
 }
 
-const DEFAULT_PLAYER_ACTION = '在当前条件下顺其自然，处理本轮生活中实际发生的事情。'
-const DEFAULT_NARRATIVE_STYLE = '保留古典用词质感，但使用略微白话、直接易读的句式；以具体动作、工具、材料、身体限制、关系反应和可追踪因果推进，不堆砌典故、意象、倒装或晦涩表达；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，首句从窗口内正在发生的行动、关系、环境或冲突进入，不要机械用日期、年龄或时间标签开头。'
+const DEFAULT_PLAYER_ACTION = '在当前条件下自然推进故事。'
 
 function nonEmpty(value: unknown): string | undefined {
   return typeof value === 'string' ? value.trim() || undefined : undefined
@@ -29,16 +28,11 @@ function nonEmpty(value: unknown): string | undefined {
 
 function buildCurrentTimeInstruction(value: string | undefined, supplemental?: string): string {
   const time = nonEmpty(value) ?? '当前时间'
-  const scope = /日$/u.test(time)
-    ? '本日'
-    : /月$/u.test(time)
-      ? '本月'
-      : /季|春|夏|秋|冬/u.test(time)
-        ? '本季度'
-        : '本年'
-  const instruction = `时间背景：${time}。请合理模拟${scope}发生的事情；时间只作为场景背景，正文首句从窗口内正在发生的行动、关系、环境或冲突进入，不以日期、年龄或时间标签作为固定开头。`
+  const instruction = `时间窗口：${time}。请在这个时间范围内生成一段合理的故事。`
   const extra = nonEmpty(supplemental)
-  return extra ? `${instruction}\n${extra}` : instruction
+  return extra
+    ? `${instruction}\n本轮时间参考：${extra}`
+    : instruction
 }
 
 function buildPlayerActionInstruction(intent: Record<string, unknown> | undefined): string {
@@ -49,33 +43,13 @@ function buildPlayerActionInstruction(intent: Record<string, unknown> | undefine
 function buildAgeCapabilityInstruction(value: unknown): string {
   const numeric = typeof value === 'number' ? value : Number(value)
   const age = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0
-  if (age === 0) {
-    return '年龄边界：角色当前0岁，叙事呈现新生儿的睡眠、进食、哭闹、抓握、感官反应和被照料过程；本轮行动与选择由照料者和环境承载。'
-  }
-  if (age === 1) {
-    return '年龄边界：角色当前1岁，叙事以在照料下感知、哭闹、抓握、爬行或扶物蹒跚为主；本轮事件与选择由照料者、监护人和环境承载。'
-  }
-  if (age === 2) {
-    return '年龄边界：角色当前2岁，叙事以幼儿能够成立的简单言语、游戏、模仿和依赖性活动为主；关键行动由照料者和环境承载。'
-  }
-  if (age <= 5) {
-    return `年龄边界：角色当前${age}岁，叙事以幼儿能够成立的游戏、简单学习、模仿和有限自理为主；关键决定由照料者、监护人或环境承载。`
-  }
-  if (age <= 11) {
-    return `年龄边界：角色当前${age}岁，可以学习、探索和做安全的简单帮忙，但不能直接拥有成人职业熟练度、独立承担危险劳动、持械任务或重大社会责任。`
-  }
-  if (age <= 15) {
-    return `年龄边界：角色当前${age}岁，可以在指导下训练、学习和承担逐步增加的责任，但不能因背景、天赋或玩家指令直接具备未经长期积累的成人专业能力。`
-  }
-  return `年龄边界：角色当前${age}岁，行动仍须符合已经成立的身体、知识、身份、长期积累和处境；背景、天赋或玩家指令不能把尚未获得的能力直接写成既成事实。`
+  return `年龄边界：角色当前${age}岁；行动须符合其年龄、身体、知识、身份和已经成立的经历。超出能力的行动不得直接视为已完成。`
 }
 
-function buildNarrativeStyleInstruction(value: string | undefined): string {
-  const style = nonEmpty(value)
-  const normalized = style?.replace(/^【[^】]+】/u, '').trim()
-  const usesLegacyDefault = !normalized
-    || normalized.includes('根据世界事实、人生阶段和时间跨度选择合理剧情材料')
-  return `叙述风格：${usesLegacyDefault ? DEFAULT_NARRATIVE_STYLE : `${normalized}；时间、年龄与季节在人物、环境、关系和行动的变化中自然体现，首句从窗口内正在发生的行动、关系、环境或冲突进入，不要机械用日期、年龄或时间标签开头。`}`
+function buildNarrativeStyleInstruction(value: string | undefined): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? `叙述风格：${value}`
+    : undefined
 }
 
 function buildNarrativeAddressingInstruction(
@@ -83,20 +57,31 @@ function buildNarrativeAddressingInstruction(
   characterName: unknown,
 ): string {
   if (value === 'first-person') {
-    return '称呼方式：本轮正文以第一人称“我”作为当前角色的叙事主语，保持视角一致；不要把“你”或角色姓名作为当前角色的叙事主语。'
+    return '称呼方式：涉及主角时使用第一人称“我”指代主角；这只是称呼方式，不规定叙事主语。'
   }
   if (value === 'character-name') {
     const name = nonEmpty(characterName)
     if (name) {
-      return `称呼方式：本轮正文以当前角色姓名“${name}”作为叙事主语，保持称呼自然一致；不要在当前角色叙事中改用“你”或“我”作为主语。`
+      return `称呼方式：涉及主角时使用角色姓名“${name}”指代主角；这只是称呼方式，不规定叙事主语。`
     }
   }
-  return '称呼方式：本轮正文以第二人称“你”作为当前角色的叙事主语，保持视角一致；角色姓名只用于直接称呼或必要消歧。'
+  return '称呼方式：涉及主角时使用第二人称“你”指代主角；这只是称呼方式，不规定叙事主语。'
 }
 
 function buildWordCountInstruction(value: string | undefined): string {
-  const match = nonEmpty(value)?.match(/正文约\s*(\d+)\s*字/u)
-  return `字数要求：正文约${match?.[1] ?? '300'}字。`
+  const instruction = nonEmpty(value)
+  if (instruction) {
+    const normalized = instruction.replace(/正文约\s*(\d+)\s*字/u, '正文约$1字')
+    return `字数要求：${/[。！？!?]$/u.test(normalized) ? normalized : `${normalized}。`}`
+  }
+  return '字数要求：正文约300字。'
+}
+
+function buildEventInjectionInstruction(value: string | undefined): string | undefined {
+  const event = nonEmpty(value)
+  return event
+    ? `本轮事件材料：${event}\n这些材料作为本轮事实参考；正文未写出的内容不进入后续状态提取。`
+    : undefined
 }
 
 /** PromptContext 转为固定键序且字段白名单化的 01 输入。 */
@@ -108,6 +93,11 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
   }
   const rawCharacter = context.characterProfileView
   const currentAge = context.characterStatusView.年龄
+  const playerBranchIntent = context.playerBranchIntent
+    ? structuredClone(context.playerBranchIntent)
+    : undefined
+  const eventInjection = buildEventInjectionInstruction(context.eventInjectionText)
+  const narrativeStyle = buildNarrativeStyleInstruction(context.narrativeStyle)
   const character = {
     姓名: nonEmpty(rawCharacter.姓名) ?? '',
     性别: nonEmpty(rawCharacter.性别) ?? '未设定',
@@ -119,10 +109,11 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
   }
   const roundFactsAndDirection = [
     buildCurrentTimeInstruction(context.currentTime, context.timeGuideText),
-    buildPlayerActionInstruction(context.playerBranchIntent),
-    `${buildAgeCapabilityInstruction(currentAge)} 故事保持合理挑战，合理接受玩家行动；若决策不合理、忽视风险或与故事逻辑相悖，则行动很可能失败，并引发可预见的负面连锁反应。剧情走向由决策的合理性决定。`,
+    buildPlayerActionInstruction(playerBranchIntent),
+    ...(eventInjection ? [eventInjection] : []),
+    buildAgeCapabilityInstruction(currentAge),
     buildNarrativeAddressingInstruction(context.narrativeAddressing, rawCharacter.姓名),
-    buildNarrativeStyleInstruction(context.narrativeStyle),
+    ...(narrativeStyle ? [narrativeStyle] : []),
     buildWordCountInstruction(context.wordCountInstruction),
   ]
 

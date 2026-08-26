@@ -2,6 +2,7 @@
 
 import { WorldSelectCustomForm } from './WorldSelectCustomForm'
 import type { WorldSelectLogic } from './world-select.types'
+import { resolvePresetWorldCode } from '@/mods/mod-world'
 
 import styles from './WorldSelectMobile.module.css'
 
@@ -33,11 +34,13 @@ export function WorldSelectDirectory({
           <div className={styles.moreGrid}>
             {logic.presetMore.map((world) => {
               const selected = logic.selectedWorld?.id === world.id
+              const worldCode = resolvePresetWorldCode(world)
+              const hasCache = logic.worldCodesWithCache.has(worldCode)
               return (
                 <div key={world.id} className={styles.moreWorldCardWrap}>
                   <button
                     type="button"
-                    className={`${styles.moreWorldCard} ${selected ? styles.moreWorldCardSelected : ''}`}
+                    className={`${styles.moreWorldCard} ${hasCache ? styles.moreWorldCardWithCache : ''} ${selected ? styles.moreWorldCardSelected : ''}`}
                     onClick={() => logic.handleSelectPreset(world)}
                     aria-pressed={selected}
                     data-selected={selected}
@@ -46,6 +49,19 @@ export function WorldSelectDirectory({
                     <span className={styles.worldIcon} data-semantic-emoji aria-hidden="true">{world.icon}</span>
                     <span>{world.name}</span>
                   </button>
+                  {hasCache ? (
+                    <button
+                      type="button"
+                      aria-label={`${L.clearCacheTitle}：${world.name}`}
+                      title={`${L.clearCacheTitle}：${world.name}`}
+                      className={`${styles.inlineCacheButton} ${logic.rotatingWorldCode === worldCode ? styles.spinning : ''}`}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        logic.handleRequestClearWorldCache(worldCode, world.name)
+                      }}
+                      disabled={logic.isConfirming}
+                    >↻</button>
+                  ) : null}
                 </div>
               )
             })}
@@ -131,6 +147,14 @@ export function WorldSelectDirectory({
                 onClick={() => { logic.handleStartEdit(selectedSavedWorld); onRequestCustom() }}
                 disabled={logic.isConfirming}
               >修改</button>
+              {logic.worldCodesWithCache.has(selectedSavedWorld.worldCode) ? (
+                <button
+                  type="button"
+                  onClick={() => logic.handleRequestClearWorldCache(selectedSavedWorld.worldCode, selectedSavedWorld.name)}
+                  disabled={logic.isConfirming || logic.rotatingWorldCode === selectedSavedWorld.worldCode}
+                  title={`${L.clearCacheTitle}：${selectedSavedWorld.name}`}
+                >重置缓存</button>
+              ) : null}
               {logic.pendingDeleteWorldId === selectedSavedWorld.id ? (
                 <>
                   <button

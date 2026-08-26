@@ -1,3 +1,9 @@
+/**
+ * Purpose: Define culture and technology domain state contracts.
+ * Owner: mod-tech-level
+ * Responsibility: Shared types only; domain progression remains in culture-tech-system.
+ */
+
 export type KnowledgeDomainId = 'food' | 'materials' | 'energy' | 'health' | 'governance' | 'information' | 'transport' | 'space'
 export interface KnowledgeDomain {
   id: KnowledgeDomainId | string
@@ -6,10 +12,11 @@ export interface KnowledgeDomain {
   diffusion: number
   annualResearchCapacity: number
   applications: string[]
+  updatedAtBasePoints?: number
   updatedAtTotalDays: number
 }
 export type CultureTrendCategory = 'art' | 'philosophy' | 'science' | 'military' | 'commerce' | 'religion'
-export interface CultureTrend { id: string; type: CultureTrendCategory; name: string; intensity: number; remainingDays: number; originContextId: string }
+export interface CultureTrend { id: string; type: CultureTrendCategory; name: string; intensity: number; remainingBasePoints: number; remainingDays: number; originContextId: string }
 export interface CultureTechState {
   contextId: string
   researchCapacity: number
@@ -17,6 +24,7 @@ export interface CultureTechState {
   activeTrends: CultureTrend[]
   knowledgeBonus: number
   workQualityBonus: number
+  lastUpdateBasePoints?: number
   lastUpdateTotalDays: number
   activeEvents: string[]
 }

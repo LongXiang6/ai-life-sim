@@ -12,6 +12,7 @@ import type {
   CharacterLifeStageDefinition,
   CharacterNarrativeStatus,
 } from '@/foundation'
+import { basePointsFromCalendarDays } from '@/foundation'
 
 const CLOCK_MODES = new Set(['aging', 'ageless', 'cyclic', 'external'])
 const DEATH_CAUSES = new Set<CharacterDeathCauseKind>(['story', 'condition', 'trauma', 'life-ending'])
@@ -110,6 +111,9 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
   const raceId = nonEmptyString(value.raceId)
   const raceName = nonEmptyString(value.raceName)
   const ageAnchorTotalDays = integer(value.ageAnchorTotalDays, 0, Number.MAX_SAFE_INTEGER)
+  const ageAnchorBasePoints = value.ageAnchorBasePoints === undefined
+    ? undefined
+    : integer(value.ageAnchorBasePoints, 0, Number.MAX_SAFE_INTEGER)
   const ageDays = integer(value.ageDays, 0, Number.MAX_SAFE_INTEGER)
   const maximumLifespanDays = integer(value.maximumLifespanDays, 1, Number.MAX_SAFE_INTEGER)
   const endRisk = integer(value.endRisk, 0, 100)
@@ -119,6 +123,7 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
   if (
     (value.entityId !== undefined && !entityId) || !raceId || !raceName
     || !CLOCK_MODES.has(String(value.clockMode)) || ageAnchorTotalDays === undefined
+    || (value.ageAnchorBasePoints !== undefined && ageAnchorBasePoints === undefined)
     || ageDays === undefined || maximumLifespanDays === undefined || endRisk === undefined
     || lastAnalyzedAtTotalDays === undefined || lifeStages.length === 0
     || lifeStages.some((stage) => !stage) || !guidance || !isRecord(value.health)
@@ -153,6 +158,7 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
     raceId,
     raceName,
     clockMode: value.clockMode as CharacterNarrativeStatus['clockMode'],
+    ageAnchorBasePoints: ageAnchorBasePoints ?? basePointsFromCalendarDays(ageAnchorTotalDays),
     ageAnchorTotalDays,
     ageDays,
     maximumLifespanDays,

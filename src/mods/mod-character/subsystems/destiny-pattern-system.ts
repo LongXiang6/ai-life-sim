@@ -41,6 +41,7 @@ import type {
 } from './destiny-pattern-system/contracts'
 import { DestinyPatternAiPoolService } from './destiny-pattern-system/ai-pool-service'
 import {
+  dedupeDestinyPatterns,
   getDestinyPatternRarityLabel,
   validateDestinyPatternAttrBonus,
   validateDestinyPatternCategory,
@@ -204,8 +205,9 @@ export class DestinyPatternSystem extends BaseSubsystem {
       }
     }
 
-    this.state.candidates.push(...result)
-    return result
+    const existingIds = new Set(this.state.candidates.map((pattern) => pattern.id))
+    this.state.candidates = dedupeDestinyPatterns([...this.state.candidates, ...result])
+    return this.state.candidates.filter((pattern) => !existingIds.has(pattern.id))
   }
 
   /** 当前五类首批或后台补充请求状态。 */
@@ -302,8 +304,8 @@ export class DestinyPatternSystem extends BaseSubsystem {
     )
   }
 
-  resolvePendingGrowth(optionId: string, committedAt = Date.now(), totalDays = 0): DestinyPatternGrowthHistoryEntry {
-    const resolved = resolvePendingDestinyPatternGrowthInState(this.state, optionId, committedAt, totalDays)
+  resolvePendingGrowth(optionId: string, committedAt = Date.now(), totalBasePoints = 0): DestinyPatternGrowthHistoryEntry {
+    const resolved = resolvePendingDestinyPatternGrowthInState(this.state, optionId, committedAt, totalBasePoints)
     this.state = resolved.state
     return resolved.historyEntry
   }

@@ -14,6 +14,10 @@ import { create, } from 'zustand'
 import { persist, } from 'zustand/middleware'
 
 import { DEFAULT_ENGINE_CONFIG, getSeasonForMonth, } from './constants'
+import {
+  DEFAULT_ANNUAL_EVENT_COUNT,
+  calendarDaysToBasePoints,
+} from '@/foundation'
 
 import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, CharacterCreation, } from './types'
 import {
@@ -79,12 +83,16 @@ interface EngineStore extends EngineState {
 }
 
 const initialRound = {
-  year: 1,
+  year: 0,
   season: getSeasonForMonth(0),
   month: 0,
   day: 0,
   dayOfYear: 1,
-  totalDays: 365,
+  totalDays: 0,
+  totalBasePoints: 0,
+  basePointsPassed: 0,
+  eventNodeCount: DEFAULT_ANNUAL_EVENT_COUNT,
+  eventNodeIndex: 0,
   eraName: '创世纪元',
   eraYear: 1,
   reignTitle: '建武',
@@ -112,7 +120,7 @@ const initialState = {
   legendaryEncounterCheckedForLifeRunId: undefined,
 }
 
-export const ENGINE_STORE_SCHEMA_VERSION = 7
+export const ENGINE_STORE_SCHEMA_VERSION = 8
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -140,6 +148,36 @@ export function migrateEnginePersistedState(
       lastSourceRound: null,
       lastCompletedAt: 0,
     }
+  }
+
+  const persistedRound = old.round
+  if (persistedRound && typeof persistedRound === 'object' && !Array.isArray(persistedRound)) {
+    const round = { ...(persistedRound as Record<string, unknown>) }
+    const totalDays = typeof round.totalDays === 'number' && Number.isFinite(round.totalDays)
+      ? Math.max(0, Math.floor(round.totalDays))
+      : 0
+    round.totalBasePoints = typeof round.totalBasePoints === 'number' && Number.isFinite(round.totalBasePoints)
+      ? Math.max(0, Math.floor(round.totalBasePoints))
+      : calendarDaysToBasePoints(totalDays)
+    round.basePointsPassed = 0
+    if (typeof round.eventNodeCount !== 'number' || round.eventNodeCount <= 0) {
+      round.eventNodeCount = DEFAULT_ANNUAL_EVENT_COUNT
+    }
+    if (typeof round.eventNodeIndex !== 'number' || round.eventNodeIndex < 0) {
+      round.eventNodeIndex = 0
+    }
+    old.round = round
+  }
+  const persistedStep = old.timeStep
+  if (persistedStep && typeof persistedStep === 'object' && !Array.isArray(persistedStep)) {
+    const step = persistedStep as Record<string, unknown>
+    const unit = step.unit
+    const value = typeof step.value === 'number' && Number.isFinite(step.value)
+      ? Math.max(1, Math.floor(step.value))
+      : 1
+    old.timeStep = unit === 'year'
+      ? { unit: 'year', value }
+      : { unit: 'event', value: unit === 'event' ? value : DEFAULT_ANNUAL_EVENT_COUNT }
   }
 
   delete old.coreMemoryNpcMap

@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { FlowRunningHead } from '@/mods/mod-ui'
 
 import { WorldSelectBottomBar } from './WorldSelectBottomBar'
+import { WorldSelectCacheResetDialog } from './WorldSelectCacheResetDialog'
 import { WorldSelectDirectory } from './WorldSelectDirectory'
 import { WorldSelectMainGrid } from './WorldSelectMainGrid'
 import { WorldSelectStage } from './WorldSelectStage'
@@ -92,6 +93,7 @@ export function WorldSelectMobile() {
               {logic.confirmError && <p className={styles.errorMessage} role="alert">{logic.confirmError}</p>}
             </div>
           </main>
+          <WorldSelectCacheResetDialog logic={logic} />
           <WorldSelectBottomBar logic={logic} />
         </div>
       </div>

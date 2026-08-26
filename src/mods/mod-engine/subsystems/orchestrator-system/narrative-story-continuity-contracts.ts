@@ -8,6 +8,7 @@ import type { HistoricalEventPreparedAppend, RoundContext } from '@/foundation'
 
 export interface StoryContinuitySourceTime {
   label: string
+  totalBasePoints: number | null
   totalDays: number | null
 }
 

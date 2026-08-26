@@ -46,6 +46,9 @@ export interface HistoricalLocationReference {
 }
 
 export interface HistoricalEventSchedule {
+  /** 年度基础点真源；dueTotalDays 仅为旧存档/显示快照。 */
+  dueBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   dueTotalDays?: number
   dueRoundSequence?: number
   conditionLabel?: string
@@ -78,6 +81,9 @@ export interface HistoricalEventRecord {
   tags: string[]
   source: HistoricalEventSource
   createdRoundSequence: number
+  /** 年度基础点真源。旧存档恢复时由 createdTotalDays 一次迁移。 */
+  createdBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   createdTotalDays: number
   metadata: Record<string, unknown>
 }
@@ -91,6 +97,8 @@ export interface HistoricalEventTransition {
   evidenceIds: HistoricalEventEvidenceId[]
   source: HistoricalEventSource
   roundSequence: number
+  basePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   totalDays: number
 }
 
@@ -109,6 +117,8 @@ export interface HistoricalEventEvidence {
   sourceId: string
   contextId?: WorldContextId
   roundSequence: number
+  basePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   totalDays: number
   payload?: unknown
 }
@@ -131,6 +141,8 @@ export interface HistoricalCausalEdge {
   evidenceIds: HistoricalEventEvidenceId[]
   source: HistoricalEventSource
   createdRoundSequence: number
+  createdBasePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   createdTotalDays: number
 }
 
@@ -176,5 +188,7 @@ export interface HistoricalEventCandidateAudit {
   reason: string
   promotedEventId?: HistoricalEventId
   roundSequence: number
+  basePoints?: number
+  /** @deprecated 派生日历快照/旧存档迁移字段。 */
   totalDays: number
 }

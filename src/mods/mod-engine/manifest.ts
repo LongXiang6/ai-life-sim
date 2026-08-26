@@ -40,6 +40,7 @@ export default defineMod({
       'prepare-narrative',
       'ai-story-continuity',
       'ai-talent-growth',
+      'ai-world-simulation',
       'commit-round',
       'finalize-round',
     ],

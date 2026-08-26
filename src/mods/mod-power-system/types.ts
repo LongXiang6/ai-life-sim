@@ -1,3 +1,9 @@
+/**
+ * Purpose: Define supernatural power-system state and persistence contracts.
+ * Owner: mod-power-system
+ * Responsibility: Shared types only; progression calculations remain in power subsystems.
+ */
+
 /** P8 world-defined supernatural extension contracts. */
 
 import type { PowerFrameworkDefinition } from '@/foundation'
@@ -16,7 +22,10 @@ export interface CombatPowerState {
   rankLabel: string
   subStage: SubStageIndex
   progress: number
+  /** 业务冷却/洞察剩余基础点；旧天数字段只作迁移和显示快照。 */
+  insightBasePointsRemaining: number
   insightDaysRemaining: number
+  updatedAtBasePoints: number
   stageNames: Record<string, string>
   updatedAtTotalDays: number
 }
@@ -37,6 +46,8 @@ export interface CultivationState {
   anticipation: number
   bottleneckHint: string
   trainingBonus: number
+  lastBreakthroughAtBasePoints: number
+  updatedAtBasePoints: number
   lastBreakthroughAtTotalDays: number
   updatedAtTotalDays: number
 }

@@ -14,6 +14,7 @@ import type {
   DestinyPatternState,
   PendingDestinyPatternGrowth,
 } from './types'
+import { basePointsToCalendarDays } from '@/foundation'
 import { DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP } from './constants'
 
 /** 每个目标稀有度允许的属性净分配上限。 */
@@ -191,7 +192,7 @@ export function resolvePendingDestinyPatternGrowth(
   pending: PendingDestinyPatternGrowth,
   optionId: string,
   committedAt = Date.now(),
-  totalDays = 0,
+  totalBasePoints = 0,
 ): DestinyPatternGrowthHistoryEntry {
   const selected = pending.options.find((option) => option.optionId === optionId)
   if (!selected) throw new Error('天赋成长方向无效或已经失效')
@@ -213,7 +214,8 @@ export function resolvePendingDestinyPatternGrowth(
     source: structuredClone(pending.source),
     result: structuredClone(selected.pattern),
     committedAt,
-    totalDays: Math.max(0, Math.floor(totalDays)),
+    totalBasePoints: Math.max(0, Math.floor(totalBasePoints)),
+    totalDays: basePointsToCalendarDays(totalBasePoints),
   }
 }
 
@@ -255,11 +257,11 @@ export function resolvePendingDestinyPatternGrowthInState(
   state: DestinyPatternState,
   optionId: string,
   committedAt = Date.now(),
-  totalDays = 0,
+  totalBasePoints = 0,
 ): { state: DestinyPatternState; historyEntry: DestinyPatternGrowthHistoryEntry } {
   const pending = state.pendingGrowth
   if (!pending) throw new Error('当前没有等待选择的天赋成长')
-  const historyEntry = resolvePendingDestinyPatternGrowth(pending, optionId, committedAt, totalDays)
+  const historyEntry = resolvePendingDestinyPatternGrowth(pending, optionId, committedAt, totalBasePoints)
   const sourceIndex = state.patterns.findIndex((pattern) => (
     pattern.lineageId === pending.lineageId
     && pattern.id === pending.source.id

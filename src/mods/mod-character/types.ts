@@ -130,7 +130,9 @@ export interface DestinyPatternGrowthHistoryEntry {
   source: DestinyPattern
   result: DestinyPattern
   committedAt: number
-  /** 本次成长确认时的模拟总天数，用于程序冷却判定。 */
+  /** 本次成长确认时的年度基础点，用于程序冷却判定。 */
+  totalBasePoints?: number
+  /** 派生日历快照；仅用于显示和旧存档迁移。 */
   totalDays: number
 }
 

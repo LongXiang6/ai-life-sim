@@ -1,12 +1,18 @@
+/**
+ * Purpose: Advance and validate cultivation progression using annual base points.
+ * Owner: mod-power-system
+ * Responsibility: Cultivation state and formulas only; world capabilities remain owned by mod-world.
+ */
+
 import { BaseSubsystem } from '@/core'
-import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
+import { calendarDaysToBasePoints, basePointsToCalendarDays, type RoundContext, type SubSystemChanges, type SubSystemState } from '@/foundation'
 import { contextHasCapability } from '@/mods/mod-world'
 import type { CultivationPersistenceState, CultivationState } from '../types'
 import { assertContext, assertEvidence, clone, worldConfig } from './p8-runtime'
 const TALENT_BONUS: Record<string, number> = { cultivation_genius: 0.5, spirit_body: 0.3, breakthrough_prodigy: 0.2, strategist: 0.1 }
 
 function initialState(context: RoundContext): CultivationState {
-  return { contextId: context.contextId, characterId: context.characterId, enabled: contextHasCapability(context.contextId, 'supernatural'), worldview: worldConfig(context.contextId)?.essenceTag, talentTags: [], realmIndex: 0, realmLabel: '凡人', realmId: 'mortal', bottleneckPenalty: 0, breakthroughChance: 1, anticipation: 0, bottleneckHint: '', trainingBonus: 1, lastBreakthroughAtTotalDays: 0, updatedAtTotalDays: context.totalDays }
+  return { contextId: context.contextId, characterId: context.characterId, enabled: contextHasCapability(context.contextId, 'supernatural'), worldview: worldConfig(context.contextId)?.essenceTag, talentTags: [], realmIndex: 0, realmLabel: '凡人', realmId: 'mortal', bottleneckPenalty: 0, breakthroughChance: 1, anticipation: 0, bottleneckHint: '', trainingBonus: 1, lastBreakthroughAtBasePoints: 0, updatedAtBasePoints: context.totalBasePoints, lastBreakthroughAtTotalDays: 0, updatedAtTotalDays: context.totalDays }
 }
 
 export class CultivationSystem extends BaseSubsystem {
@@ -15,12 +21,20 @@ export class CultivationSystem extends BaseSubsystem {
   readonly label = '修炼适配器' as const
   readonly description = '在世界力量框架上提供训练加成、瓶颈与突破条件，不独立拥有战力数值' as const
   private states: Record<string, CultivationState> = {}
-  private ensure(context: RoundContext): CultivationState { return this.states[context.contextId] ??= initialState(context) }
+  private ensure(context: RoundContext): CultivationState {
+    const existing = this.states[context.contextId]
+    if (existing) {
+      existing.lastBreakthroughAtBasePoints ??= calendarDaysToBasePoints(existing.lastBreakthroughAtTotalDays ?? 0)
+      existing.updatedAtBasePoints ??= calendarDaysToBasePoints(existing.updatedAtTotalDays ?? 0)
+      return existing
+    }
+    return this.states[context.contextId] ??= initialState(context)
+  }
 
   advance(context: RoundContext): void {
     const state = this.ensure(context)
     state.enabled = contextHasCapability(context.contextId, 'supernatural')
-    if (!state.enabled) { state.updatedAtTotalDays = context.totalDays; return }
+    if (!state.enabled) { state.updatedAtBasePoints = context.totalBasePoints; state.updatedAtTotalDays = context.totalDays; return }
     const char = context.subsystemStates['character-base']?.data as { talentTags?: unknown } | undefined
     state.talentTags = Array.isArray(char?.talentTags) ? char.talentTags.filter((item): item is string => typeof item === 'string') : state.talentTags
     state.trainingBonus = Math.min(2.2, 1 + state.talentTags.reduce((sum, tag) => sum + (TALENT_BONUS[tag] ?? 0), 0))
@@ -32,6 +46,7 @@ export class CultivationSystem extends BaseSubsystem {
     state.anticipation = atBottleneck ? Math.min(5, Math.floor((combat?.progress ?? 0) / 2000)) : 0
     state.breakthroughChance = atBottleneck ? Math.max(0.05, 0.7 - Math.max(0, state.realmIndex - 1) * 0.05 - state.bottleneckPenalty / 200) : 1
     state.bottleneckHint = atBottleneck && state.bottleneckPenalty > 0 ? '瓶颈需要事件、训练或明确的世界规则契机' : ''
+    state.updatedAtBasePoints = context.totalBasePoints
     state.updatedAtTotalDays = context.totalDays
   }
 
@@ -59,8 +74,10 @@ export class CultivationSystem extends BaseSubsystem {
     } else if (operation === 'record-breakthrough') {
       assertEvidence(changes.evidenceEventIds ?? [], context.contextId, '修炼')
       state.bottleneckPenalty = 0
+      state.lastBreakthroughAtBasePoints = context.totalBasePoints
       state.lastBreakthroughAtTotalDays = context.totalDays
     } else throw new Error(`未知修炼操作：${operation}`)
+    state.updatedAtBasePoints = context.totalBasePoints
     state.updatedAtTotalDays = context.totalDays
   }
 
@@ -82,7 +99,7 @@ export class CultivationSystem extends BaseSubsystem {
   getTrainingBonus(contextId?: string): number { return Object.values(this.states).find((state) => !contextId || state.contextId === contextId)?.trainingBonus ?? 1 }
   getBreakthroughChance(contextId?: string): number { return Object.values(this.states).find((state) => !contextId || state.contextId === contextId)?.breakthroughChance ?? 0 }
   recordBreakthroughFailure(contextId?: string): void { const state = Object.values(this.states).find((item) => !contextId || item.contextId === contextId); if (state) state.bottleneckPenalty = Math.min(100, state.bottleneckPenalty + 20) }
-  recordBreakthroughSuccess(totalDays: number, contextId?: string): void { const state = Object.values(this.states).find((item) => !contextId || item.contextId === contextId); if (state) { state.bottleneckPenalty = 0; state.lastBreakthroughAtTotalDays = totalDays } }
+  recordBreakthroughSuccess(totalBasePoints: number, contextId?: string): void { const state = Object.values(this.states).find((item) => !contextId || item.contextId === contextId); if (state) { state.bottleneckPenalty = 0; state.lastBreakthroughAtBasePoints = totalBasePoints; state.lastBreakthroughAtTotalDays = basePointsToCalendarDays(totalBasePoints) } }
   capturePersistenceState(): CultivationPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as CultivationPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('修炼持久化快照无效'); this.states = clone(value.contexts) }
   reset(): void { this.states = {} }

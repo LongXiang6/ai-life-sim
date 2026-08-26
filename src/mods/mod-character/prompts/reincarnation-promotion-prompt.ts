@@ -26,6 +26,7 @@ export const REINCARNATION_PROMOTION_SYSTEM_PROMPT = stringifyPrompt({
   },
   writing: [
     '文字克制、具体，不堆砌意象、典故、倒装或玄虚套话；比喻最多一处且不能替代具体机制。可用前世的物件、动作、声音或关系回声作为强化依据；不杜撰超出人生记录的新事实。',
+    '名称、description 与 effect 的首句直接落到能力机制、触发条件、动作、可观察结果或世界反馈；三者交替使用自然主语与句式，避免整批同构。将“此人”“该角色”“这位人物”“此天赋”“拥有……”视为模板化起句并改写为能力或结果的直接陈述。',
     '非神话按目标等级边界正常升一级。神话成功时只强化一点，不跨越成无条件全能；神话失败时必须按本地异变程度改变原能力，轻微异变仍可辨认来源，彻底重组可以改变作用方式，但都必须保留明确条件与边界。',
   ],
   output: '紧凑 JSON 顶层对象，只含 name、description、effect、attrBonus。',
@@ -50,7 +51,7 @@ type ReincarnationPromotionOutput = z.infer<typeof reincarnationPromotionOutputS
 
 export const reincarnationPromotionPrompt: PromptTemplate<ReincarnationPromotionOutput> = {
   name: 'reincarnation-promotion',
-  version: '2.0.0',
+  version: '2.1.0',
   mod: 'mod-character',
   systemPrompt: REINCARNATION_PROMOTION_SYSTEM_PROMPT,
   userPromptTemplate: '',

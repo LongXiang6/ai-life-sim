@@ -25,6 +25,19 @@ export {
   annualRateDelta,
   allocateDecimalInteger,
   formatChineseMagnitude,
+  BASE_POINTS_PER_YEAR,
+  DEFAULT_ANNUAL_EVENT_COUNT,
+  CALENDAR_DAYS_PER_YEAR,
+  normalizeAnnualEventCount,
+  annualEventCumulativeBasePoints,
+  annualEventBasePointDelta,
+  eventRoundDeltaPoints,
+  calendarDaysFromBasePoints,
+  basePointsFromCalendarDays,
+  basePointsToCalendarDays,
+  calendarDaysToBasePoints,
+  basePointsToYears,
+  advanceAnnualEvent,
   compareExecutionNodes,
   createExecutionOutcomeCodes,
   resolveExecutionOrder,
@@ -33,6 +46,7 @@ export {
   executionSequenceError,
 } from './utils'
 export type { DecimalInteger } from './utils'
+export type { AnnualEventCursor, AnnualEventAdvance } from './utils'
 export { getRoundSequence } from './utils/round-advance'
 export type {
   AttrTagMap,
@@ -69,6 +83,8 @@ export type {
   SubSystemChanges,
   RoundContext,
   TimeStep,
+  TimeStepUnit,
+  LegacyTimeStepUnit,
   AIModelConfig,
   ReasoningEffort,
   NarrativeResponse,
@@ -274,8 +290,13 @@ export {
   CHARACTER_BASE_OPERATION_FIELDS,
   GROWTH_SYSTEM_OPERATION_FIELDS,
   CHARACTER_DAYS_PER_YEAR,
+  CHARACTER_BASE_POINTS_PER_YEAR,
   resolveCharacterAgeDays,
+  resolveCharacterAgeBasePoints,
+  resolveCharacterAgeDaysFromBasePoints,
   resolveInitialAgeAnchorTotalDays,
+  resolveInitialAgeAnchorBasePoints,
+  migrateAgeAnchorDaysToBasePoints,
 } from './subsystem-contracts'
 
 // Defines 全局常量

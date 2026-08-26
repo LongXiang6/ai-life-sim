@@ -18,6 +18,7 @@ export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
   "prepare-narrative",
   "ai-story-continuity",
   "ai-talent-growth",
+  "ai-world-simulation",
   "commit-round",
   "finalize-round"
 ] as const

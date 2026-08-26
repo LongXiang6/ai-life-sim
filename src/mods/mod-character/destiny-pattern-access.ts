@@ -10,9 +10,13 @@
 
 /** 命格子系统懒加载单例 —— 与 MOD loader 注册的运行时实例保持同一权威。 */
 export { getDestinyPatternSystem } from './subsystems/destiny-pattern-system'
+export { canonicalizeDestinyPatternName } from './subsystems/destiny-pattern-system/validation'
 
 export {
+  deleteDestinyPatternPool,
+  hasDestinyPatternPool,
   loadDestinyPatternPool,
+  listDestinyPatternPoolWorldCodes,
   saveDestinyPatternPool,
 } from './utils/destiny-pattern-pool-cache'
 export {

@@ -1,5 +1,11 @@
+/**
+ * Purpose: Advance and validate combat-power progression using annual base points.
+ * Owner: mod-power-system
+ * Responsibility: Combat-power state and formulas only; world capabilities remain owned by mod-world.
+ */
+
 import { BaseSubsystem } from '@/core'
-import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
+import { BASE_POINTS_PER_YEAR, basePointsToCalendarDays, calendarDaysToBasePoints, type RoundContext, type SubSystemChanges, type SubSystemState } from '@/foundation'
 import { assertValidPowerFramework, contextHasCapability } from '@/mods/mod-world'
 import type { CombatPowerPersistenceState, CombatPowerState, PowerFrameworkDefinition, PowerRankDefinition, SubStageIndex } from '../types'
 import { BASE_POWER_GAIN, INSIGHT_DURATION, INSIGHT_MULTIPLIER, SUB_STAGE_THRESHOLDS } from '../constants'
@@ -16,7 +22,7 @@ function readFramework(context: RoundContext): PowerFrameworkDefinition {
 function createState(context: RoundContext): CombatPowerState {
   const framework = readFramework(context)
   const first = framework.ranks[0]
-  return { contextId: context.contextId, characterId: context.characterId, initialized: framework.enabled, framework, rankId: first?.id ?? '', rankIndex: first?.index ?? 0, rankLabel: first?.label ?? '', subStage: 1, progress: 0, insightDaysRemaining: 0, stageNames: {}, updatedAtTotalDays: context.totalDays }
+  return { contextId: context.contextId, characterId: context.characterId, initialized: framework.enabled, framework, rankId: first?.id ?? '', rankIndex: first?.index ?? 0, rankLabel: first?.label ?? '', subStage: 1, progress: 0, insightBasePointsRemaining: 0, insightDaysRemaining: 0, updatedAtBasePoints: context.totalBasePoints, stageNames: {}, updatedAtTotalDays: context.totalDays }
 }
 
 export class CombatPowerSystem extends BaseSubsystem {
@@ -26,17 +32,25 @@ export class CombatPowerSystem extends BaseSubsystem {
   readonly description = '消费世界定义的力量阶位并按当地时间推进，不预设跨世界阶位数量' as const
   private states: Record<string, CombatPowerState> = {}
 
-  private ensure(context: RoundContext): CombatPowerState { return this.states[context.contextId] ??= createState(context) }
+  private ensure(context: RoundContext): CombatPowerState {
+    const existing = this.states[context.contextId]
+    if (existing) {
+      existing.insightBasePointsRemaining ??= calendarDaysToBasePoints(existing.insightDaysRemaining ?? 0)
+      existing.updatedAtBasePoints ??= calendarDaysToBasePoints(existing.updatedAtTotalDays ?? 0)
+      return existing
+    }
+    return this.states[context.contextId] ??= createState(context)
+  }
 
   advance(context: RoundContext): void {
     const state = this.ensure(context)
-    if (!contextHasCapability(context.contextId, 'supernatural') || !state.framework.enabled || context.daysPassed <= 0) { state.updatedAtTotalDays = context.totalDays; return }
+    if (!contextHasCapability(context.contextId, 'supernatural') || !state.framework.enabled || context.basePointsPassed <= 0) { state.updatedAtBasePoints = context.totalBasePoints; state.updatedAtTotalDays = context.totalDays; return }
     const cultivation = context.subsystemStates.cultivation?.data as { trainingBonus?: number } | undefined
     const trainingBonus = typeof cultivation?.trainingBonus === 'number' ? cultivation.trainingBonus : 1
     const decay = 1 / (1 + Math.max(0, state.rankIndex - 1) * 0.18)
-    const insight = state.insightDaysRemaining > 0 ? INSIGHT_MULTIPLIER : 1
-    state.progress += context.daysPassed / 365 * BASE_POWER_GAIN * trainingBonus * decay * insight
-    state.insightDaysRemaining = Math.max(0, state.insightDaysRemaining - context.daysPassed)
+    const insight = state.insightBasePointsRemaining > 0 ? INSIGHT_MULTIPLIER : 1
+    state.progress += context.basePointsPassed / BASE_POINTS_PER_YEAR * BASE_POWER_GAIN * trainingBonus * decay * insight
+    state.insightBasePointsRemaining = Math.max(0, state.insightBasePointsRemaining - context.basePointsPassed)
     while (state.progress >= SUB_STAGE_THRESHOLDS[5]) {
       state.progress -= SUB_STAGE_THRESHOLDS[5]
       const next = state.framework.ranks.find((rank) => rank.index === state.rankIndex + 1)
@@ -49,9 +63,11 @@ export class CombatPowerSystem extends BaseSubsystem {
       const promoted = state.framework.ranks.find((rank) => rank.index === state.rankIndex + 1)
       if (!promoted) break
       state.rankIndex = promoted.index; state.rankId = promoted.id; state.rankLabel = state.stageNames[promoted.id] ?? promoted.label
-      state.subStage = 1; state.insightDaysRemaining = INSIGHT_DURATION
+      state.subStage = 1; state.insightBasePointsRemaining = Math.max(1, calendarDaysToBasePoints(INSIGHT_DURATION))
     }
     state.subStage = Math.max(1, Math.min(5, Math.floor(state.progress / 2000) + 1)) as SubStageIndex
+    state.insightDaysRemaining = basePointsToCalendarDays(state.insightBasePointsRemaining)
+    state.updatedAtBasePoints = context.totalBasePoints
     state.updatedAtTotalDays = context.totalDays
   }
 
@@ -87,6 +103,7 @@ export class CombatPowerSystem extends BaseSubsystem {
       state.stageNames[rankId] = label
       if (state.rankId === rankId) state.rankLabel = label
     } else throw new Error(`未知力量操作：${operation}`)
+    state.updatedAtBasePoints = context.totalBasePoints
     state.updatedAtTotalDays = context.totalDays
   }
 

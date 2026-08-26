@@ -81,6 +81,9 @@ export interface HistoricalEventCommitBatch {
 export interface HistoricalEventValidationContext {
   contextId: WorldContextId
   roundSequence: number
+  /** 年度基础点真源；显式旧调用可缺失并在边界由 totalDays 迁移。 */
+  totalBasePoints?: number
+  /** @deprecated 派生日历快照/旧调用边界字段。 */
   totalDays: number
   legacyYear?: number
 }

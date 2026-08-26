@@ -42,6 +42,13 @@ function requireFragments(relativePath, fragments) {
   return `${relativePath}: ${fragments.length} contract fragments present`
 }
 
+function forbidFragments(relativePath, fragments) {
+  const content = read(relativePath)
+  const present = fragments.filter((fragment) => content.includes(fragment))
+  if (present.length > 0) throw new Error(`${relativePath}: forbidden ${present.join(' | ')}`)
+  return `${relativePath}: ${fragments.length} retired contract fragments absent`
+}
+
 function requireModuleFragments(relativePath, fragments) {
   const content = readModuleSource(relativePath, ROOT)
   const missing = fragments.filter((fragment) => !content.includes(fragment))
@@ -119,7 +126,7 @@ check(
 check(
   'V5',
   'Product/OpeningFlow/FatePreviewHandoff',
-  'Does fate preview gate complete creation, restore the engine-owned context, commit owner state, and navigate?',
+  'Does fate preview gate complete creation, restore the engine context from confirmed Store state, and navigate without a destiny re-commit?',
   () => {
     requireFragments('src/mods/mod-pages/pages/fate-preview/page.tsx', [
       'const characterConfirmed = hasConfirmedCharacter',
@@ -127,13 +134,21 @@ check(
        'const worldReady = worldInitialized && !!worldConfig && worldCode > 0',
       'useFatePreviewStart',
       'const runtimeGateReason = allModsLoaded ? null',
+      'confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}',
     ])
-    return requireFragments('src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts', [
+    requireFragments('src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts', [
       'ensureOrchestratorContextFromStores()',
-      'orchestrator.applyRoundChanges([',
-      'MAX_CREATION_COMMIT_ATTEMPTS',
+      'if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return',
+      'allModsLoaded',
       "setGamePhase('simulation')",
       "router.push('/game-story')",
+    ])
+    return forbidFragments('src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts', [
+      'orchestrator.applyRoundChanges([',
+      "id: 'destiny-pattern'",
+      'MAX_CREATION_COMMIT_ATTEMPTS',
+      'isTransientCreationCommitReason',
+      '命格系统尚未准备完成',
     ])
   },
 )

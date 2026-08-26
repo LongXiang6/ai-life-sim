@@ -5,7 +5,7 @@
  */
 
 import { getInstrumentHooks, isInstrumentEnabled } from '@/core/instrument/instrument-mode'
-import type { CharacterNarrativeStatus, PromptContext } from '@/foundation'
+import type { CharacterNarrativeStatus, PromptContext, RoundContext, WorldSetting } from '@/foundation'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import {
@@ -13,13 +13,23 @@ import {
   projectWorldSettingForNarrativeAI,
   type NarrativeAICharacterBaseState,
 } from '../../helpers/narrative-ai-input-view'
+import { buildHistoricalEventPromptProjection } from '../../helpers/historical-event-prompt-projection'
+import { buildWorldEventCandidatePromptProjection } from '../../helpers/world-event-prompt-projection'
+import type { NarrativeAIWorldSimulationResult } from '../../helpers/narrative-ai-protocol'
+import {
+  buildWorldEventCandidateBatch,
+  useWorldStore,
+} from '@/mods/mod-world/world-runtime-api'
 import {
   buildNarrativeTimeContext,
   buildWordCountInstruction,
   buildTimeBridgeSummary,
+  buildTimeScaleNarrativeHint,
   DEFAULT_WORD_COUNT_TARGET,
   extractBridgeSnapshot,
+  resolveCalendarEraYear,
 } from '../../orchestrator-shared'
+import { buildCalendarNarrativeContext } from '../../helpers/calendar-narrative-context'
 import type { OrchestratorSystem } from '../orchestrator-system'
 import {
   formatDestinyPatternsForPrompt,
@@ -34,9 +44,197 @@ function normalizeCurrentDueEventKey(value: string): string {
     .replace(/[的地得]/gu, '')
 }
 
+const REGION_PROMPT_FIELDS: ReadonlyArray<readonly [string, string]> = [
+  ['summary', '概况'],
+  ['climate', '气候'],
+  ['ecology', '生态'],
+  ['resources', '资源'],
+  ['pollution', '污染'],
+  ['economy', '经济'],
+  ['population', '人口'],
+  ['settlement', '聚落'],
+  ['culture', '文化'],
+  ['education', '教育'],
+  ['socialStructure', '社会结构'],
+  ['factions', '势力'],
+  ['law', '法律'],
+]
+
+function formatCurrentRegionProjection(orchestrator: OrchestratorSystem): string | undefined {
+  const state = orchestrator['lastSubsystemStates']?.['spatial-graph']?.data
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return undefined
+  const record = state as Record<string, unknown>
+  const profile = record.currentRegionProfile
+  const region = profile && typeof profile === 'object' && !Array.isArray(profile)
+    ? profile as Record<string, unknown>
+    : undefined
+  const regionName = typeof record.currentRegionName === 'string'
+    ? record.currentRegionName.trim()
+    : typeof region?.name === 'string'
+      ? region.name.trim()
+      : ''
+  const details = (REGION_PROMPT_FIELDS as ReadonlyArray<readonly [string, string]>)
+    .map(([key, label]) => {
+      const value = region?.[key]
+      if (Array.isArray(value)) {
+        const items = value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        return items.length > 0 ? `${label}：${items.join('、')}` : undefined
+      }
+      return typeof value === 'string' && value.trim().length > 0
+        ? `${label}：${value.trim()}`
+        : undefined
+    })
+    .filter((value): value is string => Boolean(value))
+  if (!regionName && details.length === 0) return undefined
+  return [
+    '【当前环境】',
+    regionName ? `当前区域：${regionName}` : undefined,
+    ...details,
+  ].filter((value): value is string => Boolean(value)).join('\n')
+}
+
+function buildWorldSimulationPromptProjection(
+  result: NarrativeAIWorldSimulationResult | null,
+): string | undefined {
+  if (!result || result.世界变化.length === 0) return undefined
+  return [
+    '【世界演变材料】',
+    '以下材料由世界模拟生成，不是已经确认的状态，也不是强制情节；故事可根据整体输入合理采用、改写、略过或延后。',
+    ...result.世界变化.map((event) => [
+      `事件类别：${event.类别}`,
+      `强度：${event.强度}`,
+      `影响区域：${event.影响区域}`,
+      `可见候选：${event.描述}`,
+      `触发条件：${event.触发条件 || '无'}`,
+    ].join('；')),
+    '正文实际写出的内容才交给后续状态提取；未写出的材料不自动成为历史事实。',
+  ].join('\n')
+}
+
+export interface WorldFactsProjection {
+  full: string | undefined
+  confirmed: string | undefined
+}
+
+function buildWorldFactsProjection(
+  orchestrator: OrchestratorSystem,
+  context: RoundContext,
+  eventInjectionText: string | undefined,
+): WorldFactsProjection {
+  const ledgerText = buildHistoricalEventPromptProjection(
+    orchestrator['lastSubsystemStates']?.['historical-event-ledger'],
+    context.contextId,
+    orchestrator['pendingNarrativeEventCandidateIds'] ?? [],
+  )
+  const currentRegionText = formatCurrentRegionProjection(orchestrator)
+  const confirmed = [currentRegionText, ledgerText]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join('\n') || undefined
+  const worldEventBatch = (() => {
+    const worldState = useWorldStore.getState()
+    const contextId = context.contextId || worldState.currentContextId || ''
+    const instance = contextId ? worldState.contexts[contextId] : undefined
+    if (!instance) return undefined
+    return buildWorldEventCandidateBatch(
+      {
+        contextId: instance.record.id,
+        regionId: instance.spatialGraph.currentRegionId,
+        worldConfig: structuredClone(instance.worldConfig),
+        worldTags: structuredClone(instance.tags),
+        legacyWorldTags: [...instance.worldTags],
+        calibration: structuredClone(instance.calibration),
+        regionProfile: instance.spatialGraph.regionProfiles[instance.spatialGraph.currentRegionId]
+          ? structuredClone(instance.spatialGraph.regionProfiles[instance.spatialGraph.currentRegionId])
+          : null,
+        roundSequence: context.roundSequence ?? orchestrator['state'].totalRounds,
+        storySeed: useSettingsStore.getState().storySeed.trim() || orchestrator['state'].lifeRunId,
+      },
+    )
+  })()
+  const worldCandidateText = buildWorldEventCandidatePromptProjection(worldEventBatch)
+  const worldSimulationText = buildWorldSimulationPromptProjection(
+    orchestrator.takeWorldSimulationResult(),
+  )
+  const parts = [
+    currentRegionText,
+    worldSimulationText,
+    worldCandidateText,
+    eventInjectionText?.trim(),
+    ledgerText,
+  ].filter((value): value is string => Boolean(value?.trim()))
+  return {
+    full: parts.length > 0 ? parts.join('\n') : undefined,
+    confirmed,
+  }
+}
+
+function resolveFestivalScope(value: unknown): 'china' | 'china-and-international' {
+  return value === 'china-and-international' ? 'china-and-international' : 'china'
+}
+
+function buildNarrativeTimeGuide(
+  orchestrator: OrchestratorSystem,
+  context: RoundContext,
+  worldSetting: WorldSetting,
+  narrativeTime: ReturnType<typeof buildNarrativeTimeContext>,
+  timeBridgeSummary?: string,
+): string {
+  const previousRound = orchestrator['previousNarrativeRound']
+  const hasPreviousNarrative = orchestrator['state'].narrativeHistory.length > 0
+  const previousNode = hasPreviousNarrative
+    ? {
+        calendarYear: resolveCalendarEraYear(
+          previousRound.year,
+          context.eraStartYear ?? 0,
+          context.birthEraYear,
+        ),
+        month: previousRound.month + 1,
+        day: (previousRound.day ?? 0) + 1,
+      }
+    : undefined
+  const timeStepAlignment = orchestrator['lastTimeStepAlignment']
+  const eventNodeIndex = typeof context.round.eventNodeIndex === 'number'
+    ? context.round.eventNodeIndex
+    : undefined
+  const eventNodeCount = typeof context.round.eventNodeCount === 'number'
+    ? context.round.eventNodeCount
+    : context.timeStep.unit === 'event'
+      ? context.timeStep.value
+      : undefined
+  const calendarContext = buildCalendarNarrativeContext({
+    timeStep: context.timeStep,
+    calendarYear: narrativeTime.calendarYear,
+    seasonName: narrativeTime.seasonName,
+    month: narrativeTime.month,
+    day: narrativeTime.day,
+    festivalScope: resolveFestivalScope(worldSetting.config.festivalScope),
+    characterBackground: typeof orchestrator['characterState']?.background === 'string'
+      ? orchestrator['characterState'].background
+      : undefined,
+    previousNode,
+    basePointsPassed: context.basePointsPassed,
+    eventNodeIndex,
+    eventNodeCount,
+    timeStepAlignment,
+  })
+
+  return [
+    buildTimeScaleNarrativeHint(
+      context.timeStep,
+      context.timeStep.unit === 'event'
+        ? `本自然年已消费${eventNodeIndex ?? 0}/${eventNodeCount ?? context.timeStep.value}个故事节点，距年界还剩${Math.max(0, (eventNodeCount ?? context.timeStep.value) - (eventNodeIndex ?? 0))}个节点`
+        : undefined,
+    ),
+    calendarContext,
+    timeBridgeSummary,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join('\n')
+}
+
 export function assemblePromptContextRuntime(
   orchestrator: OrchestratorSystem,
-  _eventInjectionText?: string,
+  eventInjectionText?: string,
 ): PromptContext {
   const worldSetting = orchestrator['worldSetting']
   if (!worldSetting || !orchestrator['characterState']) {
@@ -150,6 +348,15 @@ export function assemblePromptContextRuntime(
     prevSnapshot: orchestrator['prevBridgeSnapshot'],
     currentSnapshot: extractBridgeSnapshot(orchestrator['lastSubsystemStates']),
   })
+  const timeGuideText = buildNarrativeTimeGuide(
+    orchestrator,
+    context,
+    worldSetting,
+    narrativeTime,
+    timeBridgeSummary,
+  )
+  const worldFacts = buildWorldFactsProjection(orchestrator, context, eventInjectionText)
+  orchestrator['setConfirmedWorldFacts'](worldFacts.confirmed)
   const assembled: PromptContext = {
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting),
     characterProfileView: characterNarrativeView.profile,
@@ -163,8 +370,12 @@ export function assemblePromptContextRuntime(
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),
-    ...(timeBridgeSummary ? { timeGuideText: timeBridgeSummary } : {}),
+    ...(timeGuideText ? { timeGuideText } : {}),
+    ...(roundGuidance.roundSystemGuidanceText
+      ? { roundSystemGuidanceText: roundGuidance.roundSystemGuidanceText }
+      : {}),
     playerBranchIntent: roundGuidance.playerBranchIntent,
+    ...(worldFacts.full ? { eventInjectionText: worldFacts.full } : {}),
     ...(currentDueEvents.length > 0 ? { currentDueEvents } : {}),
   }
 

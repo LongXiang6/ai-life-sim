@@ -65,8 +65,8 @@ export function SettingsTabNarrative() {
 
       <section className={styles.section} aria-labelledby="settings-style-heading">
         <div className={styles.sectionLabel}>
-          <h3 id="settings-style-heading">基础文风</h3>
-          <span>{narrativeStyleText ? `自定义 · 第 ${narrativeStyleVersion} 版` : '项目默认'}</span>
+          <h3 id="settings-style-heading">自定义文风</h3>
+          <span>{narrativeStyleText ? `自定义 · 第 ${narrativeStyleVersion} 版` : '未启用'}</span>
         </div>
         <div className={styles.sectionBody}>
           <textarea
@@ -74,7 +74,7 @@ export function SettingsTabNarrative() {
             value={currentStyleDraft}
             rows={7}
             placeholder={STYLE_PLACEHOLDER}
-            aria-label="自定义基础文风"
+            aria-label="自定义文风"
             onChange={(event) => setStyleDraft(event.target.value)}
           />
           <div className={styles.styleMeta}>
@@ -91,7 +91,7 @@ export function SettingsTabNarrative() {
                 setStyleDraft(null)
               }}
             >
-              恢复默认
+              清除文风
             </button>
             <button
               type="button"

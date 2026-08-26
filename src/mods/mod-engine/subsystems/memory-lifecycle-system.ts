@@ -112,7 +112,9 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
         const contextLabel = summary.contextId
           ? `【发生上下文：${summary.contextId}${summary.contextId === view.currentContextId ? '·当前' : ''}】\n`
           : ''
-        return projectSummaryToNarrativeTimeline(summary).map((entry) => ({
+        // 时间轴只携带同轮派生保留元数据，始终按原回合和事件顺序交给格式化层。
+        const projectedEntries = projectSummaryToNarrativeTimeline(summary)
+        return projectedEntries.map((entry) => ({
           ...entry,
           sortTotalDays: summary.totalDays,
           text: `${contextLabel}${entry.text}`,

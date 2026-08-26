@@ -26,6 +26,7 @@ export function buildYearEventsRuntime(
     return {
       id: round,
       contextId: n.contextId ?? orchestrator['worldSetting']?.contextId,
+      totalBasePoints: n.totalBasePoints,
       totalDays: n.totalDays,
       age,
       totalMonths: Math.max(0, Math.round(age * 12)),

@@ -11,6 +11,7 @@ import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 import { BaseSubsystem } from '../../../../src/core/subsystem-base.ts'
 import { useSettingsStore } from '../../../../src/mods/mod-settings/store.ts'
+import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { prepareMainNarrativeRequest } from '../../../../src/mods/mod-engine/helpers/main-narrative-call.ts'
 import {
   getNarrativePreGenerationStatus,
@@ -217,6 +218,11 @@ async function prepareNextNarrativeRequest(owner) {
   })
 }
 
+function readRoundFacts(owner) {
+  const promptContext = owner.assemblePromptContext()
+  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[2]).本轮事实与方向
+}
+
 async function assertPreGenerationInvalidated(label, mutate) {
   const fixture = await createPreGenerationFixture()
   startFixturePreGeneration(fixture.owner)
@@ -250,6 +256,25 @@ try {
   startFixturePreGeneration(disabled.owner)
   await new Promise((resolve) => setTimeout(resolve, 0))
   assert.equal(proxyRequests.length, beforeDisabled, 'disabled pre-generation must issue zero requests')
+
+  const defaultStyle = await createPreGenerationFixture(0); const defaultStyleFacts = readRoundFacts(defaultStyle.owner)
+  assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'empty saved style must resolve to the default source')
+  assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().text, '', 'empty saved style must not receive a hidden default fallback')
+  assert.ok(!defaultStyleFacts.some((item) => item.startsWith('叙述风格：')) && !defaultStyleFacts.join('\n').includes('保留古典用词质感'), 'empty saved style must omit the third-message style item and old default style text')
+
+  const rawCustomStyle = '  用克制短句保留潮声。\n第二行  保留两个空格。  '
+  const customStyle = await createPreGenerationFixture(0)
+  useSettingsStore.getState().saveNarrativeStyleText(rawCustomStyle)
+  const customStyleFacts = readRoundFacts(customStyle.owner)
+  const customStyleFact = customStyleFacts.find((item) => item.startsWith('叙述风格：'))
+  assert.equal(customStyle.owner.getNarrativeStyleSnapshot().source, 'custom', 'non-empty saved style must resolve to the custom source')
+  assert.equal(customStyle.owner.getNarrativeStyleSnapshot().text, rawCustomStyle, 'orchestrator must retain the exact saved custom style bytes')
+  assert.equal(customStyleFact, `叙述风格：${rawCustomStyle}`, 'prompt builder must inject the exact custom style without rewriting it')
+  assert.ok(!customStyleFact.includes('首句从窗口内正在发生的行动') && customStyleFacts[0].includes('正文首句从窗口内正在发生的行动、关系、环境或冲突进入'), 'custom style must not receive appended time text; the time item owns the first-sentence constraint')
+
+  const whitespaceStyle = await createPreGenerationFixture(0); useSettingsStore.getState().saveNarrativeStyleText('  \n\t  ')
+  assert.equal(whitespaceStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'whitespace-only saved style must normalize to the default source')
+  assert.ok(!readRoundFacts(whitespaceStyle.owner).some((item) => item.startsWith('叙述风格：')), 'whitespace-only saved style must omit the third-message style item')
 
   const exact = await createPreGenerationFixture()
   const beforeExact = proxyRequests.length
