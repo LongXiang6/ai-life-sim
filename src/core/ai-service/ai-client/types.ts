@@ -64,6 +64,8 @@ export interface AIResponse {
   choices: Array<{
     message: {
       content?: string | null
+      /** 推理模型的思考/最终内容回退字段；部分供应商在 content 为空时把结果放在这里。 */
+      reasoning_content?: string | null
       tool_calls?: Array<{
         type?: string
         function?: { name?: string; arguments?: string }

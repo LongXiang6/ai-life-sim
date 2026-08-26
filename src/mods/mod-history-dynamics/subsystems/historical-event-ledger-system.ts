@@ -934,6 +934,9 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       throw new Error('历史事件账本持久化快照格式无效')
     }
 
+    // 清理指向已不存在世界上下文的孤儿数据，避免「新人生重置」遗留的旧账本触发悬空引用校验失败。
+    this.purgeOrphanContextReferences(restored)
+
     const errors = this.validatePersistenceSnapshot(restored)
     if (errors.length > 0) {
       throw new Error(`历史事件账本持久化快照不一致：${errors.join('；')}`)
@@ -945,6 +948,73 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     }
     useHistoryDynamicsStore.getState().replacePersistenceState(restored)
     this.markCurrentStoreValidated()
+  }
+
+  /**
+   * 清理账本中指向「已不存在世界上下文」的孤儿数据。
+   *
+   * 历史账本跨世界持久化，而世界上下文列表会在「新人生重置」时被整体清空。若账本未能同步清空，
+   * 会残留 scope.contextIds 指向已消失上下文的孤儿事件/候选/因果边，导致恢复校验失败。
+   * 这里在恢复时清理这些孤儿数据（含其关联的迁移/证据/因果边），使账本与世界状态重新一致。
+   */
+  private purgeOrphanContextReferences(snapshot: HistoricalEventLedgerPersistenceState): void {
+    const validContextIds = new Set(Object.keys(useWorldStore.getState().contexts))
+
+    const isOrphanScope = (scope: HistoricalEventScope): boolean => (
+      scope.kind !== 'global' && scope.contextIds.some((id) => !validContextIds.has(id))
+    )
+
+    // 没有世界上下文时，账本不应有任何数据（reset 后应被清空）。
+    if (validContextIds.size === 0) {
+      const empty = createEmptyHistoryLedgerState()
+      snapshot.events = empty.events
+      snapshot.transitions = empty.transitions
+      snapshot.evidence = empty.evidence
+      snapshot.causalEdges = empty.causalEdges
+      snapshot.candidateAudits = empty.candidateAudits
+      snapshot.migrationMetadata = empty.migrationMetadata
+      return
+    }
+
+    const orphanEventIds = new Set<string>(
+      snapshot.events.filter((event) => isOrphanScope(event.scope)).map((event) => event.eventId),
+    )
+    const hasOrphanCandidate = snapshot.candidateAudits.some((audit) => (
+      isOrphanScope(audit.candidate.scope)
+      || (audit.promotedEventId !== undefined && orphanEventIds.has(audit.promotedEventId))
+    ))
+    const hasOrphanEdge = snapshot.causalEdges.some((edge) => (
+      isOrphanScope(edge.scope)
+      || orphanEventIds.has(edge.fromEventId)
+      || orphanEventIds.has(edge.toEventId)
+    ))
+    const hasOrphanEvidence = snapshot.evidence.some((item) => (
+      orphanEventIds.has(item.eventId)
+      || (item.contextId !== undefined && !validContextIds.has(item.contextId))
+    ))
+
+    if (orphanEventIds.size === 0 && !hasOrphanCandidate && !hasOrphanEdge && !hasOrphanEvidence) {
+      return
+    }
+
+    snapshot.events = snapshot.events.filter((event) => !orphanEventIds.has(event.eventId))
+    snapshot.transitions = snapshot.transitions.filter((transition) => !orphanEventIds.has(transition.eventId))
+    snapshot.evidence = snapshot.evidence
+      .filter((item) => !orphanEventIds.has(item.eventId))
+      .map((item) => (
+        item.contextId !== undefined && !validContextIds.has(item.contextId)
+          ? { ...item, contextId: undefined }
+          : item
+      ))
+    snapshot.causalEdges = snapshot.causalEdges.filter((edge) => (
+      !orphanEventIds.has(edge.fromEventId)
+      && !orphanEventIds.has(edge.toEventId)
+      && !isOrphanScope(edge.scope)
+    ))
+    snapshot.candidateAudits = snapshot.candidateAudits.filter((audit) => (
+      !isOrphanScope(audit.candidate.scope)
+      && !(audit.promotedEventId !== undefined && orphanEventIds.has(audit.promotedEventId))
+    ))
   }
 
   restoreCollectedState(snapshot: unknown): void {

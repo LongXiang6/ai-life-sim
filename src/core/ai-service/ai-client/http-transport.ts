@@ -56,8 +56,13 @@ export async function fetchAIResponse(
       ? toolCalls.find((tool) => tool?.function?.name === responseToolName)
       : undefined
     const toolArguments = matchedTool?.function?.arguments
+    // 部分推理模型（如 deepseek-v4-flash）偶发把最终结果放进 reasoning_content 而 content 为空，
+    // 此时回退读取 reasoning_content，避免被误判为「AI 返回空响应」。
+    const messageContent = message?.content?.trim()
+      ? message.content
+      : message?.reasoning_content ?? ''
     return {
-      content: toolArguments?.trim() ? toolArguments : message?.content ?? '',
+      content: toolArguments?.trim() ? toolArguments : messageContent,
       usage,
       finishReason: data.choices?.[0]?.finish_reason,
       requestId,

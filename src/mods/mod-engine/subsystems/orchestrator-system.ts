@@ -555,6 +555,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     projection.worldSetting = this.worldSetting ? structuredClone(this.worldSetting) : null
     projection.characterState = this.characterState ? structuredClone(this.characterState) : null
     projection.importPersistenceState(this.exportPersistenceState(false), false)
+    // 预生成投影需携带上一轮世界模拟产出：该字段是仅运行态的瞬态结果，不进入 exportPersistenceState，
+    // 且 importPersistenceState 会把投影的该字段重置为 null。若不在这里补齐，下一轮预览会缺少
+    // 「世界演变材料」，导致预览指纹与真实回合不一致而每次回退到真实调用。
+    projection.pendingWorldSimulationResult = structuredClone(this.pendingWorldSimulationResult)
     return projection
   }
 

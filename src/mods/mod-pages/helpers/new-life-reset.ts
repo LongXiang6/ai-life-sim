@@ -9,6 +9,7 @@ import { flushOpfsQueueNow } from '@/core/storage'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useEngineStore } from '@/mods/mod-engine'
 import { orchestrator } from '@/mods/mod-engine/engine-api'
+import { useHistoryDynamicsStore } from '@/mods/mod-history-dynamics'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
@@ -88,6 +89,7 @@ export async function resetForNewLife(): Promise<void> {
   useCharacterStore.getState().reset()
   useSettingsStore.getState().setStorySeed('')
   useWorldStore.getState().reset()
+  useHistoryDynamicsStore.getState().reset()
   useEngineStore.getState().reset()
   usePowerSystemStore.getState().reset()
   useGlobalStore.setState({
