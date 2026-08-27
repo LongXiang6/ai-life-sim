@@ -114,6 +114,7 @@ function buildWorldSimulationPromptProjection(
 export interface WorldFactsProjection {
   full: string | undefined
   confirmed: string | undefined
+  worldSimulationText: string | undefined
 }
 
 function buildWorldFactsProjection(
@@ -157,7 +158,6 @@ function buildWorldFactsProjection(
   )
   const parts = [
     currentRegionText,
-    worldSimulationText,
     worldCandidateText,
     eventInjectionText?.trim(),
     ledgerText,
@@ -165,7 +165,27 @@ function buildWorldFactsProjection(
   return {
     full: parts.length > 0 ? parts.join('\n') : undefined,
     confirmed,
+    worldSimulationText,
   }
+}
+
+const MAIN_NARRATIVE_RECENT_STORY_WINDOW = 5
+
+/** 主叙事可见的最近完整正文窗口；只保留最近 N 轮正文，不含尚未生成的当前轮。 */
+function buildRecentStoriesProjection(orchestrator: OrchestratorSystem): string[] | undefined {
+  const history = orchestrator['state'].narrativeHistory
+  if (history.length === 0) return undefined
+  const firstCommittedRound = Math.max(1, orchestrator['state'].totalRounds - history.length)
+  const recent = history.slice(-MAIN_NARRATIVE_RECENT_STORY_WINDOW)
+  const baseIndex = history.length - recent.length
+  const stories = recent.map((entry, index) => {
+    const round = entry.transitionAudit?.round ?? firstCommittedRound + baseIndex + index
+    const timeLabel = entry.displayTimeLabel?.trim() || `第${round}轮`
+    const ageLabel = entry.displayAge === undefined ? '' : `（角色${entry.displayAge}岁）`
+    const text = entry.text.replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
+    return `第${round}轮·${timeLabel}${ageLabel}：\n${text}`
+  })
+  return stories.length > 0 ? stories : undefined
 }
 
 function resolveFestivalScope(value: unknown): 'china' | 'china-and-international' {
@@ -367,6 +387,7 @@ export function assemblePromptContextRuntime(
     narrativeAddressing: useSettingsStore.getState().narrativeAddressing,
     talents,
     timelineMemory: orchestrator['buildPromptTimelineMemory'](),
+    recentStories: buildRecentStoriesProjection(orchestrator),
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),
@@ -376,6 +397,9 @@ export function assemblePromptContextRuntime(
       : {}),
     playerBranchIntent: roundGuidance.playerBranchIntent,
     ...(worldFacts.full ? { eventInjectionText: worldFacts.full } : {}),
+    ...(worldFacts.worldSimulationText
+      ? { worldSimulationText: worldFacts.worldSimulationText }
+      : {}),
     ...(currentDueEvents.length > 0 ? { currentDueEvents } : {}),
   }
 

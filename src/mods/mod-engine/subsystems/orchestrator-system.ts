@@ -66,7 +66,6 @@ import {
   type NarrativeAIStoryContinuityData,
   type PreparedNarrativeStoryContinuity,
   type NarrativeStoryContinuityTransactionSnapshot,
-  type CharacterCreation,
   type TimeStep,
   type BridgeSnapshot,
   type ParsedNarrative,
@@ -348,7 +347,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastCompletedAt: 0 },
     compressedSummaries: { summaries: [] },
     lastAutoSaveRound: 0,
-    characterCreations: [],
     storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
   }
 
@@ -1694,7 +1692,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastCompletedAt: 0 },
       compressedSummaries: { summaries: [] },
       lastAutoSaveRound: 0,
-      characterCreations: [],
       storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
     }
     this.lastSubsystemStates = {}
@@ -1777,7 +1774,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       compressionStats: { ...store.compressionStats },
       compressedSummaries: structuredClone(store.compressedSummaries),
       lastAutoSaveRound,
-      characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
       storyRepetitionStats,
     }
     if (store.lifeRunId !== lifeRunId || store.storyRepetitionStats !== storyRepetitionStats) {

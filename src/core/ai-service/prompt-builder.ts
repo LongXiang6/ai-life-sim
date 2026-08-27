@@ -12,8 +12,8 @@ export interface PromptSegments {
   stablePrefixChars: number
   full: string
   globalSegmentChars: number
-  userSegments: [string, string, string]
-  userMessageCount: 3
+  userSegments: string[]
+  userMessageCount: number
   strategy: PromptSegmentStrategy
   memorySegmentChars: number
   roundSegmentChars: number
@@ -129,7 +129,11 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
   return {
     世界: world,
     历史连续性事实: context.timelineMemory ?? [],
+    最近五轮正文: (context.recentStories ?? []).filter((story): story is string => (
+      typeof story === 'string' && story.trim().length > 0
+    )),
     角色: character,
+    世界模拟内容: nonEmpty(context.worldSimulationText) ?? '',
     本轮事实与方向: roundFactsAndDirection,
     ...(Array.isArray(context.currentDueEvents) && context.currentDueEvents.length > 0
       ? { 当前到期事件: context.currentDueEvents.filter((event): event is string => typeof event === 'string' && event.trim().length > 0) }
@@ -137,33 +141,41 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
   }
 }
 
-/** 输出三条独立 user 消息；顺序严格为世界、连续性事实与角色、本轮事实与方向。 */
+/** 输出六条独立 user 消息；顺序严格为世界、历史记忆、最近五轮、角色、世界模拟、本轮事实与方向。 */
 export function buildSegmentedPrompt(
   _template: PromptTemplate,
   context: PromptContext,
 ): PromptSegments {
   const input = buildNarrativeUserJson(context)
-  const globalSegment = JSON.stringify({ 世界: input.世界 ?? {} })
-  const memorySegment = JSON.stringify({
-    历史连续性事实: input.历史连续性事实 ?? [],
-    角色: input.角色 ?? {},
-  })
+  const worldSegment = JSON.stringify({ 世界: input.世界 ?? {} })
+  const memorySegment = JSON.stringify({ 历史连续性事实: input.历史连续性事实 ?? [] })
+  const recentSegment = JSON.stringify({ 最近五轮正文: input.最近五轮正文 ?? [] })
+  const characterSegment = JSON.stringify({ 角色: input.角色 ?? {} })
+  const worldSimulationSegment = JSON.stringify({ 世界模拟内容: input.世界模拟内容 ?? '' })
   const roundSegment = JSON.stringify({
     本轮事实与方向: input.本轮事实与方向 ?? [],
     ...(Array.isArray(input.当前到期事件) && input.当前到期事件.length > 0
       ? { 当前到期事件: input.当前到期事件 }
       : {}),
   })
+  const segments = [
+    worldSegment,
+    memorySegment,
+    recentSegment,
+    characterSegment,
+    worldSimulationSegment,
+    roundSegment,
+  ]
 
   return {
-    stablePrefixChars: globalSegment.length,
-    full: [globalSegment, memorySegment, roundSegment].join('\n'),
-    globalSegmentChars: globalSegment.length,
-    userSegments: [globalSegment, memorySegment, roundSegment],
-    userMessageCount: 3,
+    stablePrefixChars: worldSegment.length,
+    full: segments.join('\n'),
+    globalSegmentChars: worldSegment.length,
+    userSegments: segments,
+    userMessageCount: segments.length,
     strategy: 'S4',
-    memorySegmentChars: memorySegment.length,
-    roundSegmentChars: roundSegment.length,
-    totalChars: globalSegment.length + memorySegment.length + roundSegment.length + 2,
+    memorySegmentChars: memorySegment.length + recentSegment.length + characterSegment.length,
+    roundSegmentChars: worldSimulationSegment.length + roundSegment.length,
+    totalChars: segments.join('\n').length,
   }
 }

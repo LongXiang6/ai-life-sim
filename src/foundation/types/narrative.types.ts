@@ -50,11 +50,15 @@ export interface PromptContext {
   roundSystemGuidanceText?: string
   playerBranchIntent?: Record<string, unknown>
   eventInjectionText?: string
+  /** 世界模拟（04 调用）的宏观事件产出；独立于其余世界事实材料。 */
+  worldSimulationText?: string
   timeBridgeSummary?: string
   systemChangeSummary?: string
   narrativeGuidanceText?: string
   worldTagsText?: string
   timelineMemory?: string[]
+  /** 主叙事可见的最近完整正文窗口；区别于压缩后的历史连续性事实。 */
+  recentStories?: string[]
   currentRegion?: string
   narrativeStyle?: string
   /** 主叙事动态称呼方式；由设置 Store 提供，缺失时按第二人称处理。 */

@@ -220,7 +220,7 @@ async function prepareNextNarrativeRequest(owner) {
 
 function readRoundFacts(owner) {
   const promptContext = owner.assemblePromptContext()
-  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[2]).本轮事实与方向
+  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[5]).本轮事实与方向
 }
 
 async function assertPreGenerationInvalidated(label, mutate) {
@@ -270,7 +270,7 @@ try {
   assert.equal(customStyle.owner.getNarrativeStyleSnapshot().source, 'custom', 'non-empty saved style must resolve to the custom source')
   assert.equal(customStyle.owner.getNarrativeStyleSnapshot().text, rawCustomStyle, 'orchestrator must retain the exact saved custom style bytes')
   assert.equal(customStyleFact, `叙述风格：${rawCustomStyle}`, 'prompt builder must inject the exact custom style without rewriting it')
-  assert.ok(!customStyleFact.includes('首句从窗口内正在发生的行动') && customStyleFacts[0].includes('正文首句从窗口内正在发生的行动、关系、环境或冲突进入'), 'custom style must not receive appended time text; the time item owns the first-sentence constraint')
+  assert.ok(!customStyleFact.includes('首句从窗口内正在发生的行动') && customStyleFacts[0].includes('时间只作为判断事件合理性的背景参考'), 'custom style must not receive appended time text; the time item owns the first-sentence constraint')
 
   const whitespaceStyle = await createPreGenerationFixture(0); useSettingsStore.getState().saveNarrativeStyleText('  \n\t  ')
   assert.equal(whitespaceStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'whitespace-only saved style must normalize to the default source')
@@ -347,8 +347,8 @@ assertOk(
   'formal execution must reuse one matching preview or issue one real main-story request',
 )
 assertOk(
-  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign),
-  'commit must depend on exactly the 02 and 03 post-story calls',
+  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-world-simulation',?\s*\]/u.test(campaign),
+  'commit must depend on exactly the 02, 03, and 04 post-story calls',
 )
 assertOk(
   /name: 'finalize-round'[\s\S]{0,260}dependsOn: \['commit-round'\][\s\S]{0,500}startNarrativePreGeneration\(/u.test(campaign),

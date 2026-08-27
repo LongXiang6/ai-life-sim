@@ -100,7 +100,6 @@ export type {
   RoundResult,
   NarrativeChunk,
   NarrativeDestinyPatternGrowthProjection,
-  CharacterCreation,
   TimeStep,
 } from './types'
 export type {

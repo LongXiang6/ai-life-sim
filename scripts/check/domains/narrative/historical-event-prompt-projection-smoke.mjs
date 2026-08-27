@@ -300,11 +300,11 @@ const compiledSegments = buildSegmentedPrompt(narrativePrompt, promptContext)
 const compiledPrompt = compiledSegments.full
 const compiledWorldInput = JSON.parse(compiledSegments.userSegments[0])
 const compiledMemoryInput = JSON.parse(compiledSegments.userSegments[1])
-const compiledRoundInput = JSON.parse(compiledSegments.userSegments[2])
+const compiledRoundInput = JSON.parse(compiledSegments.userSegments[5])
 const localLedgerState = ledgerSubsystem.collectState().data
 const eventInjectionText = '【本轮系统事件】潮门的第七响已经传到码头。'
 const injectedPrepared = prepareNarrativeRoundPromptContext(orchestrator, eventInjectionText)
-const injectedRoundInput = JSON.parse(buildSegmentedPrompt(narrativePrompt, injectedPrepared.promptContext).userSegments[2])
+const injectedRoundInput = JSON.parse(buildSegmentedPrompt(narrativePrompt, injectedPrepared.promptContext).userSegments[5])
 
 assertOk(
   Array.isArray(localLedgerState.relevantEvents)
@@ -313,21 +313,21 @@ assertOk(
   'historical facts and candidates must continue to exist in their local ledger owner',
 )
 assertOk(
-  narrativePrompt.version === '7.8.0'
-    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.8.0',
+  narrativePrompt.version === '7.11.0'
+    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.11.0',
   'the story Prompt must use the approved 01 asset and version',
 )
 assertOk(
   JSON.stringify(Object.keys(compiledWorldInput)) === JSON.stringify(['世界'])
     && JSON.stringify(Object.keys(compiledWorldInput.世界)) === JSON.stringify(['名称', '描述'])
-    && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史连续性事实', '角色'])
+    && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史连续性事实'])
     && JSON.stringify(Object.keys(compiledRoundInput)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
     && Array.isArray(compiledRoundInput.本轮事实与方向)
     && compiledRoundInput.本轮事实与方向.length >= 5
     && compiledRoundInput.本轮事实与方向.some((item) => item.includes('本轮事件材料'))
     && compiledRoundInput.本轮事实与方向.some((item) => item.includes('历史事件账本'))
     && !compiledRoundInput.本轮事实与方向.some((item) => item.startsWith('叙述风格：')),
-  '01 must retain exactly three user messages, omit unset custom style, and inject scoped world facts when available',
+  '01 must retain exactly six user messages, omit unset custom style, and inject scoped world facts when available',
 )
 assertOk(
   promptContext.subsystemSummaries.length === 0,

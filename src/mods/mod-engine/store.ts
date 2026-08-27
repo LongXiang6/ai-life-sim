@@ -19,7 +19,7 @@ import {
   calendarDaysToBasePoints,
 } from '@/foundation'
 
-import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, CharacterCreation, } from './types'
+import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, } from './types'
 import {
   createNarrativeLifeRunId,
   summarizeNarrativeHistoryRepetition,
@@ -114,7 +114,6 @@ const initialState = {
   pendingNarrative: null as PendingNarrative | null,
   forceBranchNext: false,
   resolvedBranches: {} as Record<string, string>,
-  characterCreations: [] as CharacterCreation[],
   storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
   legendaryEncounter: undefined,
   legendaryEncounterCheckedForLifeRunId: undefined,

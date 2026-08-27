@@ -135,18 +135,6 @@ export interface CompressionStats {
   lastCompletedAt: number
 }
 
-/** 角色创造追踪 — 防止 AI 将自创内容改写为遗迹来源 */
-export interface CharacterCreation {
-  /** 名称（2-8字） */
-  name: string
-  /** 简述 */
-  description: string
-  /** 类型 */
-  category: 'power_system' | 'technique' | 'ability' | 'rule' | 'object' | 'other'
-  /** 确认轮次 */
-  confirmedRound: number
-}
-
 /** 引擎状态 */
 export interface EngineState {
   /** 不含账号信息的本局不透明标识，用于重复率指标归并。 */
@@ -161,8 +149,6 @@ export interface EngineState {
   compressedSummaries: CompressedSummaries
   /** 上次自动保存的回合数（0 表示尚未自动保存） */
   lastAutoSaveRound: number
-  /** 角色已开创的内容清单（防止 AI 改写为遗迹来源） */
-  characterCreations: CharacterCreation[]
   /** 本局故事重复率的持久化聚合快照。 */
   storyRepetitionStats: NarrativeRepetitionSummary
   /** 本局抽中的低频跨世界传奇；只作为一次性低优先级叙事素材。 */

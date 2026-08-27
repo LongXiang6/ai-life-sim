@@ -201,7 +201,7 @@ export async function executeMainNarrativeRequest(
     response,
     request.wordCountTarget,
     request.repetitionContext,
-    request.segments.userSegments[2],
+    request.segments.userSegments[5],
   )
 
   recordRoundCacheMetrics({

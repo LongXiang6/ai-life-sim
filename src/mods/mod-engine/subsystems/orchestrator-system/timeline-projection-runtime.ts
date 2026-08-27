@@ -36,13 +36,8 @@ export function buildPromptTimelineMemoryRuntime(
     summaryCompressor.getSummaries(),
     scopeView,
   )
-  const creationEntries = memoryLifecycle.buildCreationTimelineEntries(
-    orchestrator['state'].characterCreations,
-    (round: number) => orchestrator['resolveNarrativeRoundTime'](round),
-  )
   const timelineMemory = formatNarrativeTimelineForPrompt([
     ...timelineProjection.timelineEntries,
-    ...creationEntries,
   ])
 
   return timelineMemory.length > 0 ? timelineMemory : undefined

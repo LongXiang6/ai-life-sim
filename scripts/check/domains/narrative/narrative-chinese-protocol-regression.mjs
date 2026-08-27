@@ -69,7 +69,7 @@ const promptContext = {
   subsystemStates: { hidden: true },
 }
 const segments = buildSegmentedPrompt(narrativePrompt, promptContext)
-assertOk(segments.userSegments.length === 3 && segments.userMessageCount === 3, '01 必须恰好发送三条用户消息')
+assertOk(segments.userSegments.length === 6 && segments.userMessageCount === 6, '01 必须恰好发送六条用户消息')
 const storyMessages = segments.userSegments.map((segment) => JSON.parse(segment))
 assertOk(JSON.stringify(Object.keys(storyMessages[0])) === JSON.stringify(['世界']), '01 第一条消息只能是世界')
 assertOk(
@@ -77,33 +77,45 @@ assertOk(
   '01 世界字段及顺序必须与样品一致',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['历史连续性事实', '角色']),
-  '01 第二条消息必须先连续性事实，再角色',
+  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['历史连续性事实']),
+  '01 第二条消息只能是历史连续性事实',
 )
-const defaultFacts = storyMessages[2].本轮事实与方向
-assertOk(JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['本轮事实与方向']) && defaultFacts.length === 5 && defaultFacts[0].includes('时间窗口：317年4月') && defaultFacts[1].startsWith('玩家行动：') && defaultFacts[2].includes('角色当前19岁') && defaultFacts[2].includes('超出能力的行动不得直接视为已完成') && defaultFacts[3].includes('第二人称“你”') && defaultFacts[3].includes('不规定叙事主语') && defaultFacts[4] === '字数要求：正文约300字。' && !defaultFacts.some((item) => item.startsWith('叙述风格：')) && !defaultFacts.join('\n').includes('保留古典用词质感'), '01 无自定义文风时第三条消息不得追加叙述风格项或旧默认文风')
-const roundFactsFor = (narrativeStyle) => JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeStyle }).userSegments[2]).本轮事实与方向
+assertOk(
+  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['最近五轮正文']),
+  '01 第三条消息只能是最近五轮正文',
+)
+assertOk(
+  JSON.stringify(Object.keys(storyMessages[3])) === JSON.stringify(['角色']),
+  '01 第四条消息只能是角色',
+)
+assertOk(
+  JSON.stringify(Object.keys(storyMessages[4])) === JSON.stringify(['世界模拟内容']),
+  '01 第五条消息只能是世界模拟内容',
+)
+const defaultFacts = storyMessages[5].本轮事实与方向
+assertOk(JSON.stringify(Object.keys(storyMessages[5])) === JSON.stringify(['本轮事实与方向']) && defaultFacts.length === 5 && defaultFacts[0].includes('时间窗口：317年4月') && defaultFacts[1].startsWith('玩家行动：') && defaultFacts[2].includes('角色当前19岁') && defaultFacts[2].includes('超出能力的行动不得直接视为已完成') && defaultFacts[3].includes('第二人称“你”') && defaultFacts[3].includes('不规定叙事主语') && defaultFacts[4] === '字数要求：正文约300字；这是大约字数，优先以适合剧情为准，可适当增减。' && !defaultFacts.some((item) => item.startsWith('叙述风格：')) && !defaultFacts.join('\n').includes('保留古典用词质感'), '01 无自定义文风时第六条消息不得追加叙述风格项或旧默认文风')
+const roundFactsFor = (narrativeStyle) => JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeStyle }).userSegments[5]).本轮事实与方向
 const rawCustomStyle = '  用克制短句写潮湿空气。\n第二行  保留两个空格。  '
 const customStyleFacts = roundFactsFor(rawCustomStyle)
 const customStyleFact = customStyleFacts.find((item) => item.startsWith('叙述风格：'))
 assertOk(customStyleFact === `叙述风格：${rawCustomStyle}` && !customStyleFact.includes('窗口覆盖义务') && customStyleFacts[0].includes('时间窗口：317年4月') && !customStyleFacts[0].includes('至少完成一条主事件链'), '01 非空自定义文风逐字保留，时间项只提供时间边界')
 assertOk(['', '  \n\t  '].every((style) => !roundFactsFor(style).some((item) => item.startsWith('叙述风格：'))), '01 空文风或纯空白文风必须省略叙述风格项')
-for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[2]).本轮事实与方向[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
+for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[5]).本轮事实与方向[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
 const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
   characterStatusView: { 年龄: 1 },
 })
-const infantGuidance = JSON.parse(infantSegments.userSegments[2]).本轮事实与方向
+const infantGuidance = JSON.parse(infantSegments.userSegments[5]).本轮事实与方向
 assertOk(
   infantGuidance[2].includes('角色当前1岁')
-    && infantGuidance[2].includes('行动须符合其年龄、身体、知识、身份'),
+    && infantGuidance[2].includes('婴幼儿'),
   '01 必须保留年龄与能力边界，但不把低龄生活细节写成叙事模板',
 )
 const dueSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
   currentDueEvents: ['全局第120天：某事项已到期，等待本轮处理。'],
 })
-const dueMessage = JSON.parse(dueSegments.userSegments[2])
+const dueMessage = JSON.parse(dueSegments.userSegments[5])
 assertOk(
   JSON.stringify(Object.keys(dueMessage)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
     && dueMessage.当前到期事件.length === 1,
@@ -121,7 +133,7 @@ assertOk(
     && !segments.full.includes('伤势')
     && !segments.full.includes('等级')
     && !segments.full.includes('subsystemStates')
-    && JSON.stringify(Object.keys(storyMessages[1].角色.天赋[0])) === JSON.stringify(['名称', '效果']),
+    && JSON.stringify(Object.keys(storyMessages[3].角色.天赋[0])) === JSON.stringify(['名称', '效果']),
   '01 不得泄漏样品外世界、完整近期正文、区域、状态或天赋等级字段',
 )
 
@@ -309,7 +321,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.8.0'
+  narrativePrompt.version === '7.11.0'
     && narrativeStoryContinuityPrompt.version === '2.8.0'
     && narrativeTalentGrowthPrompt.version === '3.4.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -324,10 +336,12 @@ assertOk(
     } catch {
       return false
     }
-    return JSON.stringify(Object.keys(parsed)) === JSON.stringify(['身份', '目标', '输出契约'])
-      && parsed.身份 === '故事叙事生成器'
-      && parsed.目标.includes('合理的当前故事')
+    return JSON.stringify(Object.keys(parsed)) === JSON.stringify(['身份', '目标', '叙事原则', '输出契约'])
+      && parsed.身份.startsWith('你是一位人生叙事者')
+      && parsed.目标.includes('讲一段有人、有因果、有推进、可读的故事')
       && !parsed.目标.includes('连贯、可继续')
+      && Array.isArray(parsed.叙事原则)
+      && parsed.叙事原则.some((item) => item.includes('自创来源稳定'))
       && parsed.输出契约?.调用?.includes('submit_story_turn')
       && parsed.输出契约?.字段定义?.正文?.includes('非空字符串')
       && parsed.输出契约?.字段定义?.分支?.includes('选项')

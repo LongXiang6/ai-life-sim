@@ -298,9 +298,10 @@ try {
   parsedFixedNarrativePrompt = null
 }
 assertOk(
-  JSON.stringify(Object.keys(parsedFixedNarrativePrompt ?? {})) === JSON.stringify(['身份', '目标', '输出契约'])
-    && parsedFixedNarrativePrompt?.身份 === '故事叙事生成器'
-    && parsedFixedNarrativePrompt?.目标?.includes('合理的当前故事')
+  JSON.stringify(Object.keys(parsedFixedNarrativePrompt ?? {})) === JSON.stringify(['身份', '目标', '叙事原则', '输出契约'])
+    && parsedFixedNarrativePrompt?.身份?.startsWith('你是一位人生叙事者')
+    && Array.isArray(parsedFixedNarrativePrompt?.叙事原则)
+    && parsedFixedNarrativePrompt?.叙事原则?.some((item) => item.includes('自创来源稳定'))
     && !parsedFixedNarrativePrompt?.目标?.includes('连贯、可继续')
     && parsedFixedNarrativePrompt?.输出契约?.调用?.includes('submit_story_turn')
     && parsedFixedNarrativePrompt?.输出契约?.字段定义?.正文?.includes('非空字符串')
@@ -1207,7 +1208,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.8\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.8.0')
+assertOk(/version:\s*'7\.11\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.11.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
@@ -1243,14 +1244,16 @@ assertOk(
     && promptBuilderSrc.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
     && promptBuilderSrc.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
     && promptBuilderSrc.includes('历史连续性事实: context.timelineMemory ?? []')
+    && promptBuilderSrc.includes('最近五轮正文: (context.recentStories ?? [])')
     && promptBuilderSrc.includes('角色: character')
     && promptBuilderSrc.includes('天赋: context.talents ?? []')
+    && promptBuilderSrc.includes('世界模拟内容: nonEmpty(context.worldSimulationText)')
     && promptBuilderSrc.includes('本轮事实与方向: roundFactsAndDirection')
     && promptBuilderSrc.includes('当前到期事件')
-    && /userSegments:\s*\[globalSegment,\s*memorySegment,\s*roundSegment\]/u.test(promptBuilderSrc)
+    && /const segments = \[\s*worldSegment,\s*memorySegment,\s*recentSegment,\s*characterSegment,\s*worldSimulationSegment,\s*roundSegment,\s*\]/u.test(promptBuilderSrc)
     && !promptBuilderSrc.includes('recentDetailedStories')
     && !/(空间形态|世界观本质|力量体系|成立规则|文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
-  '01 input assembly must keep the approved field whitelist and three-message order',
+  '01 input assembly must keep the approved field whitelist and six-message order',
 )
 assertOk(
   !readRel('src/mods/mod-character/prompts/destiny-pattern-context.ts').includes('姓名=')

@@ -20,11 +20,8 @@ import {
   projectSummaryToNarrativeTimeline,
   type NarrativeTimelineEntry,
 } from '../helpers/timeline-memory'
-import type { CharacterCreation } from '../types'
-import { buildCreationTimelineEntries } from './memory-lifecycle-system/timeline-facts'
 import type {
   CausalMemoryProtection,
-  MemoryRoundTime,
   NarrativeTimelineProjection,
 } from './memory-lifecycle-system/contracts'
 
@@ -38,19 +35,12 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   readonly id = 'memory-lifecycle' as const
   readonly mod = 'mod-engine' as const
   readonly label = '记忆连续性' as const
-  readonly description = '保存未兑现因果保护，并投影逐轮压缩记忆与玩家原创事实' as const
+  readonly description = '保存未兑现因果保护，并投影逐轮压缩记忆' as const
 
   private causalProtections: CausalMemoryProtection[] = []
 
   getCausalProtections(): CausalMemoryProtection[] {
     return structuredClone(this.causalProtections)
-  }
-
-  buildCreationTimelineEntries(
-    characterCreations: readonly CharacterCreation[] = [],
-    resolveRoundTime?: (round: number) => MemoryRoundTime | undefined,
-  ): NarrativeTimelineEntry[] {
-    return buildCreationTimelineEntries(characterCreations, resolveRoundTime)
   }
 
   addCausalMark(event: CausalMemoryProtection): void {

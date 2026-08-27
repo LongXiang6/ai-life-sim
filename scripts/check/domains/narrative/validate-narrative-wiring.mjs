@@ -49,7 +49,7 @@ const preGeneration = fs.existsSync(preGenerationPath) ? fs.readFileSync(preGene
 const cachePool = read('src/core/ai-service/cache-pool.ts')
 
 assertOk(
-  promptBuilder.includes('userSegments: [string, string, string]')
+  promptBuilder.includes('userSegments: string[]')
     && promptBuilder.includes('JSON.stringify({ 世界: input.世界 ?? {} })')
     && promptBuilder.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
     && promptBuilder.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
@@ -60,7 +60,7 @@ assertOk(
     && promptBuilder.includes('当前到期事件')
     && !promptBuilder.includes('recentDetailedStories')
     && !/(空间形态|世界观本质|力量体系|成立规则|当前区域|文明阶段|当前可叙述状态)/u.test(promptBuilder),
-  '01 必须只组装世界、连续性事实与角色、本轮事实与方向三条标准 JSON，且不接入样品外状态字段',
+  '01 必须只组装世界、历史记忆、最近五轮、角色、世界模拟、本轮事实与方向六条标准 JSON，且不接入样品外状态字段',
 )
 assertOk(
   mainNarrativeCall.includes('prepareMainNarrativeRequest')
@@ -83,18 +83,18 @@ assertOk(
     && mainNarrativeCall.includes('各自约定形状的 JSON 字符串')
     && !mainNarrativeCall.includes('第二人称可执行行动')
     && !mainNarrativeCall.includes('永久失去意识、感知、决定、行动和任何新经历')
-    && /toolArguments\?\.trim\(\)\s*\?\s*toolArguments\s*:\s*message\?\.content/u.test(httpTransport),
+    && /toolArguments\?\.trim\(\)\s*\?\s*toolArguments\s*:\s*messageContent/u.test(httpTransport),
   '01 必须保留唯一工具输出和同响应正文的宽容解析，不启用额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.8.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.8.0')
+  narrativePrompt.includes("version: '7.11.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.11.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '2.8.0'")
     && talentPrompt.includes("version: '3.4.0'")
     && talentPrompt.includes('mod-engine:narrative-talent-growth:3.4.0')
-    && worldSimulationPrompt.includes("version: '1.0.0'")
-    && worldSimulationPrompt.includes('mod-engine:narrative-world-simulation:1.0.0')
+    && worldSimulationPrompt.includes("version: '1.2.0'")
+    && worldSimulationPrompt.includes('mod-engine:narrative-world-simulation:1.2.0')
     && [narrativePrompt, continuityPrompt, talentPrompt, worldSimulationPrompt].every((source) => (
       source.includes("systemPrompt: ''") && source.includes('serverPromptAssetId:')
     )),
@@ -104,7 +104,7 @@ assertOk(
   narrativeServer.includes('输出契约')
     && narrativeServer.includes('submit_story_turn')
     && narrativeServer.includes('顶层恰好包含正文、分支、结局三个键')
-    && narrativeServer.includes('故事叙事生成器')
+    && narrativeServer.includes('你是一位人生叙事者')
     && !narrativeServer.includes('正文规则')
     && continuityServer.includes('你是故事状态提取器。')
     && continuityServer.includes('不要选择下一轮主线')
@@ -121,9 +121,9 @@ assertOk(
     && talentServer.includes('三项共同成立')
     && !talentServer.includes('不得转为直接')
     && !talentServer.includes('禁止直接操控')
-    && worldSimulationServer.includes('你是世界演变模拟器。')
+    && worldSimulationServer.includes('你是世界演变模拟器，')
     && worldSimulationServer.includes('世界变化')
-    && worldSimulationServer.includes('因果边')
+    && worldSimulationServer.includes('概况变更')
     && worldSimulationServer.includes('不直接写入本地'),
   '四个固定 Prompt 必须分别承担故事、连续性、成长和世界演变职责，且 03 不增加转变路线替代限制',
 )

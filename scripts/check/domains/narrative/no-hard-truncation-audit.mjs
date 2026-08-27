@@ -26,7 +26,6 @@ const continuityOwner = read('src/mods/mod-engine/subsystems/summary-compressor-
 const continuityContext = read('src/mods/mod-engine/helpers/narrative-story-continuity-context.ts')
 const continuityPrompt = read('src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts')
 const memoryLifecycle = read('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts')
-const timelineFacts = read('src/mods/mod-engine/subsystems/memory-lifecycle-system/timeline-facts.ts')
 const timelineMemory = read('src/mods/mod-engine/helpers/timeline-memory.ts')
 const foreshadowing = read('src/mods/mod-engine/subsystems/foreshadowing-system.ts')
 const aiClient = read('src/core/ai-service/ai-client.ts')
@@ -54,7 +53,7 @@ const decisions = read('docs/product-decisions.md')
 const acceptanceLedger = read('docs/acceptance-ledger.md')
 
 reject(constants, /MAX_NARRATIVE_HISTORY|MAX_CHARACTER_CREATIONS/, 'engine constants must not define destructive story or creation caps')
-reject(orchestrator, /narrativeHistory\.shift\(|characterCreations\.shift\(/, 'orchestrator must retain complete narrative history and original creations')
+reject(orchestrator, /narrativeHistory\.shift\(/, 'orchestrator must retain complete narrative history')
 reject(orchestrator, /worldSetting\.description\.slice\(/, 'world adaptation must receive the complete world description')
 reject(store, /narrativeHistory[\s\S]{0,160}slice\(-?\d+\)/, 'engine persistence must not keep only a fixed story tail')
 reject(continuityOwner, /MAX_SUMMARIES|summaries\s*=\s*summaries\.slice\(/, '02 storage must not evict semantic memories by capacity')
@@ -69,10 +68,8 @@ reject(continuityContext, /故事全文[^\n]*(?:slice|substring)|sourceNarrative
 reject(continuityPrompt, /不超过|仅保留|极简|高度浓缩/u, '02 Prompt must not impose destructive semantic caps')
 reject(memoryLifecycle, /MAX_INDEX_ENTRIES|MAX_RELATIONSHIP_MEMORIES|relationshipMemories\.(?:shift|splice)\(|searchIndex\.(?:shift|splice)\(/, 'unified memory must not evict facts or people by fixed capacity')
 assertOk(
-  memoryLifecycle.includes('buildNarrativeTimelineProjection(')
-    && memoryLifecycle.includes('buildCreationTimelineEntries')
-    && timelineFacts.includes('玩家角色亲自开创[玩家原创·'),
-  '02 memory and player creations must remain traceable through dated timeline facts',
+  memoryLifecycle.includes('buildNarrativeTimelineProjection('),
+  '02 memory must remain traceable through dated timeline facts',
 )
 assertOk(
   timelineMemory.includes('projectSummaryToNarrativeTimeline')
@@ -103,7 +100,7 @@ assertOk(
   historicalProjection.includes("CONTINUATION_STATUSES = new Set<HistoricalEventStatus>(['scheduled', 'active'])")
     && historicalProjection.includes("scope.kind === 'global' || scope.contextIds.includes(currentContextId)")
     && historicalProjection.includes('dueCandidates')
-    && historicalProjection.includes('到期候选已完整投递'),
+    && historicalProjection.includes('当前待续事实与到期候选'),
   'historical projection must use semantic status and scope bounds while preserving every due candidate',
 )
 assertOk(

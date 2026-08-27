@@ -28,7 +28,7 @@ const promptSources = [
   ['ending-review', ENDING_REVIEW_SYSTEM_PROMPT],
   ['life-score', LIFE_SCORING_SYSTEM_PROMPT],
 ]
-const detailedExample = /药剂|遗迹|秘境|陌生观察者|神秘来客|完整故事示例|成品示例|详细剧情示例/u
+const detailedExample = /药剂|遗迹(?!发现)|秘境|陌生观察者|神秘来客|完整故事示例|成品示例|详细剧情示例/u
 for (const [name, source] of promptSources) {
   if (!source || source.trim().length < 20) fail(`${name} Prompt must contain its own active responsibility`)
   if (detailedExample.test(source)) fail(`${name} Prompt contains a detailed content example`)
@@ -40,7 +40,7 @@ for (const [name, source] of promptSources.slice(0, 4)) {
 }
 
 const promptBuilderSource = read('src/core/ai-service/prompt-builder.ts')
-if (!promptBuilderSource.includes('userSegments: [string, string, string]')) fail('main narrative must use three dynamic segments')
+if (!promptBuilderSource.includes('userSegments: string[]')) fail('main narrative must use six dynamic segments')
 const segments = buildSegmentedPrompt(narrativePrompt, {
   worldNarrativeView: { 名称: '世界事实', 描述: '稳定描述' },
   characterProfileView: { 姓名: '角色事实' },
@@ -49,32 +49,38 @@ const segments = buildSegmentedPrompt(narrativePrompt, {
   timelineMemory: ['已成立记忆'],
   narrativeGuidanceText: '本轮事实与方向',
 })
-if (segments.userSegments.length !== 3) fail('dynamic narrative assembly must produce exactly three segments')
+if (segments.userSegments.length !== 6) fail('dynamic narrative assembly must produce exactly six segments')
 const parsedSegments = segments.userSegments.map((segment) => JSON.parse(segment))
 if (
   JSON.stringify(Object.keys(parsedSegments[0])) !== JSON.stringify(['世界'])
   || JSON.stringify(Object.keys(parsedSegments[0].世界 ?? {})) !== JSON.stringify(['名称', '描述'])
-  || JSON.stringify(Object.keys(parsedSegments[1])) !== JSON.stringify(['历史连续性事实', '角色'])
+  || JSON.stringify(Object.keys(parsedSegments[1])) !== JSON.stringify(['历史连续性事实'])
   || !Array.isArray(parsedSegments[1].历史连续性事实)
-  || JSON.stringify(Object.keys(parsedSegments[2])) !== JSON.stringify(['本轮事实与方向'])
-  || !Array.isArray(parsedSegments[2].本轮事实与方向)
+  || JSON.stringify(Object.keys(parsedSegments[2])) !== JSON.stringify(['最近五轮正文'])
+  || JSON.stringify(Object.keys(parsedSegments[3])) !== JSON.stringify(['角色'])
+  || JSON.stringify(Object.keys(parsedSegments[4])) !== JSON.stringify(['世界模拟内容'])
+  || JSON.stringify(Object.keys(parsedSegments[5])) !== JSON.stringify(['本轮事实与方向'])
+  || !Array.isArray(parsedSegments[5].本轮事实与方向)
 ) {
-  fail('main narrative segments must be standalone world, continuity-and-character, and round-facts JSON objects')
+  fail('main narrative segments must be standalone world, memory, recent, character, world-simulation, and round-facts JSON objects')
 }
 if (segments.userSegments.some((segment) => /⟦(?:全局信息|记忆|本轮事实与方向)⟧/u.test(segment))) {
   fail('main narrative JSON segments must not carry object-external labels')
 }
 try {
   const parsed = JSON.parse(COMPILED_NARRATIVE_SYSTEM_PROMPT)
-   const expectedKeys = ['身份', '目标', '输出契约']
+   const expectedKeys = ['身份', '目标', '叙事原则', '输出契约']
    if (JSON.stringify(Object.keys(parsed)) !== JSON.stringify(expectedKeys)) {
      fail('main narrative fixed Prompt must contain one reasonable-narrative target and the output contract')
    }
-   if (parsed.身份 !== '故事叙事生成器' || !parsed.目标?.includes('合理的当前故事') || parsed.目标.includes('连贯、可继续')) {
+   if (parsed.身份 !== '你是一位人生叙事者。你讲述主角这个人如何在一个变化的世界里生活、经历、选择与承受；世界的变迁通过主角及身边人的具体遭遇显现，而不是被写成无人称的社会趋势。' || !Array.isArray(parsed.叙事原则) || parsed.叙事原则.length < 5 || parsed.目标.includes('连贯、可继续')) {
      fail('main narrative fixed Prompt must contain only the reasonable-narrative target')
    }
   if (!parsed.输出契约?.字段定义 || !Array.isArray(parsed.输出契约?.不变量)) {
     fail('main narrative fixed Prompt must expose field definitions and invariants')
+  }
+  if (!parsed.叙事原则.some((item) => item.includes('自创来源稳定'))) {
+    fail('main narrative fixed Prompt must declare that self-created sources stay with the character')
   }
    for (const forbiddenKey of ['输入映射', '决策流程', '正文规则', '终态边界']) {
     if (Object.prototype.hasOwnProperty.call(parsed, forbiddenKey)) fail(`main narrative fixed Prompt must not retain ${forbiddenKey}`)

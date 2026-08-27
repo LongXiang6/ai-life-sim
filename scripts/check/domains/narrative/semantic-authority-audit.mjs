@@ -38,7 +38,7 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.8\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.11\.0'/u)
 assert.match(sources.mainSystemPrompt, /输出契约/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
 assert.match(sources.mainSystemPrompt, /submit_story_turn/u)
@@ -121,7 +121,7 @@ assert(NarrativeAIWorldSimulationResultSchema.safeParse({
     触发条件: '',
     冷却: 3,
   }],
-  因果边: [{ 前因: '北境雪线南移', 后果: '沿途聚落迁徙', 关系: '导致' }],
+  概况变更: [{ 字段: '气候', 值: '北境进入持续寒冬。' }],
 }).success)
 
 const continuityOrder = ['历史记忆:', '最近四轮正文:', '当前回合:']

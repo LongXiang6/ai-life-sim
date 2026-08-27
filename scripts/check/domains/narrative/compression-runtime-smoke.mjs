@@ -205,7 +205,6 @@ const fakeOrchestrator = {
   state: {
     totalRounds: 6,
     narrativeHistory: history,
-    characterCreations: [],
   },
   worldSetting: { contextId: 'world-a', name: '甲世界' },
   getNarrativeScopeView: () => ({

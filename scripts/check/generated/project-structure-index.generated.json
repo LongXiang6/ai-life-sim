@@ -746,41 +746,89 @@
       "oversized": []
     },
     {
-      "id": "global-skill:explicit-execution",
+      "id": "global-skill:ai-life-sim",
       "responsibility": "跨项目通用理念、流程和结构契约",
       "directories": [
-        "../.agents/skills/explicit-execution",
-        "../.agents/skills/explicit-execution/agents"
+        "../.agents/skills/ai-life-sim",
+        "../.agents/skills/ai-life-sim/agents",
+        "../.agents/skills/ai-life-sim/references"
       ],
       "files": [
-        "../.agents/skills/explicit-execution/agents/openai.yaml",
-        "../.agents/skills/explicit-execution/SKILL.md"
+        "../.agents/skills/ai-life-sim/agents/openai.yaml",
+        "../.agents/skills/ai-life-sim/references/ai-documentation-contract.md",
+        "../.agents/skills/ai-life-sim/references/authority-hierarchy.md",
+        "../.agents/skills/ai-life-sim/references/community-feedback-loop.md",
+        "../.agents/skills/ai-life-sim/references/game-release-ledger.md",
+        "../.agents/skills/ai-life-sim/references/native-agent-delegation.md",
+        "../.agents/skills/ai-life-sim/references/pi-agent-delegation.md",
+        "../.agents/skills/ai-life-sim/references/project-task-execution.md",
+        "../.agents/skills/ai-life-sim/references/story-data-integrity.md",
+        "../.agents/skills/ai-life-sim/references/system-evaluation.md",
+        "../.agents/skills/ai-life-sim/references/system-order.md",
+        "../.agents/skills/ai-life-sim/references/system-topology.md",
+        "../.agents/skills/ai-life-sim/SKILL.md"
       ],
       "oversized": []
     },
     {
-      "id": "global-skill:standardized-project-structure",
+      "id": "global-skill:ai-life-sim-mod-development",
       "responsibility": "跨项目通用理念、流程和结构契约",
       "directories": [
-        "../.agents/skills/standardized-project-structure",
-        "../.agents/skills/standardized-project-structure/agents"
+        "../.agents/skills/ai-life-sim-mod-development",
+        "../.agents/skills/ai-life-sim-mod-development/agents",
+        "../.agents/skills/ai-life-sim-mod-development/assets/templates"
       ],
       "files": [
-        "../.agents/skills/standardized-project-structure/agents/openai.yaml",
-        "../.agents/skills/standardized-project-structure/SKILL.md"
+        "../.agents/skills/ai-life-sim-mod-development/agents/openai.yaml",
+        "../.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts",
+        "../.agents/skills/ai-life-sim-mod-development/SKILL.md"
       ],
       "oversized": []
     },
     {
-      "id": "global-skill:workspace-governance",
+      "id": "global-skill:ai-life-sim-prompt-engineering",
       "responsibility": "跨项目通用理念、流程和结构契约",
       "directories": [
-        "../.agents/skills/workspace-governance",
-        "../.agents/skills/workspace-governance/agents"
+        "../.agents/skills/ai-life-sim-prompt-engineering",
+        "../.agents/skills/ai-life-sim-prompt-engineering/agents"
       ],
       "files": [
-        "../.agents/skills/workspace-governance/agents/openai.yaml",
-        "../.agents/skills/workspace-governance/SKILL.md"
+        "../.agents/skills/ai-life-sim-prompt-engineering/agents/openai.yaml",
+        "../.agents/skills/ai-life-sim-prompt-engineering/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "global-skill:ai-life-sim-testing",
+      "responsibility": "跨项目通用理念、流程和结构契约",
+      "directories": [
+        "../.agents/skills/ai-life-sim-testing",
+        "../.agents/skills/ai-life-sim-testing/agents",
+        "../.agents/skills/ai-life-sim-testing/references"
+      ],
+      "files": [
+        "../.agents/skills/ai-life-sim-testing/agents/openai.yaml",
+        "../.agents/skills/ai-life-sim-testing/references/agent-evaluation.md",
+        "../.agents/skills/ai-life-sim-testing/references/gate-selection.md",
+        "../.agents/skills/ai-life-sim-testing/references/known-failures.md",
+        "../.agents/skills/ai-life-sim-testing/references/skill-regression-cases.md",
+        "../.agents/skills/ai-life-sim-testing/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "global-skill:ai-life-sim-ui",
+      "responsibility": "跨项目通用理念、流程和结构契约",
+      "directories": [
+        "../.agents/skills/ai-life-sim-ui",
+        "../.agents/skills/ai-life-sim-ui/agents",
+        "../.agents/skills/ai-life-sim-ui/references"
+      ],
+      "files": [
+        "../.agents/skills/ai-life-sim-ui/agents/openai.yaml",
+        "../.agents/skills/ai-life-sim-ui/references/solution-library-conformance.md",
+        "../.agents/skills/ai-life-sim-ui/references/visual-hierarchy.md",
+        "../.agents/skills/ai-life-sim-ui/SKILL.md"
       ],
       "oversized": []
     },
@@ -978,7 +1026,6 @@
         "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system/contracts.ts",
-        "src/mods/mod-engine/subsystems/memory-lifecycle-system/timeline-facts.ts",
         "src/mods/mod-engine/subsystems/narrative-parser-system.ts",
         "src/mods/mod-engine/subsystems/orchestrator-system.ts",
         "src/mods/mod-engine/subsystems/orchestrator-system/campaign-stage-runtime.ts",
@@ -1912,7 +1959,6 @@
         "scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs",
         "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
         "scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
-        "scripts/check/domains/narrative/narrative-pressure-balance-live-eval.mjs",
         "scripts/check/domains/narrative/narrative-regression-seed.mjs",
         "scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs",
         "scripts/check/domains/narrative/narrative-round-archive-smoke.mjs",
@@ -2102,7 +2148,9 @@
         "../.agents/README.md",
         "../AGENTS.md"
       ],
-      "oversized": []
+      "oversized": [
+        "../AGENTS.md"
+      ]
     }
   ]
 }
