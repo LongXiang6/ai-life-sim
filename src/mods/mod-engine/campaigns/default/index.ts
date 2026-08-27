@@ -13,6 +13,7 @@ import type {
   NarrativeStage,
   PromptTemplate,
   RoundContext,
+  SubSystemChanges,
 } from '@/foundation'
 import {
   callAIWithPromptTemplate,
@@ -79,6 +80,40 @@ const STAGE_OWNER = 'mod-engine'
 const STAGE_FAILURE_TARGET = 'mod-engine'
 const SPECIALIST_PARALLEL_GROUP = 'narrative-specialists'
 
+const WORLD_PROFILE_FIELD_LABEL_TO_KEY: Record<string, string> = {
+  概况: 'summary',
+  气候: 'climate',
+  生态: 'ecology',
+  污染: 'pollution',
+  经济: 'economy',
+  人口: 'population',
+  聚落: 'settlement',
+  文化: 'culture',
+  教育: 'education',
+  社会结构: 'socialStructure',
+  势力: 'factions',
+  法律: 'law',
+}
+
+function buildWorldProfileUpdateChange(
+  profileChanges: Array<{ 字段: string; 值: string }>,
+  contextId: string,
+  regionId: string,
+): SubSystemChanges | undefined {
+  if (profileChanges.length === 0 || !regionId) return undefined
+  const changes = Object.fromEntries(
+    profileChanges.map((change) => [WORLD_PROFILE_FIELD_LABEL_TO_KEY[change.字段], change.值]),
+  )
+  return {
+    id: 'spatial-graph',
+    operation: 'update-region-profile',
+    targetContextId: contextId,
+    targetObjectId: regionId,
+    description: '世界演变概况更新',
+    changes,
+  }
+}
+
 type PreparedStoryContinuity = ReturnType<typeof orchestrator.prepareNarrativeStoryContinuity>
 type PreparedStoryContinuityLedger = ReturnType<typeof orchestrator.prepareNarrativeStoryContinuityLedger>
 
@@ -103,6 +138,7 @@ export interface StageRuntimeContext extends RoundContext {
   _preparedStoryContinuityLedger?: PreparedStoryContinuityLedger
   _storyContinuityFailureReason?: string
   _storyContinuityLedgerFailureReason?: string
+  _worldProfileChanges?: SubSystemChanges
   _isPreparedRoundReattempt?: boolean
 }
 
@@ -730,13 +766,23 @@ export function loadStages(
             orchestrator.markWorldSimulationCandidateUsed(key, currentRound)
             return true
           })
-          const survivorTitles = new Set(survivors.map((event) => event.标题))
           orchestrator.setWorldSimulationResult({
             世界变化: survivors,
-            因果边: quality.result.因果边.filter((edge) => (
-              survivorTitles.has(edge.前因) || survivorTitles.has(edge.后果)
-            )),
+            概况变更: quality.result.概况变更,
           })
+          const profileChanges = quality.result.概况变更
+          const currentYear = ctx.round?.year ?? 0
+          if (
+            profileChanges.length > 0
+            && orchestrator.shouldUpdateWorldProfile(currentRound, currentYear)
+          ) {
+            const regionId = orchestrator.getCurrentRegionId()
+            const change = buildWorldProfileUpdateChange(profileChanges, ctx.contextId, regionId ?? '')
+            if (change) {
+              ctx._worldProfileChanges = change
+              orchestrator.markWorldProfileUpdated(currentRound, currentYear)
+            }
+          }
           logger.info('narrative-quality', 'world-simulation-response-accepted', {
             round: prepared.roundSequence,
             eventCount: survivors.length,
@@ -819,6 +865,16 @@ export function loadStages(
             const talentSnapshot = captureDestinyPatternGrowthTransaction(prepared.narrativeId)
             restoreSteps.push(() => restoreDestinyPatternGrowthTransaction(talentSnapshot))
             commitPreparedDestinyPatternGrowthChoice(ctx._preparedTalentGrowth)
+          }
+
+          if (ctx._worldProfileChanges) {
+            const result = orchestrator.applyRoundChanges([ctx._worldProfileChanges])
+            if (result.rejected.length > 0) {
+              logger.info('narrative-quality', 'world-profile-update-rejected', {
+                round: prepared.roundSequence,
+                reason: result.rejected.map((item) => item.reason).join('；'),
+              })
+            }
           }
 
           orchestrator.updateNarrativeTransitionAudit(prepared.narrativeId, {

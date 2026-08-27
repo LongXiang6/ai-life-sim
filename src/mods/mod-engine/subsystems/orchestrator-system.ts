@@ -439,6 +439,9 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 本轮已确认世界事实投影（当前区域 + 历史账本），供世界模拟 04 输入使用；仅运行态。 */
   private pendingConfirmedWorldFacts: string | undefined = undefined
 
+  /** 上次概况更新的轮次与游戏内年份；仅运行态，用于 3 轮 / 6 轮触发频率判断。 */
+  private lastWorldProfileUpdate: { round: number; year: number } | null = null
+
   /** 已随正文接纳、当前运行态已屏蔽重复投影的历史候选；候选账本状态仍由其所属系统保持。 */
   private readonly inFlightNarrativeEventCandidateIds = new Set<string>()
 
@@ -696,6 +699,28 @@ export class OrchestratorSystem extends BaseSubsystem {
     const result = this.pendingWorldSimulationResult
     this.pendingWorldSimulationResult = null
     return result
+  }
+
+  /** 概况更新触发频率：默认每 3 轮；距上次触发不足 2 年时延到每 6 轮。 */
+  shouldUpdateWorldProfile(round: number, year: number): boolean {
+    if (!this.lastWorldProfileUpdate) return true
+    const roundsSince = round - this.lastWorldProfileUpdate.round
+    const yearsSince = year - this.lastWorldProfileUpdate.year
+    const interval = yearsSince < 2 ? 6 : 3
+    return roundsSince >= interval
+  }
+
+  /** 记录一次概况更新，用于下一次触发频率判断。 */
+  markWorldProfileUpdated(round: number, year: number): void {
+    this.lastWorldProfileUpdate = { round, year }
+  }
+
+  /** 读取当前区域 ID（来自 spatial-graph 子系统状态）。 */
+  getCurrentRegionId(): string | undefined {
+    const data = this.lastSubsystemStates?.['spatial-graph']?.data
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined
+    const regionId = (data as Record<string, unknown>).currentRegionId
+    return typeof regionId === 'string' ? regionId : undefined
   }
 
   /** 世界模拟候选冷却判断：冷却期内同一确定性键不重复采用。 */

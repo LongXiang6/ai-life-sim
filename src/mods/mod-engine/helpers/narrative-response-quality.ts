@@ -331,13 +331,19 @@ const WORLD_INTENSITY_TO_LABEL: Record<string, string> = {
   重大: '重大', major: '重大',
 }
 
-const WORLD_RELATION_TO_LABEL: Record<string, string> = {
-  导致: '导致', causes: '导致',
-  使之成为可能: '使之成为可能', enables: '使之成为可能',
-  阻止: '阻止', blocks: '阻止',
-  解决: '解决', resolves: '解决',
-  放大: '放大', amplifies: '放大',
-  传播到: '传播到', propagates: '传播到',
+const WORLD_PROFILE_FIELD_TO_LABEL: Record<string, string> = {
+  概况: '概况', summary: '概况',
+  气候: '气候', climate: '气候',
+  生态: '生态', ecology: '生态',
+  污染: '污染', pollution: '污染',
+  经济: '经济', economy: '经济',
+  人口: '人口', population: '人口',
+  聚落: '聚落', settlement: '聚落',
+  文化: '文化', culture: '文化',
+  教育: '教育', education: '教育',
+  社会结构: '社会结构', socialStructure: '社会结构',
+  势力: '势力', factions: '势力',
+  法律: '法律', law: '法律',
 }
 
 function normalizeWorldEnum(value: unknown, map: Record<string, string>): string | undefined {
@@ -365,16 +371,15 @@ export function inspectNarrativeWorldSimulationQuality(content: string): Narrati
       }
       return { 标题, 类别, 强度, 描述, 影响区域, 触发条件, 冷却 }
     })
-    const rawEdges = asArray(pick(envelope, ['因果边', '因果', 'edges', 'causalEdges']))
-    const edges = rawEdges.map((value, index) => {
+    const rawProfileChanges = asArray(pick(envelope, ['概况变更', '概况更新', 'profileChanges']))
+    const profileChanges = rawProfileChanges.slice(0, 5).map((value, index) => {
       const item = asRecord(value) ?? {}
-      const 前因 = asText(pick(item, ['前因', '原因', 'from', 'cause']))
-      const 后果 = asText(pick(item, ['后果', '结果', 'to', 'effect']))
-      const 关系 = normalizeWorldEnum(pick(item, ['关系', 'relation', 'type']), WORLD_RELATION_TO_LABEL)
-      if (!前因 || !后果 || !关系) throw new Error(`因果边[${index}]字段不完整`)
-      return { 前因, 后果, 关系 }
+      const 字段 = normalizeWorldEnum(pick(item, ['字段', 'field']), WORLD_PROFILE_FIELD_TO_LABEL)
+      const 值 = asText(pick(item, ['值', '变更', 'value']))
+      if (!字段 || !值) throw new Error(`概况变更[${index}]字段不完整`)
+      return { 字段, 值 }
     })
-    const result = NarrativeAIWorldSimulationResultSchema.parse({ 世界变化: events, 因果边: edges })
+    const result = NarrativeAIWorldSimulationResultSchema.parse({ 世界变化: events, 概况变更: profileChanges })
     return { valid: true, reason: '', result }
   } catch (error) {
     return { valid: false, reason: errorMessage(error) }

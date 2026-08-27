@@ -92,10 +92,6 @@ const NarrativeAIWorldSimulationCategories = [
 
 const NarrativeAIWorldSimulationIntensities = ['轻微', '中等', '重大'] as const
 
-const NarrativeAIWorldSimulationRelations = [
-  '导致', '使之成为可能', '阻止', '解决', '放大', '传播到',
-] as const
-
 export const NarrativeAIWorldSimulationEventSchema = z.object({
   标题: z.string().trim().min(1).max(80),
   类别: z.enum(NarrativeAIWorldSimulationCategories),
@@ -106,15 +102,18 @@ export const NarrativeAIWorldSimulationEventSchema = z.object({
   冷却: z.number().int().min(0).max(99),
 })
 
-export const NarrativeAIWorldSimulationCausalEdgeSchema = z.object({
-  前因: z.string().trim().min(1).max(80),
-  后果: z.string().trim().min(1).max(80),
-  关系: z.enum(NarrativeAIWorldSimulationRelations),
+const NarrativeAIWorldSimulationProfileFields = [
+  '概况', '气候', '生态', '污染', '经济', '人口', '聚落', '文化', '教育', '社会结构', '势力', '法律',
+] as const
+
+export const NarrativeAIWorldSimulationProfileChangeSchema = z.object({
+  字段: z.enum(NarrativeAIWorldSimulationProfileFields),
+  值: z.string().trim().min(1).max(300),
 })
 
 export const NarrativeAIWorldSimulationResultSchema = z.object({
   世界变化: z.array(NarrativeAIWorldSimulationEventSchema).min(0).max(5),
-  因果边: z.array(NarrativeAIWorldSimulationCausalEdgeSchema).min(0),
+  概况变更: z.array(NarrativeAIWorldSimulationProfileChangeSchema).min(0).max(5),
 })
 
 export type NarrativeAIWorldSimulationResult = z.infer<typeof NarrativeAIWorldSimulationResultSchema>
