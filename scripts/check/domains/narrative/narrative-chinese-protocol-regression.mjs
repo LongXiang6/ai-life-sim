@@ -321,7 +321,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.11.0'
+  narrativePrompt.version === '7.12.0'
     && narrativeStoryContinuityPrompt.version === '2.8.0'
     && narrativeTalentGrowthPrompt.version === '3.4.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'

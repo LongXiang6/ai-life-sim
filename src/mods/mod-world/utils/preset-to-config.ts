@@ -1,14 +1,18 @@
 /**
+ * Purpose: Map preset and custom world inputs into the immutable WorldConfig contract.
+ * Owner: mod-world / preset-to-config.
+ * Responsibility: Preset/custom world config mapping only; preset catalog and power-framework definitions stay in their owners.
+ *
  * @module preset-to-config.ts
  * @description 预设/自定义世界 → WorldConfig 映射
  * @mod mod-world
  */
 
-import type { DifficultyLevel } from '@/foundation'
+import type { DifficultyLevel, PowerFrameworkProposal } from '@/foundation'
 
 import type { PresetWorld, WorldCategory } from '../constants/presets'
 import type { WorldConfig } from '../types'
-import { createDefaultPowerFramework } from './power-framework'
+import { createDefaultPowerFramework, materializePowerFramework } from './power-framework'
 
 const CATEGORY_ESSENCE: Record<WorldCategory, string> = {
   cultivation: 'cultivation',
@@ -96,12 +100,19 @@ export function buildWorldConfigFromPreset(
   }
 
   const spatialForm = CATEGORY_SPATIAL[preset.category] ?? 'plane'
+  const customFramework = preset.config.powerFramework as PowerFrameworkProposal | undefined
 
   return {
     name: preset.name,
     essenceTag,
     powerSystemTag,
-    powerFramework: createDefaultPowerFramework(powerSystemTag, { source: 'world-default' }),
+    powerFramework: customFramework
+      ? materializePowerFramework(customFramework, {
+          contextId: 'pending',
+          powerSystemTag,
+          source: 'world-custom',
+        })
+      : createDefaultPowerFramework(powerSystemTag, { source: 'world-default' }),
     spatialForm,
     civilizationStage: inferCivilizationFromPreset(preset),
     difficulty,

@@ -60,7 +60,19 @@ const REGION_PROMPT_FIELDS: ReadonlyArray<readonly [string, string]> = [
   ['law', '法律'],
 ]
 
-function formatCurrentRegionProjection(orchestrator: OrchestratorSystem): string | undefined {
+/** 仅开局轮注入：交代开局该确立的出身要素，并让出生地具体名称由 AI 依世界观拟写，不沿用任何预设地点名称。 */
+const OPENING_GUIDANCE_TEXT = [
+  '【开局指引】本轮是故事的开局。正文请自然确立主角的出身与初始处境，不写成设定清单；输入已给出的相关事实直接沿用：',
+  '· 世界格局：结合世界设定已给出的大势与势力秩序，交代主角出生与成长之地所处的时代背景，只作为背景存在。',
+  '· 出生与成长之地：主角出生和成长在具体的地方（村庄、城镇、街巷、宅院等），具体名称由你依据世界设定的风格自行拟写；不得沿用输入中出现的区域、世界或大陆名称作为该地名称，也不要用“某世界、某大陆”层面的表述来定位地点。',
+  '· 家庭情况：主角的家庭成员、家境与处境。',
+  '· 周围信息：出生与成长之地周边的环境、人群，以及主角初步可感知的势力或规则。',
+].join('\n')
+
+function formatCurrentRegionProjection(
+  orchestrator: OrchestratorSystem,
+  isOpeningRound: boolean,
+): string | undefined {
   const state = orchestrator['lastSubsystemStates']?.['spatial-graph']?.data
   if (!state || typeof state !== 'object' || Array.isArray(state)) return undefined
   const record = state as Record<string, unknown>
@@ -86,9 +98,10 @@ function formatCurrentRegionProjection(orchestrator: OrchestratorSystem): string
     })
     .filter((value): value is string => Boolean(value))
   if (!regionName && details.length === 0) return undefined
+  // 开局轮不注入预设区域名，具体出生地名称由正文 AI 依世界观拟写；区域事实仍作为背景投影。
   return [
-    '【当前环境】',
-    regionName ? `当前区域：${regionName}` : undefined,
+    isOpeningRound ? '【出生与成长之地的区域背景】' : '【当前环境】',
+    isOpeningRound ? undefined : (regionName ? `当前区域：${regionName}` : undefined),
     ...details,
   ].filter((value): value is string => Boolean(value)).join('\n')
 }
@@ -121,13 +134,14 @@ function buildWorldFactsProjection(
   orchestrator: OrchestratorSystem,
   context: RoundContext,
   eventInjectionText: string | undefined,
+  isOpeningRound: boolean,
 ): WorldFactsProjection {
   const ledgerText = buildHistoricalEventPromptProjection(
     orchestrator['lastSubsystemStates']?.['historical-event-ledger'],
     context.contextId,
     orchestrator['pendingNarrativeEventCandidateIds'] ?? [],
   )
-  const currentRegionText = formatCurrentRegionProjection(orchestrator)
+  const currentRegionText = formatCurrentRegionProjection(orchestrator, isOpeningRound)
   const confirmed = [currentRegionText, ledgerText]
     .filter((value): value is string => Boolean(value?.trim()))
     .join('\n') || undefined
@@ -375,8 +389,11 @@ export function assemblePromptContextRuntime(
     narrativeTime,
     timeBridgeSummary,
   )
-  const worldFacts = buildWorldFactsProjection(orchestrator, context, eventInjectionText)
+  const worldFacts = buildWorldFactsProjection(orchestrator, context, eventInjectionText, isOpeningRound)
   orchestrator['setConfirmedWorldFacts'](worldFacts.confirmed)
+  const openingEventInjectionText = isOpeningRound
+    ? [worldFacts.full, OPENING_GUIDANCE_TEXT].filter((value): value is string => Boolean(value?.trim())).join('\n') || undefined
+    : worldFacts.full
   const assembled: PromptContext = {
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting),
     characterProfileView: characterNarrativeView.profile,
@@ -396,7 +413,7 @@ export function assemblePromptContextRuntime(
       ? { roundSystemGuidanceText: roundGuidance.roundSystemGuidanceText }
       : {}),
     playerBranchIntent: roundGuidance.playerBranchIntent,
-    ...(worldFacts.full ? { eventInjectionText: worldFacts.full } : {}),
+    ...(openingEventInjectionText ? { eventInjectionText: openingEventInjectionText } : {}),
     ...(worldFacts.worldSimulationText
       ? { worldSimulationText: worldFacts.worldSimulationText }
       : {}),

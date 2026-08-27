@@ -1208,7 +1208,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.11\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.11.0')
+assertOk(/version:\s*'7\.12\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.12.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

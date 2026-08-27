@@ -1798,11 +1798,6 @@
       "sha256": "f0c2e53085933281e222b4c13c6c324440d19c9d8a58a13c24621a60f71fbc71"
     },
     {
-      "path": "src/mods/mod-world/utils/preset-to-config.ts",
-      "owner": "mod-world",
-      "sha256": "8cf1921caa483a85fb2fe054756067dd323ec07794a58b7687594572b6497a86"
-    },
-    {
       "path": "src/mods/mod-world/utils/preset-world-code.ts",
       "owner": "mod-world",
       "sha256": "3d4b5fa8645720732787150f759c5ad97cbd797a5eaa87147ecc09962d16c729"

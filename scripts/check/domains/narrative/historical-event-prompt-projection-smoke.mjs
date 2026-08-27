@@ -313,8 +313,8 @@ assertOk(
   'historical facts and candidates must continue to exist in their local ledger owner',
 )
 assertOk(
-  narrativePrompt.version === '7.11.0'
-    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.11.0',
+  narrativePrompt.version === '7.12.0'
+    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.12.0',
   'the story Prompt must use the approved 01 asset and version',
 )
 assertOk(
