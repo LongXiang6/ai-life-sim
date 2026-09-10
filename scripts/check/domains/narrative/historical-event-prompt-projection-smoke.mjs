@@ -298,13 +298,16 @@ orchestrator.collectSubsystemStates(false, false)
 const promptContext = orchestrator.assemblePromptContext()
 const compiledSegments = buildSegmentedPrompt(narrativePrompt, promptContext)
 const compiledPrompt = compiledSegments.full
-const compiledWorldInput = JSON.parse(compiledSegments.userSegments[0])
-const compiledMemoryInput = JSON.parse(compiledSegments.userSegments[1])
-const compiledRoundInput = JSON.parse(compiledSegments.userSegments[5])
+const compiledInput = JSON.parse(compiledSegments.userSegments[0])
+const compiledWorldInput = compiledInput[0]
+const compiledCharacterInput = compiledInput[1]
+const compiledStoryInput = compiledInput[2]
+const compiledCurrentInput = compiledInput[3]
 const localLedgerState = ledgerSubsystem.collectState().data
 const eventInjectionText = '【本轮系统事件】潮门的第七响已经传到码头。'
 const injectedPrepared = prepareNarrativeRoundPromptContext(orchestrator, eventInjectionText)
-const injectedRoundInput = JSON.parse(buildSegmentedPrompt(narrativePrompt, injectedPrepared.promptContext).userSegments[5])
+const injectedInput = JSON.parse(buildSegmentedPrompt(narrativePrompt, injectedPrepared.promptContext).userSegments[0])
+const injectedCurrentInput = injectedInput[3]
 
 assertOk(
   Array.isArray(localLedgerState.relevantEvents)
@@ -313,21 +316,22 @@ assertOk(
   'historical facts and candidates must continue to exist in their local ledger owner',
 )
 assertOk(
-  narrativePrompt.version === '7.12.0'
-    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.12.0',
+  narrativePrompt.version === '7.16.0'
+    && narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:7.16.0',
   'the story Prompt must use the approved 01 asset and version',
 )
 assertOk(
   JSON.stringify(Object.keys(compiledWorldInput)) === JSON.stringify(['世界'])
     && JSON.stringify(Object.keys(compiledWorldInput.世界)) === JSON.stringify(['名称', '描述'])
-    && JSON.stringify(Object.keys(compiledMemoryInput)) === JSON.stringify(['历史连续性事实'])
-    && JSON.stringify(Object.keys(compiledRoundInput)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
-    && Array.isArray(compiledRoundInput.本轮事实与方向)
-    && compiledRoundInput.本轮事实与方向.length >= 5
-    && compiledRoundInput.本轮事实与方向.some((item) => item.includes('本轮事件材料'))
-    && compiledRoundInput.本轮事实与方向.some((item) => item.includes('历史事件账本'))
-    && !compiledRoundInput.本轮事实与方向.some((item) => item.startsWith('叙述风格：')),
-  '01 must retain exactly six user messages, omit unset custom style, and inject scoped world facts when available',
+    && JSON.stringify(Object.keys(compiledCharacterInput)) === JSON.stringify(['玩家信息'])
+    && JSON.stringify(Object.keys(compiledStoryInput)) === JSON.stringify(['剧情'])
+    && JSON.stringify(Object.keys(compiledStoryInput.剧情)) === JSON.stringify(['长期记忆', '近期记忆'])
+    && JSON.stringify(Object.keys(compiledCurrentInput)) === JSON.stringify(['玩家属性', '当前信息'])
+    && JSON.stringify(Object.keys(compiledCurrentInput.玩家属性)) === JSON.stringify(['心智', '体魄', '魅力', '家境'])
+    && JSON.stringify(Object.keys(compiledCurrentInput.当前信息)) === JSON.stringify(['时间', '命运抉择'])
+    && compiledCurrentInput.当前信息.命运抉择.includes('历史事件账本')
+    && !Object.prototype.hasOwnProperty.call(compiledCurrentInput, '当前到期事件'),
+  '01 must retain the four-element data layer, omit sample-external fields, and inject scoped world facts when available',
 )
 assertOk(
   promptContext.subsystemSummaries.length === 0,
@@ -348,16 +352,15 @@ assertOk(
   'historical events, candidate IDs, causal edges, owner summaries, and context IDs must not enter 01',
 )
 assertOk(
-  compiledRoundInput.当前到期事件.length === 1
-    && compiledRoundInput.当前到期事件[0].includes(dueCandidate.candidate.title)
-    && compiledRoundInput.当前到期事件[0].includes(dueCandidate.candidate.description),
-  '01 current due events must expose only readable time/title/fact content',
+  compiledCurrentInput.当前信息.命运抉择.includes(dueCandidate.candidate.title)
+    && compiledCurrentInput.当前信息.命运抉择.includes(dueCandidate.candidate.description)
+    && !Object.prototype.hasOwnProperty.call(compiledCurrentInput, '当前到期事件'),
+  '01 due candidates must become readable 当前信息 content without a current-due top-level field',
 )
 assertOk(
-  injectedRoundInput.本轮事实与方向.filter((item) => item.includes(eventInjectionText)).length === 1
-    && injectedRoundInput.本轮事实与方向.some((item) => item.includes('这些材料作为本轮事实参考'))
-    && !JSON.stringify(injectedRoundInput).includes('candidate:prompt-due')
-    && !JSON.stringify(injectedRoundInput).includes('candidate-audit:prompt-due'),
+  injectedCurrentInput.当前信息.命运抉择.includes(eventInjectionText)
+    && !JSON.stringify(injectedCurrentInput).includes('candidate:prompt-due')
+    && !JSON.stringify(injectedCurrentInput).includes('candidate-audit:prompt-due'),
   '01 must carry one readable lifecycle event through the shared prompt-preparation path without leaking candidate internals',
 )
 

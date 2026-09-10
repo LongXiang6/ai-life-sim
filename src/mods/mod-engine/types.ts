@@ -132,6 +132,7 @@ export interface NarrativeChunk {
 export interface CompressionStats {
   compressedRoundCount: number
   lastSourceRound: number | null
+  lastAttemptRound: number | null
   lastCompletedAt: number
 }
 

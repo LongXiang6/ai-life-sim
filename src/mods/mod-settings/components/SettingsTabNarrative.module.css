@@ -152,7 +152,7 @@
 .primaryButton {
       border-color: var(--color-border-focus);
       background: var(--flow-accent);
-      color: #fff;
+      color: var(--text-on-accent, #fff);
       font-weight: 650;
     }
 
@@ -214,3 +214,26 @@
       min-height: calc(30 * var(--final-flow-density-px));
       padding: 0 calc(10 * var(--final-flow-density-px));
     }
+
+.tabRoot {
+  font-size: 14px;
+}
+
+.sectionLabel h3 {
+  font-size: 16px;
+}
+
+.sectionLabel span,
+.addressingButton small,
+.styleMeta,
+.actions button,
+.wordCountControl,
+.wordCountControl select {
+  color: var(--flow-muted);
+  font-size: 12px;
+}
+
+.addressingButton strong,
+.styleInput {
+  font-size: 14px;
+}

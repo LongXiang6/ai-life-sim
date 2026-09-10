@@ -168,26 +168,30 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-  'Does the live narrative path use the proxy and the strict 01 plus parallel 02/03 protocol?',
+   'Does the live narrative path use the proxy and the strict 01 plus parallel 02/03/04 protocol?',
   () => {
     requireModuleFragments('src/core/ai-service/ai-client/http-transport.ts', ["fetchWithDeadline('/api/proxy'"])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
       'narrativeParser.parse(content, { terminalGuidance })',
       'parseNarrativeAIJson(content)',
       'NarrativeAITalentGrowthDataSchema.parse(',
-      'NarrativeAIStoryContinuityMemorySchema.parse(',
-      'NarrativeAIStoryContinuityFutureEventsSchema.parse(',
+      'const rawMemory = envelope.本轮剧情',
+      'const rawFutureEvents = envelope.未来事件',
+      'NarrativeAIStoryContinuityDataSchema.parse({ 本轮剧情: memory, 未来事件: futureEvents })',
+      'NarrativeAIEventLibraryResultSchema.parse(',
     ])
     requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
       'export const NarrativeAIStoryResultSchema',
       'export const NarrativeAIStoryContinuityDataSchema',
       'export const NarrativeAITalentGrowthDataSchema',
+      'export const NarrativeAIEventLibraryResultSchema',
     ])
     return requireFragments('src/mods/mod-engine/campaigns/default/index.ts', [
       "name: 'ai-narration'",
       "name: 'prepare-narrative'",
       "name: 'ai-story-continuity'",
       "name: 'ai-talent-growth'",
+      "name: 'ai-event-library'",
       "name: 'commit-round'",
     ])
   },

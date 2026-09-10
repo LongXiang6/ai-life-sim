@@ -1,3 +1,5 @@
+/** Purpose: Coordinate welcome-page actions. Owner: mod-pages. Responsibility: Welcome data loading, save commands, and route navigation only. */
+
 'use client'
 
 /**
@@ -12,6 +14,7 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 
 import { useEngineStore } from '@/mods/mod-engine'
+import { useGlobalStore } from '@/core/global-store'
 import { saveManager } from '@/core/storage/save-manager'
 import { applyGameSave } from '@/mods/mod-engine/engine-api'
 import { useAccountClientStore } from '@/core/account/account-client-store'
@@ -36,6 +39,7 @@ const WelcomeModals = dynamic(() => import('./WelcomeModals'), { ssr: false })
 
 export default function WelcomePage() {
   const router = useRouter()
+  const runtimeReady = useGlobalStore((state) => state.allModsLoaded)
   const [saves, setSaves] = useState<SaveMetadata[]>([])
   const [cloudSave, setCloudSave] = useState<CloudManualSaveSummary | null>(null)
   const [selectedSaveId, setSelectedSaveId] = useState<string | null>(null)
@@ -162,6 +166,7 @@ export default function WelcomePage() {
         <div className="flow-responsive-layout">
           <WelcomeView
             onStartNewGame={handleStartNewGame}
+            runtimeReady={runtimeReady}
             saves={saves}
             cloudSave={cloudSave}
             selectedSaveId={selectedSaveId}

@@ -1,4 +1,4 @@
 interface:
   display_name: "AI 人生模拟器提示词工程"
   short_description: "处理用户要求的提示词、结构化输出、解析与叙事链路行为"
-  default_prompt: "使用 $ai-life-sim-prompt-engineering，按我要求的职责、权重、缓存分段和结构化契约实现提示词行为。"
+  default_prompt: "使用 $ai-life-sim-prompt-engineering，按我要求的生成原理、边界和结构化契约实现提示词行为。"

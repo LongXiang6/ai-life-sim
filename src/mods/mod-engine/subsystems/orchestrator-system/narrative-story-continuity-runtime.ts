@@ -127,7 +127,7 @@ function buildFutureCandidates(
     try {
       candidates.push({
         eventType: '未来事件',
-        title: fact.slice(0, 80),
+        title: fact,
         description: fact,
         scope: { kind: 'context', contextIds: [contextId] },
         participants: [],

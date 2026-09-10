@@ -1,5 +1,5 @@
 /**
- * Purpose: Audit the 01/02/03 Prompt responsibilities and runtime ownership boundaries.
+ * Purpose: Audit the 01/02/03/04 Prompt responsibilities and runtime ownership boundaries.
  * Owner: quality:narrative
  * Responsibility: Schema isolation, stage ownership, and absence of local story-text inference only.
  */
@@ -14,7 +14,7 @@ import {
   NarrativeAIBranchSchema,
   NarrativeAIStoryContinuityDataSchema,
   NarrativeAITalentGrowthDataSchema,
-  NarrativeAIWorldSimulationResultSchema,
+  NarrativeAIEventLibraryResultSchema,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 
 const root = getProjectRoot(import.meta.url)
@@ -28,8 +28,10 @@ const sources = {
   mainSystemPrompt: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
   continuityPrompt: read('src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts'),
   talentPrompt: read('src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts'),
+  eventLibraryPrompt: read('src/mods/mod-engine/server/narrative-event-library-system-prompt.ts'),
   continuityContext: read('src/mods/mod-engine/helpers/narrative-story-continuity-context.ts'),
   talentContext: read('src/mods/mod-engine/helpers/narrative-talent-growth-context.ts'),
+  eventLibraryContext: read('src/mods/mod-engine/helpers/narrative-event-library-context.ts'),
   protocol: read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts'),
   quality: read('src/mods/mod-engine/helpers/narrative-response-quality.ts'),
   contexts: readDirectorySource('src/mods/mod-engine/helpers', root),
@@ -38,12 +40,13 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.11\.0'/u)
-assert.match(sources.mainSystemPrompt, /输出契约/u)
+assert.match(sources.mainPrompt, /version: '7\.16\.0'/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
-assert.match(sources.mainSystemPrompt, /submit_story_turn/u)
-assert.match(sources.mainSystemPrompt, /顶层恰好包含正文、分支、结局三个键/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /世界故事模拟器|正文规则|终态边界|决策流程/u)
+assert.match(sources.mainSystemPrompt, /你是专业版人生重开模拟器/u)
+assert.match(sources.mainSystemPrompt, /【年龄:X岁\|心智:x\|体魄:x\|魅力:x\|家境:x\|冷却:x】/u)
+assert.match(sources.mainSystemPrompt, /"命运分支"/u)
+assert.match(sources.mainSystemPrompt, /"结局"/u)
+assert.doesNotMatch(sources.mainSystemPrompt, /输出契约|世界故事模拟器|正文规则|终态边界|决策流程/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /最近两轮详细剧情|先读取最近两轮/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /examples\s*:/u)
 assert.doesNotMatch(sources.mainSystemPrompt, /详细示例|示例正文|例如：/u)
@@ -52,11 +55,11 @@ assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你先观察', '你请求�
 assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查'] }).success, false)
 assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['一', '二', '三', '四', '五'] }).success, false)
 
-assert.match(sources.continuityPrompt, /故事状态提取器/u)
-assert.match(sources.continuityPrompt, /本轮记忆/u)
+assert.match(sources.continuityPrompt, /人生模拟器的故事连续性提取器/u)
+assert.match(sources.continuityPrompt, /本轮剧情/u)
 assert.match(sources.continuityPrompt, /未来事件/u)
-assert.match(sources.continuityPrompt, /时间、事实和权重/u)
-assert.match(sources.talentPrompt, /天赋成长判定与路线生成器/u)
+assert.match(sources.continuityPrompt, /时间.*剧情.*权重/u)
+assert.match(sources.talentPrompt, /天赋成长的推演者/u)
 assert.match(sources.talentPrompt, /下一等级/u)
 assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
 assert.match(sources.talentPrompt, /转变强化改变作用方式，不额外扩大影响总量/u)
@@ -69,8 +72,14 @@ assert.doesNotMatch(sources.talentPrompt, /判断[^\n]{0,80}不得[^\n]{0,80}(?:
 for (const prompt of [sources.continuityPrompt, sources.talentPrompt]) {
   assert.doesNotMatch(prompt, /详细故事输出示例|示例正文|few-shot|examples\s*:/iu)
 }
+assert.match(sources.eventLibraryPrompt, /你是无限事件库生成器/u)
+assert.match(sources.eventLibraryPrompt, /候选事件/u)
+assert.match(sources.eventLibraryPrompt, /输出契约/u)
+assert.match(sources.eventLibraryPrompt, /0至3条/u)
+assert.doesNotMatch(sources.eventLibraryPrompt, /世界演变模拟器|世界变化|概况变更/u)
+assert.doesNotMatch(sources.eventLibraryPrompt, /详细故事输出示例|示例正文|few-shot|examples\s*:/iu)
 
-for (const stage of ['ai-story-continuity', 'ai-talent-growth', 'ai-world-simulation']) {
+for (const stage of ['ai-story-continuity', 'ai-talent-growth', 'ai-event-library']) {
   assert.match(
     sources.campaign,
     new RegExp(`name: '${stage}'[\\s\\S]{0,220}dependsOn: \\[\\s*'prepare-narrative'\\s*\\][\\s\\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP`, 'u'),
@@ -78,7 +87,7 @@ for (const stage of ['ai-story-continuity', 'ai-talent-growth', 'ai-world-simula
 }
 assert.match(
   sources.campaign,
-  /dependsOn:\s*\[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-world-simulation',?\s*\]/u,
+  /dependsOn:\s*\[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-event-library',?\s*\]/u,
 )
 assert.equal([...sources.campaign.matchAll(/name: '(ai-[^']+)'/gu)].length, 4)
 
@@ -88,11 +97,11 @@ assert.doesNotMatch(sources.parser, /本轮记忆|未来事件|成长判定/u)
 assert.doesNotMatch(sources.orchestrator, /runNarrativePostProcessing|launchNarrativeBackgroundAnalysis|combineNarrativeBackgroundAnalysis/u)
 
 assert(NarrativeAIStoryContinuityDataSchema.safeParse({
-  本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6 }],
+  本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6 }],
   未来事件: ['317年5月1日：贺峤带队检查内层石缝。'],
 }).success)
 assert(NarrativeAIStoryContinuityDataSchema.safeParse({
-  本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6, 来源: '当前回合' }],
+  本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6, 来源: '当前回合' }],
   未来事件: [],
 }).success)
 assert(NarrativeAITalentGrowthDataSchema.safeParse({
@@ -111,20 +120,27 @@ assert(NarrativeAITalentGrowthDataSchema.safeParse({
     ],
   },
 }).success, 'Schema 必须允许转变路线从感知判断质变为直接操控类')
-assert(NarrativeAIWorldSimulationResultSchema.safeParse({
-  世界变化: [{
+assert(NarrativeAIEventLibraryResultSchema.safeParse({
+  候选事件: [{
     标题: '北境雪线南移',
-    类别: '环境',
-    强度: '中等',
     描述: '连续寒冬使北境雪线南移，沿途聚落面临食物与取暖压力。',
-    影响区域: '北境',
-    触发条件: '',
-    冷却: 3,
   }],
-  概况变更: [{ 字段: '气候', 值: '北境进入持续寒冬。' }],
 }).success)
+assert.equal(NarrativeAIEventLibraryResultSchema.safeParse({
+  候选事件: [{
+    标题: '北境雪线南移',
+    描述: '连续寒冬使北境雪线南移。',
+    类别: '环境',
+  }],
+}).success, false)
+assert.equal(NarrativeAIEventLibraryResultSchema.safeParse({
+  候选事件: Array.from({ length: 4 }, (_, index) => ({
+    标题: `候选${index}`,
+    描述: '独立事件。',
+  })),
+}).success, false)
 
-const continuityOrder = ['历史记忆:', '最近四轮正文:', '当前回合:']
+const continuityOrder = ['历史剧情:', '待压缩五轮正文:', '压缩范围:']
 let continuityCursor = -1
 for (const fragment of continuityOrder) {
   const index = sources.continuityContext.indexOf(fragment)
@@ -138,6 +154,13 @@ for (const fragment of talentOrder) {
   assert(index > talentCursor, `03 消息顺序漂移：${fragment}`)
   talentCursor = index
 }
+const eventLibraryOrder = ['当前世界状态:', '历史剧情:', '本轮故事与时间:']
+let eventLibraryCursor = -1
+for (const fragment of eventLibraryOrder) {
+  const index = sources.eventLibraryContext.indexOf(fragment)
+  assert(index > eventLibraryCursor, `04 消息顺序漂移：${fragment}`)
+  eventLibraryCursor = index
+}
 assert.doesNotMatch(sources.talentContext, /极性/u)
 assert.doesNotMatch(sources.quality, /MAX_|等级总加成上限|负属性绝对值总和/u)
 
@@ -145,6 +168,7 @@ const approvedProtocolExports = [
   'NarrativeAIStoryResultSchema',
   'NarrativeAITalentGrowthDataSchema',
   'NarrativeAIStoryContinuityDataSchema',
+  'NarrativeAIEventLibraryResultSchema',
 ]
 for (const exportName of approvedProtocolExports) assert.match(sources.protocol, new RegExp(`export const ${exportName}`))
 assert.equal([...sources.protocol.matchAll(/export const NarrativeAI[A-Za-z]+DataSchema/gu)].length, 2)

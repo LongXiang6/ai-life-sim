@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "主故事 Prompt 与回合结果数据流",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "output": "docs/diagrams/prompt-dataflow.dataflow.html",
+    "viewBox": [1380, 820],
+    "views": [
+      { "id": "prompt-input", "label": "Prompt 输入", "focus": ["intent", "context", "segments", "asset", "request"], "note": "查看本轮事实如何变成固定资产与六段 JSON。" },
+      { "id": "result-branch", "label": "结果分流", "focus": ["request", "story", "specialists", "commit"], "note": "查看主故事结果与三个专项结果如何汇合。" },
+      { "id": "state-sinks", "label": "状态落点", "focus": ["commit", "character", "history", "ui"], "note": "查看属性、正文、连续性和候选事件的最终去向。" }
+    ]
+  },
+  "stages": [
+    { "label": "输入事实" },
+    { "label": "Prompt 组装" },
+    { "label": "AI 调用" },
+    { "label": "结果解析" },
+    { "label": "状态消费" }
+  ],
+  "nodes": [
+    { "id": "intent", "type": "frontend", "label": "玩家行动与回合时间", "stage": 0, "row": 0, "tag": "current round" },
+    { "id": "context", "type": "backend", "label": "PromptContext", "stage": 0, "row": 2, "tag": "orchestrator projection" },
+    { "id": "segments", "type": "backend", "label": "六段动态 JSON", "stage": 1, "row": 1, "tag": "sample-aligned", "width": 170 },
+    { "id": "asset", "type": "backend", "label": "固定 Prompt 资产", "stage": 1, "row": 3, "tag": "server-only" },
+    { "id": "request", "type": "cloud", "label": "主故事 AI 请求", "stage": 2, "row": 1, "tag": "4-field tool" },
+    { "id": "story", "type": "backend", "label": "ParsedNarrative", "stage": 3, "row": 1, "tag": "normalized", "width": 120 },
+    { "id": "specialists", "type": "backend", "label": "02 / 03 / 04 结果", "stage": 3, "row": 3, "tag": "parallel" },
+    { "id": "commit", "type": "backend", "label": "commit-round", "stage": 4, "row": 1, "tag": "transition" },
+    { "id": "character", "type": "database", "label": "角色属性状态", "stage": 4, "row": 3, "tag": "character-base" },
+    { "id": "history", "type": "database", "label": "故事与事件账本", "stage": 4, "row": 4, "tag": "persistence" },
+    { "id": "ui", "type": "frontend", "label": "故事页面", "stage": 4, "row": 0, "tag": "consumer" }
+  ],
+  "flows": [
+    { "from": "intent", "to": "context", "label": "round facts", "classification": "player input", "variant": "emphasis", "route": "straight", "labelAt": [100, 214] },
+    { "from": "context", "to": "segments", "label": "project + normalize", "classification": "local projection", "variant": "emphasis", "labelAt": [200, 430] },
+    { "from": "asset", "to": "request", "label": "prompt_asset", "classification": "stable prefix", "variant": "emphasis", "labelAt": [420, 390] },
+    { "from": "segments", "to": "request", "label": "six user messages", "classification": "dynamic input", "variant": "emphasis", "labelAt": [420, 214] },
+    { "from": "request", "to": "story", "label": "tool arguments", "classification": "structured result", "variant": "emphasis", "route": "straight" },
+    { "from": "story", "to": "specialists", "label": "accepted narrative", "classification": "parallel fan-out", "variant": "dashed", "route": "vertical-channel" },
+    { "from": "specialists", "to": "commit", "label": "专项结果", "classification": "join", "variant": "dashed", "route": "vertical-channel", "channelX": 830, "labelAt": [830, 550] },
+    { "from": "story", "to": "commit", "label": "正文结果", "classification": "main result", "variant": "emphasis", "route": "vertical-channel", "channelX": 850, "labelAt": [930, 330] },
+    { "from": "commit", "to": "character", "label": "adjust-attributes", "classification": "owned state write", "variant": "emphasis", "fromSide": "left", "toSide": "left", "via": [[890, 271], [890, 499]], "labelAt": [890, 390] },
+    { "from": "commit", "to": "history", "label": "publish + continuity", "classification": "persisted result", "variant": "emphasis", "fromSide": "right", "toSide": "right", "via": [[1040, 271], [1040, 613]], "labelAt": [1040, 430] },
+    { "from": "commit", "to": "ui", "label": "round-complete", "classification": "public projection", "variant": "dashed", "route": "vertical-channel" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "输入契约", "items": ["固定 Prompt 与动态事实分离", "六段消息字段按 01 样例顺序发送", "本轮素材承载时间、年龄、行动和到期事项"] },
+    { "dot": "amber", "title": "结果契约", "items": ["主故事工具结果固定四字段", "属性变化仅记录重大事件的 ±1", "02/03/04 结果不改写主故事正文"] },
+    { "dot": "emerald", "title": "状态落点", "items": ["Character Base 独占属性写入", "Narrative Stores 保存正文与连续性", "事件库候选只作为下一轮瞬态参考"] }
+  ]
+}

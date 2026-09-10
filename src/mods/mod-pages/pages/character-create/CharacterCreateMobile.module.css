@@ -746,3 +746,102 @@ select:focus-visible {
       font: inherit;
       font-size: calc(8.75 * var(--final-flow-density-px));
     }
+
+/* Desktop folio polish: identity stays visible while detailed choices form a
+ * calm two-column working surface. */
+.paper {
+  padding: 0 28px 112px;
+}
+
+.header {
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+}
+
+.header h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.profileSummary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border: 1px solid var(--flow-line);
+  border-radius: 6px;
+  background: var(--flow-paper);
+}
+
+.profileFacts {
+  grid-column: auto;
+  grid-template-columns: repeat(3, minmax(74px, 1fr));
+  gap: 8px;
+  margin-top: 0;
+}
+
+.profileFacts div {
+  padding: 8px 10px;
+  border-left: 1px solid var(--flow-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.flowSections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-top: 18px;
+}
+
+.flowSections .section {
+  margin-top: 0;
+  padding: 18px;
+  border: 1px solid var(--flow-line);
+  border-radius: 6px;
+  background: var(--flow-paper);
+}
+
+.sectionHeading {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom-style: solid;
+}
+
+.sectionHeading h2 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 17px;
+}
+
+@media (max-width: 760px) {
+  .paper {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    padding-top: 14px;
+  }
+
+  .header h1 {
+    font-size: 25px;
+  }
+
+  .profileSummary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .profileFacts {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 4px;
+  }
+
+  .profileFacts div {
+    border-left: 0;
+    background: var(--color-bg-secondary);
+  }
+
+  .flowSections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

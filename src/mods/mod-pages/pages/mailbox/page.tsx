@@ -7,7 +7,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, FlowRunningHead } from '@/mods/mod-ui'
 
 import { MailboxMessageList } from './MailboxMessageList'
 import styles from './Mailbox.module.css'
@@ -56,7 +56,7 @@ export default function MailboxPage() {
         <div className="flow-responsive-layout">
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
-              <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 邮箱</span></div>
+              <FlowRunningHead stepLabel="附 · 邮箱" />
               <header className={styles.header}>
                 <div><h1>✉️ 邮箱</h1><p>{diagnosticCode ? `我的诊断编号 ${diagnosticCode}` : '人生来信'}</p></div>
                 <button type="button" className={styles.composeButton} onClick={() => setComposeOpen((open) => !open)}>

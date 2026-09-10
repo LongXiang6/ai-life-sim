@@ -107,7 +107,7 @@ const initialState = {
   totalRounds: 0,
   narrativeHistory: [] as NarrativeChunk[],
   currentNarrative: '',
-  compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastCompletedAt: 0 },
+  compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastAttemptRound: null, lastCompletedAt: 0 },
   compressedSummaries: { summaries: [], } as CompressedSummaries,
   lastAutoSaveRound: 0,
   narrativeError: null as string | null,
@@ -145,6 +145,7 @@ export function migrateEnginePersistedState(
     old.compressionStats = {
       compressedRoundCount: 0,
       lastSourceRound: null,
+      lastAttemptRound: null,
       lastCompletedAt: 0,
     }
   }

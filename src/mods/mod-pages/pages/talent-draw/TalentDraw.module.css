@@ -611,3 +611,117 @@
 .drawStageComplete .wave:nth-child(4) { animation-delay: 4.2s; }
 
 .sealLit[data-rarity="传说"] { border-color: #f59e0b; background: var(--color-primary-light); color: #a96708; box-shadow: 0 0 1.5rem rgb(245 158 11 / 40%); }
+
+/* Desktop folio polish: the draw ritual remains spacious while the selection
+ * stage gets a denser candidate index for quick comparison. */
+.page {
+  padding: 0 28px 112px;
+}
+
+.paper {
+  padding: 0;
+  background: transparent;
+}
+
+.header {
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+}
+
+.titleCopy {
+  padding: 22px 0 8px;
+  text-align: left;
+}
+
+.titleCopy h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.titleCopy p {
+  max-width: 680px;
+  font-size: 13px;
+}
+
+.drawStage {
+  min-height: 420px;
+  margin-top: 18px;
+  border: 1px solid var(--flow-line);
+  border-radius: 6px;
+  background: var(--flow-paper);
+}
+
+.paperSelection .titleCopy {
+  padding-bottom: 12px;
+}
+
+.progressBar {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--flow-line);
+  border-radius: 6px;
+  background: var(--flow-paper);
+}
+
+.progressRow {
+  gap: 8px;
+}
+
+.selectedSlot {
+  min-height: 38px;
+  border-radius: 5px;
+}
+
+.categoryTabs {
+  margin-top: 18px;
+  border-bottom: 1px solid var(--flow-line);
+}
+
+.categoryTab {
+  min-height: 40px;
+  border-radius: 0;
+}
+
+.candidateBand {
+  padding-top: 18px;
+}
+
+.candidateList {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.candidateCard {
+  min-height: 138px;
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--flow-paper);
+}
+
+.candidateCopy > strong {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 17px;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 0 16px 96px;
+  }
+
+  .titleCopy {
+    padding-top: 14px;
+  }
+
+  .titleCopy h1 {
+    font-size: 25px;
+  }
+
+  .drawStage {
+    min-height: 360px;
+  }
+
+  .candidateList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

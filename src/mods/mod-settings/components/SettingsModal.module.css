@@ -46,7 +46,7 @@
   align-items: center;
   justify-content: space-between;
   color: var(--flow-muted);
-  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -66,38 +66,31 @@
 .header p {
   margin: calc(5 * var(--final-flow-density-px)) 0 0;
   color: var(--flow-muted);
-  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-size: 12px;
 }
 
 .tabBar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   flex: 0 0 auto;
   gap: calc(10 * var(--final-flow-density-px));
-  overflow-x: auto;
-  overflow-y: hidden;
   padding: 0 calc(3.333 * var(--final-flow-density-px));
   border-bottom: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-  scrollbar-width: none;
-  touch-action: pan-x;
-  white-space: nowrap;
-}
-
-.tabBar::-webkit-scrollbar {
-  display: none;
 }
 
 .tab {
-  min-width: calc(73.333 * var(--final-flow-density-px));
-  min-height: calc(36.667 * var(--final-flow-density-px));
-  flex: 0 0 auto;
-  padding: 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 8px;
   border: 0;
   border-bottom: calc(2.5 * var(--final-flow-density-px)) solid transparent;
   background: transparent;
-  color: var(--flow-faint);
+  color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
-  font-size: calc(10 * var(--final-flow-density-px));
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .tabActive {
@@ -117,11 +110,11 @@
 
 .settingsTools small {
   color: var(--flow-muted);
-  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-size: 12px;
 }
 
 .restoreAction {
-  min-height: calc(30 * var(--final-flow-density-px));
+  min-height: 38px;
   padding: 0 calc(13.333 * var(--final-flow-density-px));
   border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
   border-radius: calc(20 * var(--final-flow-density-px));
@@ -129,7 +122,7 @@
   color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
-  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -146,6 +139,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
+  font-size: 14px;
 }
 
 .tabContent::-webkit-scrollbar {
@@ -168,7 +162,7 @@
   place-items: center;
   padding: calc(6.667 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
   border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-  border-radius: calc(20 * var(--final-flow-density-px));
+  border-radius: 6px;
   background: var(--flow-paper);
   color: var(--flow-ink);
   cursor: pointer;
@@ -182,14 +176,14 @@
 }
 
 .footerButton strong {
-  font-size: calc(11.667 * var(--final-flow-density-px));
+  font-size: 14px;
   font-weight: 650;
 }
 
 .footerButton small {
   margin-top: calc(1.667 * var(--final-flow-density-px));
   color: var(--flow-muted);
-  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-size: 12px;
 }
 
 .tab:focus-visible,
@@ -197,4 +191,20 @@
 .footerButton:focus-visible {
   outline: calc(1.667 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--color-border-focus) 42%, transparent);
   outline-offset: calc(1.667 * var(--final-flow-density-px));
+}
+
+@media (max-width: 640px) {
+  .screen {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .tabBar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 8px;
+  }
+
+  .tab {
+    min-height: 48px;
+  }
 }

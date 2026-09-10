@@ -163,11 +163,6 @@
       "sha256": "b4a973d9f0401cd6cbe0dae6902123d22b0c2f6c9a59466900ff5d0604f85b0f"
     },
     {
-      "path": "scripts/check/domains/ui/settings-r1-browser.cjs",
-      "owner": "quality:ui",
-      "sha256": "3bcf5ac9e806e6c9e5e8a24338814053893e4c916b2e7b5480961a55d08b0062"
-    },
-    {
       "path": "scripts/check/index.mjs",
       "owner": "quality:infrastructure",
       "sha256": "4e33d0ce84beed7ab2ea5e7973b76d5246774aea8a9b1f492b9383a2beecbf56"
@@ -1248,24 +1243,9 @@
       "sha256": "2aa255c4eb46077ea1cc532e24118d6732575b85ac5502b44dc300479fab2a43"
     },
     {
-      "path": "src/mods/mod-pages/pages/save-manager/page.tsx",
-      "owner": "mod-pages",
-      "sha256": "d6ff0998db7dd4d4c876d3338bcec45e6a10ecae83517fe3b57029d7a4b21748"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/save-manager/save-manager.module.css",
-      "owner": "mod-pages",
-      "sha256": "e767e89a9929ba3808892a6002c33352cce610373fabe3db48510c9c9e3b9ed1"
-    },
-    {
       "path": "src/mods/mod-pages/pages/talent-draw/TalentFlowArt.tsx",
       "owner": "mod-pages",
       "sha256": "52f71660729a415d7368705fdeae19da4d56c8c19bba95fc9e491bca0166a944"
-    },
-    {
-      "path": "src/mods/mod-pages/pages/welcome/page.tsx",
-      "owner": "mod-pages",
-      "sha256": "bb349c535a89b78a25633ecfc57d1c2365466fad391ed1fcd5cf0d60d71b9617"
     },
     {
       "path": "src/mods/mod-pages/pages/welcome/WelcomeModals.tsx",
@@ -1371,11 +1351,6 @@
       "path": "src/mods/mod-settings/components/settings-portal.ts",
       "owner": "mod-settings",
       "sha256": "e0aebe7ec697335d29e86896874240d03f6ad7464054915a39131b985f4009ee"
-    },
-    {
-      "path": "src/mods/mod-settings/components/SettingsHelpTooltip.module.css",
-      "owner": "mod-settings",
-      "sha256": "d3fda200af6aa9ad9d79ece2761be8033dd925361eb91181e37fa4b2982def39"
     },
     {
       "path": "src/mods/mod-settings/components/SettingsHelpTooltip.tsx",

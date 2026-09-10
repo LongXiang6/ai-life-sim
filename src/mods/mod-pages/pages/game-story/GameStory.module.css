@@ -779,6 +779,12 @@
   background: var(--story-paper);
 }
 
+.guardHead {
+  padding: 0 28px;
+  border-bottom: 1px solid var(--story-rule-soft);
+  background: var(--story-paper);
+}
+
 .guardCard {
   width: min(90%, 350px);
   padding: 32px 24px;
@@ -833,4 +839,87 @@
   }
 
   .barTalentRebirth { background-position: 40% 50%; }
+}
+
+/* Reader polish: preserve the sticky ledger while giving the narrative a
+ * wider, quieter page on desktop and a compact command strip on mobile. */
+.stickyBar {
+  background: color-mix(in srgb, var(--story-paper) 96%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.barTop {
+  min-height: 58px;
+  padding: 0 28px;
+}
+
+.barVitals {
+  padding: 8px 28px 10px;
+}
+
+.barTalent {
+  border-radius: 5px;
+}
+
+.reading {
+  padding: 0 28px 44px;
+}
+
+.chapterHeadLine {
+  padding: 26px 0 8px;
+}
+
+.chapterHeadTop h1 {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.progressStep {
+  border-radius: 5px;
+}
+
+.statusBanner {
+  padding-top: 20px;
+}
+
+@media (min-width: 900px) {
+  .reading {
+    max-width: 900px;
+    margin: 0 auto;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .barTop,
+  .barVitals {
+    padding-right: 28px;
+    padding-left: 28px;
+  }
+}
+
+@media (max-width: 760px) {
+  .barTop {
+    min-height: 52px;
+    padding: 0 16px;
+  }
+
+  .barVitals {
+    padding: 7px 16px 9px;
+  }
+
+  .reading {
+    padding: 0 16px 34px;
+  }
+
+  .chapterHeadLine {
+    padding-top: 18px;
+  }
+
+  .chapterHeadTop h1 {
+    font-size: 23px;
+  }
+
+  .guardHead {
+    padding: 0 16px;
+  }
 }

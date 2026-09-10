@@ -250,6 +250,15 @@ assertOk(welcomeViewSrc.includes('开始新人生'), 'welcome primary action mus
 assertOk(!welcomeViewSrc.includes('styles.trajectory'), 'welcome must not reintroduce the retired decorative trajectory ornament')
 assertOk(/hasAnySave\s*&&\s*\(/.test(welcomeViewSrc), 'continue action must only appear when a local or cloud save exists')
 assertOk(
+  welcomePageSrc.includes("useGlobalStore((state) => state.allModsLoaded)")
+    && welcomePageSrc.includes('runtimeReady={runtimeReady}')
+    && welcomeViewSrc.includes('runtimeReady: boolean')
+    && welcomeViewSrc.includes('runtimeReady={runtimeReady}')
+    && welcomeSaveSheetSrc.includes('disabled={!runtimeReady}')
+    && welcomeSaveSheetSrc.includes('disabled={!selectedSave || !runtimeReady || isContinuing}'),
+  'welcome local and cloud continue actions must stay disabled until the shared runtime-ready state is true',
+)
+assertOk(
   welcomeViewSrc.includes('onDeleteSave={onDeleteSave}')
     && welcomeViewSrc.includes('onDeleteCloudSave={onDeleteCloudSave}')
     && welcomeSaveSheetSrc.includes('删除这段人生？')
@@ -270,12 +279,13 @@ assertOk(
 )
 assertOk(
   flowRunningHeadSrc.includes('data-flow-running-head')
-    && flowRunningHeadSrc.includes('AI LIFE SIM · 命书')
-    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'height', '16px')
-    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'font-size', '11px')
-    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'color', 'var(--flow-faint)')
-    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'gap', '8px'),
-  'the finalized running head must have one shared 16px by 11px presentation contract',
+    && flowRunningHeadSrc.includes('AI LIFE SIM')
+    && flowRunningHeadSrc.includes('人生模拟器 · 命书')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'min-height', '62px')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'gap', '18px')
+    && hasCssDeclaration(flowRunningHeadCssSrc, 'root', 'color', 'var(--flow-muted)')
+    && flowRunningHeadCssSrc.includes('min-height: 54px'),
+  'the finalized running head must have one shared responsive 62px desktop / 54px mobile presentation contract',
 )
 assertOk(
   [
@@ -317,14 +327,15 @@ assertOk(
   settingsModalSrc.includes('ref={tabBarRef}')
     && settingsModalSrc.includes("scrollIntoView({")
     && settingsModalSrc.includes("inline: 'center'"),
-  'settings tab changes must scroll the active tab into the horizontal viewport',
+  'settings tab changes must keep the active tab visible after selection',
 )
 assertOk(
-  /\.tabBar\s*\{[^}]*overflow-x:\s*auto;[^}]*scrollbar-width:\s*none;[^}]*touch-action:\s*pan-x;/s.test(settingsModalCssSrc)
-    && settingsModalCssSrc.includes('.tabBar::-webkit-scrollbar'),
-  'settings tabs must support native horizontal touch scrolling with hidden scrollbars',
+  /\.tabBar\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/s.test(settingsModalCssSrc)
+    && /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.tabBar\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s.test(settingsModalCssSrc)
+    && !settingsModalCssSrc.includes('overflow-x: auto'),
+  'settings tabs must keep all four categories discoverable on desktop and mobile',
 )
-assertOk(settingsModalCssSrc.includes('flex: 0 0 auto'), 'settings tabs must keep the approved compact horizontal sizing')
+assertOk(settingsModalCssSrc.includes('min-height: 44px') && settingsModalCssSrc.includes('white-space: normal'), 'settings tabs must keep readable wrapped labels')
 assertOk(/\.tabActive\s*\{[^}]*border-bottom-color:\s*(?:#977026|var\(--flow-accent\)|var\(--color-border-focus\));[^}]*color:\s*(?:#241f18|var\(--flow-ink\));/s.test(settingsModalCssSrc), 'active settings tab must use the finalized warm-paper underline treatment')
 assertOk(
   settingsModalSrc.includes('flow-responsive-viewport')
@@ -502,10 +513,10 @@ assertOk(
   'WF2 compact bottom bar must keep back/confirm actions and disabled confirmation semantics',
 )
 assertOk(
-  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(38.333)}`)
-    && bottomActionBarCssSrc.includes(`border-radius: ${scaledPx(20)}`)
+  bottomActionBarCssSrc.includes('min-height: 48px')
+    && bottomActionBarCssSrc.includes('border-radius: 6px')
     && bottomActionBarCssSrc.includes('position: absolute'),
-  'world selection bottom bar must use the finalized equal white-button hierarchy',
+  'world selection bottom bar must use the finalized anchored command-band hierarchy',
 )
 assertOk(
   worldSelectMobileSrc.includes('flow-responsive-viewport')
@@ -551,14 +562,14 @@ assertOk(characterBottomBarSrc.includes('<BottomActionBar') && characterBottomBa
 assertOk(
   bottomActionBarCssSrc.includes('.backButton')
     && bottomActionBarCssSrc.includes('.confirmButton')
-    && bottomActionBarCssSrc.includes(`min-height: ${scaledPx(38.333)}`),
+    && bottomActionBarCssSrc.includes('min-height: 48px'),
   'N2A bottom buttons must share the approved creation-flow control height',
 )
 assertOk(bottomActionBarCssSrc.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'), 'N2A bottom actions must remain equal-width')
 assertOk(
-  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(38.333)}`)
-    && bottomActionBarCssSrc.includes(`border-radius: ${scaledPx(20)}`),
-  'N2A mobile CSS must keep the finalized equal white-button treatment',
+  bottomActionBarCssSrc.includes('min-height: 48px')
+    && bottomActionBarCssSrc.includes('border-radius: 6px'),
+  'N2A mobile CSS must keep the finalized command-band button treatment',
 )
 assertOk(
   characterCreateLogicSrc.includes('const manualStartingAge = storedManualStartingAge')
@@ -687,8 +698,9 @@ assertOk(
     && globalCssSrc.includes('--final-flow-density-rem: 1.2rem')
     && globalCssSrc.includes('--final-flow-content-max-width: 30rem')
     && globalCssSrc.includes('@media (min-width: 48rem)')
-    && globalCssSrc.includes('--final-flow-content-max-width: max(42rem, 58vw)')
-    && globalCssSrc.includes('width: min(100%, var(--final-flow-content-max-width))')
+    && globalCssSrc.includes('--final-flow-content-max-width: 74rem')
+    && globalCssSrc.includes('width: min(calc(100% - 40px), var(--final-flow-content-max-width))')
+    && !globalCssSrc.includes('--final-flow-content-max-width: max(42rem, 58vw)')
     && !globalCssSrc.includes('--final-flow-content-max-width: clamp(42rem, 58vw, 60rem)')
     && globalCssSrc.includes('--final-flow-content-gutter: calc(16.667 * var(--final-flow-density-px))')
     && globalCssSrc.includes('--final-flow-inline-unit: clamp(3.84px, 1.2vw, 5.16px)')
@@ -715,16 +727,17 @@ assertOk(
     worldSelectCssSrc,
     characterCreateCssSrc,
     talentDrawCssSrc,
-    attributeAllocCssSrc,
     fatePreviewCssSrc,
     gameOverCssSrc,
     leaderboardCssSrc,
     helpModalCssSrc,
   ].every((source) => source.includes('var(--final-flow-content-gutter)'))
+    && hasCssDeclaration(attributeAllocCssSrc, 'page', 'padding', '0 28px 112px')
+    && hasCssDeclaration(attributeAllocCssSrc, 'page', 'padding', '0 16px 96px')
     && hasCssDeclaration(gameStoryCssSrc, 'barTop', 'padding', '0 var(--final-flow-content-gutter)')
     && hasCssDeclaration(gameStoryCssSrc, 'barVitals', 'padding', '6px var(--final-flow-content-gutter) 8px')
     && hasCssDeclaration(gameStoryCssSrc, 'reading', 'padding', '0 var(--final-flow-content-gutter)'),
-  'finalized pages and the core reader must share one horizontal content gutter',
+  'page gutters must match the responsive page contracts and preserve the core reader gutter',
 )
 assertOk(
   [

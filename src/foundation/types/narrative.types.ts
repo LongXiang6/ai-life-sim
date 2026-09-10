@@ -50,8 +50,8 @@ export interface PromptContext {
   roundSystemGuidanceText?: string
   playerBranchIntent?: Record<string, unknown>
   eventInjectionText?: string
-  /** 世界模拟（04 调用）的宏观事件产出；独立于其余世界事实材料。 */
-  worldSimulationText?: string
+  /** 事件库（04 调用）的候选素材；独立于其余世界事实材料。 */
+  eventLibraryText?: string
   timeBridgeSummary?: string
   systemChangeSummary?: string
   narrativeGuidanceText?: string

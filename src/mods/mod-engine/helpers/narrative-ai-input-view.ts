@@ -35,6 +35,7 @@ export interface NarrativeAICharacterProfileView extends Record<string, unknown>
 
 export interface NarrativeAICharacterStatusView extends Record<string, unknown> {
   年龄: number
+  属性数值: Record<NarrativeAttributeKey, number>
 }
 
 type NarrativeAttributeKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma'
@@ -174,6 +175,12 @@ export function projectCharacterForNarrativeAI(
     },
     status: {
       年龄: character.age,
+      属性数值: {
+        physique: baseState.current.physique,
+        mind: baseState.current.mind,
+        talentAptitude: baseState.current.talentAptitude,
+        charisma: baseState.current.charisma,
+      },
     },
   }
 }

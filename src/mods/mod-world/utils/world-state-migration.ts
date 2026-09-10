@@ -34,6 +34,9 @@ const LEGACY_SCP_CONTRADICTORY_WORLD_TAGS = new Set([
   '纯现实世界',
   '科技决定论：所有现象必须可被科学解释',
 ])
+// 这些能力曾属于已下线的 P2 社会系统；旧存档仍可能携带它们，
+// 但当前运行时没有对应能力或子系统，恢复时必须在唯一快照边界归一化。
+const LEGACY_CONTEXT_CAPABILITIES = new Set(['npc', 'economy', 'politics'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -104,6 +107,21 @@ function normalizeTransitionHistory(value: unknown): unknown[] {
         ?? basePointsFromCalendarDays(nonNegativeInteger(entry.targetLocalDays) ?? 0),
     }
   })
+}
+
+function migrateLegacyCapabilityProfile(
+  profile: WorldContextInstance['capabilityProfile'],
+): WorldContextInstance['capabilityProfile'] {
+  if (!Array.isArray(profile.capabilities)) return profile
+  const rawCapabilities = profile.capabilities as readonly unknown[]
+  const capabilities = rawCapabilities.filter((capability) => (
+    typeof capability !== 'string' || !LEGACY_CONTEXT_CAPABILITIES.has(capability)
+  ))
+  if (capabilities.length === rawCapabilities.length) return profile
+  return {
+    ...profile,
+    capabilities: capabilities as WorldContextInstance['capabilityProfile']['capabilities'],
+  }
 }
 
 /**
@@ -202,7 +220,9 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
       delete (instance as unknown as Record<string, unknown>).entities
       delete (instance as unknown as Record<string, unknown>).worldInitAIStatus
       delete (instance.spatialGraph as unknown as Record<string, unknown>).entityLocations
-      instance.capabilityProfile = alignCapabilityProfileRuntimeMembership(instance.capabilityProfile)
+      instance.capabilityProfile = alignCapabilityProfileRuntimeMembership(
+        migrateLegacyCapabilityProfile(instance.capabilityProfile),
+      )
       if (contextId === currentContextId) {
         instance.scope.scope = 'active'
         instance.record.lifecycle = 'open'

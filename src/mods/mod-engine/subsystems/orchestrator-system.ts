@@ -25,7 +25,7 @@ import type {
   YearEvent,
 } from '@/foundation'
 import type { NarrativeRepetitionMetric } from '../helpers/narrative-repetition-metrics'
-import type { NarrativeAIWorldSimulationResult } from '../helpers/narrative-ai-protocol'
+import type { NarrativeAIEventLibraryResult } from '../helpers/narrative-ai-protocol'
 import { saveManager } from '@/core/storage/save-manager'
 import {
   DEFAULT_ENGINE_CONFIG,
@@ -344,7 +344,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     totalRounds: 0,
     narrativeHistory: [],
     currentNarrative: '',
-    compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastCompletedAt: 0 },
+    compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastAttemptRound: null, lastCompletedAt: 0 },
     compressedSummaries: { summaries: [] },
     lastAutoSaveRound: 0,
     storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
@@ -428,17 +428,11 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 当前 Prompt 实际投递、尚未随正文接纳的到期历史候选。 */
   private pendingNarrativeEventCandidateIds: string[] = []
 
-  /** 上一轮世界模拟 04 产出，下一轮主故事投影后一次性消费；仅运行态，不进入存档。 */
-  private pendingWorldSimulationResult: NarrativeAIWorldSimulationResult | null = null
+  /** 上一轮事件库 04 产出，下一轮主故事投影后一次性消费；仅运行态，不进入存档。 */
+  private pendingEventLibraryResult: NarrativeAIEventLibraryResult | null = null
 
-  /** 世界模拟候选冷却表（确定性键 → 上次采用轮次）；仅运行态，不持久化。 */
-  private worldSimulationCooldownState = new Map<string, number>()
-
-  /** 本轮已确认世界事实投影（当前区域 + 历史账本），供世界模拟 04 输入使用；仅运行态。 */
+  /** 本轮已确认世界事实投影（当前区域 + 历史账本），供事件库 04 输入使用；仅运行态。 */
   private pendingConfirmedWorldFacts: string | undefined = undefined
-
-  /** 上次概况更新的轮次与游戏内年份；仅运行态，用于 3 轮 / 6 轮触发频率判断。 */
-  private lastWorldProfileUpdate: { round: number; year: number } | null = null
 
   /** 已随正文接纳、当前运行态已屏蔽重复投影的历史候选；候选账本状态仍由其所属系统保持。 */
   private readonly inFlightNarrativeEventCandidateIds = new Set<string>()
@@ -556,10 +550,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     projection.worldSetting = this.worldSetting ? structuredClone(this.worldSetting) : null
     projection.characterState = this.characterState ? structuredClone(this.characterState) : null
     projection.importPersistenceState(this.exportPersistenceState(false), false)
-    // 预生成投影需携带上一轮世界模拟产出：该字段是仅运行态的瞬态结果，不进入 exportPersistenceState，
+    // 预生成投影需携带上一轮事件库产出：该字段是仅运行态的瞬态结果，不进入 exportPersistenceState，
     // 且 importPersistenceState 会把投影的该字段重置为 null。若不在这里补齐，下一轮预览会缺少
-    // 「世界演变材料」，导致预览指纹与真实回合不一致而每次回退到真实调用。
-    projection.pendingWorldSimulationResult = structuredClone(this.pendingWorldSimulationResult)
+    // 「事件库候选材料」，导致预览指纹与真实回合不一致而每次回退到真实调用。
+    projection.pendingEventLibraryResult = structuredClone(this.pendingEventLibraryResult)
     return projection
   }
 
@@ -677,7 +671,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     return { ...this.state, compressionStats: { ...this.state.compressionStats } }
   }
 
-  /** 写入本轮已确认世界事实投影，供世界模拟 04 输入读取。 */
+  /** 写入本轮已确认世界事实投影，供事件库 04 输入读取。 */
   setConfirmedWorldFacts(text: string | undefined): void {
     this.pendingConfirmedWorldFacts = text
   }
@@ -687,51 +681,16 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.pendingConfirmedWorldFacts
   }
 
-  /** 写入上一轮世界模拟 04 产出，供下一轮主故事投影。 */
-  setWorldSimulationResult(result: NarrativeAIWorldSimulationResult | null): void {
-    this.pendingWorldSimulationResult = result
+  /** 写入上一轮事件库 04 产出，供下一轮主故事投影。 */
+  setEventLibraryResult(result: NarrativeAIEventLibraryResult | null): void {
+    this.pendingEventLibraryResult = result
   }
 
-  /** 读取并一次性消费上一轮世界模拟 04 产出。 */
-  takeWorldSimulationResult(): NarrativeAIWorldSimulationResult | null {
-    const result = this.pendingWorldSimulationResult
-    this.pendingWorldSimulationResult = null
+  /** 读取并一次性消费上一轮事件库 04 产出。 */
+  takeEventLibraryResult(): NarrativeAIEventLibraryResult | null {
+    const result = this.pendingEventLibraryResult
+    this.pendingEventLibraryResult = null
     return result
-  }
-
-  /** 概况更新触发频率：默认每 3 轮；距上次触发不足 2 年时延到每 6 轮。 */
-  shouldUpdateWorldProfile(round: number, year: number): boolean {
-    if (!this.lastWorldProfileUpdate) return true
-    const roundsSince = round - this.lastWorldProfileUpdate.round
-    const yearsSince = year - this.lastWorldProfileUpdate.year
-    const interval = yearsSince < 2 ? 6 : 3
-    return roundsSince >= interval
-  }
-
-  /** 记录一次概况更新，用于下一次触发频率判断。 */
-  markWorldProfileUpdated(round: number, year: number): void {
-    this.lastWorldProfileUpdate = { round, year }
-  }
-
-  /** 读取当前区域 ID（来自 spatial-graph 子系统状态）。 */
-  getCurrentRegionId(): string | undefined {
-    const data = this.lastSubsystemStates?.['spatial-graph']?.data
-    if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined
-    const regionId = (data as Record<string, unknown>).currentRegionId
-    return typeof regionId === 'string' ? regionId : undefined
-  }
-
-  /** 世界模拟候选冷却判断：冷却期内同一确定性键不重复采用。 */
-  isWorldSimulationCandidateReady(key: string, currentRound: number, cooldownRounds: number): boolean {
-    if (cooldownRounds <= 0) return true
-    const lastUsed = this.worldSimulationCooldownState.get(key)
-    if (lastUsed === undefined) return true
-    return currentRound - lastUsed >= cooldownRounds
-  }
-
-  /** 记录世界模拟候选本轮采用，写入冷却表。 */
-  markWorldSimulationCandidateUsed(key: string, currentRound: number): void {
-    this.worldSimulationCooldownState.set(key, currentRound)
   }
 
   getSubsystemStateSnapshot(): Record<string, SubSystemState> {
@@ -1148,8 +1107,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastExecutedFullContent = state.lastExecutedFullContent ?? null
     this.pendingNarrativeCausalEventIds = []
     this.pendingNarrativeEventCandidateIds = []
-    this.pendingWorldSimulationResult = null
-    this.worldSimulationCooldownState.clear()
+    this.pendingEventLibraryResult = null
     this.pendingConfirmedWorldFacts = undefined
     this.inFlightNarrativeEventCandidateIds.clear()
     this.lastPlayerChoice = state.lastPlayerChoice
@@ -1689,7 +1647,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       totalRounds: 0,
       narrativeHistory: [],
       currentNarrative: '',
-      compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastCompletedAt: 0 },
+      compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastAttemptRound: null, lastCompletedAt: 0 },
       compressedSummaries: { summaries: [] },
       lastAutoSaveRound: 0,
       storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
@@ -1718,8 +1676,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastExecutedFullContent = null
     this.pendingNarrativeCausalEventIds = []
     this.pendingNarrativeEventCandidateIds = []
-    this.pendingWorldSimulationResult = null
-    this.worldSimulationCooldownState.clear()
+    this.pendingEventLibraryResult = null
     this.pendingConfirmedWorldFacts = undefined
     this.inFlightNarrativeEventCandidateIds.clear()
     this.acceptedNarrativeRecords.clear()
@@ -1945,16 +1902,16 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   prepareNarrativeStoryContinuity(input: {
     narrativeId: string
-    sourceRound: number | null
-    sourceNarrative?: NarrativeChunk
+    sourceRounds: readonly number[]
+    sourceNarratives?: readonly NarrativeChunk[]
     result: NarrativeAIStoryContinuityData | null
     rawResponse: string
   }): PreparedNarrativeStoryContinuity {
     const accepted = this.getPreparedNarrativeRecord(input.narrativeId)
     return this.runtime.summaryCompressor.prepareRoundContinuity({
       currentRound: accepted.roundSequence,
-      sourceRound: input.sourceRound,
-      sourceNarrative: input.sourceNarrative,
+      sourceRounds: input.sourceRounds,
+      sourceNarratives: input.sourceNarratives,
       result: input.result,
       rawResponse: input.rawResponse,
     })
@@ -1982,6 +1939,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.state.compressionStats = {
       compressedRoundCount: stats.compressedRoundCount,
       lastSourceRound: stats.lastSourceRound,
+      lastAttemptRound: stats.lastAttemptRound,
       lastCompletedAt: stats.lastCompletedAt,
     }
     useEngineStore.getState().setCompressedSummaries(this.state.compressedSummaries)
@@ -1989,6 +1947,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.setCompressionDiagnostic({
       status: 'completed',
       sourceRound: prepared.sourceRound,
+      sourceRounds: prepared.sourceRounds,
       didCompress: prepared.didCompress,
       compressedRoundCount: stats.compressedRoundCount,
       lastSourceRound: stats.lastSourceRound,

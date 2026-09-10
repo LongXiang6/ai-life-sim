@@ -15,7 +15,7 @@ import {
 } from '../../helpers/narrative-ai-input-view'
 import { buildHistoricalEventPromptProjection } from '../../helpers/historical-event-prompt-projection'
 import { buildWorldEventCandidatePromptProjection } from '../../helpers/world-event-prompt-projection'
-import type { NarrativeAIWorldSimulationResult } from '../../helpers/narrative-ai-protocol'
+import type { NarrativeAIEventLibraryResult } from '../../helpers/narrative-ai-protocol'
 import {
   buildWorldEventCandidateBatch,
   useWorldStore,
@@ -60,19 +60,9 @@ const REGION_PROMPT_FIELDS: ReadonlyArray<readonly [string, string]> = [
   ['law', '法律'],
 ]
 
-/** 仅开局轮注入：交代开局该确立的出身要素，并让出生地具体名称由 AI 依世界观拟写，不沿用任何预设地点名称。 */
-const OPENING_GUIDANCE_TEXT = [
-  '【开局指引】本轮是故事的开局。正文请自然确立主角的出身与初始处境，不写成设定清单；输入已给出的相关事实直接沿用：',
-  '· 世界格局：结合世界设定已给出的大势与势力秩序，交代主角出生与成长之地所处的时代背景，只作为背景存在。',
-  '· 出生与成长之地：主角出生和成长在具体的地方（村庄、城镇、街巷、宅院等），具体名称由你依据世界设定的风格自行拟写；不得沿用输入中出现的区域、世界或大陆名称作为该地名称，也不要用“某世界、某大陆”层面的表述来定位地点。',
-  '· 家庭情况：主角的家庭成员、家境与处境。',
-  '· 周围信息：出生与成长之地周边的环境、人群，以及主角初步可感知的势力或规则。',
-].join('\n')
+const OPENING_ROUND_DIRECTION = '依据世界名称、世界描述与角色背景，自然确立角色的出生与成长地点、家庭情况、周边环境，并为相关地点拟定符合世界观的具体地域名称。'
 
-function formatCurrentRegionProjection(
-  orchestrator: OrchestratorSystem,
-  isOpeningRound: boolean,
-): string | undefined {
+function formatCurrentRegionProjection(orchestrator: OrchestratorSystem): string | undefined {
   const state = orchestrator['lastSubsystemStates']?.['spatial-graph']?.data
   if (!state || typeof state !== 'object' || Array.isArray(state)) return undefined
   const record = state as Record<string, unknown>
@@ -98,28 +88,21 @@ function formatCurrentRegionProjection(
     })
     .filter((value): value is string => Boolean(value))
   if (!regionName && details.length === 0) return undefined
-  // 开局轮不注入预设区域名，具体出生地名称由正文 AI 依世界观拟写；区域事实仍作为背景投影。
   return [
-    isOpeningRound ? '【出生与成长之地的区域背景】' : '【当前环境】',
-    isOpeningRound ? undefined : (regionName ? `当前区域：${regionName}` : undefined),
+    '【当前环境】',
+    regionName ? `当前区域：${regionName}` : undefined,
     ...details,
   ].filter((value): value is string => Boolean(value)).join('\n')
 }
 
-function buildWorldSimulationPromptProjection(
-  result: NarrativeAIWorldSimulationResult | null,
+function buildEventLibraryPromptProjection(
+  result: NarrativeAIEventLibraryResult | null,
 ): string | undefined {
-  if (!result || result.世界变化.length === 0) return undefined
+  if (!result || result.候选事件.length === 0) return undefined
   return [
-    '【世界演变材料】',
-    '以下材料由世界模拟生成，不是已经确认的状态，也不是强制情节；故事可根据整体输入合理采用、改写、略过或延后。',
-    ...result.世界变化.map((event) => [
-      `事件类别：${event.类别}`,
-      `强度：${event.强度}`,
-      `影响区域：${event.影响区域}`,
-      `可见候选：${event.描述}`,
-      `触发条件：${event.触发条件 || '无'}`,
-    ].join('；')),
+    '【事件库候选】',
+    '以下材料由事件库生成，是尚未确认的独立候选事件；故事可根据整体输入自主采用、改写、略过或延后。',
+    ...result.候选事件.map((event) => `标题：${event.标题}；描述：${event.描述}`),
     '正文实际写出的内容才交给后续状态提取；未写出的材料不自动成为历史事实。',
   ].join('\n')
 }
@@ -127,7 +110,7 @@ function buildWorldSimulationPromptProjection(
 export interface WorldFactsProjection {
   full: string | undefined
   confirmed: string | undefined
-  worldSimulationText: string | undefined
+  eventLibraryText: string | undefined
 }
 
 function buildWorldFactsProjection(
@@ -141,11 +124,11 @@ function buildWorldFactsProjection(
     context.contextId,
     orchestrator['pendingNarrativeEventCandidateIds'] ?? [],
   )
-  const currentRegionText = formatCurrentRegionProjection(orchestrator, isOpeningRound)
+  const currentRegionText = isOpeningRound ? undefined : formatCurrentRegionProjection(orchestrator)
   const confirmed = [currentRegionText, ledgerText]
     .filter((value): value is string => Boolean(value?.trim()))
     .join('\n') || undefined
-  const worldEventBatch = (() => {
+  const worldEventBatch = isOpeningRound ? undefined : (() => {
     const worldState = useWorldStore.getState()
     const contextId = context.contextId || worldState.currentContextId || ''
     const instance = contextId ? worldState.contexts[contextId] : undefined
@@ -167,8 +150,8 @@ function buildWorldFactsProjection(
     )
   })()
   const worldCandidateText = buildWorldEventCandidatePromptProjection(worldEventBatch)
-  const worldSimulationText = buildWorldSimulationPromptProjection(
-    orchestrator.takeWorldSimulationResult(),
+  const eventLibraryText = buildEventLibraryPromptProjection(
+    orchestrator.takeEventLibraryResult(),
   )
   const parts = [
     currentRegionText,
@@ -179,7 +162,7 @@ function buildWorldFactsProjection(
   return {
     full: parts.length > 0 ? parts.join('\n') : undefined,
     confirmed,
-    worldSimulationText,
+    eventLibraryText,
   }
 }
 
@@ -195,9 +178,9 @@ function buildRecentStoriesProjection(orchestrator: OrchestratorSystem): string[
   const stories = recent.map((entry, index) => {
     const round = entry.transitionAudit?.round ?? firstCommittedRound + baseIndex + index
     const timeLabel = entry.displayTimeLabel?.trim() || `第${round}轮`
-    const ageLabel = entry.displayAge === undefined ? '' : `（角色${entry.displayAge}岁）`
+    const ageLabel = entry.displayAge === undefined ? '年龄未知' : `${entry.displayAge}岁`
     const text = entry.text.replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
-    return `第${round}轮·${timeLabel}${ageLabel}：\n${text}`
+    return `${ageLabel}·${timeLabel}·第${round}轮：${text}`
   })
   return stories.length > 0 ? stories : undefined
 }
@@ -391,9 +374,12 @@ export function assemblePromptContextRuntime(
   )
   const worldFacts = buildWorldFactsProjection(orchestrator, context, eventInjectionText, isOpeningRound)
   orchestrator['setConfirmedWorldFacts'](worldFacts.confirmed)
-  const openingEventInjectionText = isOpeningRound
-    ? [worldFacts.full, OPENING_GUIDANCE_TEXT].filter((value): value is string => Boolean(value?.trim())).join('\n') || undefined
-    : worldFacts.full
+  const roundSystemGuidanceText = [
+    roundGuidance.roundSystemGuidanceText,
+    isOpeningRound ? OPENING_ROUND_DIRECTION : undefined,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join('\n') || undefined
   const assembled: PromptContext = {
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting),
     characterProfileView: characterNarrativeView.profile,
@@ -409,13 +395,13 @@ export function assemblePromptContextRuntime(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),
     ...(timeGuideText ? { timeGuideText } : {}),
-    ...(roundGuidance.roundSystemGuidanceText
-      ? { roundSystemGuidanceText: roundGuidance.roundSystemGuidanceText }
+    ...(roundSystemGuidanceText
+      ? { roundSystemGuidanceText }
       : {}),
     playerBranchIntent: roundGuidance.playerBranchIntent,
-    ...(openingEventInjectionText ? { eventInjectionText: openingEventInjectionText } : {}),
-    ...(worldFacts.worldSimulationText
-      ? { worldSimulationText: worldFacts.worldSimulationText }
+    ...(worldFacts.full ? { eventInjectionText: worldFacts.full } : {}),
+    ...(worldFacts.eventLibraryText
+      ? { eventLibraryText: worldFacts.eventLibraryText }
       : {}),
     ...(currentDueEvents.length > 0 ? { currentDueEvents } : {}),
   }

@@ -55,9 +55,13 @@ const promptContext = {
     性别: '女',
     种族: '潮裔',
     背景: '测潮学徒兼浅海潜水员。',
-    基础属性: { 体魄: '专业优秀', 心智: '能处理复杂信息' },
+    基础属性: {},
   },
-  characterStatusView: { 年龄: 19, 伤势: '不应发送' },
+  characterStatusView: {
+    年龄: 19,
+    属性数值: { physique: 1, mind: 2, talentAptitude: 3, charisma: -1 },
+    伤势: '不应发送',
+  },
   talents: [{ 名称: '听潮辨隙', 效果: '能根据近处水声察觉明显堵塞。' }],
   timelineMemory: ['317年3月12日：议事会同意先做低潮勘查。'],
   currentTime: '317年4月',
@@ -69,74 +73,51 @@ const promptContext = {
   subsystemStates: { hidden: true },
 }
 const segments = buildSegmentedPrompt(narrativePrompt, promptContext)
-assertOk(segments.userSegments.length === 6 && segments.userMessageCount === 6, '01 必须恰好发送六条用户消息')
-const storyMessages = segments.userSegments.map((segment) => JSON.parse(segment))
-assertOk(JSON.stringify(Object.keys(storyMessages[0])) === JSON.stringify(['世界']), '01 第一条消息只能是世界')
+assertOk(segments.userSegments.length === 1 && segments.userMessageCount === 1, '01 必须发送一条数据层数组消息')
+const storyMessages = JSON.parse(segments.userSegments[0])
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[0].世界)) === JSON.stringify(['名称', '描述']),
-  '01 世界字段及顺序必须与样品一致',
+  Array.isArray(storyMessages)
+    && storyMessages.length === 4
+    && JSON.stringify(Object.keys(storyMessages[0])) === JSON.stringify(['世界'])
+    && JSON.stringify(Object.keys(storyMessages[0].世界)) === JSON.stringify(['名称', '描述']),
+  '01 数据层数组必须保留世界对象及字段顺序',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['历史连续性事实']),
-  '01 第二条消息只能是历史连续性事实',
+  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['玩家信息'])
+    && JSON.stringify(Object.keys(storyMessages[1].玩家信息)) === JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能']),
+  '01 数据层第二项必须是玩家信息',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['最近五轮正文']),
-  '01 第三条消息只能是最近五轮正文',
+  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['剧情'])
+    && Array.isArray(storyMessages[2].剧情.长期记忆)
+    && Array.isArray(storyMessages[2].剧情.近期记忆),
+  '01 数据层第三项必须是长期记忆与近期记忆',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[3])) === JSON.stringify(['角色']),
-  '01 第四条消息只能是角色',
+  JSON.stringify(Object.keys(storyMessages[3])) === JSON.stringify(['玩家属性', '当前信息'])
+    && JSON.stringify(Object.keys(storyMessages[3].玩家属性)) === JSON.stringify(['心智', '体魄', '魅力', '家境'])
+    && JSON.stringify(Object.keys(storyMessages[3].当前信息)) === JSON.stringify(['时间', '命运抉择']),
+  '01 数据层第四项必须是玩家属性与当前信息',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[4])) === JSON.stringify(['世界模拟内容']),
-  '01 第五条消息只能是世界模拟内容',
+  storyMessages[1].玩家信息.天赋技能[0].includes('听潮辨隙')
+    && storyMessages[3].当前信息.命运抉择.includes('利用低潮窗口')
+    && JSON.stringify(storyMessages[3].玩家属性) === JSON.stringify({ 心智: '2', 体魄: '1', 魅力: '-1', 家境: '0' }),
+  '01 数据层必须传递天赋、玩家行动和整数字符串属性',
 )
-const defaultFacts = storyMessages[5].本轮事实与方向
-assertOk(JSON.stringify(Object.keys(storyMessages[5])) === JSON.stringify(['本轮事实与方向']) && defaultFacts.length === 5 && defaultFacts[0].includes('时间窗口：317年4月') && defaultFacts[1].startsWith('玩家行动：') && defaultFacts[2].includes('角色当前19岁') && defaultFacts[2].includes('超出能力的行动不得直接视为已完成') && defaultFacts[3].includes('第二人称“你”') && defaultFacts[3].includes('不规定叙事主语') && defaultFacts[4] === '字数要求：正文约300字；这是大约字数，优先以适合剧情为准，可适当增减。' && !defaultFacts.some((item) => item.startsWith('叙述风格：')) && !defaultFacts.join('\n').includes('保留古典用词质感'), '01 无自定义文风时第六条消息不得追加叙述风格项或旧默认文风')
-const roundFactsFor = (narrativeStyle) => JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeStyle }).userSegments[5]).本轮事实与方向
-const rawCustomStyle = '  用克制短句写潮湿空气。\n第二行  保留两个空格。  '
-const customStyleFacts = roundFactsFor(rawCustomStyle)
-const customStyleFact = customStyleFacts.find((item) => item.startsWith('叙述风格：'))
-assertOk(customStyleFact === `叙述风格：${rawCustomStyle}` && !customStyleFact.includes('窗口覆盖义务') && customStyleFacts[0].includes('时间窗口：317年4月') && !customStyleFacts[0].includes('至少完成一条主事件链'), '01 非空自定义文风逐字保留，时间项只提供时间边界')
-assertOk(['', '  \n\t  '].every((style) => !roundFactsFor(style).some((item) => item.startsWith('叙述风格：'))), '01 空文风或纯空白文风必须省略叙述风格项')
-for (const [narrativeAddressing, expected] of [['first-person', '第一人称“我”'], ['character-name', '角色姓名“岑澜”']]) assertOk(JSON.parse(buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeAddressing }).userSegments[5]).本轮事实与方向[3].includes(expected), `${narrativeAddressing} setting must change only the dynamic addressing instruction`)
 const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
-  characterStatusView: { 年龄: 1 },
+  characterStatusView: { ...promptContext.characterStatusView, 年龄: 1 },
 })
-const infantGuidance = JSON.parse(infantSegments.userSegments[5]).本轮事实与方向
 assertOk(
-  infantGuidance[2].includes('角色当前1岁')
-    && infantGuidance[2].includes('婴幼儿'),
-  '01 必须保留年龄与能力边界，但不把低龄生活细节写成叙事模板',
-)
-const dueSegments = buildSegmentedPrompt(narrativePrompt, {
-  ...promptContext,
-  currentDueEvents: ['全局第120天：某事项已到期，等待本轮处理。'],
-})
-const dueMessage = JSON.parse(dueSegments.userSegments[5])
-assertOk(
-  JSON.stringify(Object.keys(dueMessage)) === JSON.stringify(['本轮事实与方向', '当前到期事件'])
-    && dueMessage.当前到期事件.length === 1,
-  '01 到期候选必须按需注入当前到期事件字段',
+  JSON.parse(infantSegments.userSegments[0])[3].当前信息.时间.startsWith('1岁-'),
+  '01 当前信息必须保留当前年龄',
 )
 assertOk(
-  !segments.full.includes('文明阶段')
-    && !segments.full.includes('当前区域')
-    && !segments.full.includes('当前可叙述状态')
-    && !segments.full.includes('空间形态')
-    && !segments.full.includes('世界观本质')
-    && !segments.full.includes('力量体系')
-    && !segments.full.includes('成立规则')
-    && !segments.full.includes('最近正文')
-    && !segments.full.includes('伤势')
-    && !segments.full.includes('等级')
-    && !segments.full.includes('subsystemStates')
-    && JSON.stringify(Object.keys(storyMessages[3].角色.天赋[0])) === JSON.stringify(['名称', '效果']),
-  '01 不得泄漏样品外世界、完整近期正文、区域、状态或天赋等级字段',
+  !segments.full.includes('subsystemStates')
+    && !segments.full.includes('当前到期事件'),
+  '01 不得泄漏内部状态字段',
 )
-
 const growthPatterns = [
   ['lineage-action', '行动命格', 'action', 'epic'],
   ['lineage-cognition', '认知命格', 'cognition', 'common'],
@@ -223,11 +204,37 @@ const validWithBranch = JSON.stringify({
   正文: '你在旧桥边听见城中钟声，随后把决定交给了仍在等候的人。',
   分支: { 选项: ['留下', '离开'] },
   结局: null,
+  属性变化: null,
 })
 const parsed = parseNarrativeResponseEnvelope(validWithBranch)
 assertOk(parsed.narrative.includes('旧桥边'), '01 唯一正文字符串必须保留完整正文')
 assertOk(parsed.branch?.选项.length === 2, '01 必须解析可选分支')
-const missingBodyQuote = '{"正文":"你在旧闸前听潮。\n复测后确认石缝已稳定。,"分支":null,"结局":null}'
+const lifeSimulatorBranch = parseNarrativeResponseEnvelope(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0|冷却:0】
+"正文": "你核清了旧账，三条去路同时摆到面前。"。
+"命运分支": {["留在商号","独自北上","回城查旧案"]}。
+"结局": "false"。`, {
+  currentAttributes: { 心智: 2, 体魄: 1, 魅力: -1 },
+})
+assertOk(
+  lifeSimulatorBranch.branch?.选项.length === 3
+    && lifeSimulatorBranch.attributeChanges?.心智 === 1,
+  '01 必须解析人生重开简写分支，并把状态行绝对值换算为本轮属性差值',
+)
+const lifeSimulatorQuality = inspectNarrativeResponseQuality(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0|冷却:0】
+"正文": "你核清旧账后保住了商号的紧要货物。"。
+"命运分支": "false"。
+"结局": "false"。`, 200, undefined, segments.userSegments[0])
+assertOk(
+  lifeSimulatorQuality.valid
+    && lifeSimulatorQuality.parsed?.attributeChanges?.心智 === 1,
+  '01 正式质量入口必须从数据层读取当前属性并换算状态行差值',
+)
+const lifeSimulatorEnding = parseNarrativeResponseEnvelope(`【年龄:80岁|心智:3|体魄:-2|魅力:1|家境:0|冷却:0】
+"正文": "你在旧宅中安然辞世，未再醒来。"。
+"命运分支": "false"。
+"结局": {"此生无憾"}。`)
+assertOk(lifeSimulatorEnding.ending?.四字评语 === '此生无憾', '01 必须解析人生重开简写结局')
+const missingBodyQuote = '{"正文":"你在旧闸前听潮。\n复测后确认石缝已稳定。,"分支":null,"结局":null,"属性变化":null}'
 assertOk(parseAIJSON(missingBodyQuote) === null, '通用 JSON 解析未授权时不得猜测故事字段')
 const recoveredBodyQuote = parseNarrativeResponseEnvelope(missingBodyQuote)
 assertOk(
@@ -236,49 +243,63 @@ assertOk(
     && !recoveredBodyQuote.ending,
   '01 可在下一合法顶层字段边界唯一时恢复正文关闭引号与裸换行',
 )
-const recoveredReordered = parseNarrativeResponseEnvelope('{"结局":null,"正文":"你完成复测后返回矿寨。,"分支":null}')
+const recoveredReordered = parseNarrativeResponseEnvelope('{"结局":null,"正文":"你完成复测后返回矿寨。,"分支":null,"属性变化":null}')
 assertOk(recoveredReordered.narrative.endsWith('返回矿寨。'), '01 字段乱序不影响正文恢复')
 assertOk(
-  parseAIJSON('{"正文":"未完整对象,"分支":null,"结局":null', {
-    recoverUnclosedString: { field: '正文', followingTopLevelFields: ['正文', '分支', '结局'] },
+  parseAIJSON('{"正文":"未完整对象,"分支":null,"结局":null,"属性变化":null', {
+    recoverUnclosedString: { field: '正文', followingTopLevelFields: ['正文', '分支', '结局', '属性变化'] },
   }) === null,
   '01 恢复不得补写缺失对象括号',
 )
-const extraField = parseNarrativeResponseEnvelope(JSON.stringify({ 结局: null, 属性变化: {}, 正文: '正文', 分支: null }))
-assertOk(extraField.narrative === '正文', '01 宽容解析继续忽略输出中的额外键')
+const attributeChange = parseNarrativeResponseEnvelope(JSON.stringify({ 结局: null, 属性变化: { 体魄: 1 }, 正文: '正文', 分支: null }))
+assertOk(attributeChange.narrative === '正文' && attributeChange.attributeChanges?.体魄 === 1, '01 必须保留属性变化字段')
 const endingWins = parseNarrativeResponseEnvelope(JSON.stringify({ 正文: '正文', 分支: { 选项: ['留下', '离开'] }, 结局: { 四字评语: '灯火长明' } }))
 assertOk(!endingWins.branch && endingWins.ending?.四字评语 === '灯火长明', '01 分支与结局冲突时结局优先')
 assertThrows(() => parseNarrativeResponseEnvelope('   '), '真正空响应仍必须拒绝')
 
 const continuity = NarrativeAIStoryContinuityDataSchema.parse({
-  本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6 }],
+  本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6 }],
   未来事件: ['317年5月1日：贺峤带队检查内层石缝。'],
 })
-assertOk(continuity.本轮记忆[0].权重 === 6, '02 必须保留时间、事实和权重')
+assertOk(continuity.本轮剧情[0].权重 === 6, '02 必须保留时间、剧情和权重')
 assertThrows(
   () => NarrativeAIStoryContinuityDataSchema.parse({
-    本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。' }],
+    本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。' }],
     未来事件: [],
   }),
-  '02 必须拒绝漏掉权重的记忆事件',
+  '02 必须拒绝漏掉权重的剧情事件',
 )
 assertOk(
   NarrativeAIStoryContinuityDataSchema.safeParse({
-    本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6, 来源回合: 4 }],
+    本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6, 来源回合: 4 }],
     未来事件: [],
   }).success,
-  '02 解析器必须忽略样品外字段而不整包拒绝',
+  '02 解析器必须逐项恢复 canonical 剧情并忽略样品外字段',
 )
 const partialContinuity = inspectNarrativeStoryContinuityQuality(JSON.stringify({
-  本轮记忆: [{ 时间: '317年4月13日', 事实: '临时封堵通过承压复测。', 权重: 6 }],
+  本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6 }],
   未来事件: ['缺少全角冒号'],
 }))
 assertOk(
   partialContinuity.valid
-    && partialContinuity.result?.本轮记忆.length === 1
+    && partialContinuity.result?.本轮剧情.length === 1
     && partialContinuity.result?.未来事件.length === 0
     && Boolean(partialContinuity.futureEventReason),
-  '02 单条未来事件异常不得丢弃有效本轮记忆',
+  '02 单条未来事件异常不得丢弃有效本轮剧情',
+)
+const partialPlot = inspectNarrativeStoryContinuityQuality(JSON.stringify({
+  本轮剧情: [
+    { 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6 },
+    { 时间: '317年4月14日', 剧情: '', 权重: 6 },
+  ],
+  未来事件: [],
+}))
+assertOk(
+  partialPlot.valid
+    && partialPlot.result?.本轮剧情.length === 1
+    && partialPlot.result.本轮剧情[0].剧情 === '临时封堵通过承压复测。'
+    && partialPlot.reason.includes('本轮剧情[1]字段不完整'),
+  '02 单条剧情异常不得丢弃其他合法本轮剧情',
 )
 
 const growthResult = {
@@ -317,43 +338,26 @@ assertOk(
   '03 解析器必须识别乱序路线并恢复固定输出顺序',
 )
 
-const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段完整故事。', 分支: null, 结局: null }), 200)
+const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段完整故事。', 分支: null, 结局: null, 属性变化: null }), 200)
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.12.0'
-    && narrativeStoryContinuityPrompt.version === '2.8.0'
-    && narrativeTalentGrowthPrompt.version === '3.4.0'
+  narrativePrompt.version === '7.16.0'
+    && narrativeStoryContinuityPrompt.version === '3.0.0'
+    && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 assertOk(
-  (() => {
-    let parsed
-    try {
-      parsed = JSON.parse(COMPILED_NARRATIVE_SYSTEM_PROMPT)
-    } catch {
-      return false
-    }
-    return JSON.stringify(Object.keys(parsed)) === JSON.stringify(['身份', '目标', '叙事原则', '输出契约'])
-      && parsed.身份.startsWith('你是一位人生叙事者')
-      && parsed.目标.includes('讲一段有人、有因果、有推进、可读的故事')
-      && !parsed.目标.includes('连贯、可继续')
-      && Array.isArray(parsed.叙事原则)
-      && parsed.叙事原则.some((item) => item.includes('自创来源稳定'))
-      && parsed.输出契约?.调用?.includes('submit_story_turn')
-      && parsed.输出契约?.字段定义?.正文?.includes('非空字符串')
-      && parsed.输出契约?.字段定义?.分支?.includes('选项')
-      && parsed.输出契约?.字段定义?.结局?.includes('四字评语')
-      && Array.isArray(parsed.输出契约?.不变量)
-      && parsed.输出契约.不变量.some((item) => item.includes('顶层恰好包含正文、分支、结局三个键'))
-      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界故事模拟器')
-      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
-      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
-      && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程')
-  })(),
-  '固定主故事 Prompt 只增加唯一合理叙事目标并保留输出结构协议，02/03 固定资产继续保留各自状态提取职责',
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是专业版人生重开模拟器。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮跨度为1年')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('从0岁开始模拟人生')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界模拟引擎'),
+  '固定主故事 Prompt 必须采用最新系统提示词并保留项目输出字段',
 )
 
 if (failed > 0) process.exit(1); console.log('[narrative-chinese-protocol-regression] PASS')

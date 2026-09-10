@@ -46,30 +46,6 @@ export interface MainNarrativeResult {
   quality: NarrativeResponseQuality & { parsed: NonNullable<NarrativeResponseQuality['parsed']> }
 }
 
-const MAIN_STORY_TOOL = {
-  type: 'function' as const,
-  function: {
-    name: 'submit_story_turn',
-    description: '提交一个包含正文、分支、结局三个字段的结构化故事结果。三个字段均为字符串；分支和结局未使用时填写 null 四个字符，使用时填写各自约定形状的 JSON 字符串。',
-    parameters: {
-      type: 'object',
-      properties: {
-        正文: { type: 'string', description: '完整中文故事正文' },
-        分支: {
-          type: 'string',
-          description: '未使用时填写 null 四个字符；使用时填写形如 {"选项":["选项一","选项二"]} 的 JSON 字符串',
-        },
-        结局: {
-          type: 'string',
-          description: '未使用时填写 null 四个字符；使用时填写形如 {"四字评语":"四字评语"} 的 JSON 字符串',
-        },
-      },
-      required: ['正文', '分支', '结局'],
-      additionalProperties: false,
-    },
-  },
-} as const
-
 function buildMainNarrativeFingerprint(input: {
   promptTemplate: PromptTemplate
   segments: ReturnType<typeof buildSegmentedPrompt>
@@ -160,9 +136,6 @@ export async function executeMainNarrativeRequest(
     response = await callAIWithPromptTemplate(request.promptTemplate, request.segments.full, {
       config: { ...request.aiConfig, model: request.model },
       pool: 'narrative',
-      tools: [MAIN_STORY_TOOL],
-      toolChoice: { type: 'function', function: { name: 'submit_story_turn' } },
-      responseToolName: 'submit_story_turn',
       reasoningEffort: MAIN_NARRATIVE_REASONING_EFFORT,
       sessionId: request.sessionId,
       signal,
@@ -201,7 +174,7 @@ export async function executeMainNarrativeRequest(
     response,
     request.wordCountTarget,
     request.repetitionContext,
-    request.segments.userSegments[5],
+    request.segments.userSegments.at(-1) ?? '',
   )
 
   recordRoundCacheMetrics({

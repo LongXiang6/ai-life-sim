@@ -14,6 +14,7 @@ export interface CompressedMemoryEvent {
 
 export interface CompressedSummaryItem {
   sourceRound: number
+  sourceRounds?: number[]
   createdRound: number
   content: string
   memoryEvents: CompressedMemoryEvent[]

@@ -1,3 +1,5 @@
+/* Purpose: Style contextual help controls in settings. Owner: mod-settings. Responsibility: Settings help trigger and tooltip presentation only. */
+
 .wrapper {
   display: inline-flex;
   align-items: center;
@@ -7,8 +9,8 @@
 
 .trigger {
   display: inline-flex;
-  width: calc(12 * var(--final-flow-density-px));
-  height: calc(12 * var(--final-flow-density-px));
+  width: 24px;
+  height: 24px;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -18,7 +20,7 @@
   color: #78838e;
   cursor: pointer;
   font: inherit;
-  font-size: calc(7 * var(--final-flow-density-px));
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -34,7 +36,7 @@
   box-shadow: 0 calc(12 * var(--final-flow-density-px)) calc(28 * var(--final-flow-density-px)) rgb(40 50 75 / 13%);
   color: var(--flow-muted);
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
-  font-size: calc(7 * var(--final-flow-density-px));
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.55;
   white-space: normal;

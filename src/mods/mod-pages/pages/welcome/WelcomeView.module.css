@@ -505,3 +505,150 @@
     transition: none;
   }
 }
+
+/* Desktop folio polish: keep utility tools clear of the running context label. */
+.runningHeadSlot {
+  padding: 0 116px 0 28px;
+  border-bottom: 1px solid var(--flow-line);
+  background: color-mix(in srgb, var(--flow-paper) 94%, transparent);
+}
+
+.quickActions {
+  top: 14px;
+  right: 22px;
+  gap: 6px;
+}
+
+.quickActions button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.intro {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 68px 28px 34px;
+}
+
+.brand {
+  color: var(--flow-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.title {
+  margin-top: 14px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin-top: 14px;
+  max-width: 620px;
+  font-size: 14px;
+}
+
+.actions {
+  width: min(100%, 760px);
+  margin: 60px auto 34px;
+  padding: 0 28px;
+}
+
+.primaryAction,
+.routeAction {
+  border-radius: 6px;
+  box-shadow: none;
+  text-align: left;
+}
+
+.primaryAction {
+  min-height: 70px;
+  justify-content: flex-start;
+  padding: 0 20px;
+  border-color: var(--flow-accent);
+  background: var(--flow-accent);
+  color: var(--text-on-accent, #fff);
+  font-size: 17px;
+}
+
+.routeAction {
+  min-height: 66px;
+  justify-items: start;
+  padding: 14px 18px;
+}
+
+.routeAction strong {
+  font-size: 14px;
+}
+
+.routeAction small {
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.sectionDivider {
+  margin: 26px 0 14px;
+}
+
+.utilityGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.utilityAction {
+  min-height: 48px;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--flow-muted);
+  font-size: 12px;
+  text-align: left;
+}
+
+.utilityAction:hover,
+.utilityAction:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  color: var(--flow-accent);
+}
+
+@media (max-width: 640px) {
+  .runningHeadSlot {
+    padding: 0 92px 0 16px;
+  }
+
+  .quickActions {
+    top: 11px;
+    right: 12px;
+  }
+
+  .intro {
+    padding: 54px 16px 28px;
+  }
+
+  .title {
+    font-size: 34px;
+  }
+
+  .actions {
+    margin: 44px auto 24px;
+    padding: 0 16px;
+  }
+
+  .utilityGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+  }
+
+  .primaryAction {
+    min-height: 62px;
+    font-size: 15px;
+  }
+}

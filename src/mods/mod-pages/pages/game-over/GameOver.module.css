@@ -1003,3 +1003,87 @@
 
 .backButton small,
     .confirmButton small { margin-top: calc(1.667 * var(--final-flow-density-px)); color: var(--flow-muted); font-size: calc(9.167 * var(--final-flow-density-px)); font-weight: 500; }
+
+/* Desktop folio polish: settlement reads as a review document with a stable
+ * identity header and restrained result sections. */
+.page {
+  padding: 0 28px 112px;
+}
+
+.book {
+  padding: 0;
+}
+
+.titleCopy {
+  padding: 22px 0 12px;
+  border-bottom: 1px solid var(--flow-line);
+  text-align: left;
+}
+
+.titleCopy h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.titleCopy p {
+  font-size: 13px;
+}
+
+.ritualDivider {
+  margin: 14px 0;
+}
+
+.identityCopy h2 {
+  font-size: 25px;
+}
+
+.section {
+  padding: 18px 0;
+  border-top: 1px solid var(--flow-line);
+}
+
+.sectionHeading {
+  padding: 0;
+}
+
+.sectionHeading h2 {
+  font-size: 18px;
+}
+
+.bottomBar {
+  padding: 10px 28px max(12px, env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--flow-paper) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.backButton,
+.confirmButton {
+  min-height: 48px;
+  border-radius: 6px;
+}
+
+.confirmButton {
+  border-color: var(--flow-accent);
+  background: var(--flow-accent);
+  color: var(--text-on-accent, #fff);
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 0 16px 96px;
+  }
+
+  .titleCopy {
+    padding-top: 14px;
+  }
+
+  .titleCopy h1 {
+    font-size: 25px;
+  }
+
+  .bottomBar {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}

@@ -13,7 +13,6 @@ import type {
   NarrativeStage,
   PromptTemplate,
   RoundContext,
-  SubSystemChanges,
 } from '@/foundation'
 import {
   callAIWithPromptTemplate,
@@ -23,6 +22,7 @@ import {
 import { logger } from '@/core/logger/client-logger'
 import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
 import { useCharacterStore } from '@/mods/mod-character'
+import { getCharacterBaseSystem } from '@/mods/mod-character/subsystems/character-base-system'
 import {
   captureDestinyPatternGrowthTransaction,
   commitPreparedDestinyPatternGrowthChoice,
@@ -49,15 +49,16 @@ import {
   type NarrativeStoryContinuityPromptInput,
 } from '../../helpers/narrative-story-continuity-context'
 import {
-  buildNarrativeWorldSimulationPromptInput,
-  type NarrativeWorldSimulationPromptInput,
-} from '../../helpers/narrative-world-simulation-context'
+  buildNarrativeEventLibraryPromptInput,
+  type NarrativeEventLibraryPromptInput,
+} from '../../helpers/narrative-event-library-context'
 import {
   inspectNarrativeStoryContinuityQuality,
   inspectNarrativeTalentGrowthQuality,
-  inspectNarrativeWorldSimulationQuality,
+  inspectNarrativeEventLibraryQuality,
 } from '../../helpers/narrative-response-quality'
 import {
+  buildAllStoriesForRound,
   buildRecentStoriesForRound,
   type RecentStoryProjection,
 } from '../../helpers/recent-story-context'
@@ -68,7 +69,7 @@ import {
 } from '../../helpers/narrative-talent-growth-context'
 import { narrativeStoryContinuityPrompt } from '../../prompts/narrative-story-continuity-prompt'
 import { narrativeTalentGrowthPrompt } from '../../prompts/narrative-talent-growth-prompt'
-import { narrativeWorldSimulationPrompt } from '../../prompts/narrative-world-simulation-prompt'
+import { narrativeEventLibraryPrompt } from '../../prompts/narrative-event-library-prompt'
 import { prepareNarrativeRoundPromptContext } from '../../helpers/narrative-round-prompt-preparation'
 import { useEngineStore } from '../../store'
 import type { ParsedNarrative } from '../../subsystems/narrative-parser-system'
@@ -79,40 +80,6 @@ const STRUCTURED_ANALYSIS_REASONING_EFFORT = 'disabled' as const
 const STAGE_OWNER = 'mod-engine'
 const STAGE_FAILURE_TARGET = 'mod-engine'
 const SPECIALIST_PARALLEL_GROUP = 'narrative-specialists'
-
-const WORLD_PROFILE_FIELD_LABEL_TO_KEY: Record<string, string> = {
-  概况: 'summary',
-  气候: 'climate',
-  生态: 'ecology',
-  污染: 'pollution',
-  经济: 'economy',
-  人口: 'population',
-  聚落: 'settlement',
-  文化: 'culture',
-  教育: 'education',
-  社会结构: 'socialStructure',
-  势力: 'factions',
-  法律: 'law',
-}
-
-function buildWorldProfileUpdateChange(
-  profileChanges: Array<{ 字段: string; 值: string }>,
-  contextId: string,
-  regionId: string,
-): SubSystemChanges | undefined {
-  if (profileChanges.length === 0 || !regionId) return undefined
-  const changes = Object.fromEntries(
-    profileChanges.map((change) => [WORLD_PROFILE_FIELD_LABEL_TO_KEY[change.字段], change.值]),
-  )
-  return {
-    id: 'spatial-graph',
-    operation: 'update-region-profile',
-    targetContextId: contextId,
-    targetObjectId: regionId,
-    description: '世界演变概况更新',
-    changes,
-  }
-}
 
 type PreparedStoryContinuity = ReturnType<typeof orchestrator.prepareNarrativeStoryContinuity>
 type PreparedStoryContinuityLedger = ReturnType<typeof orchestrator.prepareNarrativeStoryContinuityLedger>
@@ -132,13 +99,12 @@ export interface StageRuntimeContext extends RoundContext {
   _frozenNarrativeHistory?: NarrativeChunk[]
   _talentInput?: NarrativeTalentGrowthPromptInput
   _continuityInput?: NarrativeStoryContinuityPromptInput
-  _worldSimulationInput?: NarrativeWorldSimulationPromptInput
+  _eventLibraryInput?: NarrativeEventLibraryPromptInput
   _preparedTalentGrowth?: PreparedDestinyPatternGrowthChoice | null
   _preparedStoryContinuity?: PreparedStoryContinuity
   _preparedStoryContinuityLedger?: PreparedStoryContinuityLedger
   _storyContinuityFailureReason?: string
   _storyContinuityLedgerFailureReason?: string
-  _worldProfileChanges?: SubSystemChanges
   _isPreparedRoundReattempt?: boolean
 }
 
@@ -257,6 +223,15 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
       branchOptions: ctx._narrativeParsed.branchOptions,
     },
   })
+  const continuityStories = buildAllStoriesForRound({
+    history: narrativeHistory,
+    currentRound: ctx._preparedNarrative.roundSequence,
+    currentStory: {
+      text: ctx._narrativeParsed.narrative,
+      totalBasePoints: roundContext.totalBasePoints,
+      timeLabel: ctx._promptContext.currentTime,
+    },
+  })
   const currentNarrative: NarrativeChunk = {
     text: ctx._narrativeParsed.narrative,
     isComplete: true,
@@ -264,6 +239,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     contextId: roundContext.contextId,
     memoryScope: 'context',
     totalBasePoints: roundContext.totalBasePoints,
+    totalDays: roundContext.totalDays,
     displayTimeLabel: ctx._promptContext.currentTime,
     branchTitle: ctx._narrativeParsed.branchTitle,
     branchOptions: ctx._narrativeParsed.branchOptions,
@@ -294,12 +270,14 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     currentNarrative,
     narrativeHistory,
     compressedSummaries: structuredClone(engineState.compressedSummaries),
-    recentStories,
+    compressionStats: structuredClone(engineState.compressionStats),
+    recentStories: continuityStories,
   })
-  ctx._worldSimulationInput = buildNarrativeWorldSimulationPromptInput({
+  ctx._eventLibraryInput = buildNarrativeEventLibraryPromptInput({
     currentRound: ctx._preparedNarrative.roundSequence,
     currentNarrative,
     compressedSummaries: structuredClone(engineState.compressedSummaries),
+    recentStories,
     worldNarrativeView: structuredClone(ctx._promptContext.worldNarrativeView),
     worldFactsText: orchestrator.getConfirmedWorldFacts(),
     currentTime: ctx._promptContext.currentTime,
@@ -544,7 +522,26 @@ export function loadStages(
         const ctx = _ctx as StageRuntimeContext
         const prepared = requirePreparedNarrative(ctx, '故事连续性')
         if (!ctx._continuityInput) {
-          throw specialistRejection('StoryContinuity', '故事连续性', '缺少冻结输入。')
+          ctx._preparedStoryContinuity = orchestrator.prepareNarrativeStoryContinuity({
+            narrativeId: prepared.narrativeId,
+            sourceRounds: [],
+            result: null,
+            rawResponse: '',
+          })
+          ctx._preparedStoryContinuityLedger = orchestrator.prepareNarrativeStoryContinuityLedger(
+            prepared.narrativeId,
+            { 本轮剧情: [], 未来事件: [] },
+            {
+              label: ctx._promptContext?.currentTime ?? '当前时间',
+              totalBasePoints: null,
+              totalDays: null,
+            },
+          )
+          logger.info('narrative-quality', 'story-continuity-call-skipped', {
+            round: prepared.roundSequence,
+            reason: '近期正文未超过十轮或尚未到五轮压缩间隔',
+          })
+          return
         }
         try {
           const response = await callStructuredSpecialist({
@@ -559,18 +556,19 @@ export function loadStages(
           const quality = inspectNarrativeStoryContinuityQuality(
             response,
             ctx._continuityInput.sourceTime.label,
+            ctx._continuityInput.sourceRounds,
           )
           if (!quality.valid || !quality.result) {
             throw specialistRejection(
               'StoryContinuity',
               '故事连续性',
-              `响应未通过连续记忆契约：${quality.reason}`,
+              `响应未通过故事连续性契约：${quality.reason}`,
             )
           }
           ctx._preparedStoryContinuity = orchestrator.prepareNarrativeStoryContinuity({
             narrativeId: prepared.narrativeId,
-            sourceRound: ctx._continuityInput.sourceRound,
-            sourceNarrative: ctx._continuityInput.sourceNarrative,
+            sourceRounds: ctx._continuityInput.sourceRounds,
+            sourceNarratives: ctx._continuityInput.sourceNarratives,
             result: quality.result,
             rawResponse: response,
           })
@@ -587,14 +585,14 @@ export function loadStages(
             ctx._storyContinuityLedgerFailureReason = error instanceof Error ? error.message : String(error)
             ctx._preparedStoryContinuityLedger = orchestrator.prepareNarrativeStoryContinuityLedger(
               prepared.narrativeId,
-              { 本轮记忆: [], 未来事件: [] },
+              { 本轮剧情: [], 未来事件: [] },
               ctx._continuityInput.sourceTime,
             )
           }
           logger.info('narrative-quality', 'story-continuity-response-accepted', {
             round: prepared.roundSequence,
-            sourceRound: ctx._continuityInput.sourceRound,
-            memoryCount: quality.result.本轮记忆.length,
+            sourceRounds: ctx._continuityInput.sourceRounds,
+            storyCount: quality.result.本轮剧情.length,
             futureEventCount: quality.result.未来事件.length,
           })
         } catch (error) {
@@ -602,19 +600,19 @@ export function loadStages(
           ctx._storyContinuityFailureReason = reason
           ctx._preparedStoryContinuity = orchestrator.prepareNarrativeStoryContinuity({
             narrativeId: prepared.narrativeId,
-            sourceRound: ctx._continuityInput.sourceRound,
-            sourceNarrative: ctx._continuityInput.sourceNarrative,
+            sourceRounds: ctx._continuityInput.sourceRounds,
+            sourceNarratives: ctx._continuityInput.sourceNarratives,
             result: null,
             rawResponse: '',
           })
           ctx._preparedStoryContinuityLedger = orchestrator.prepareNarrativeStoryContinuityLedger(
             prepared.narrativeId,
-            { 本轮记忆: [], 未来事件: [] },
+            { 本轮剧情: [], 未来事件: [] },
             ctx._continuityInput.sourceTime,
           )
           logger.info('narrative-quality', 'story-continuity-response-deferred', {
             round: prepared.roundSequence,
-            sourceRound: ctx._continuityInput.sourceRound,
+            sourceRounds: ctx._continuityInput.sourceRounds,
             reason,
           })
         }
@@ -728,7 +726,7 @@ export function loadStages(
       maxRounds: 1,
     },
     {
-      name: 'ai-world-simulation',
+      name: 'ai-event-library',
       phase: 'execute',
       dependsOn: ['prepare-narrative'],
       order: 700,
@@ -737,60 +735,37 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        const prepared = requirePreparedNarrative(ctx, '世界模拟')
-        if (!ctx._worldSimulationInput) {
-          throw specialistRejection('WorldSimulation', '世界模拟', '缺少冻结输入。')
+        const prepared = requirePreparedNarrative(ctx, '事件库')
+        if (!ctx._eventLibraryInput) {
+          throw specialistRejection('EventLibrary', '事件库', '缺少冻结输入。')
         }
         try {
           const response = await callStructuredSpecialist({
-            label: '世界模拟',
-            errorKind: 'WorldSimulation',
-            callKind: 'narrative-world-simulation',
-            prompt: narrativeWorldSimulationPrompt,
-            userSegments: ctx._worldSimulationInput.userSegments,
+            label: '事件库',
+            errorKind: 'EventLibrary',
+            callKind: 'narrative-event-library',
+            prompt: narrativeEventLibraryPrompt,
+            userSegments: ctx._eventLibraryInput.userSegments,
             aiConfig,
             sessionId,
           })
-          const quality = inspectNarrativeWorldSimulationQuality(response)
+          const quality = inspectNarrativeEventLibraryQuality(response)
           if (!quality.valid || !quality.result) {
             throw specialistRejection(
-              'WorldSimulation',
-              '世界模拟',
-              `响应未通过世界演变契约：${quality.reason}`,
+              'EventLibrary',
+              '事件库',
+              `响应未通过事件库契约：${quality.reason}`,
             )
           }
-          const currentRound = prepared.roundSequence
-          const survivors = quality.result.世界变化.filter((event) => {
-            const key = `ai:${event.类别}:${event.标题}`
-            if (!orchestrator.isWorldSimulationCandidateReady(key, currentRound, event.冷却)) return false
-            orchestrator.markWorldSimulationCandidateUsed(key, currentRound)
-            return true
-          })
-          orchestrator.setWorldSimulationResult({
-            世界变化: survivors,
-            概况变更: quality.result.概况变更,
-          })
-          const profileChanges = quality.result.概况变更
-          const currentYear = ctx.round?.year ?? 0
-          if (
-            profileChanges.length > 0
-            && orchestrator.shouldUpdateWorldProfile(currentRound, currentYear)
-          ) {
-            const regionId = orchestrator.getCurrentRegionId()
-            const change = buildWorldProfileUpdateChange(profileChanges, ctx.contextId, regionId ?? '')
-            if (change) {
-              ctx._worldProfileChanges = change
-              orchestrator.markWorldProfileUpdated(currentRound, currentYear)
-            }
-          }
-          logger.info('narrative-quality', 'world-simulation-response-accepted', {
+          orchestrator.setEventLibraryResult(quality.result)
+          logger.info('narrative-quality', 'event-library-response-accepted', {
             round: prepared.roundSequence,
-            eventCount: survivors.length,
+            eventCount: quality.result.候选事件.length,
           })
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error)
-          orchestrator.setWorldSimulationResult(null)
-          logger.info('narrative-quality', 'world-simulation-response-deferred', {
+          orchestrator.setEventLibraryResult(null)
+          logger.info('narrative-quality', 'event-library-response-deferred', {
             round: prepared.roundSequence,
             reason,
           })
@@ -804,7 +779,7 @@ export function loadStages(
       dependsOn: [
         'ai-story-continuity',
         'ai-talent-growth',
-        'ai-world-simulation',
+        'ai-event-library',
       ],
       order: 800,
       owner: STAGE_OWNER,
@@ -821,7 +796,22 @@ export function loadStages(
         }
 
         const restoreSteps: Array<() => void | Promise<void>> = []
+        let requestedChangeCount = 0
+        let committedChangeCount = 0
         try {
+          if (prepared.changes.length > 0) {
+            const characterBase = getCharacterBaseSystem()
+            const characterSnapshot = characterBase.captureTransactionState()
+            restoreSteps.push(() => characterBase.restoreTransactionState(characterSnapshot))
+            const attributeCommit = orchestrator.applyRoundChanges(prepared.changes, 'manual')
+            requestedChangeCount = prepared.changes.length
+            committedChangeCount = attributeCommit.committed.length
+            if (attributeCommit.rejected.length > 0) {
+              throw new Error(
+                `主故事属性变化未能提交：${attributeCommit.rejected.map((item) => item.reason).join('；')}`,
+              )
+            }
+          }
           const continuitySnapshot = orchestrator.captureNarrativeStoryContinuityTransaction()
           restoreSteps.push(() => orchestrator.restoreNarrativeStoryContinuityTransaction(
             continuitySnapshot,
@@ -835,6 +825,7 @@ export function loadStages(
             orchestrator.setCompressionDiagnostic({
               status: 'failed',
               sourceRound: ctx._preparedStoryContinuity.sourceRound,
+              sourceRounds: ctx._preparedStoryContinuity.sourceRounds,
               didCompress: false,
               reason: ctx._storyContinuityFailureReason,
             })
@@ -857,6 +848,7 @@ export function loadStages(
             logger.info('narrative-quality', 'story-continuity-ledger-deferred', {
               round: prepared.roundSequence,
               sourceRound: ctx._preparedStoryContinuity.sourceRound,
+              sourceRounds: ctx._preparedStoryContinuity.sourceRounds,
               reason: ctx._storyContinuityLedgerFailureReason,
             })
           }
@@ -867,19 +859,9 @@ export function loadStages(
             commitPreparedDestinyPatternGrowthChoice(ctx._preparedTalentGrowth)
           }
 
-          if (ctx._worldProfileChanges) {
-            const result = orchestrator.applyRoundChanges([ctx._worldProfileChanges])
-            if (result.rejected.length > 0) {
-              logger.info('narrative-quality', 'world-profile-update-rejected', {
-                round: prepared.roundSequence,
-                reason: result.rejected.map((item) => item.reason).join('；'),
-              })
-            }
-          }
-
           orchestrator.updateNarrativeTransitionAudit(prepared.narrativeId, {
-            requestedChangeCount: 0,
-            committedChangeCount: 0,
+            requestedChangeCount,
+            committedChangeCount,
           })
           orchestrator.finalizeNarrativeResponse(prepared.narrativeId)
         } catch (error) {

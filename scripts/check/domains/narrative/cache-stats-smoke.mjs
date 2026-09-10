@@ -37,6 +37,7 @@ function assertOk(condition, message) {
 assertOk(resolveInternalCachePool('narrative', 'narrative-main') === 'narrative-main', 'main narrative must have its own internal cache pool')
 assertOk(resolveInternalCachePool('narrative', 'narrative-story-continuity') === 'narrative-story-continuity', 'story continuity must have its own internal cache pool')
 assertOk(resolveInternalCachePool('narrative', 'narrative-talent-growth') === 'narrative-talent-growth', 'talent growth must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-event-library') === 'narrative-event-library', 'event library must have its own internal cache pool')
 assertOk(resolveInternalCachePool('lowFrequency', 'life-settlement-score') === 'low-frequency', 'life settlement scoring must use the low-frequency pool')
 assertOk(resolveInternalCachePool('lowFrequency', 'ending-review') === 'low-frequency', 'ending review must use the low-frequency pool')
 
@@ -48,6 +49,7 @@ const deepseekMain = {
 }
 const deepseekContinuity = { ...deepseekMain, callKind: 'narrative-story-continuity' }
 const deepseekTalent = { ...deepseekMain, callKind: 'narrative-talent-growth' }
+const deepseekEventLibrary = { ...deepseekMain, callKind: 'narrative-event-library' }
 const managedMain = {
   providerId: 'managed',
   model: 'LongCat-2.0',
@@ -120,6 +122,7 @@ assertOk(
 recordCacheUsage({ hitTokens: 100, missTokens: 100 }, deepseekMain)
 recordCacheUsage({ hitTokens: 900, missTokens: 100 }, deepseekContinuity)
 recordCacheUsage({ hitTokens: 600, missTokens: 400 }, deepseekTalent)
+recordCacheUsage({ hitTokens: 700, missTokens: 300 }, deepseekEventLibrary)
 recordCacheUsage({ hitTokens: 500, missTokens: 0 }, managedMain)
 recordCacheUsage({ hitTokens: 0, missTokens: 0 }, deepseekMain)
 
@@ -130,12 +133,14 @@ assertOk(
 )
 assertOk(getCacheStats(deepseekContinuity).hitRate === 90, '02 statistics must remain independently queryable')
 assertOk(getCacheStats(deepseekTalent).hitRate === 60, '03 statistics must remain independently queryable')
+assertOk(getCacheStats(deepseekEventLibrary).hitRate === 70, '04 statistics must remain independently queryable')
 assertOk(getCacheStats(managedMain).hitRate === 100, 'provider switching must select a separate statistics bucket')
 
 resetCacheStats(deepseekMain)
 assertOk(getCacheStats(deepseekMain).hitRate === 0, 'scoped reset must clear only the selected model and call type')
 assertOk(getCacheStats(deepseekContinuity).hitRate === 90, 'scoped reset must preserve 02 statistics')
 assertOk(getCacheStats(deepseekTalent).hitRate === 60, 'scoped reset must preserve 03 statistics')
+assertOk(getCacheStats(deepseekEventLibrary).hitRate === 70, 'scoped reset must preserve 04 statistics')
 assertOk(getCacheStats(managedMain).hitRate === 100, 'scoped reset must preserve other providers')
 
 resetCacheStats()

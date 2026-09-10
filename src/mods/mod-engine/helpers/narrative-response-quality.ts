@@ -9,11 +9,11 @@ import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
   NarrativeAIStoryContinuityDataSchema,
   NarrativeAITalentGrowthDataSchema,
-  NarrativeAIWorldSimulationResultSchema,
+  NarrativeAIEventLibraryResultSchema,
   parseNarrativeAIJson,
   type NarrativeAIStoryContinuityData,
   type NarrativeAITalentGrowthData,
-  type NarrativeAIWorldSimulationResult,
+  type NarrativeAIEventLibraryResult,
 } from './narrative-ai-protocol'
 import {
   narrativeParser,
@@ -47,10 +47,10 @@ export interface NarrativeStoryContinuityQuality {
   futureEventReason?: string
 }
 
-export interface NarrativeWorldSimulationQuality {
+export interface NarrativeEventLibraryQuality {
   valid: boolean
   reason: string
-  result?: NarrativeAIWorldSimulationResult
+  result?: NarrativeAIEventLibraryResult
 }
 
 function errorMessage(error: unknown): string {
@@ -152,6 +152,27 @@ function normalizeAttributeBonus(value: unknown): Record<string, number> {
   return output
 }
 
+function extractCurrentNarrativeAttributes(
+  promptInput: string | undefined,
+): Partial<Record<'心智' | '体魄' | '魅力', number>> | undefined {
+  if (!promptInput?.trim()) return undefined
+  try {
+    const payload = JSON.parse(promptInput) as unknown
+    if (!Array.isArray(payload)) return undefined
+    const container = payload.find((item) => asRecord(item)?.玩家属性 !== undefined)
+    const attributes = asRecord(asRecord(container)?.玩家属性)
+    if (!attributes) return undefined
+    const result: Partial<Record<'心智' | '体魄' | '魅力', number>> = {}
+    for (const key of ['心智', '体魄', '魅力'] as const) {
+      const numeric = Number(attributes[key])
+      if (Number.isFinite(numeric)) result[key] = Math.trunc(numeric)
+    }
+    return Object.keys(result).length > 0 ? result : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** The first call validates only the story body and optional terminal result. */
 export function inspectNarrativeResponseQuality(
   content: string,
@@ -163,7 +184,10 @@ export function inspectNarrativeResponseQuality(
   terminalGuidance?: string,
 ): NarrativeResponseQuality {
   try {
-    const parsed = narrativeParser.parse(content, { terminalGuidance })
+    const parsed = narrativeParser.parse(content, {
+      terminalGuidance,
+      currentAttributes: extractCurrentNarrativeAttributes(terminalGuidance),
+    })
     const narrativeChars = parsed.narrative.replace(/\s/gu, '').length
     const paragraphCount = parsed.narrative.split(/\n\s*\n/u).filter(Boolean).length
     const { target, preferredMin, preferredMax } = resolveNarrativeWordCountRange(wordCountTarget)
@@ -261,35 +285,56 @@ export function inspectNarrativeTalentGrowthQuality(content: string): NarrativeT
 
 export function inspectNarrativeStoryContinuityQuality(
   content: string,
-  fallbackTime = '当前时间',
+  _fallbackTime = '当前时间',
+  sourceRounds: readonly number[] = [],
 ): NarrativeStoryContinuityQuality {
   try {
     const envelope = asRecord(parseNarrativeAIJson(content))
     if (!envelope) throw new Error('故事连续性响应不是对象')
-    const rawMemory = asArray(pick(envelope, ['本轮记忆', '本回合记忆', '记忆', 'memory']))
-    const memory: Array<{ 时间: string; 事实: string; 权重: number }> = []
+    const rawMemory = envelope.本轮剧情
+    if (!Array.isArray(rawMemory)) throw new Error('本轮剧情必须是数组')
+    const memory: Array<{ 来源回合?: number; 时间: string; 剧情: string; 权重: number }> = []
     const memoryErrors: string[] = []
     for (const [index, value] of rawMemory.entries()) {
       const item = asRecord(value)
-      const fact = boundedText(item ? pick(item, ['事实', '内容', '事件', '记忆', 'text']) : value, 1000)
-      if (!fact) { memoryErrors.push(`本轮记忆[${index}]无法识别`); continue }
-      const time = boundedText(item ? pick(item, ['时间', '日期', '发生时间', '发生日期']) : undefined, 120, fallbackTime) ?? fallbackTime
-      const weight = Math.min(10, Math.max(2, asInteger(item ? pick(item, ['权重', '重要度', 'weight']) : undefined, 5)))
-      memory.push({ 时间: time, 事实: fact, 权重: weight })
+      const sourceRound = item?.来源回合
+      const time = typeof item?.时间 === 'string' ? item.时间.trim() : ''
+      const plot = typeof item?.剧情 === 'string' ? item.剧情.trim() : ''
+      const weight = item?.权重
+      if (
+        !time
+        || !plot
+        || (sourceRounds.length > 1 && (
+          typeof sourceRound !== 'number'
+          || !Number.isInteger(sourceRound)
+          || !sourceRounds.includes(sourceRound)
+        ))
+        || typeof weight !== 'number'
+        || !Number.isInteger(weight)
+        || weight < 2
+        || weight > 10
+      ) {
+        memoryErrors.push(`本轮剧情[${index}]字段不完整`)
+        continue
+      }
+      memory.push({
+        ...(typeof sourceRound === 'number' ? { 来源回合: sourceRound } : {}),
+        时间: time,
+        剧情: plot,
+        权重: weight,
+      })
+    }
+    if (sourceRounds.length > 1 && memoryErrors.length > 0) {
+      throw new Error('批量故事连续性结果的每条剧情都必须标明有效的来源回合')
     }
 
     const futureEvents: string[] = []
     const futureErrors: string[] = []
     const seenFutureEvents = new Set<string>()
-    for (const [index, value] of asArray(pick(envelope, ['未来事件', '未来事项', 'futureEvents'])).entries()) {
-      const item = asRecord(value)
-      const time = boundedText(item ? pick(item, ['时间', '日期', '发生时间', 'dueTime']) : undefined, 120)
-      const fact = boundedText(item ? pick(item, ['事实', '事件', '事项', '内容', '描述', 'event']) : value, 1000)
-      let normalized = fact
-      if (fact && !time) {
-        const separator = fact.search(/[：:]/u)
-        if (separator > 0) normalized = `${fact.slice(0, separator).trim()}：${fact.slice(separator + 1).trim()}`
-      } else if (time && fact) normalized = `${time}：${fact}`
+    const rawFutureEvents = envelope.未来事件
+    if (!Array.isArray(rawFutureEvents)) throw new Error('未来事件必须是数组')
+    for (const [index, value] of rawFutureEvents.entries()) {
+      const normalized = asText(value)
       const separator = normalized?.search(/[：:]/u) ?? -1
       if (!normalized || separator <= 0 || separator >= normalized.length - 1) {
         futureErrors.push(`未来事件[${index}]无法识别`)
@@ -300,7 +345,7 @@ export function inspectNarrativeStoryContinuityQuality(
       seenFutureEvents.add(canonical)
       futureEvents.push(canonical)
     }
-    const result = NarrativeAIStoryContinuityDataSchema.parse({ 本轮记忆: memory, 未来事件: futureEvents })
+    const result = NarrativeAIStoryContinuityDataSchema.parse({ 本轮剧情: memory, 未来事件: futureEvents })
     return {
       valid: true,
       reason: [...memoryErrors, ...futureErrors].join('；'),
@@ -312,74 +357,11 @@ export function inspectNarrativeStoryContinuityQuality(
   }
 }
 
-const WORLD_CATEGORY_TO_LABEL: Record<string, string> = {
-  环境: '环境', environment: '环境',
-  社会: '社会', social: '社会',
-  经济: '经济', economic: '经济',
-  政治: '政治', political: '政治',
-  生态: '生态', ecological: '生态',
-  技术: '技术', technology: '技术',
-  迁徙: '迁徙', migration: '迁徙',
-  发现: '发现', discovery: '发现',
-  风险: '风险', hazard: '风险',
-  机遇: '机遇', opportunity: '机遇',
-}
-
-const WORLD_INTENSITY_TO_LABEL: Record<string, string> = {
-  轻微: '轻微', minor: '轻微',
-  中等: '中等', moderate: '中等',
-  重大: '重大', major: '重大',
-}
-
-const WORLD_PROFILE_FIELD_TO_LABEL: Record<string, string> = {
-  概况: '概况', summary: '概况',
-  气候: '气候', climate: '气候',
-  生态: '生态', ecology: '生态',
-  污染: '污染', pollution: '污染',
-  经济: '经济', economy: '经济',
-  人口: '人口', population: '人口',
-  聚落: '聚落', settlement: '聚落',
-  文化: '文化', culture: '文化',
-  教育: '教育', education: '教育',
-  社会结构: '社会结构', socialStructure: '社会结构',
-  势力: '势力', factions: '势力',
-  法律: '法律', law: '法律',
-}
-
-function normalizeWorldEnum(value: unknown, map: Record<string, string>): string | undefined {
-  const raw = asText(value)
-  if (!raw) return undefined
-  return map[raw.trim()] ?? map[raw.trim().toLocaleLowerCase()]
-}
-
-export function inspectNarrativeWorldSimulationQuality(content: string): NarrativeWorldSimulationQuality {
+export function inspectNarrativeEventLibraryQuality(content: string): NarrativeEventLibraryQuality {
   try {
     const envelope = asRecord(parseNarrativeAIJson(content))
-    if (!envelope) throw new Error('世界演变响应不是对象')
-    const rawEvents = asArray(pick(envelope, ['世界变化', '世界演变', '变化', 'worldChanges']))
-    const events = rawEvents.slice(0, 5).map((value, index) => {
-      const item = asRecord(value) ?? {}
-      const 标题 = asText(pick(item, ['标题', '名称', 'title', 'name']))
-      const 类别 = normalizeWorldEnum(pick(item, ['类别', '类型', 'category', 'type']), WORLD_CATEGORY_TO_LABEL)
-      const 强度 = normalizeWorldEnum(pick(item, ['强度', '等级', 'intensity', 'level']), WORLD_INTENSITY_TO_LABEL)
-      const 描述 = asText(pick(item, ['描述', '说明', '内容', 'description']))
-      const 影响区域 = asText(pick(item, ['影响区域', '区域', '影响范围', 'region']))
-      const 触发条件 = asText(pick(item, ['触发条件', '条件', 'trigger'])) ?? ''
-      const 冷却 = Math.min(99, Math.max(0, asInteger(pick(item, ['冷却', 'cooldown']), 0)))
-      if (!标题 || !类别 || !强度 || !描述 || !影响区域) {
-        throw new Error(`世界变化[${index}]字段不完整`)
-      }
-      return { 标题, 类别, 强度, 描述, 影响区域, 触发条件, 冷却 }
-    })
-    const rawProfileChanges = asArray(pick(envelope, ['概况变更', '概况更新', 'profileChanges']))
-    const profileChanges = rawProfileChanges.slice(0, 5).map((value, index) => {
-      const item = asRecord(value) ?? {}
-      const 字段 = normalizeWorldEnum(pick(item, ['字段', 'field']), WORLD_PROFILE_FIELD_TO_LABEL)
-      const 值 = asText(pick(item, ['值', '变更', 'value']))
-      if (!字段 || !值) throw new Error(`概况变更[${index}]字段不完整`)
-      return { 字段, 值 }
-    })
-    const result = NarrativeAIWorldSimulationResultSchema.parse({ 世界变化: events, 概况变更: profileChanges })
+    if (!envelope) throw new Error('事件库响应不是对象')
+    const result = NarrativeAIEventLibraryResultSchema.parse(envelope)
     return { valid: true, reason: '', result }
   } catch (error) {
     return { valid: false, reason: errorMessage(error) }

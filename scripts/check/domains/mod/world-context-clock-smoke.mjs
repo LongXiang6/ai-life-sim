@@ -159,4 +159,24 @@ assert.equal(migratedInstance.record.localClock.lastGlobalTotalBasePoints, 2000)
 assert.equal(migrated.transitionHistory[0].globalTotalBasePoints, 1000)
 assert.equal(migrated.transitionHistory[0].sourceLocalBasePoints, 27)
 
+const legacyCapabilityInstance = structuredClone(active)
+legacyCapabilityInstance.capabilityProfile = {
+  ...legacyCapabilityInstance.capabilityProfile,
+  capabilities: ['space', 'life', 'npc', 'economy', 'politics'],
+  enabledSubsystemIds: ['npc-system', 'relationship-system'],
+  backgroundSubsystemIds: ['npc-system'],
+}
+const migratedCapabilities = sanitizeWorldStateSnapshot({
+  contexts: { [active.record.id]: legacyCapabilityInstance },
+  currentContextId: active.record.id,
+})
+assert.deepEqual(
+  migratedCapabilities.contexts[active.record.id].capabilityProfile.capabilities,
+  ['space', 'life'],
+)
+assert.ok(
+  !migratedCapabilities.contexts[active.record.id].capabilityProfile.enabledSubsystemIds.includes('npc-system'),
+  'legacy NPC capability must not re-enable removed P2 subsystems during restore',
+)
+
 console.log('PASS: world-context-clock-smoke')

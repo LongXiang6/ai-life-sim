@@ -168,6 +168,7 @@ try {
     routeRequest('narrative-main'),
     routeRequest('narrative-story-continuity'),
     routeRequest('narrative-talent-growth'),
+    routeRequest('narrative-event-library'),
     routeRequest('narrative-main', 'gpt-compatible-model', 73),
   ]) {
     const response = await POST(request)
@@ -186,15 +187,15 @@ assert(
   'all DeepSeek and generic upstream requests must omit output-token caps',
 )
 assert(
-  new Set(forwardedBodies.slice(0, 4).map((request) => request.user_id)).size === 3,
-  '01/02/03 internal cache pools must use isolated DeepSeek user_id values',
+  new Set(forwardedBodies.slice(0, 5).map((request) => request.user_id)).size === 4,
+  '01/02/03/04 internal cache pools must use isolated DeepSeek user_id values',
 )
 assert(
-  forwardedBodies.slice(0, 4).every((request) => request.seed === undefined && request.user === undefined),
+  forwardedBodies.slice(0, 5).every((request) => request.seed === undefined && request.user === undefined),
   'DeepSeek upstream requests must omit seed and generic user fields',
 )
 assert(
-  forwardedBodies[4]?.seed === 73 && typeof forwardedBodies[4]?.user === 'string',
+  forwardedBodies[5]?.seed === 73 && typeof forwardedBodies[5]?.user === 'string',
   'non-DeepSeek targets must retain their declared seed and generic trusted user field',
 )
 

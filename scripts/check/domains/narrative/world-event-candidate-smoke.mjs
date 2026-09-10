@@ -200,10 +200,12 @@ const promptInput = buildNarrativeUserJson({
   talents: [],
   eventInjectionText: projection,
 })
-const roundFacts = promptInput.本轮事实与方向
+const roundFacts = promptInput[3]?.当前信息?.命运抉择
 assertOk(
-  Array.isArray(roundFacts) && roundFacts.some((item) => item.includes('本轮事件材料')),
-  'candidate projection must enter the shared third user message through eventInjectionText',
+  typeof roundFacts === 'string'
+    && roundFacts.includes('不是已经确认的状态')
+    && roundFacts.includes('合理采用、改写、略过或延后'),
+  'candidate projection must enter 当前信息.命运抉择 through eventInjectionText',
 )
 
 if (failed > 0) {

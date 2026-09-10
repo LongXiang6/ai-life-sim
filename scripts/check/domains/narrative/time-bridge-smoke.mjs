@@ -32,10 +32,11 @@ if (!bridge.includes('buildTimeBridgeSummary')) {
   failed++
 }
 if (
-  !builder.includes('buildCurrentTimeInstruction')
+  !builder.includes("const currentTime = nonEmpty(context.currentTime) ?? '当前时间'")
+  || !builder.includes('时间: `${currentAgeValue}岁-${currentTime}`')
   || builder.includes('context.timeBridgeSummary')
 ) {
-  console.error('FAIL: prompt-builder must use one current-time guidance sentence without a standalone timeBridgeSummary field')
+  console.error('FAIL: prompt-builder must project current time into 当前信息 without a standalone timeBridgeSummary field')
   failed++
 }
 if (!promptContextRuntime.includes('buildTimeBridgeSummary')) {

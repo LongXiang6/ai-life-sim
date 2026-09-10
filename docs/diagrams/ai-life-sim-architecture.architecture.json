@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AI 人生模拟器系统架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/ai-life-sim-architecture.html",
+    "viewBox": [1380, 820],
+    "views": [
+      { "id": "round-runtime", "label": "核心回合运行时", "focus": ["ui", "orchestrator", "prompt", "ai", "parser", "commit"], "note": "从玩家操作到故事发布与状态提交。" },
+      { "id": "specialists", "label": "并行专项调用", "focus": ["parser", "continuity", "talent", "events", "commit"], "note": "正文接纳后并行收束连续性、天赋成长与事件库。" },
+      { "id": "ownership", "label": "状态所有权", "focus": ["commit", "character", "orchestrator", "history"], "note": "各状态由所属系统提交，页面只消费公开结果。" }
+    ]
+  },
+  "components": [
+    { "id": "ui", "type": "frontend", "label": "玩家界面", "sublabel": "welcome / game-story", "tag": "player input + story view", "pos": [40, 120], "size": [140, 64] },
+    { "id": "orchestrator", "type": "backend", "label": "OrchestratorSystem", "sublabel": "core round owner", "tag": "execution coordinator", "pos": [230, 120], "size": [170, 64] },
+    { "id": "prompt", "type": "backend", "label": "Prompt 编译器", "sublabel": "six JSON user segments", "tag": "01 story contract", "pos": [450, 120], "size": [160, 64] },
+    { "id": "ai", "type": "cloud", "label": "AI Provider Proxy", "sublabel": "OpenAI-compatible transport", "tag": "/api/proxy", "pos": [660, 120], "size": [160, 64] },
+    { "id": "parser", "type": "backend", "label": "NarrativeParserSystem", "sublabel": "正文 / 分支 / 结局 / 属性变化", "tag": "protocol normalization", "pos": [880, 120], "size": [190, 64] },
+    { "id": "continuity", "type": "backend", "label": "02 故事连续性", "sublabel": "剧情 + 未来事件", "tag": "parallel specialist", "pos": [250, 360], "size": [170, 64] },
+    { "id": "talent", "type": "backend", "label": "03 天赋成长", "sublabel": "判定 + 三路线", "tag": "parallel specialist", "pos": [470, 360], "size": [170, 64] },
+    { "id": "events", "type": "backend", "label": "04 事件库", "sublabel": "0-3 候选事件", "tag": "parallel specialist", "pos": [690, 360], "size": [170, 64] },
+    { "id": "commit", "type": "backend", "label": "回合提交编排", "sublabel": "commit-round", "tag": "single convergence", "pos": [880, 360], "size": [170, 64] },
+    { "id": "character", "type": "database", "label": "Character Base", "sublabel": "属性与角色状态", "tag": "owning subsystem", "pos": [880, 520], "size": [170, 64] },
+    { "id": "history", "type": "database", "label": "Narrative Stores", "sublabel": "正文 / 连续性 / 事件账本", "tag": "persisted state", "pos": [880, 680], "size": [170, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "浏览器与应用运行时", "wraps": ["ui", "orchestrator", "prompt", "parser", "continuity", "talent", "events", "commit", "character", "history"], "pad": 24 },
+    { "kind": "security-group", "label": "外部 AI 边界", "wraps": ["ai"], "pad": 24 }
+  ],
+  "connections": [
+    { "id": "ui-round", "from": "ui", "to": "orchestrator", "label": "开始 / 继续一轮", "variant": "emphasis", "labelDy": 55 },
+    { "id": "round-prompt", "from": "orchestrator", "to": "prompt", "label": "冻结 PromptContext", "variant": "emphasis", "labelDy": 55 },
+    { "id": "prompt-ai", "from": "prompt", "to": "ai", "label": "system asset + 6 JSON messages", "variant": "emphasis", "labelDy": 55 },
+    { "id": "ai-parser", "from": "ai", "to": "parser", "label": "submit_story_turn", "variant": "emphasis", "labelDy": 55 },
+    { "id": "parser-commit", "from": "parser", "to": "commit", "label": "ParsedNarrative", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "via": [[975, 240], [940, 240], [940, 300], [965, 300]], "labelAt": [975, 270] },
+    { "id": "parser-continuity", "from": "parser", "to": "continuity", "label": "专项并行", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[975, 208], [335, 208], [335, 360]], "labelAt": [335, 195] },
+    { "id": "parser-talent", "from": "parser", "to": "talent", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[975, 224], [555, 224], [555, 360]] },
+    { "id": "parser-events", "from": "parser", "to": "events", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[975, 240], [775, 240], [775, 360]] },
+    { "id": "continuity-commit", "from": "continuity", "to": "commit", "label": "连续性结果", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[335, 460], [965, 460]], "labelAt": [500, 450] },
+    { "id": "talent-commit", "from": "talent", "to": "commit", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[555, 480], [965, 480]] },
+    { "id": "events-commit", "from": "events", "to": "commit", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[775, 500], [965, 500]] },
+    { "id": "attribute-commit", "from": "commit", "to": "character", "variant": "emphasis" },
+    { "id": "commit-history", "from": "commit", "to": "history", "label": "正文与连续性持久化", "variant": "emphasis", "fromSide": "right", "toSide": "right", "via": [[1074, 392], [1074, 712], [1050, 712]], "labelAt": [1074, 600] },
+    { "id": "history-ui", "from": "history", "to": "ui", "label": "公开故事结果", "variant": "dashed", "fromSide": "left", "toSide": "left", "via": [[20, 712], [20, 152]], "labelAt": [20, 430] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "核心回合", "items": ["OrchestratorSystem 负责单轮协调", "主故事先产出正文，再进入专项收束", "commit-round 是唯一汇合点"] },
+    { "dot": "emerald", "title": "职责边界", "items": ["Prompt 只生成所需信息", "Character Base 独占属性状态", "页面只消费公开结果"] },
+    { "dot": "rose", "title": "AI 边界", "items": ["主故事使用四字段工具协议", "02/03/04 各自独立缓存与 Schema", "04 只提供瞬态事件候选"] }
+  ]
+}

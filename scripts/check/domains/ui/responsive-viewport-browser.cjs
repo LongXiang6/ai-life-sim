@@ -18,6 +18,8 @@ const reportDir = path.resolve('reports', 'responsive-viewport')
 const viewports = [
   { name: 'phone-320x568', width: 320, height: 568 },
   { name: 'phone-360x640', width: 360, height: 640 },
+  { name: 'phone-375x812', width: 375, height: 812 },
+  { name: 'phone-390x844', width: 390, height: 844 },
   { name: 'phone-390x664', width: 390, height: 664 },
   { name: 'phone-393x727', width: 393, height: 727 },
   { name: 'phone-430x740', width: 430, height: 740 },
@@ -123,9 +125,8 @@ async function inspectRoute(page, viewport, route) {
     assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.left, 0) && approximately(metrics.responsiveViewport.right, width), 'mobile content leaves horizontal gutters', failures)
     assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.top, 0) && approximately(metrics.responsiveViewport.bottom, height), 'mobile content does not use the visible height', failures)
   } else {
-    const expectedDesktopWidth = Math.min(width, Math.max(672, width * 0.58))
-    assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.width, expectedDesktopWidth), 'desktop content does not use the shared max(42rem, 58vw) width', failures)
-    assertCheck(metrics.responsiveViewport && metrics.responsiveViewport.width >= width / 2, 'desktop content occupies less than half of the viewport', failures)
+    const expectedDesktopWidth = Math.min(1184, width - 40)
+    assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.width, expectedDesktopWidth), 'desktop content does not use the shared min(74rem, viewport minus 40px) width', failures)
     assertCheck(metrics.responsiveViewport && approximately(metrics.responsiveViewport.left + metrics.responsiveViewport.right, width), 'desktop content is not centered', failures)
   }
 
@@ -136,15 +137,23 @@ async function inspectRoute(page, viewport, route) {
 
   if (route.name === 'welcome') {
     assertCheck(metrics.actions && metrics.actions.bottom <= height + 1, 'welcome actions exceed the visible height', failures)
-    const originalInlineUnit = Math.min(4.3, Math.max(3.2, width / 100))
-    assertCheck(metrics.titleFontSize !== null && approximately(metrics.titleFontSize, originalInlineUnit * 6.9 * 1.2, 0.15), 'welcome title is not 1.2x its native baseline', failures)
+    const expectedWelcomeTitleSize = width <= 640 ? 34 : 48
+    assertCheck(
+      metrics.titleFontSize !== null && approximately(metrics.titleFontSize, expectedWelcomeTitleSize, 0.15),
+      'welcome title does not match the shared responsive heading scale',
+      failures,
+    )
   }
 
-  const fixedTitleBaselines = { settings: 21, 'world-select': 24, feedback: 22 }
+  const fixedTitleBaselines = {
+    settings: 28,
+    'world-select': width <= 760 ? 25 : 32,
+    feedback: width <= 760 ? 25 : 32,
+  }
   if (Object.hasOwn(fixedTitleBaselines, route.name)) {
     assertCheck(
-      metrics.titleFontSize !== null && approximately(metrics.titleFontSize, fixedTitleBaselines[route.name] * 1.2, 0.15),
-      `${route.name} title is not 1.2x its native baseline`,
+      metrics.titleFontSize !== null && approximately(metrics.titleFontSize, fixedTitleBaselines[route.name], 0.15),
+      `${route.name} title does not match the current page heading contract`,
       failures,
     )
   }

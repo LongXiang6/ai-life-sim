@@ -1423,3 +1423,139 @@
       font-size: calc(10.833 * var(--final-flow-density-px));
       font-weight: 650;
     }
+
+/* Desktop folio polish: the selected world becomes the context block and the
+ * directory reads as a compact source index. */
+.screen {
+  padding: 0 28px 112px;
+}
+
+.header {
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+  text-align: left;
+}
+
+.header h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.stage {
+  margin-top: 22px;
+  padding: 24px 28px 22px;
+  border: 1px solid var(--flow-line);
+  border-radius: 6px;
+  background: var(--flow-paper);
+  text-align: left;
+}
+
+.stageIcon {
+  width: 54px;
+  height: 54px;
+  font-size: 27px;
+}
+
+.stageTitle {
+  margin-top: 14px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 25px;
+}
+
+.stageQuote {
+  max-width: 740px;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.stageEra {
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.difficultyButton {
+  top: 18px;
+  right: 18px;
+  bottom: auto;
+  width: auto;
+  height: auto;
+  min-height: 34px;
+  grid-template-columns: auto auto;
+  padding: 6px 10px;
+  border-radius: 5px;
+}
+
+.difficultyEmoji {
+  font-size: 15px;
+}
+
+.difficultyLabel {
+  margin-top: 0;
+  font-size: 10px;
+}
+
+.sourceTabs {
+  justify-content: flex-start;
+  gap: 22px;
+  margin-top: 24px;
+}
+
+.sourceTabs button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 2px;
+  font-size: 12px;
+}
+
+.content {
+  padding-top: 18px;
+}
+
+.mainGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.worldCard {
+  min-height: 104px;
+  padding: 14px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+.worldIcon {
+  font-size: 26px;
+}
+
+.moreGrid,
+.savedWorldList {
+  gap: 10px;
+}
+
+.moreWorldCard,
+.savedWorldCard {
+  border-radius: 5px;
+}
+
+@media (max-width: 760px) {
+  .screen {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    padding-top: 14px;
+  }
+
+  .header h1 {
+    font-size: 25px;
+  }
+
+  .stage {
+    padding: 20px 16px 18px;
+  }
+
+  .mainGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

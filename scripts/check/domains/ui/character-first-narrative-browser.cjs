@@ -18,7 +18,7 @@ const narrativeParagraphs = [
 
 const narrativeResponse = `⟦正文⟧${narrativeParagraphs.join('\n\n')}`
 const specialistResponses = {
-  'mod-engine:narrative-story-continuity:': JSON.stringify({ 本轮记忆: [], 未来事件: [] }),
+  'mod-engine:narrative-story-continuity:': JSON.stringify({ 本轮剧情: [], 未来事件: [] }),
   'mod-engine:narrative-talent-growth:': JSON.stringify({ 成长判定: { 需要成长: false } }),
 }
 

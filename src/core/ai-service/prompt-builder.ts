@@ -1,10 +1,11 @@
 /**
- * Purpose: Assemble the three dynamic user messages for the main narrative call.
+ * Purpose: Assemble the current data-layer payload for the main narrative call.
  * Owner: core:ai-service
- * Responsibility: Serialize only the approved 01 story-AI fields in sample order.
+ * Responsibility: Serialize the world, player, history, attributes, and current-round data contract.
  */
 
 import type { PromptContext, PromptTemplate } from '@/foundation'
+import { compileNarrativeGuidance } from './narrative-guidance-compiler'
 
 export type PromptSegmentStrategy = 'S4'
 
@@ -26,75 +27,42 @@ function nonEmpty(value: unknown): string | undefined {
   return typeof value === 'string' ? value.trim() || undefined : undefined
 }
 
-function buildCurrentTimeInstruction(value: string | undefined, supplemental?: string): string {
-  const time = nonEmpty(value) ?? '当前时间'
-  const instruction = `时间窗口：${time}。时间只作为判断事件合理性的背景参考，正文非必要不写年份、季节、节日等时间词，也不要把时间当作开头。`
-  const extra = nonEmpty(supplemental)
-  return extra
-    ? `${instruction}\n本轮时间参考：${extra}`
-    : instruction
-}
-
-function buildPlayerActionInstruction(intent: Record<string, unknown> | undefined): string {
-  const action = nonEmpty(intent?.本轮明确行动) ?? DEFAULT_PLAYER_ACTION
-  return `玩家行动：${action}`
-}
-
-function buildAgeCapabilityInstruction(value: unknown): string {
+function integerString(value: unknown): string | undefined {
   const numeric = typeof value === 'number' ? value : Number(value)
-  const age = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0
-  let stage = '行动须符合其年龄、身体、知识、身份和已经成立的经历'
-  if (age <= 2) {
-    stage = '婴幼儿，只能被照料、被观察或被动经历，不能主动行动或推动情节'
-  } else if (age <= 5) {
-    stage = '幼儿，行动以本能和模仿为主，不能独立完成复杂事务'
-  } else if (age <= 12) {
-    stage = '孩童，能参与简单事务，但判断力与体力有限'
+  return Number.isFinite(numeric) ? String(Math.trunc(numeric)) : undefined
+}
+
+function buildNarrativeAttributes(value: unknown): Record<'心智' | '体魄' | '魅力' | '家境', string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { 心智: '0', 体魄: '0', 魅力: '0', 家境: '0' }
   }
-  return `年龄边界：角色当前${age}岁（${stage}）；超出能力的行动不得直接视为已完成。`
-}
-
-function buildNarrativeStyleInstruction(value: string | undefined): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0
-    ? `叙述风格：${value}`
-    : undefined
-}
-
-function buildNarrativeAddressingInstruction(
-  value: PromptContext['narrativeAddressing'],
-  characterName: unknown,
-): string {
-  if (value === 'first-person') {
-    return '称呼方式：涉及主角时使用第一人称“我”指代主角；这只是称呼方式，不规定叙事主语。'
+  const source = value as Record<string, unknown>
+  const numericSet = source.当前数值 && typeof source.当前数值 === 'object' && !Array.isArray(source.当前数值)
+    ? source.当前数值 as Record<string, unknown>
+    : source
+  return {
+    心智: integerString(numericSet.mind ?? numericSet.心智) ?? '0',
+    体魄: integerString(numericSet.physique ?? numericSet.体魄) ?? '0',
+    魅力: integerString(numericSet.charisma ?? numericSet.魅力) ?? '0',
+    家境: '0',
   }
-  if (value === 'character-name') {
-    const name = nonEmpty(characterName)
-    if (name) {
-      return `称呼方式：涉及主角时使用角色姓名“${name}”指代主角；这只是称呼方式，不规定叙事主语。`
-    }
-  }
-  return '称呼方式：涉及主角时使用第二人称“你”指代主角；这只是称呼方式，不规定叙事主语。'
 }
 
-function buildWordCountInstruction(value: string | undefined): string {
-  const instruction = nonEmpty(value)
-  if (instruction) {
-    const normalized = instruction.replace(/正文约\s*(\d+)\s*字/u, '正文约$1字')
-    const trimmed = normalized.replace(/[。！？!?]$/u, '')
-    return `字数要求：${trimmed}；这是大约字数，优先以适合剧情为准，可适当增减。`
-  }
-  return '字数要求：正文约300字；这是大约字数，优先以适合剧情为准，可适当增减。'
+function buildHistoryTexts(context: PromptContext): {
+  longTerm: string[]
+  recent: string[]
+} {
+  const longTerm = (context.timelineMemory ?? [])
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.trim())
+  const recent = (context.recentStories ?? [])
+    .filter((story): story is string => typeof story === 'string' && story.trim().length > 0)
+    .map((story) => story.trim())
+  return { longTerm, recent }
 }
 
-function buildEventInjectionInstruction(value: string | undefined): string | undefined {
-  const event = nonEmpty(value)
-  return event
-    ? `本轮事件材料：${event}\n这些材料作为本轮事实参考；正文未写出的内容不进入后续状态提取。`
-    : undefined
-}
-
-/** PromptContext 转为固定键序且字段白名单化的 01 输入。 */
-export function buildNarrativeUserJson(context: PromptContext): Record<string, unknown> {
+/** PromptContext 转为当前数据层示例的固定键序结构。 */
+export function buildNarrativeUserJson(context: PromptContext): unknown {
   const rawWorld = context.worldNarrativeView
   const world = {
     名称: nonEmpty(rawWorld.名称) ?? '',
@@ -102,80 +70,67 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
   }
   const rawCharacter = context.characterProfileView
   const currentAge = context.characterStatusView.年龄
-  const playerBranchIntent = context.playerBranchIntent
-    ? structuredClone(context.playerBranchIntent)
-    : undefined
-  const eventInjection = buildEventInjectionInstruction(context.eventInjectionText)
-  const narrativeStyle = buildNarrativeStyleInstruction(context.narrativeStyle)
+  const guidance = compileNarrativeGuidance(context)
+  const playerBranchIntent = guidance.playerBranchIntent
   const character = {
     姓名: nonEmpty(rawCharacter.姓名) ?? '',
     性别: nonEmpty(rawCharacter.性别) ?? '未设定',
     种族: nonEmpty(rawCharacter.种族) ?? '未设定',
     背景: nonEmpty(rawCharacter.背景) ?? '',
-    ...(typeof currentAge === 'number' ? { 当前年龄: currentAge } : {}),
-    基础属性: rawCharacter.基础属性 ?? {},
-    天赋: context.talents ?? [],
+    天赋技能: (context.talents ?? []).map((talent) => `${talent.名称}：${talent.效果}`),
   }
-  const roundFactsAndDirection = [
-    buildCurrentTimeInstruction(context.currentTime, context.timeGuideText),
-    buildPlayerActionInstruction(playerBranchIntent),
-    ...(eventInjection ? [eventInjection] : []),
-    buildAgeCapabilityInstruction(currentAge),
-    buildNarrativeAddressingInstruction(context.narrativeAddressing, rawCharacter.姓名),
-    ...(narrativeStyle ? [narrativeStyle] : []),
-    buildWordCountInstruction(context.wordCountInstruction),
+  const history = buildHistoryTexts(context)
+  const currentAgeNumeric = Number(currentAge)
+  const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
+  const currentTime = nonEmpty(context.currentTime) ?? '当前时间'
+  const action = [
+    nonEmpty(playerBranchIntent?.本轮明确行动) ?? DEFAULT_PLAYER_ACTION,
+    ...(guidance.systemGuidance ?? []),
+    nonEmpty(context.timeGuideText),
+    nonEmpty(context.eventInjectionText),
+    nonEmpty(context.eventLibraryText),
+    ...(context.currentDueEvents ?? []).map((event) => nonEmpty(event)),
+  ].filter((item): item is string => Boolean(item)).join('\n')
+  const attributes = buildNarrativeAttributes(
+    context.characterStatusView.属性数值 ?? rawCharacter.基础属性,
+  )
+  return [
+    { 世界: world },
+    { 玩家信息: character },
+    {
+      剧情: {
+        长期记忆: history.longTerm,
+        近期记忆: history.recent,
+      },
+    },
+    {
+      玩家属性: attributes,
+      当前信息: {
+        时间: `${currentAgeValue}岁-${currentTime}`,
+        命运抉择: action,
+      },
+    },
   ]
-
-  return {
-    世界: world,
-    历史连续性事实: context.timelineMemory ?? [],
-    最近五轮正文: (context.recentStories ?? []).filter((story): story is string => (
-      typeof story === 'string' && story.trim().length > 0
-    )),
-    角色: character,
-    世界模拟内容: nonEmpty(context.worldSimulationText) ?? '',
-    本轮事实与方向: roundFactsAndDirection,
-    ...(Array.isArray(context.currentDueEvents) && context.currentDueEvents.length > 0
-      ? { 当前到期事件: context.currentDueEvents.filter((event): event is string => typeof event === 'string' && event.trim().length > 0) }
-      : {}),
-  }
 }
 
-/** 输出六条独立 user 消息；顺序严格为世界、历史记忆、最近五轮、角色、世界模拟、本轮事实与方向。 */
+/** 输出单条数据层 JSON 消息，顺序与数据层示例一致。 */
 export function buildSegmentedPrompt(
   _template: PromptTemplate,
   context: PromptContext,
 ): PromptSegments {
   const input = buildNarrativeUserJson(context)
-  const worldSegment = JSON.stringify({ 世界: input.世界 ?? {} })
-  const memorySegment = JSON.stringify({ 历史连续性事实: input.历史连续性事实 ?? [] })
-  const recentSegment = JSON.stringify({ 最近五轮正文: input.最近五轮正文 ?? [] })
-  const characterSegment = JSON.stringify({ 角色: input.角色 ?? {} })
-  const worldSimulationSegment = JSON.stringify({ 世界模拟内容: input.世界模拟内容 ?? '' })
-  const roundSegment = JSON.stringify({
-    本轮事实与方向: input.本轮事实与方向 ?? [],
-    ...(Array.isArray(input.当前到期事件) && input.当前到期事件.length > 0
-      ? { 当前到期事件: input.当前到期事件 }
-      : {}),
-  })
-  const segments = [
-    worldSegment,
-    memorySegment,
-    recentSegment,
-    characterSegment,
-    worldSimulationSegment,
-    roundSegment,
-  ]
+  const dataLayerSegment = JSON.stringify(input)
+  const segments = [dataLayerSegment]
 
   return {
-    stablePrefixChars: worldSegment.length,
+    stablePrefixChars: dataLayerSegment.length,
     full: segments.join('\n'),
-    globalSegmentChars: worldSegment.length,
+    globalSegmentChars: dataLayerSegment.length,
     userSegments: segments,
     userMessageCount: segments.length,
     strategy: 'S4',
-    memorySegmentChars: memorySegment.length + recentSegment.length + characterSegment.length,
-    roundSegmentChars: worldSimulationSegment.length + roundSegment.length,
-    totalChars: segments.join('\n').length,
+    memorySegmentChars: dataLayerSegment.length,
+    roundSegmentChars: dataLayerSegment.length,
+    totalChars: dataLayerSegment.length,
   }
 }

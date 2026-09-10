@@ -1,5 +1,5 @@
 /**
- * Purpose: Define the Chinese AI Schemas used by the approved 01/02/03 narrative calls.
+ * Purpose: Define the Chinese AI Schemas used by the approved narrative calls.
  * Owner: mod-engine
  * Responsibility: Validate declared AI fields without owning simulation state.
  */
@@ -23,10 +23,26 @@ export const NarrativeAIEndingSchema = z.object({
   ),
 })
 
+const NarrativeAIAttributeDeltaSchema = z.number().int().min(-3).max(3).refine(
+  (value) => value !== 0,
+  '属性变化不能为0',
+)
+
+export const NarrativeAIAttributeChangesSchema = z.object({
+  体魄: NarrativeAIAttributeDeltaSchema.optional(),
+  心智: NarrativeAIAttributeDeltaSchema.optional(),
+  悟性: NarrativeAIAttributeDeltaSchema.optional(),
+  魅力: NarrativeAIAttributeDeltaSchema.optional(),
+}).strict().refine(
+  (value) => Object.keys(value).length > 0,
+  '属性变化对象至少需要一个非零属性变化',
+)
+
 export const NarrativeAIStoryResultSchema = z.object({
   正文: NarrativeAINonBlankStringSchema,
   分支: NarrativeAIBranchSchema.nullable(),
   结局: NarrativeAIEndingSchema.nullable(),
+  属性变化: NarrativeAIAttributeChangesSchema.nullable(),
 }).superRefine((data, context) => {
   if (data.分支 !== null && data.结局 !== null) {
     context.addIssue({ code: 'custom', message: '分支与结局必须互斥' })
@@ -61,62 +77,44 @@ export const NarrativeAITalentGrowthDataSchema = z.object({
 })
 
 export const NarrativeAIStoryContinuityMemorySchema = z.array(z.object({
-  时间: z.string().trim().min(1).max(120),
-  事实: z.string().trim().min(1).max(1000),
+  来源回合: z.number().int().positive().optional(),
+  时间: z.string().trim().min(1),
+  剧情: z.string().trim().min(1),
   权重: z.number().int().min(2).max(10),
 }))
 
 export const NarrativeAIStoryContinuityFutureEventsSchema = z.array(
-  z.string().trim().min(1).max(1000),
+  z.string().trim().min(1),
 )
 
 export const NarrativeAIStoryContinuityEnvelopeSchema = z.object({
-  本轮记忆: z.unknown(),
+  本轮剧情: z.unknown(),
   未来事件: z.unknown(),
 })
 
 export const NarrativeAIStoryContinuityDataSchema = z.object({
-  本轮记忆: NarrativeAIStoryContinuityMemorySchema,
+  本轮剧情: NarrativeAIStoryContinuityMemorySchema,
   未来事件: NarrativeAIStoryContinuityFutureEventsSchema,
 })
 
 export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
 export type NarrativeAIEnding = z.infer<typeof NarrativeAIEndingSchema>
+export type NarrativeAIAttributeChanges = z.infer<typeof NarrativeAIAttributeChangesSchema>
 export type NarrativeAIStoryResult = z.infer<typeof NarrativeAIStoryResultSchema>
 export type NarrativeAITalentGrowthData = z.infer<typeof NarrativeAITalentGrowthDataSchema>
 export type NarrativeAIStoryContinuityData = z.infer<typeof NarrativeAIStoryContinuityDataSchema>
 
-const NarrativeAIWorldSimulationCategories = [
-  '环境', '社会', '经济', '政治', '生态', '技术', '迁徙', '发现', '风险', '机遇',
-] as const
+export const NarrativeAIEventLibraryEventSchema = z.object({
+  标题: z.string().trim().min(1),
+  描述: z.string().trim().min(1),
+}).strict()
 
-const NarrativeAIWorldSimulationIntensities = ['轻微', '中等', '重大'] as const
+export const NarrativeAIEventLibraryResultSchema = z.object({
+  候选事件: z.array(NarrativeAIEventLibraryEventSchema).min(0).max(3),
+}).strict()
 
-export const NarrativeAIWorldSimulationEventSchema = z.object({
-  标题: z.string().trim().min(1).max(80),
-  类别: z.enum(NarrativeAIWorldSimulationCategories),
-  强度: z.enum(NarrativeAIWorldSimulationIntensities),
-  描述: z.string().trim().min(1).max(1000),
-  影响区域: z.string().trim().min(1).max(200),
-  触发条件: z.string().trim().max(200),
-  冷却: z.number().int().min(0).max(99),
-})
-
-const NarrativeAIWorldSimulationProfileFields = [
-  '概况', '气候', '生态', '污染', '经济', '人口', '聚落', '文化', '教育', '社会结构', '势力', '法律',
-] as const
-
-export const NarrativeAIWorldSimulationProfileChangeSchema = z.object({
-  字段: z.enum(NarrativeAIWorldSimulationProfileFields),
-  值: z.string().trim().min(1).max(300),
-})
-
-export const NarrativeAIWorldSimulationResultSchema = z.object({
-  世界变化: z.array(NarrativeAIWorldSimulationEventSchema).min(0).max(5),
-  概况变更: z.array(NarrativeAIWorldSimulationProfileChangeSchema).min(0).max(5),
-})
-
-export type NarrativeAIWorldSimulationResult = z.infer<typeof NarrativeAIWorldSimulationResultSchema>
+export type NarrativeAIEventLibraryEvent = z.infer<typeof NarrativeAIEventLibraryEventSchema>
+export type NarrativeAIEventLibraryResult = z.infer<typeof NarrativeAIEventLibraryResultSchema>
 
 /** Read one JSON candidate; field ownership remains with each post-call normalizer. */
 export function parseNarrativeAIJson(source: string): unknown {

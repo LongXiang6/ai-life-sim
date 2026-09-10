@@ -5,6 +5,7 @@
  */
 
 import styles from './GameStory.module.css'
+import { FlowRunningHead } from '@/mods/mod-ui'
 
 interface GameStoryFlowGuardProps {
   action: string
@@ -19,6 +20,9 @@ export function GameStoryFlowGuard({ action, message, onReturn, title }: GameSto
       <div className="flow-responsive-viewport">
         <div className="flow-responsive-layout">
           <div className={styles.root}>
+            <div className={styles.guardHead}>
+              <FlowRunningHead stepLabel="07 / 07" />
+            </div>
             <div className={styles.guardShell}>
               <div className={styles.guardCard}>
                 <div className={styles.guardIcon}>⚠</div>

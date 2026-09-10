@@ -60,22 +60,34 @@ assert.equal(committedState.phaseHistory[0]?.totalBasePoints, context.totalBaseP
 assert.equal(committedState.phaseHistory[0]?.totalDays, context.totalDays)
 assert.match(plot.buildPhaseGuidance(), /推进/)
 
-// 旧存档只带 totalDays 时，在恢复边界一次性迁移到基础点并重新派生日历字段。
+// 新保存只写当前 PlotStructureState，恢复后保持同一当前格式。
+const currentSnapshot = plot.capturePersistenceState()
+assert.equal(Object.hasOwn(currentSnapshot, 'state'), false)
+assert.equal(Object.hasOwn(currentSnapshot, 'lastProcessedRound'), false)
+const currentRestoredPlot = new PlotStructureSystem()
+currentRestoredPlot.restorePersistenceState(currentSnapshot)
+assert.deepEqual(currentRestoredPlot.capturePersistenceState(), currentSnapshot)
+
+// 历史包装只在持久化恢复边界拆开；其旧日历字段继续归一化为当前基础点格式。
 const migratedPlot = new PlotStructureSystem()
 migratedPlot.restorePersistenceState({
-  enabled: true,
-  currentPhase: 'rising_action',
-  phaseStartedAtTotalDays: 365,
-  phaseElapsedDays: 365,
-  chapterCount: 1,
-  tensionLevel: 45,
-  progressSummary: '旧存档阶段。',
-  phaseHistory: [{
-    phase: 'rising_action',
-    roundSequence: 12,
-    totalDays: 365,
-    contextId: 'plot-test',
-  }],
+  state: {
+    enabled: true,
+    currentPhase: 'rising_action',
+    phaseStartedAtTotalDays: 365,
+    phaseElapsedDays: 365,
+    chapterCount: 1,
+    tensionLevel: 45,
+    lastClimaxTotalDays: 365,
+    lastConflictIntensity: 25,
+    phaseHistory: [{
+      phase: 'rising_action',
+      roundSequence: 12,
+      totalDays: 365,
+      contextId: 'plot-test',
+    }],
+  },
+  lastProcessedRound: 12,
 })
 const migratedState = migratedPlot.getState()
 assert.equal(migratedState.phaseStartedAtBasePoints, 1000)
@@ -84,5 +96,46 @@ assert.equal(migratedState.phaseStartedAtTotalDays, 365)
 assert.equal(migratedState.phaseElapsedDays, 365)
 assert.equal(migratedState.phaseHistory[0]?.totalBasePoints, 1000)
 assert.equal(migratedState.phaseHistory[0]?.totalDays, 365)
+assert.equal(migratedState.progressSummary, '人生与世界仍在建立最初的联系。')
+assert.equal(Object.hasOwn(migratedState, 'lastClimaxTotalDays'), false)
+assert.equal(Object.hasOwn(migratedState, 'lastConflictIntensity'), false)
+assert.equal(Object.hasOwn(migratedPlot.capturePersistenceState(), 'state'), false)
+
+const preservedProgressPlot = new PlotStructureSystem()
+preservedProgressPlot.restorePersistenceState({
+  state: {
+    ...currentSnapshot,
+    progressSummary: '旧存档阶段。',
+  },
+  lastProcessedRound: 13,
+})
+assert.equal(preservedProgressPlot.getState().progressSummary, '旧存档阶段。')
+
+// 事务恢复仍只接收当前格式，伪历史包装与无效内层状态都必须明确失败。
+assert.throws(
+  () => new PlotStructureSystem().restoreTransactionState({ state: currentSnapshot, lastProcessedRound: 96 }),
+  /剧情结构阶段无效/,
+)
+assert.throws(
+  () => new PlotStructureSystem().restorePersistenceState({ state: currentSnapshot }),
+  /剧情结构历史持久化状态无效/,
+)
+assert.throws(
+  () => new PlotStructureSystem().restorePersistenceState({ state: currentSnapshot, lastProcessedRound: 1.5 }),
+  /剧情结构历史持久化状态无效/,
+)
+assert.throws(
+  () => new PlotStructureSystem().restorePersistenceState({
+    state: { ...currentSnapshot, currentPhase: 'unknown' },
+    lastProcessedRound: 96,
+  }),
+  /剧情结构阶段无效/,
+)
+const currentWithoutProgressSummary = { ...currentSnapshot }
+delete currentWithoutProgressSummary.progressSummary
+assert.throws(
+  () => new PlotStructureSystem().restorePersistenceState(currentWithoutProgressSummary),
+  /剧情进展说明不能为空/,
+)
 
 console.log('PASS: plot-structure-canonical-time-smoke')

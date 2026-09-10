@@ -3,8 +3,8 @@
 /* Attribute Allocation — AA-RF1-1 unified creation flow design */
 
 .flowCanvas {
-  --cf-canvas: #eef1f7;
-  --cf-paper: #fafbff;
+  --cf-canvas: var(--flow-canvas);
+  --cf-paper: var(--flow-paper);
   --cf-surface: #ffffff;
   --cf-soft: var(--color-bg-secondary);
   --cf-ink: var(--flow-ink);
@@ -21,6 +21,7 @@
 
 .page {
       width: 100%;
+      padding: 0 28px 112px;
       height: 100%;
       min-height: 0;
       overflow-y: auto;
@@ -38,17 +39,21 @@
 .page button { font: inherit; -webkit-tap-highlight-color: transparent; }
 
 .screen {
-  position: absolute;
-  inset: 0 0 calc(calc(70 * var(--final-flow-density-px)) + env(safe-area-inset-bottom));
+  position: relative;
+  inset: auto;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: var(--final-flow-content-gutter) var(--final-flow-content-gutter) calc(18 * var(--final-flow-density-px));
+  padding: 0;
   scrollbar-width: none;
 }
 
 .screen::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-.header { position: relative; }
+.header {
+  position: relative;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+}
 
 .meta {
   display: flex;
@@ -67,8 +72,8 @@
 }
 
 .titleCopy {
-      text-align: center;
-      padding: calc(3.333 * var(--final-flow-density-px)) 0 0;
+      text-align: left;
+      padding: 22px 0 8px;
     }
 
 .titleRow h2 {
@@ -88,25 +93,26 @@
 }
 
 .section {
-      padding: calc(11.667 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px)) calc(10.833 * var(--final-flow-density-px));
+      padding: 18px;
       border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-      border-radius: calc(15 * var(--final-flow-density-px));
+      border-radius: 6px;
       background: var(--flow-paper);
     }
 
-.section + .section { margin-top: calc(13.333 * var(--final-flow-density-px)); }
+.section:first-of-type { margin-top: 18px; }
+.section + .section { margin-top: 14px; }
 
 .sectionHead {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
       gap: calc(6.667 * var(--final-flow-density-px));
-      margin-bottom: calc(6.667 * var(--final-flow-density-px));
-      padding-bottom: calc(5 * var(--final-flow-density-px));
-      border-bottom: calc(0.833 * var(--final-flow-density-px)) dashed var(--flow-line);
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
     }
 
-.sectionHead strong { color: var(--flow-ink); font-size: calc(10.833 * var(--final-flow-density-px)); font-weight: 700; }
+.sectionHead strong { color: var(--flow-ink); font-size: 16px; font-weight: 700; }
 
 .sectionHead small { color: var(--flow-faint); font-size: calc(8.333 * var(--final-flow-density-px)); font-weight: 500; text-align: right; }
 
@@ -119,8 +125,8 @@
 
 .budgetScore {
       display: grid;
-      width: calc(38.333 * var(--final-flow-density-px));
-      height: calc(38.333 * var(--final-flow-density-px));
+      width: 58px;
+      height: 58px;
       place-items: center;
       border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
       border-radius: 50%;
@@ -169,7 +175,7 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: calc(5 * var(--final-flow-density-px)) calc(6.667 * var(--final-flow-density-px));
-      padding: calc(8.333 * var(--final-flow-density-px)) 0;
+      padding: 16px 0;
       border-top: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
     }
 
@@ -181,7 +187,7 @@
 .attributeName strong {
       display: block;
       color: var(--flow-ink);
-      font-size: calc(10.833 * var(--final-flow-density-px));
+      font-size: 15px;
       font-weight: 680;
     }
 
@@ -260,15 +266,15 @@
 .tools {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: calc(6.667 * var(--final-flow-density-px));
-      margin-top: calc(8.333 * var(--final-flow-density-px));
+      gap: 8px;
+      margin-top: 16px;
     }
 
 .secondaryButton {
-      min-height: calc(31.667 * var(--final-flow-density-px));
+      min-height: 38px;
       padding: 0 calc(10 * var(--final-flow-density-px));
       border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-      border-radius: calc(10 * var(--final-flow-density-px));
+      border-radius: 5px;
       background: var(--flow-paper);
       color: var(--flow-muted);
       cursor: pointer;
@@ -308,7 +314,7 @@
 
 .dialogActions { display: grid; grid-template-columns: 1fr 1fr; gap: calc(6.667 * var(--final-flow-density-px)); }
 
-.dialogActions .isPrimary { border-color: var(--color-border-focus); background: var(--flow-accent); color: #fff; }
+.dialogActions .isPrimary { border-color: var(--color-border-focus); background: var(--flow-accent); color: var(--text-on-accent, #fff); }
 
 @media (prefers-reduced-motion: reduce) {
   .page *,
@@ -336,8 +342,9 @@
 .titleCopy h1 {
       margin: 0;
       color: var(--flow-ink);
-      font-size: calc(16.667 * var(--final-flow-density-px));
-      font-weight: 700;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 32px;
+      font-weight: 600;
       line-height: 1.2;
       letter-spacing: -0.01em;
     }
@@ -351,7 +358,7 @@
 .titleCopy p {
       margin: calc(5 * var(--final-flow-density-px)) 0 0;
       color: var(--flow-muted);
-      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-size: 13px;
       line-height: 1.5;
       letter-spacing: 0.02em;
     }
@@ -399,3 +406,36 @@
 .secondaryButton .deco { color: #d8c9a8; margin-right: calc(4.167 * var(--final-flow-density-px)); }
 
 .dialog p strong { color: var(--flow-ink); }
+
+@media (min-width: 900px) {
+  .screen {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+    align-items: start;
+    gap: 18px;
+  }
+
+  .header,
+  .scriptRule {
+    grid-column: 1 / -1;
+  }
+
+  .section:first-of-type,
+  .section + .section {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 0 16px 96px;
+  }
+
+  .titleCopy {
+    padding-top: 14px;
+  }
+
+  .titleCopy h1 {
+    font-size: 25px;
+  }
+}

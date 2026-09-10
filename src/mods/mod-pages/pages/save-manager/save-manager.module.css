@@ -1,3 +1,5 @@
+/* Purpose: Style the local save-management page. Owner: mod-pages/save-manager. Responsibility: Save-list layout and control states only. */
+
 .container {
   width: 100%;
   height: 100%;
@@ -191,5 +193,53 @@
 @media (prefers-reduced-motion: reduce) {
   .slot {
     transition: none;
+  }
+}
+
+/* Attached workspace treatment for local save slots. */
+.container {
+  padding: 0 28px 112px;
+}
+
+.frame {
+  padding: 0;
+  background: transparent;
+}
+
+.header {
+  min-height: 78px;
+  margin-bottom: 18px;
+  padding: 0 0 14px;
+}
+
+.title {
+  font-size: 32px;
+}
+
+.list {
+  gap: 12px;
+}
+
+.slot {
+  padding: 16px 62px 16px 18px;
+  border-radius: 6px;
+}
+
+.deleteBtn {
+  right: 14px;
+  border-radius: 5px;
+}
+
+@media (max-width: 760px) {
+  .container {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    min-height: 68px;
+  }
+
+  .title {
+    font-size: 25px;
   }
 }

@@ -472,3 +472,39 @@
       border-radius: calc(832.5 * var(--final-flow-density-px));
       background: var(--flow-muted);
     }
+
+/* Readability contract for the model-settings workbench. */
+.modelSettings {
+  font-size: 14px;
+}
+
+.sectionLabel > span,
+.sectionMeta,
+.panelIntro,
+.descText,
+.descParagraph,
+.paramDescription,
+.paramFooter,
+.dropdownLabel,
+.dropdownDescription,
+.sectionRow .toggleStatus,
+.recommendationRow,
+.recommendationBadge,
+.paramStatus,
+.paramTitle small {
+  color: var(--flow-muted);
+  font-size: 12px;
+}
+
+.controlTitle,
+.paramTitle,
+.dropdownBtn,
+.optionBtn,
+.dropdownMenu button,
+.paramValue {
+  font-size: 14px;
+}
+
+.dropdownMenu button .dropdownDescription {
+  font-size: 12px;
+}

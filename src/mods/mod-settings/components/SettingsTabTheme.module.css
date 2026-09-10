@@ -3,7 +3,7 @@
 .tabRoot {
   width: 100%;
   color: var(--flow-ink);
-  font-size: calc(10 * var(--final-flow-density-px));
+  font-size: 14px;
 }
 
 .settingRow {
@@ -26,7 +26,7 @@
 
 .settingCopy strong {
       color: var(--flow-ink);
-      font-size: calc(11.667 * var(--final-flow-density-px));
+      font-size: 15px;
       font-weight: 650;
       line-height: 1.25;
     }
@@ -34,7 +34,7 @@
 .settingCopy small {
       margin-top: calc(2.5 * var(--final-flow-density-px));
       color: var(--flow-muted);
-      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-size: 12px;
       line-height: 1.35;
     }
 
@@ -102,15 +102,15 @@
   margin: 0;
   color: var(--flow-ink);
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: calc(10 * var(--final-flow-density-px));
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0;
 }
 
 .sectionLabel > span,
 .groupHeading > span:last-child {
-  color: var(--flow-faint);
-  font-size: calc(5.5 * var(--final-flow-density-px));
+  color: var(--flow-muted);
+  font-size: 12px;
   text-align: right;
 }
 
@@ -203,7 +203,7 @@
 .themeCopy strong {
   overflow: hidden;
   color: var(--flow-ink);
-  font-size: calc(9.167 * var(--final-flow-density-px));
+  font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -212,7 +212,7 @@
 .themeCopy small {
   margin-top: calc(3 * var(--final-flow-density-px));
   color: var(--flow-muted);
-  font-size: calc(7.5 * var(--final-flow-density-px));
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -232,14 +232,14 @@
       justify-content: space-between;
       gap: calc(6.667 * var(--final-flow-density-px));
       padding: calc(5 * var(--final-flow-density-px)) 0 calc(6.667 * var(--final-flow-density-px));
-      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-size: 12px;
       color: var(--flow-muted);
     }
 
 .groupHeading > span:first-child,
 .importModeRow > span {
   color: var(--flow-muted);
-  font-size: calc(7 * var(--final-flow-density-px));
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -280,7 +280,7 @@
   color: var(--flow-muted);
   cursor: pointer;
   font: inherit;
-  font-size: calc(7 * var(--final-flow-density-px));
+  font-size: 14px;
 }
 
 .choiceButton,
@@ -311,14 +311,14 @@
 }
 
 .choiceTitle {
-      font-size: calc(10 * var(--final-flow-density-px));
+      font-size: 14px;
       font-weight: 650;
     }
 
 .choiceDescription {
       margin-top: calc(1.667 * var(--final-flow-density-px));
       color: var(--flow-muted);
-      font-size: calc(8.333 * var(--final-flow-density-px));
+      font-size: 12px;
       line-height: 1.35;
     }
 
@@ -337,8 +337,8 @@
 }
 
 .metricLabel {
-  color: var(--flow-faint);
-  font-size: calc(5.8 * var(--final-flow-density-px));
+  color: var(--flow-muted);
+  font-size: 12px;
 }
 
 .cacheSummary strong {
@@ -372,7 +372,7 @@
 .supportingText {
       margin: calc(6.667 * var(--final-flow-density-px)) 0;
       color: var(--flow-muted);
-      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-size: 12px;
       line-height: 1.5;
     }
 
@@ -394,8 +394,8 @@
   gap: calc(8 * var(--final-flow-density-px));
   padding: calc(4 * var(--final-flow-density-px)) 0;
   border-top: calc(1 * var(--final-flow-density-px)) solid var(--flow-line);
-  color: var(--flow-faint);
-  font-size: calc(6 * var(--final-flow-density-px));
+   color: var(--flow-muted);
+   font-size: 12px;
 }
 
 .roundMetrics li span:last-child {
@@ -412,7 +412,7 @@
       justify-content: space-between;
       gap: calc(6.667 * var(--final-flow-density-px));
       margin: calc(5 * var(--final-flow-density-px)) 0;
-      font-size: calc(9.167 * var(--final-flow-density-px));
+      font-size: 12px;
       color: var(--flow-muted);
     }
 
@@ -433,7 +433,7 @@
       color: var(--flow-muted);
       cursor: pointer;
       font: inherit;
-      font-size: calc(9.167 * var(--final-flow-density-px));
+       font-size: 14px;
     }
 
 .dataActions {
@@ -479,7 +479,7 @@
 .resetWarning {
   margin: calc(8 * var(--final-flow-density-px)) 0 0;
   color: var(--flow-muted);
-  font-size: calc(7 * var(--final-flow-density-px));
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -539,13 +539,13 @@
 .sectionLabel h3 {
       margin: 0;
       color: var(--flow-ink);
-      font-size: calc(10.833 * var(--final-flow-density-px));
+      font-size: 16px;
       font-weight: 700;
     }
 
 .sectionLabel span {
-      color: var(--flow-faint);
-      font-size: calc(8.333 * var(--final-flow-density-px));
+      color: var(--flow-muted);
+      font-size: 12px;
     }
 
 .sectionCard[data-adjusted="true"] {
@@ -561,7 +561,7 @@
       color: var(--flow-ink);
       cursor: pointer;
       font: inherit;
-      font-size: calc(9.167 * var(--final-flow-density-px));
+       font-size: 14px;
     }
 
 .fontButton[aria-pressed="true"] {
@@ -598,7 +598,7 @@
       color: var(--flow-ink);
       cursor: pointer;
       font: inherit;
-      font-size: calc(9.167 * var(--final-flow-density-px));
+       font-size: 14px;
       text-align: center;
     }
 

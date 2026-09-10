@@ -55,6 +55,7 @@ body {
   line-height: 1.6;
   color: var(--color-text-primary);
   background: var(--color-bg);
+  overflow-x: hidden;
   overscroll-behavior: none;
   transition: background 0.3s ease, color 0.3s ease;
 }
@@ -167,12 +168,47 @@ body {
  */
 @media (min-width: 48rem) {
   .final-flow-frame {
-    --final-flow-content-max-width: max(42rem, 58vw);
+    --final-flow-content-max-width: 74rem;
   }
 
   .flow-responsive-viewport {
-    width: min(100%, var(--final-flow-content-max-width));
+    width: min(calc(100% - 40px), var(--final-flow-content-max-width));
   }
+
+  .flow-responsive-layout {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .final-flow-frame {
+    --final-flow-content-gutter: 16px;
+  }
+}
+
+/* Shared page rhythm: wide reading surfaces on desktop, calm single-column flow on mobile. */
+.final-flow-frame .flow-responsive-layout {
+  background: var(--flow-canvas);
+}
+
+.final-flow-frame .final-flow-page-surface {
+  min-height: 100%;
+}
+
+.final-flow-frame button,
+.final-flow-frame input,
+.final-flow-frame textarea,
+.final-flow-frame select {
+  font-family: var(--font-family-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
+  letter-spacing: 0;
+}
+
+.final-flow-frame h1,
+.final-flow-frame h2,
+.final-flow-frame h3 {
+  text-wrap: balance;
 }
 
 html[data-paragraph-comfort='true'] {

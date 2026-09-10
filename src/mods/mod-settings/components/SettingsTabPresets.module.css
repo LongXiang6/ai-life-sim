@@ -214,7 +214,7 @@
 .primaryButton {
       border-color: var(--color-border-focus);
       background: var(--flow-accent);
-      color: #fff;
+      color: var(--text-on-accent, #fff);
       font-weight: 650;
     }
 
@@ -311,3 +311,38 @@
       border-radius: calc(832.5 * var(--final-flow-density-px));
       background: var(--flow-muted);
     }
+
+.tabRoot {
+  font-size: 14px;
+}
+
+.sectionLabel h3,
+.field > span,
+.presetInput,
+.primaryButton,
+.secondaryButton {
+  font-size: 14px;
+}
+
+.sectionLabel span,
+.supportingText,
+.field small,
+.connectionStatus,
+.connectionRow small,
+.configSummary span {
+  color: var(--flow-muted);
+  font-size: 12px;
+}
+
+.providerGuide,
+.connectionStatus,
+.configSummary span,
+.configSummary strong {
+  font-size: 12px;
+}
+
+.actionRow button,
+.primaryButton,
+.secondaryButton {
+  font-size: 14px;
+}

@@ -59,10 +59,10 @@ reject(store, /narrativeHistory[\s\S]{0,160}slice\(-?\d+\)/, 'engine persistence
 reject(continuityOwner, /MAX_SUMMARIES|summaries\s*=\s*summaries\.slice\(/, '02 storage must not evict semantic memories by capacity')
 reject(continuityOwner, /fallback|降级|retry|重试/iu, '02 owner must not create fallback content or hidden retries')
 assertOk(
-  continuityOwner.includes('input.sourceRound > input.currentRound')
-    && continuityOwner.includes('current.summaries.some((summary) => summary.sourceRound === input.sourceRound)')
-    && continuityOwner.includes('nextSummaries: { summaries: [...current.summaries, summary] }'),
-  '02 must append one unique source round without replacing earlier memories',
+  continuityOwner.includes('sourceRounds.length !== 5')
+    && continuityOwner.includes('sourceRounds.some((round) => current.summaries.some((summary) =>')
+    && continuityOwner.includes('nextSummaries: { summaries: [...current.summaries, ...summaries] }'),
+  '02 must append one unique five-round batch without replacing earlier memories',
 )
 reject(continuityContext, /故事全文[^\n]*(?:slice|substring)|sourceNarrative\.text\.(?:slice|substring)/u, '02 input must send the complete source story')
 reject(continuityPrompt, /不超过|仅保留|极简|高度浓缩/u, '02 Prompt must not impose destructive semantic caps')

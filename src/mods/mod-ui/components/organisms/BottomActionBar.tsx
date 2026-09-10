@@ -94,6 +94,7 @@ export function BottomActionBar({
               title={backTitle}
               aria-label={backTitle}
             >
+              <span className={styles.actionIcon} aria-hidden="true">←</span>
               <span className={styles.actionCopy}>
                 <strong>{backText ?? backTitle}</strong>
                 {backDescription ? <small>{backDescription}</small> : null}
@@ -165,6 +166,7 @@ export function BottomActionBar({
               title={confirmTitle}
               data-step={confirmNumber}
             >
+              <span className={styles.actionIcon} aria-hidden="true">→</span>
               <span className={styles.actionCopy}>
                 <strong>{confirmText}</strong>
                 {confirmDescription ? <small>{confirmDescription}</small> : null}

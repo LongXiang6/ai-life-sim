@@ -9,7 +9,7 @@
 import { AccountAuthPanel } from './AccountAuthPanel'
 import { AccountCloudPanel } from './AccountCloudPanel'
 import { AccountDataPanel } from './AccountDataPanel'
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, FlowRunningHead } from '@/mods/mod-ui'
 import styles from './Account.module.css'
 import { useAccountPageCommands } from './useAccountPageCommands'
 
@@ -22,7 +22,7 @@ export default function AccountPage() {
         <div className="flow-responsive-layout">
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
-              <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 账号</span></div>
+              <FlowRunningHead stepLabel="附 · 账号" />
               <header className={styles.header}>
                 <div><h1>☁️ 账号与云端</h1><p>登录同步后，存档与配置可跨设备继续。</p></div>
               </header>

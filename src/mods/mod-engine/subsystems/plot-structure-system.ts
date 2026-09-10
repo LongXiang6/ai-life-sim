@@ -52,6 +52,8 @@ const PHASE_GUIDANCE: Record<PlotPhase, string> = {
   new_chapter: '从既有结果中开启新的篇章，让新的场景、人物或目标与此前经历相连。',
 }
 
+const INITIAL_PROGRESS_SUMMARY = '人生与世界仍在建立最初的联系。'
+
 export interface PlotStructureState {
   enabled: boolean
   currentPhase: PlotPhase
@@ -94,7 +96,7 @@ function initialState(): PlotStructureState {
     phaseElapsedDays: 0,
     chapterCount: 1,
     tensionLevel: 30,
-    progressSummary: '人生与世界仍在建立最初的联系。',
+    progressSummary: INITIAL_PROGRESS_SUMMARY,
     phaseHistory: [],
   }
 }
@@ -185,6 +187,26 @@ function normalizeState(snapshot: unknown): PlotStructureState {
     progressSummary: normalizeText(value.progressSummary, '剧情进展说明'),
     phaseHistory,
   }
+}
+
+function unwrapLegacyPersistenceState(snapshot: unknown): unknown {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return snapshot
+  const value = snapshot as Record<string, unknown>
+  const hasState = Object.prototype.hasOwnProperty.call(value, 'state')
+  const hasLastProcessedRound = Object.prototype.hasOwnProperty.call(value, 'lastProcessedRound')
+  if (!hasState && !hasLastProcessedRound) return snapshot
+  if (!hasState || !hasLastProcessedRound || !Number.isSafeInteger(value.lastProcessedRound)) {
+    throw new Error('剧情结构历史持久化状态无效')
+  }
+  const state = value.state
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return state
+  if (!Object.prototype.hasOwnProperty.call(state, 'progressSummary')) {
+    return {
+      ...(state as Record<string, unknown>),
+      progressSummary: INITIAL_PROGRESS_SUMMARY,
+    }
+  }
+  return state
 }
 
 export class PlotStructureSystem extends BaseSubsystem {
@@ -295,7 +317,7 @@ export class PlotStructureSystem extends BaseSubsystem {
       this.reset()
       return
     }
-    this.restoreTransactionState(snapshot)
+    this.restoreTransactionState(unwrapLegacyPersistenceState(snapshot))
   }
 
   getCurrentPhase(): PlotPhase {

@@ -19,6 +19,7 @@ import type { FeedbackCategory, PlayerFeedbackEnvelope } from '@/core/logger/fee
 
 import { buildFeedbackDiagnostics } from './build-feedback-diagnostics'
 import { PlayerFeedbackList } from './PlayerFeedbackList'
+import { BottomActionBar, FlowRunningHead } from '@/mods/mod-ui'
 import styles from './Feedback.module.css'
 
 const CATEGORY_OPTIONS: Array<{ id: FeedbackCategory; icon: string; label: string; description: string; placeholder: string; guidance: string }> = [
@@ -132,7 +133,7 @@ export default function FeedbackPage() {
         <div className="flow-responsive-layout">
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
-              <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 反馈</span></div>
+              <FlowRunningHead stepLabel="附 · 反馈" />
               <header className={styles.header}>
                 <h1><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">💬</span>反馈与建议</h1>
                 <p>问题、建议与体验意见，都会完整送达。</p>
@@ -219,12 +220,16 @@ export default function FeedbackPage() {
               </form>}
             </div>
 
-            <footer className={styles.bottomBar} data-flow-bottom-bar>
-              <button type="button" className={styles.backButton} onClick={() => router.back()} aria-label="返回上一页">←</button>
-              <button type="button" className={styles.returnButton} onClick={() => router.push('/welcome')}>
-                <span className={styles.returnNumber}>00</span><span className={styles.returnCopy}><strong>返回</strong><small>回到欢迎界面</small></span><span className={styles.returnArrow} aria-hidden="true">→</span>
-              </button>
-            </footer>
+            <BottomActionBar
+              onBack={() => router.back()}
+              backTitle="返回上一页"
+              backDescription="退出反馈页"
+              onConfirm={() => router.push('/welcome')}
+              confirmNumber="00"
+              confirmText="返回欢迎界面"
+              confirmDescription="回到欢迎界面"
+              confirmTitle="返回欢迎界面"
+            />
           </main>
         </div>
       </div>

@@ -6,6 +6,7 @@
  */
 import { eventBus } from '@/core'
 import type { AcceptedNarrativeResult, OrchestratorSystem } from '../orchestrator-system'
+import type { SubSystemChanges } from '@/foundation'
 import {
   buildNarrativeTimeContext, calculateNarrativeRepetitionMetric, summarizeNarrativeRepetitionMetrics,
   type NarrativeChunk, type NarrativeTransitionAuditSnapshot, type ParsedNarrative,
@@ -15,6 +16,37 @@ import { useEngineStore } from '../../store'
 import { publishNarrativeStateToStore } from './narrative-publication-store-runtime'
 
 const NARRATIVE_DELIVERY_DISPOSITION_PREFIX = '[mod-engine:narrative-delivery]'
+
+const ATTRIBUTE_CHANGE_FIELDS = [
+  ['体魄', 'physiqueDelta'],
+  ['心智', 'mindDelta'],
+  ['悟性', 'talentAptitudeDelta'],
+  ['魅力', 'charismaDelta'],
+] as const
+
+function buildAttributeChangeInstruction(
+  parsed: ParsedNarrative,
+  roundContext: import('@/foundation').RoundContext,
+): SubSystemChanges | undefined {
+  if (!parsed.attributeChanges) return undefined
+  const changes: Record<string, unknown> = {}
+  const labels: string[] = []
+  for (const [label, field] of ATTRIBUTE_CHANGE_FIELDS) {
+    const value = parsed.attributeChanges[label]
+    if (value === undefined) continue
+    changes[field] = value
+    labels.push(`${label}${value > 0 ? '+' : ''}${value}`)
+  }
+  if (labels.length === 0) return undefined
+  return {
+    id: 'character-base',
+    targetObjectId: 'player:current',
+    targetContextId: roundContext.contextId,
+    operation: 'adjust-attributes',
+    description: `主故事明确属性变化：${labels.join('、')}`,
+    changes,
+  }
+}
 
 function persistDeliveredHistoricalCandidateDispositions(
   orchestrator: OrchestratorSystem,
@@ -109,6 +141,8 @@ function buildPreparedRecord(
     reasons: ['正文已发布，故事连续性与天赋成长正在并行收束'],
   }
   const branchMeta = orchestrator['resolveBranchFromParsed'](parsed)
+  const attributeChange = buildAttributeChangeInstruction(parsed, roundContext)
+  const changes = attributeChange ? [attributeChange] : []
 
   return {
     schemaVersion: 1 as const,
@@ -135,7 +169,7 @@ function buildPreparedRecord(
       roundSequence,
       deliveredCausalEventIds,
       deliveredHistoricalEventCandidateIds,
-      changes: [],
+      changes,
       notableEvents: [],
     },
   }

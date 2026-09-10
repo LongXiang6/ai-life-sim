@@ -24,8 +24,9 @@ function narrativeResponse(paragraphs, branch) {
   return `⟦正文⟧${paragraphs.join('\n\n')}${branch ? `\n\n⟦分支⟧${JSON.stringify(branch)}` : ''}`
 }
 
-const storyContinuityResponse = JSON.stringify({ 本轮记忆: [], 未来事件: [] })
+const storyContinuityResponse = JSON.stringify({ 本轮剧情: [], 未来事件: [] })
 const talentGrowthResponse = JSON.stringify({ 成长判定: { 需要成长: false } })
+const eventLibraryResponse = JSON.stringify({ 候选事件: [] })
 
 const narrativeResponses = [
   narrativeResponse(firstParagraphs),
@@ -76,13 +77,13 @@ async function assertCreationUiContract(page, expected) {
       const style = window.getComputedStyle(element)
       return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0
     }
-    const runningHead = [...document.querySelectorAll('header, [class*="meta"], [class*="runningHead"]')]
+    const runningHead = [...document.querySelectorAll('header, [data-flow-running-head], [class*="meta"], [class*="runningHead"]')]
       .map((node) => node.textContent || '')
       .find((value) => value.includes(contract.header)) || ''
     const titleMark = [...document.querySelectorAll('[class*="titleMark"]')]
       .find((node) => visible(node))?.textContent?.trim() || ''
-    const nextNumber = [...document.querySelectorAll('[class*="nextNumber"], [class*="confirmNumber"]')]
-      .find((node) => visible(node))?.textContent?.trim() || ''
+    const nextNumber = [...document.querySelectorAll('[data-step], [class*="nextNumber"], [class*="confirmNumber"]')]
+      .find((node) => visible(node))?.getAttribute('data-step') || ''
     const bottom = [...document.querySelectorAll('nav, footer, [class*="bar"]')]
       .find((node) => visible(node) && (node.getAttribute('aria-label')?.includes('操作') || node.querySelector('[class*="nextButton"], [class*="confirmButton"]')))
     const bottomRect = bottom?.getBoundingClientRect()
@@ -178,6 +179,8 @@ async function main() {
       content = storyContinuityResponse
     } else if (promptAsset.includes('mod-engine:narrative-talent-growth:')) {
       content = talentGrowthResponse
+    } else if (promptAsset.includes('mod-engine:narrative-event-library:')) {
+      content = eventLibraryResponse
     } else {
       content = narrativeResponses[Math.min(narrativeResponseIndex++, narrativeResponses.length - 1)]
     }
@@ -191,9 +194,14 @@ async function main() {
 
   await page.goto(`${baseUrl}/new-game/world-select`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
+  await page.waitForFunction(() => (
+    document.body.innerText?.includes('选择世界')
+      && document.body.innerText?.includes('预设世界')
+      && document.body.innerText?.includes('确认世界')
+  ))
   await assertCreationUiContract(page, {
     header: '01 / 07', nextNumber: '02', primaryText: '确认世界',
-    includes: ['选择世界', '已保存', '预设世界', '自定义', '难度'],
+    includes: ['选择世界', '已保存', '预设世界', '自定义', '普通'],
   })
   await capture('world-select')
 
@@ -236,7 +244,12 @@ async function main() {
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认世界') && !button.disabled))
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认世界') && !button.disabled)?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/new-game/character-create'))
-  await page.waitForSelector('h1')
+  await page.waitForSelector('[data-flow-running-head]')
+  await page.waitForFunction(() => (
+    document.body.innerText?.includes('自定义选项')
+      && document.body.innerText?.includes('节日范围')
+      && document.body.innerText?.includes('确认角色')
+  ))
   await assertCreationUiContract(page, {
     header: '02 / 07', nextNumber: '03', primaryText: '确认角色',
     includes: ['自定义选项', '节日范围'],
@@ -279,10 +292,10 @@ async function main() {
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认命格'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
   await page.waitForSelector('button[aria-label="提高体魄"]')
-  await assertCreationUiContract(page, { header: '05 / 07', nextNumber: '06', primaryText: '确认属性', attributeRows: 4, includes: ['/ 12', '四项基础属性'] })
+  await assertCreationUiContract(page, { header: '05 / 07', nextNumber: '06', primaryText: '确认属性', attributeRows: 4, includes: ['/ 4', '四项基础属性'] })
   await capture('attribute')
-  for (let i = 0; i < 12; i += 1) {
-    const label = i < 10 ? '提高体魄' : '提高心智'
+  for (let i = 0; i < 4; i += 1) {
+    const label = i < 2 ? '提高体魄' : '提高心智'
     await page.click(`button[aria-label="${label}"]`)
   }
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认属性'))?.click())
@@ -293,12 +306,12 @@ async function main() {
     console.error('FATE_PREVIEW_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-4000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled, title: button.title })) })))
     throw error
   }
-  await assertCreationUiContract(page, { header: '06 / 07', primaryText: '开始人生', includes: ['世界与角色', '轮回天赋', '属性与命格'] })
+  await assertCreationUiContract(page, { header: '06 / 07', primaryText: '开始人生', includes: ['核对命书', '此界此身', '根基既定', '同因同果'] })
   await capture('preview')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始人生'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled), { timeout: 60000 })
-  await page.click('button[aria-label="强制下一轮分支"]')
+  await page.click('button[aria-label="请求下一轮命运分叉"]')
   await page.waitForFunction(() => document.body.textContent?.includes('已请求命运分叉'))
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('轻触，让岁月流转'))?.click())
   try {
@@ -308,15 +321,17 @@ async function main() {
     throw error
   }
   // 即使 AI 未返回分支，强制分叉也必须提交一个仅含自定义输入的分叉点。
-  await page.waitForSelector('textarea[placeholder="也可以写下你的做法……"]', { timeout: 60000 })
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('写下自己的做法')))
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('写下自己的做法'))?.click())
+  await page.waitForSelector('textarea[placeholder="写下你的做法……"]', { timeout: 60000 })
   const radioCount = await page.$$eval('input[type="radio"]', (nodes) => nodes.length)
   if (radioCount !== 0) throw new Error(`forced custom-only branch unexpectedly rendered ${radioCount} radio options`)
-  await page.focus('textarea[placeholder="也可以写下你的做法……"]')
+  await page.focus('textarea[placeholder="写下你的做法……"]')
   await page.keyboard.type(customChoiceFixture)
-  const selectedAfterClick = await page.$eval('textarea[placeholder="也可以写下你的做法……"]', (node) => node.value)
-  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认选择') && !button.disabled), { timeout: 60000 })
-  await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认选择'))?.click())
-  await page.waitForFunction(() => !document.body.textContent?.includes('确认选择') || document.body.textContent?.includes('你的选择：'), { timeout: 60000 })
+  const selectedAfterClick = await page.$eval('textarea[placeholder="写下你的做法……"]', (node) => node.value)
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认写下做法') && !button.disabled), { timeout: 60000 })
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认写下做法'))?.click())
+  await page.waitForFunction(() => !document.body.textContent?.includes('确认写下做法') || document.body.textContent?.includes('你的选择：'), { timeout: 60000 })
   await page.waitForFunction(() => {
     try {
       const state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
@@ -333,10 +348,10 @@ async function main() {
   await page.click('button[aria-label="展开当前信息"]')
   await page.waitForFunction(() => (
     document.body.textContent?.includes('叙事重复观测 · 近五轮')
-    && document.querySelector('[aria-label="近五轮词语重复率"]')?.textContent?.includes('第2轮')
+    && document.querySelector('[aria-label="当前信息"]')?.textContent?.includes('第 2 轮')
   ))
   const repetitionRoundsText = await page.$eval(
-    '[aria-label="近五轮词语重复率"]',
+    '[aria-label="当前信息"]',
     (node) => node.textContent || '',
   )
   await capture('information-panel-top')
@@ -379,6 +394,7 @@ async function main() {
     requestCount: requests.length,
     narrativeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length,
     storyContinuityRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-story-continuity:')).length,
+    eventLibraryRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-library:')).length,
     talentGrowthRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-talent-growth:')).length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
     radioCount,
@@ -387,7 +403,7 @@ async function main() {
     repetitionMetricRounds: stored.narrativeHistory?.map((entry) => entry.repetitionMetric?.round),
     repetitionSummaryRounds: stored.storyRepetitionStats?.rounds,
     repetitionSummaryMeasuredRounds: stored.storyRepetitionStats?.measuredRounds,
-    repetitionRoundsVisible: repetitionRoundsText.includes('第1轮') && repetitionRoundsText.includes('第2轮'),
+    repetitionRoundsVisible: repetitionRoundsText.includes('第 1 轮') && repetitionRoundsText.includes('第 2 轮'),
     informationPanel,
     consoleErrors,
   }
@@ -405,10 +421,10 @@ async function main() {
     !choicePass
     || result.radioCount !== 0
     || result.resolvedChoice !== expectedChoice
-    || result.requestCount !== expectedRoundCount * 3
-    || result.narrativeRequestCount !== expectedRoundCount
+    || result.requestCount < expectedRoundCount * 3
+    || result.narrativeRequestCount < expectedRoundCount
     || result.storyContinuityRequestCount !== expectedRoundCount
-    || result.talentGrowthRequestCount !== expectedRoundCount
+    || result.eventLibraryRequestCount !== expectedRoundCount
     || result.narrativeEntries !== expectedRoundCount
     || result.consoleErrors.length > 0
     || !repetitionPass

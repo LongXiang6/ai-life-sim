@@ -90,7 +90,7 @@
       border: calc(0.833 * var(--final-flow-density-px)) solid var(--color-border-focus);
       border-radius: calc(20 * var(--final-flow-density-px));
       background: var(--flow-accent);
-      color: #fff;
+      color: var(--text-on-accent, #fff);
       cursor: pointer;
       font: inherit;
       font-size: calc(11.667 * var(--final-flow-density-px));
@@ -172,7 +172,7 @@
       place-items: center;
       border-radius: 50%;
       background: var(--flow-muted);
-      color: #fff;
+      color: var(--text-on-accent, #fff);
       font-size: calc(10 * var(--final-flow-density-px));
     }
 
@@ -358,3 +358,69 @@
       border-top: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
       background: var(--flow-canvas);
     }
+
+/* Attached workspace treatment for guided feedback and player history. */
+.screen {
+  padding: 0 28px 112px;
+}
+
+.meta {
+  display: none;
+}
+
+.header {
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+}
+
+.header h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.tabList {
+  margin: 0;
+}
+
+.content {
+  padding-top: 18px;
+}
+
+.sectionLabel h3 {
+  font-size: 15px;
+}
+
+.sectionCard {
+  border-radius: 6px;
+}
+
+.submitButton {
+  min-height: 48px;
+  border-radius: 5px;
+}
+
+.bottomBar {
+  padding: 10px 28px max(12px, env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--flow-paper) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 760px) {
+  .screen {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    padding-top: 14px;
+  }
+
+  .header h1 {
+    font-size: 25px;
+  }
+
+  .bottomBar {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}

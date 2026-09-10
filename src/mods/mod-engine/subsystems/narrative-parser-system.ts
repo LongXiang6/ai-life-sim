@@ -17,6 +17,7 @@ import {
   parseNarrativeResponseEnvelope,
   type NarrativeResponseEnvelopeOptions,
 } from '../helpers/tagged-meta-envelope'
+import type { NarrativeAIAttributeChanges } from '../helpers/narrative-ai-protocol'
 
 export interface ParsedNarrative {
   narrative: string
@@ -24,6 +25,7 @@ export interface ParsedNarrative {
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
+  attributeChanges?: NarrativeAIAttributeChanges
 }
 
 export type NarrativeEventCommitData = ParsedNarrative & NarrativeRoundMetadata
@@ -63,8 +65,9 @@ export class NarrativeParserSystem extends BaseSubsystem {
             branch: true,
             branchTitle: '由你决定下一步',
             branchOptions: [...envelope.branch.选项],
-          }
-        : {}),
+        }
+      : {}),
+      ...(envelope.attributeChanges ? { attributeChanges: structuredClone(envelope.attributeChanges) } : {}),
     }
     this.lastResult = result
     return result

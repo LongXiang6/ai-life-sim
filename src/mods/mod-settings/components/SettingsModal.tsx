@@ -86,10 +86,21 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
   useEffect(() => {
     if (!open) return
 
-    const previouslyFocused = document.activeElement instanceof HTMLElement
+    const previouslyFocused = !isPage && document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    const focusFrame = window.requestAnimationFrame(() => modalRef.current?.focus())
+    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    const focusFrame = window.requestAnimationFrame(() => {
+      if (isPage) {
+        modalRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus()
+      } else {
+        modalRef.current?.focus()
+      }
+    })
+
+    if (isPage) {
+      return () => window.cancelAnimationFrame(focusFrame)
+    }
 
     const handleDocumentKeyDown = (event: KeyboardEvent) => {
       const modal = modalRef.current
@@ -109,7 +120,6 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
       const portalRoots = nestedDialog
         ? []
         : Array.from(document.querySelectorAll<HTMLElement>('[data-settings-modal-portal]'))
-      const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       const focusableElements = [focusScope, ...portalRoots]
         .flatMap((root) => Array.from(root.querySelectorAll<HTMLElement>(focusableSelector)))
         .filter((element) => element.getClientRects().length > 0 && element.getAttribute('aria-hidden') !== 'true')
@@ -144,7 +154,7 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
       document.removeEventListener('keydown', handleDocumentKeyDown)
       if (previouslyFocused?.isConnected) previouslyFocused.focus()
     }
-  }, [open])
+  }, [isPage, open])
 
   if (!open) return null
 
@@ -174,8 +184,8 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
       ref={modalRef}
       className={styles.modalFrame}
       onClick={(e) => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
+      role={isPage ? undefined : 'dialog'}
+      aria-modal={isPage ? undefined : 'true'}
       aria-labelledby="settings-dialog-title"
       data-settings-modal-root
       tabIndex={-1}

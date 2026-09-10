@@ -7,6 +7,7 @@
  */
 
 import type {
+  NarrativeAIAttributeChanges,
   NarrativeAIBranch,
   NarrativeAIEnding,
 } from './narrative-ai-protocol'
@@ -17,11 +18,14 @@ export interface NarrativeResponseEnvelope {
   narrative: string
   branch?: NarrativeAIBranch
   ending?: NarrativeAIEnding
+  attributeChanges?: NarrativeAIAttributeChanges
 }
 
 export interface NarrativeResponseEnvelopeOptions {
   /** 只用于补全已在本轮引导中明确封闭的终态，绝不从普通正文猜测结局。 */
   terminalGuidance?: string
+  /** 数据层发送的当前属性；只用于把状态行的绝对值换算为本轮差值。 */
+  currentAttributes?: Partial<Record<'心智' | '体魄' | '魅力', number>>
 }
 
 type JsonRecord = Record<string, unknown>
@@ -91,7 +95,13 @@ function extractCompleteJsonStringField(source: string, field: string): string |
 function normalizeBranch(value: unknown): NarrativeAIBranch | undefined {
   const normalized = normalizeOptionalJsonValue(value)
   const record = asRecord(normalized)
-  const source = Array.isArray(normalized) ? normalized : record?.选项
+  const shorthand = typeof normalized === 'string'
+    ? normalized.match(/\[[\s\S]*\]/u)?.[0]
+    : undefined
+  const source = Array.isArray(normalized)
+    ? normalized
+    : record?.选项
+      ?? (shorthand ? parseAIJSON(shorthand) : undefined)
   if (!Array.isArray(source)) return undefined
 
   const known = new Set<string>()
@@ -111,20 +121,84 @@ function normalizeBranch(value: unknown): NarrativeAIBranch | undefined {
 function normalizeEnding(value: unknown): NarrativeAIEnding | undefined {
   const normalized = normalizeOptionalJsonValue(value)
   const record = asRecord(normalized)
-  const title = normalizedText(record?.四字评语 ?? normalized)?.replace(/\s+/gu, '')
+  const shorthand = typeof normalized === 'string'
+    ? normalized.replace(/^\s*\{\s*["“]?/u, '').replace(/["”]?\s*\}\s*$/u, '')
+    : normalized
+  const title = normalizedText(record?.四字评语 ?? shorthand)?.replace(/\s+/gu, '')
   return title && Array.from(title).length === 4 ? { 四字评语: title } : undefined
+}
+
+function normalizeAttributeChanges(value: unknown): NarrativeAIAttributeChanges | undefined {
+  const normalized = normalizeOptionalJsonValue(value)
+  const record = asRecord(normalized)
+  if (!record) return undefined
+  const result: Record<string, number> = {}
+  for (const key of ['体魄', '心智', '悟性', '魅力'] as const) {
+    const raw = record[key]
+    const numeric = typeof raw === 'number' ? raw : Number.NaN
+    if (!Number.isInteger(numeric) || numeric === 0 || Math.abs(numeric) > 3) continue
+    result[key] = numeric
+  }
+  return Object.keys(result).length > 0 ? result as NarrativeAIAttributeChanges : undefined
 }
 
 function parseJsonRecord(source: string): JsonRecord | undefined {
   const candidates = parseAIJSONCandidates<unknown>(source, {
     recoverUnclosedString: {
       field: '正文',
-      followingTopLevelFields: ['正文', '分支', '结局'],
+      followingTopLevelFields: ['正文', '分支', '结局', '属性变化'],
     },
   })
   const records = candidates.map((candidate) => asRecord(candidate.value)).filter((value): value is JsonRecord => Boolean(value))
   return records.find((record) => Object.keys(record).some((key) => ['正文', '故事', '内容', 'narrative', 'story'].includes(normalizedKey(key))))
     ?? records[0]
+}
+
+function parseLifeSimulatorText(source: string): {
+  narrative?: string
+  branch?: unknown
+  ending?: unknown
+  reportedAttributes?: Partial<Record<'心智' | '体魄' | '魅力', number>>
+} {
+  const bodyMatch = source.match(/["“]?正文["”]?\s*:\s*"([\s\S]*?)"\s*[。；;]?\s*["“]?命运分支/u)
+  if (!bodyMatch?.[1]?.trim()) return {}
+  const narrative = normalizeNarrative(bodyMatch[1].replace(/\\"/gu, '"'))
+  const branchMatch = source.match(/["“]?命运分支["”]?\s*:\s*(?:"([^"]*)"|(\{[\s\S]*?\}))/u)
+  const endingMatch = source.match(/["“]?结局["”]?\s*:\s*(?:"([^"]*)"|(\{[\s\S]*?\}))/u)
+  const statusMatch = source.match(/【\s*年龄\s*:\s*[^|】]+\|\s*心智\s*:\s*([+-]?\d+)\s*\|\s*体魄\s*:\s*([+-]?\d+)\s*\|\s*魅力\s*:\s*([+-]?\d+)\s*\|[^】]*】/u)
+  const branchText = branchMatch?.[1] ?? branchMatch?.[2]
+  const endingText = endingMatch?.[1] ?? endingMatch?.[2]
+  return {
+    narrative,
+    ...(branchText && branchText !== 'false' ? { branch: parseAIJSON(branchText) ?? branchText } : {}),
+    ...(endingText && endingText !== 'false' ? { ending: parseAIJSON(endingText) ?? endingText } : {}),
+    ...(statusMatch
+      ? {
+          reportedAttributes: {
+            心智: Number(statusMatch[1]),
+            体魄: Number(statusMatch[2]),
+            魅力: Number(statusMatch[3]),
+          },
+        }
+      : {}),
+  }
+}
+
+function changesFromReportedAttributes(
+  reported: Partial<Record<'心智' | '体魄' | '魅力', number>> | undefined,
+  current: Partial<Record<'心智' | '体魄' | '魅力', number>> | undefined,
+): NarrativeAIAttributeChanges | undefined {
+  if (!reported || !current) return undefined
+  const result: Partial<Record<'心智' | '体魄' | '魅力', number>> = {}
+  for (const key of ['心智', '体魄', '魅力'] as const) {
+    const before = current[key]
+    const after = reported[key]
+    if (!Number.isFinite(before) || !Number.isFinite(after)) continue
+    const delta = Math.trunc(after!) - Math.trunc(before!)
+    if (delta === 0 || Math.abs(delta) > 3) continue
+    result[key] = delta
+  }
+  return Object.keys(result).length > 0 ? result as NarrativeAIAttributeChanges : undefined
 }
 
 function pickEnvelopeField(record: JsonRecord | undefined, keys: readonly string[]): unknown {
@@ -187,27 +261,41 @@ export function parseNarrativeResponseEnvelope(
   if (!source) throw new Error('主故事响应为空，无法提取正文')
 
   const json = parseJsonRecord(source)
-  const tagged = json ? {} : extractTaggedFields(source)
+  const lifeSimulator = json ? {} : parseLifeSimulatorText(source)
+  const tagged = json || lifeSimulator.narrative ? {} : extractTaggedFields(source)
   const recoveredJsonNarrative = json ? undefined : normalizeNarrative(extractCompleteJsonStringField(source, '正文'))
   const looksLikeJsonProtocol = /^[{[]/u.test(source)
   const narrative = normalizeNarrative(pickEnvelopeField(json, ['正文', '故事', '内容', 'narrative', 'story']))
+    ?? lifeSimulator.narrative
     ?? tagged.narrative
     ?? recoveredJsonNarrative
     ?? (json || looksLikeJsonProtocol ? undefined : normalizeNarrative(source))
   if (!narrative) throw new Error('主故事响应缺少可用正文')
 
-  const directEnding = normalizeEnding(pickEnvelopeField(json, ['结局', '终局', 'ending']) ?? tagged.ending)
+  const directEnding = normalizeEnding(
+    pickEnvelopeField(json, ['结局', '终局', 'ending']) ?? lifeSimulator.ending ?? tagged.ending,
+  )
   const inferredEnding = !directEnding
     && isExplicitPermanentNoAgency(options.terminalGuidance)
     && hasCompletedTerminalNarrative(narrative)
     ? { 四字评语: '此生已尽' }
     : undefined
   const ending = directEnding ?? inferredEnding
-  const branch = ending ? undefined : normalizeBranch(pickEnvelopeField(json, ['分支', '选择', '选项', 'branch', 'branches']) ?? tagged.branch)
+  const branch = ending
+    ? undefined
+    : normalizeBranch(
+        pickEnvelopeField(json, ['分支', '选择', '选项', 'branch', 'branches'])
+          ?? lifeSimulator.branch
+          ?? tagged.branch,
+      )
+  const attributeChanges = normalizeAttributeChanges(
+    pickEnvelopeField(json, ['属性变化']),
+  ) ?? changesFromReportedAttributes(lifeSimulator.reportedAttributes, options.currentAttributes)
 
   return {
     narrative,
     ...(branch ? { branch } : {}),
     ...(ending ? { ending } : {}),
+    ...(attributeChanges ? { attributeChanges } : {}),
   }
 }

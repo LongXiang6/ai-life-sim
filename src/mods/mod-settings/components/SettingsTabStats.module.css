@@ -4,6 +4,7 @@
   display: grid;
   gap: calc(13 * var(--final-flow-density-px));
   padding: calc(12 * var(--final-flow-density-px)) 0 calc(4 * var(--final-flow-density-px));
+  font-size: 14px;
 }
 
 .section {
@@ -332,3 +333,44 @@
       font-size: calc(8.333 * var(--final-flow-density-px));
       line-height: 1.5;
     }
+
+/* Readability contract for the statistics workbench. */
+.tabRoot {
+  font-size: 14px;
+}
+
+.sectionLabel h3 {
+  font-size: 16px;
+}
+
+.sectionLabel span,
+.metricGrid > div > span,
+.metricGrid span,
+.metricGrid small,
+.feedbackRow,
+.feedbackRow span,
+.empty,
+.notice,
+.poolList small,
+.balanceList small,
+.actionRow small,
+.error,
+.feedbackRow button {
+  color: var(--flow-muted);
+  font-size: 12px;
+}
+
+.metricGrid strong,
+.cacheRow strong,
+.poolList b {
+  font-size: 14px;
+}
+
+.cacheRow,
+.poolList strong,
+.balanceList span,
+.balanceList strong,
+.actionRow button,
+.actionRow a {
+  font-size: 12px;
+}

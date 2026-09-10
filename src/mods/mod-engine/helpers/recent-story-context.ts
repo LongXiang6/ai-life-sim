@@ -99,6 +99,7 @@ export function buildRecentStoriesForRound(input: {
   history: readonly NarrativeChunk[]
   currentRound: number
   currentStory: Omit<RecentStorySource, 'round'>
+  windowSize?: number
 }): RecentStoryProjection[] {
   const firstCommittedRound = Math.max(1, input.currentRound - input.history.length)
   const sources: RecentStorySource[] = input.history.map((entry, index) => ({
@@ -113,7 +114,18 @@ export function buildRecentStoriesForRound(input: {
     resolvedChoiceRound: entry.resolvedChoiceRound,
   }))
   sources.push({ round: input.currentRound, ...input.currentStory })
-  return buildRecentStoryProjection(sources)
+  if (input.windowSize === undefined) return buildRecentStoryProjection(sources)
+  const startIndex = Math.max(0, sources.length - Math.max(0, Math.floor(input.windowSize)))
+  return sources.slice(startIndex).map(projectRecentStory)
+}
+
+/** 故事连续性批量压缩读取完整未压缩历史；主叙事仍使用默认最近五轮窗口。 */
+export function buildAllStoriesForRound(input: {
+  history: readonly NarrativeChunk[]
+  currentRound: number
+  currentStory: Omit<RecentStorySource, 'round'>
+}): RecentStoryProjection[] {
+  return buildRecentStoriesForRound({ ...input, windowSize: Number.MAX_SAFE_INTEGER })
 }
 
 export function buildRecentStoriesFromYearEvents(

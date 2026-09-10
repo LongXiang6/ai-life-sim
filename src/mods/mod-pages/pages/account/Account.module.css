@@ -399,3 +399,74 @@
     transition: none;
   }
 }
+
+/* Attached workspace treatment for account, cloud-save, and personal data. */
+.screen {
+  padding: 0 28px 112px;
+}
+
+.meta {
+  display: none;
+}
+
+.header {
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+}
+
+.header h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.tabs {
+  gap: 22px;
+  padding: 0;
+}
+
+.tabs button {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.content {
+  padding-top: 18px;
+}
+
+.panel {
+  padding: 20px;
+  border-radius: 6px;
+}
+
+.field input,
+.dangerRow input {
+  height: 42px;
+  border-radius: 5px;
+}
+
+.primary,
+.secondary,
+.textAction {
+  border-radius: 5px;
+}
+
+.checkRow,
+.profileRow,
+.dataRow {
+  min-height: 62px;
+}
+
+@media (max-width: 760px) {
+  .screen {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    padding-top: 14px;
+  }
+
+  .header h1 {
+    font-size: 25px;
+  }
+}

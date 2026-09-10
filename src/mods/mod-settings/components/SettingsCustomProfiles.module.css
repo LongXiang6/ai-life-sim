@@ -122,6 +122,20 @@
 
 .itemMark { flex: 0 0 auto; }
 
+.nameField > span,
+.notice,
+.empty,
+.itemMain small,
+.itemMark {
+  color: var(--flow-muted);
+  font-size: 12px;
+}
+
+.saveButton,
+.itemMain strong {
+  font-size: 14px;
+}
+
 @media (max-width: 640px) {
   .tools { grid-template-columns: 1fr; }
 }

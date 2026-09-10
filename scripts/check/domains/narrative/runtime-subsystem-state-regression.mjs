@@ -218,9 +218,9 @@ async function prepareNextNarrativeRequest(owner) {
   })
 }
 
-function readRoundFacts(owner) {
+function readRoundChoice(owner) {
   const promptContext = owner.assemblePromptContext()
-  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[5]).本轮事实与方向
+  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[0])[3].当前信息.命运抉择
 }
 
 async function assertPreGenerationInvalidated(label, mutate) {
@@ -238,15 +238,9 @@ globalThis.fetch = async (input, init) => {
   assert.equal(String(input), '/api/proxy')
   proxyRequests.push(JSON.parse(String(init?.body ?? '{}')))
   previewSequence += 1
-  const argumentsText = JSON.stringify({
-    正文: `这是第${previewSequence}段预生成测试正文。雨声停歇后，测试者继续前行。`,
-    分支: 'null', 结局: 'null',
-  })
+  const content = `【年龄:18岁|心智:0|体魄:0|魅力:0|家境:0|冷却:0】\n"正文": "这是第${previewSequence}段预生成测试正文。雨声停歇后，测试者继续前行。"。\n"命运分支": "false"。\n"结局": "false"。`
   return new Response(JSON.stringify({ choices: [{
-    message: { content: null, tool_calls: [{
-      id: `fixture-${previewSequence}`, type: 'function',
-      function: { name: 'submit_story_turn', arguments: argumentsText },
-    }] }, finish_reason: 'tool_calls',
+    message: { content }, finish_reason: 'stop',
   }] }), { status: 200, headers: { 'content-type': 'application/json' } })
 }
 
@@ -257,24 +251,22 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 0))
   assert.equal(proxyRequests.length, beforeDisabled, 'disabled pre-generation must issue zero requests')
 
-  const defaultStyle = await createPreGenerationFixture(0); const defaultStyleFacts = readRoundFacts(defaultStyle.owner)
+  const defaultStyle = await createPreGenerationFixture(0); const defaultStyleChoice = readRoundChoice(defaultStyle.owner)
   assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'empty saved style must resolve to the default source')
   assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().text, '', 'empty saved style must not receive a hidden default fallback')
-  assert.ok(!defaultStyleFacts.some((item) => item.startsWith('叙述风格：')) && !defaultStyleFacts.join('\n').includes('保留古典用词质感'), 'empty saved style must omit the third-message style item and old default style text')
+  assert.ok(!defaultStyleChoice.includes('叙述风格：') && !defaultStyleChoice.includes('保留古典用词质感'), 'empty saved style must not alter the fixed life-simulator Prompt')
 
   const rawCustomStyle = '  用克制短句保留潮声。\n第二行  保留两个空格。  '
   const customStyle = await createPreGenerationFixture(0)
   useSettingsStore.getState().saveNarrativeStyleText(rawCustomStyle)
-  const customStyleFacts = readRoundFacts(customStyle.owner)
-  const customStyleFact = customStyleFacts.find((item) => item.startsWith('叙述风格：'))
+  const customStyleChoice = readRoundChoice(customStyle.owner)
   assert.equal(customStyle.owner.getNarrativeStyleSnapshot().source, 'custom', 'non-empty saved style must resolve to the custom source')
   assert.equal(customStyle.owner.getNarrativeStyleSnapshot().text, rawCustomStyle, 'orchestrator must retain the exact saved custom style bytes')
-  assert.equal(customStyleFact, `叙述风格：${rawCustomStyle}`, 'prompt builder must inject the exact custom style without rewriting it')
-  assert.ok(!customStyleFact.includes('首句从窗口内正在发生的行动') && customStyleFacts[0].includes('时间只作为判断事件合理性的背景参考'), 'custom style must not receive appended time text; the time item owns the first-sentence constraint')
+  assert.ok(!customStyleChoice.includes(rawCustomStyle) && customStyleChoice.includes('时间'), 'custom style must not override the fixed Prompt while current-time guidance remains available')
 
   const whitespaceStyle = await createPreGenerationFixture(0); useSettingsStore.getState().saveNarrativeStyleText('  \n\t  ')
   assert.equal(whitespaceStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'whitespace-only saved style must normalize to the default source')
-  assert.ok(!readRoundFacts(whitespaceStyle.owner).some((item) => item.startsWith('叙述风格：')), 'whitespace-only saved style must omit the third-message style item')
+  assert.ok(!readRoundChoice(whitespaceStyle.owner).includes('叙述风格：'), 'whitespace-only saved style must not alter 当前信息')
 
   const exact = await createPreGenerationFixture()
   const beforeExact = proxyRequests.length
@@ -347,7 +339,7 @@ assertOk(
   'formal execution must reuse one matching preview or issue one real main-story request',
 )
 assertOk(
-  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-world-simulation',?\s*\]/u.test(campaign),
+  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-event-library',?\s*\]/u.test(campaign),
   'commit must depend on exactly the 02, 03, and 04 post-story calls',
 )
 assertOk(

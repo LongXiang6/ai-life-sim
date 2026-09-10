@@ -17,6 +17,7 @@ import WelcomeSaveSheet from './WelcomeSaveSheet'
 
 interface WelcomeViewProps {
   onStartNewGame: () => void
+  runtimeReady: boolean
   saves: SaveMetadata[]
   cloudSave: CloudManualSaveSummary | null
   selectedSaveId: string | null
@@ -35,6 +36,7 @@ interface WelcomeViewProps {
 
 export default function WelcomeView({
   onStartNewGame,
+  runtimeReady,
   saves,
   cloudSave,
   selectedSaveId,
@@ -91,6 +93,7 @@ export default function WelcomeView({
         <div className={styles.routeList}>
           {hasAnySave && (
             <WelcomeSaveSheet
+              runtimeReady={runtimeReady}
               saves={saves}
               cloudSave={cloudSave}
               selectedSaveId={selectedSaveId}

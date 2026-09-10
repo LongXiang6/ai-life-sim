@@ -14,7 +14,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "roundSystemGuidanceText",
   "playerBranchIntent",
   "eventInjectionText",
-  "worldSimulationText",
+  "eventLibraryText",
   "timeBridgeSummary",
   "systemChangeSummary",
   "narrativeGuidanceText",

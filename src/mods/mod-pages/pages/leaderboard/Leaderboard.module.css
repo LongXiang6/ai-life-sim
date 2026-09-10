@@ -257,3 +257,56 @@
       color: var(--flow-muted);
       font-size: calc(9.167 * var(--final-flow-density-px));
     }
+
+/* Attached workspace treatment for ranked life records. */
+.screen {
+  padding: 0 28px 112px;
+}
+
+.header {
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--flow-line);
+  text-align: left;
+}
+
+.header h1 {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.content {
+  padding-top: 18px;
+}
+
+.entryList {
+  gap: 12px;
+}
+
+.entry {
+  padding: 18px;
+  border-radius: 6px;
+}
+
+.entry:first-child {
+  border-color: var(--flow-accent);
+}
+
+.entryCopy strong,
+.score strong {
+  font-size: 16px;
+}
+
+@media (max-width: 760px) {
+  .screen {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    padding-top: 14px;
+  }
+
+  .header h1 {
+    font-size: 25px;
+  }
+}

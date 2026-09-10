@@ -17,11 +17,10 @@
       min-height: 0;
       flex: 1;
       flex-direction: column;
-      padding: calc(18.333 * var(--final-flow-density-px)) calc(23.333 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px));
+      padding: 0 28px 112px;
       overflow: hidden;
     }
 
-.meta,
 .header,
 .mailSummary,
 .mailActions {
@@ -30,12 +29,7 @@
 }
 
 .meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--flow-muted);
-      font-size: calc(9.167 * var(--final-flow-density-px));
-      font-weight: 650;
+      display: none;
     }
 
 .header {
@@ -43,15 +37,16 @@
       align-items: center;
       justify-content: space-between;
       gap: calc(15 * var(--final-flow-density-px));
-      padding: calc(18.333 * var(--final-flow-density-px)) calc(3.333 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px));
-      border-bottom: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
+      padding: 22px 0 14px;
+      border-bottom: 1px solid var(--flow-line);
     }
 
 .header h1 {
       margin: 0;
       color: var(--flow-ink);
-      font-size: calc(23.333 * var(--final-flow-density-px));
-      font-weight: 700;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 32px;
+      font-weight: 600;
       line-height: 1.2;
       letter-spacing: -0.01em;
     }
@@ -71,7 +66,7 @@
   border: 0;
   border-radius: calc(0.8 * var(--final-flow-inline-unit));
   background: var(--flow-accent);
-  color: #fff;
+  color: var(--text-on-accent, #fff);
   cursor: pointer;
   font: inherit;
   font-size: calc(1.05 * var(--final-flow-block-unit));
@@ -79,12 +74,12 @@
 
 .composeButton {
       flex: 0 0 auto;
-      min-height: calc(36.667 * var(--final-flow-density-px));
+      min-height: 38px;
       padding: 0 calc(15 * var(--final-flow-density-px));
       border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
-      border-radius: calc(20 * var(--final-flow-density-px));
+      border-radius: 5px;
       background: var(--flow-paper);
-      box-shadow: 0 calc(4.167 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.1);
+      box-shadow: none;
       color: var(--flow-ink);
       cursor: pointer;
       font: inherit;
@@ -173,8 +168,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: calc(1 * var(--final-flow-block-unit)) calc(2 * var(--final-flow-inline-unit));
-  padding: calc(1.4 * var(--final-flow-block-unit)) calc(0.6 * var(--final-flow-inline-unit));
-  border-bottom: calc(0.15 * var(--final-flow-inline-unit)) solid var(--flow-line);
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--flow-line);
+  border-radius: 6px;
   background: var(--flow-paper);
 }
 
@@ -195,7 +192,7 @@
   width: 100%;
   min-width: 0;
   border: calc(0.15 * var(--final-flow-inline-unit)) solid var(--flow-line);
-  border-radius: calc(0.7 * var(--final-flow-inline-unit));
+  border-radius: 5px;
   background: var(--flow-paper);
   color: #20283a;
   font: inherit;
@@ -261,13 +258,13 @@
 .folderTabs {
       display: flex;
       flex: 0 0 auto;
-      gap: calc(15 * var(--final-flow-density-px));
+      gap: 22px;
       padding: 0 calc(3.333 * var(--final-flow-density-px));
       border-bottom: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
     }
 
 .folderTabs button {
-      min-height: calc(40 * var(--final-flow-density-px));
+      min-height: 42px;
       border: 0;
       border-bottom: calc(2.5 * var(--final-flow-density-px)) solid transparent;
       background: transparent;
@@ -286,7 +283,7 @@
 .content {
       min-height: 0;
       flex: 1;
-      padding: calc(10 * var(--final-flow-density-px)) 0;
+      padding: 18px 0 calc(10 * var(--final-flow-density-px));
       overflow-y: auto;
       scrollbar-width: thin;
     }
@@ -317,7 +314,7 @@
 
 .mailList {
       display: grid;
-      gap: calc(10 * var(--final-flow-density-px));
+      gap: 12px;
       margin: 0;
       padding: 0;
       list-style: none;
@@ -325,7 +322,7 @@
 
 .mail {
       border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-      border-radius: calc(16.667 * var(--final-flow-density-px));
+      border-radius: 6px;
       background: var(--flow-paper);
       overflow: hidden;
     }
@@ -342,7 +339,7 @@
       min-height: calc(55 * var(--final-flow-density-px));
       grid-template-columns: minmax(0, 1fr) auto;
       gap: calc(3.333 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px));
-      padding: calc(10.833 * var(--final-flow-density-px)) calc(13.333 * var(--final-flow-density-px));
+      padding: 14px 16px;
       border: 0;
       background: transparent;
       color: inherit;
@@ -518,5 +515,19 @@
   .mailSummary strong,
   .mailPreview {
     grid-column: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .screen {
+    padding: 0 16px 96px;
+  }
+
+  .header {
+    padding-top: 14px;
+  }
+
+  .header h1 {
+    font-size: 25px;
   }
 }

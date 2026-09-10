@@ -1,7 +1,7 @@
 /**
  * Purpose: Build the deterministic timeline-memory projection used by the main narrative prompt.
  * Owner: mod-engine
- * Responsibility: Merge older per-round compressed memory, the latest two committed full stories, and creations in time order.
+ * Responsibility: Merge compressed long-term memory, the full stories older than the recent five-round window, and creations in time order.
  */
 
 import type { NarrativeChunk } from '../../orchestrator-shared'
@@ -20,7 +20,7 @@ export function buildPromptTimelineMemoryRuntime(
   const { memoryLifecycle, summaryCompressor } = orchestrator.getRuntimeDependencies()
   const history = orchestrator['state'].narrativeHistory
   const firstCommittedRound = Math.max(1, orchestrator['state'].totalRounds - history.length)
-  const firstDetailedIndex = Math.max(0, history.length - 2)
+  const firstDetailedIndex = Math.max(0, history.length - 5)
   const compressedRounds = new Set(
     summaryCompressor.getSummaries().summaries.map((summary) => summary.sourceRound),
   )

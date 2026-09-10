@@ -10,6 +10,7 @@ import type { CloudManualSaveSummary } from '@/core/player-content/player-conten
 import styles from './WelcomeView.module.css'
 
 interface WelcomeSaveSheetProps {
+  runtimeReady: boolean
   saves: SaveMetadata[]
   cloudSave: CloudManualSaveSummary | null
   selectedSaveId: string | null
@@ -68,6 +69,7 @@ function getSaveDetail(save: SaveMetadata): string {
 }
 
 export default function WelcomeSaveSheet({
+  runtimeReady,
   saves,
   cloudSave,
   selectedSaveId,
@@ -208,6 +210,7 @@ export default function WelcomeSaveSheet({
         ref={triggerRef}
         type="button"
         className={styles.routeAction}
+        disabled={!runtimeReady}
         aria-expanded={open}
         aria-controls="welcome-save-sheet"
         onClick={openSheet}
@@ -288,11 +291,11 @@ export default function WelcomeSaveSheet({
         <button
           type="button"
           className={styles.continueSave}
-          disabled={!selectedSave || isContinuing}
+          disabled={!selectedSave || !runtimeReady || isContinuing}
           tabIndex={open ? 0 : -1}
           onClick={() => void handleContinue()}
         >
-          <strong>{isContinuing ? '正在读取人生……' : '▶ 继续此人生'}</strong>
+          <strong>{isContinuing ? '正在读取人生……' : runtimeReady ? '▶ 继续此人生' : '核心模拟系统加载中……'}</strong>
           <small>{selectedSave ? getItemLabel(selectedSave) : '暂无可用存档'}</small>
         </button>
 

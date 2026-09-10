@@ -291,31 +291,28 @@ assertOk(!buildTimeScaleNarrativeHint(fallbackEventStep).includes('至少完成�
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
-let parsedFixedNarrativePrompt
-try {
-  parsedFixedNarrativePrompt = JSON.parse(COMPILED_NARRATIVE_SYSTEM_PROMPT)
-} catch {
-  parsedFixedNarrativePrompt = null
-}
 assertOk(
-  JSON.stringify(Object.keys(parsedFixedNarrativePrompt ?? {})) === JSON.stringify(['身份', '目标', '叙事原则', '输出契约'])
-    && parsedFixedNarrativePrompt?.身份?.startsWith('你是一位人生叙事者')
-    && Array.isArray(parsedFixedNarrativePrompt?.叙事原则)
-    && parsedFixedNarrativePrompt?.叙事原则?.some((item) => item.includes('自创来源稳定'))
-    && !parsedFixedNarrativePrompt?.目标?.includes('连贯、可继续')
-    && parsedFixedNarrativePrompt?.输出契约?.调用?.includes('submit_story_turn')
-    && parsedFixedNarrativePrompt?.输出契约?.字段定义?.正文?.includes('非空字符串')
-    && parsedFixedNarrativePrompt?.输出契约?.字段定义?.分支?.includes('选项')
-    && parsedFixedNarrativePrompt?.输出契约?.字段定义?.结局?.includes('四字评语')
-    && Array.isArray(parsedFixedNarrativePrompt?.输出契约?.不变量)
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是专业版人生重开模拟器。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮跨度为1年')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('从0岁开始模拟人生')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x|冷却:x】')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界故事模拟器')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出契约')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程'),
-  'fixed Prompt must contain only one narrative target and the machine-readable output contract',
+  'fixed Prompt must contain the approved life-restart rules and text output format',
 )
-const storySystemPromptSample = storyPromptSampleSrc.match(/## 系统 Prompt\s*```json\s*([\s\S]*?)\s*```/u)?.[1]
-assertSame(storySystemPromptSample, COMPILED_NARRATIVE_SYSTEM_PROMPT, '01 sample system Prompt must exactly match the protected runtime asset')
+assertOk(
+  storyPromptSampleSrc.includes('一条四元素 JSON 数组消息')
+    && storyPromptSampleSrc.includes('"玩家属性"')
+    && storyPromptSampleSrc.includes('"当前信息"')
+    && storyPromptSampleSrc.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x|冷却:x】'),
+  '01 sample must document the one-message data layer and life-restart text contract',
+)
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
@@ -1183,7 +1180,7 @@ assertOk(
 assertOk(
   !timeScaleSrc.includes('至少完整呈现一条事件链')
     && !timeScaleSrc.includes('不能用单一现场代替整段跨度')
-    && promptBuilderSrc.includes('本轮事件材料'),
+    && promptBuilderSrc.includes('context.eventInjectionText'),
   'time guidance and dynamic facts must not add story composition pressure',
 )
 assertOk(timeScaleSrc.includes('事件节点推进'), 'event step must retain event timing')
@@ -1208,28 +1205,28 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.12\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.12.0')
+assertOk(/version:\s*'7\.16\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.16.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  promptBuilderSrc.includes('第二人称“你”指代主角')
-    && promptBuilderSrc.includes('不规定叙事主语')
-    && promptBuilderSrc.includes('本轮事件材料'),
-  'dynamic narrative assembly must own addressing and minimal fact-boundary guidance',
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('用第二人称代指玩家角色')
+    && promptBuilderSrc.includes('当前信息')
+    && promptBuilderSrc.includes('命运抉择'),
+  'fixed Prompt must own addressing while dynamic assembly owns current information',
 )
 assertOk(
   !timeScaleSrc.includes('根据当前事实自然展开')
     && timeScaleSrc.includes('历史和本轮事实供合理叙事参考')
-    && promptBuilderSrc.includes("typeof value === 'string' && value.trim().length > 0")
-    && promptBuilderSrc.includes('`叙述风格：${value}`')
+    && !promptBuilderSrc.includes('叙述风格：')
     && !promptBuilderSrc.includes('DEFAULT_NARRATIVE_STYLE'),
-  'time-scale entry must remain live while custom style is conditionally injected without a default fallback',
+  'time-scale entry must remain live while custom style does not override the fixed Prompt',
 )
 assertOk(
-  promptBuilderSrc.includes('历史连续性事实: context.timelineMemory')
+  promptBuilderSrc.includes('context.timelineMemory ?? []')
+    && promptBuilderSrc.includes('长期记忆: history.longTerm')
     && timeScaleSrc.includes('历史和本轮事实供合理叙事参考')
     && !timeScaleSrc.includes('上一节点的既成结果'),
   '01 must pass continuity facts through dynamic assembly without adding a story template',
@@ -1243,17 +1240,18 @@ assertOk(
   promptBuilderSrc.includes('世界: world')
     && promptBuilderSrc.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
     && promptBuilderSrc.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
-    && promptBuilderSrc.includes('历史连续性事实: context.timelineMemory ?? []')
-    && promptBuilderSrc.includes('最近五轮正文: (context.recentStories ?? [])')
-    && promptBuilderSrc.includes('角色: character')
-    && promptBuilderSrc.includes('天赋: context.talents ?? []')
-    && promptBuilderSrc.includes('世界模拟内容: nonEmpty(context.worldSimulationText)')
-    && promptBuilderSrc.includes('本轮事实与方向: roundFactsAndDirection')
-    && promptBuilderSrc.includes('当前到期事件')
-    && /const segments = \[\s*worldSegment,\s*memorySegment,\s*recentSegment,\s*characterSegment,\s*worldSimulationSegment,\s*roundSegment,\s*\]/u.test(promptBuilderSrc)
+    && promptBuilderSrc.includes('玩家信息: character')
+    && promptBuilderSrc.includes('长期记忆: history.longTerm')
+    && promptBuilderSrc.includes('近期记忆: history.recent')
+    && promptBuilderSrc.includes('玩家属性: attributes')
+    && promptBuilderSrc.includes('当前信息: {')
+    && promptBuilderSrc.includes('时间: `${currentAgeValue}岁-${currentTime}`')
+    && promptBuilderSrc.includes("家境: '0'")
+    && !promptBuilderSrc.includes('当前到期事件')
+    && promptBuilderSrc.includes('const segments = [dataLayerSegment]')
     && !promptBuilderSrc.includes('recentDetailedStories')
     && !/(空间形态|世界观本质|力量体系|成立规则|文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
-  '01 input assembly must keep the approved field whitelist and six-message order',
+  '01 input assembly must keep the approved four-element field whitelist and one-message order',
 )
 assertOk(
   !readRel('src/mods/mod-character/prompts/destiny-pattern-context.ts').includes('姓名=')
