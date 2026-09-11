@@ -20,7 +20,6 @@ export interface WorldConfig {
   civilizationStage: string
   difficulty: 'normal' | 'hard' | 'nightmare' | 'hell'
   description: string
-  festivalScope: 'china' | 'china-and-international'
   lifeStageTemplate?: CharacterLifeStageDefinition[]
   worldType?: string
   _aiFlags?: Record<string, boolean>

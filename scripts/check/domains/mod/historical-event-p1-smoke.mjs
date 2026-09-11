@@ -49,7 +49,6 @@ function worldConfig(name) {
     civilizationStage: 'modern',
     difficulty: 'normal',
     description: `${name}的历史事件验收设定。`,
-    festivalScope: 'china',
     worldType: 'mixed',
   }
 }

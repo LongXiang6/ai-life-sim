@@ -585,7 +585,7 @@ assertOk(
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
 assertOk(worldSelectMobileSrc.includes('<FlowRunningHead stepLabel="01 / 07" />') && worldSelectBottomBarSrc.includes('confirmNumber="02"') && worldSelectBottomBarSrc.includes('下一步角色配置'), 'world selection must advance directly to character creation as step 02')
-assertOk(characterCreateMobileSrc.includes('<FlowRunningHead stepLabel="02 / 07" />') && characterBottomBarSrc.includes('confirmNumber="03"') && characterCreateMobileSrc.includes('<CharacterCustomOptionsSection') && characterCreateLogicSrc.includes('festivalScope') && characterCreateLogicSrc.includes('setWorldConfig({ ...current, festivalScope: value })'), 'character creation must own the festival custom option and advance as step 02')
+assertOk(characterCreateMobileSrc.includes('<FlowRunningHead stepLabel="02 / 07" />') && characterBottomBarSrc.includes('confirmNumber="03"') && !characterCreateMobileSrc.includes('CharacterCustomOptionsSection') && !characterCreateLogicSrc.includes('festivalScope'), 'character creation must advance as step 02 without a festival custom option')
 assertOk(talentDrawPageSrc.includes("<FlowRunningHead stepLabel={`${phase === 'selecting' ? '04' : '03'} / 07`} />") && talentDrawPageSrc.includes("phase === 'selecting' ? '05' : '04'"), 'talent draw and selection must occupy creation steps 03 and 04 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
@@ -1115,8 +1115,7 @@ assertOk(
     && prototypeCharacterCreateIndexSrc.includes('href="iteration-round-02.html"')
     && prototypeCharacterCreateIndexSrc.includes('iteration-branch-current')
     && prototypeCharacterCreateIndexSrc.includes('Runtime authority: none')
-    && prototypeCharacterCreateCurrentIterationSrc.includes('runningHead（02 / 07）')
-    && prototypeCharacterCreateCurrentIterationSrc.includes('节日范围自定义选项'),
+    && prototypeCharacterCreateCurrentIterationSrc.includes('runningHead（02 / 07）'),
   'the character-create middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
 )
 assertOk(
@@ -1202,7 +1201,6 @@ assertOk(
     && attributeAllocPageSrc.includes("icon: '💪'")
     && attributeAllocPageSrc.includes('className="semantic-emoji"')
     && attributeAllocPageSrc.includes('{attribute.icon}')
-    && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">🎐</span>节日范围')
     && fatePreviewPageSrc.includes('{ATTRIBUTE_ICONS[key]}')
     && gameStoryPageSrc.includes('aria-label="四维属性"')
     && gameStoryPageSrc.includes('aria-hidden="true">{icon}')

@@ -185,14 +185,9 @@ function buildRecentStoriesProjection(orchestrator: OrchestratorSystem): string[
   return stories.length > 0 ? stories : undefined
 }
 
-function resolveFestivalScope(value: unknown): 'china' | 'china-and-international' {
-  return value === 'china-and-international' ? 'china-and-international' : 'china'
-}
-
 function buildNarrativeTimeGuide(
   orchestrator: OrchestratorSystem,
   context: RoundContext,
-  worldSetting: WorldSetting,
   narrativeTime: ReturnType<typeof buildNarrativeTimeContext>,
   timeBridgeSummary?: string,
 ): string {
@@ -224,10 +219,6 @@ function buildNarrativeTimeGuide(
     seasonName: narrativeTime.seasonName,
     month: narrativeTime.month,
     day: narrativeTime.day,
-    festivalScope: resolveFestivalScope(worldSetting.config.festivalScope),
-    characterBackground: typeof orchestrator['characterState']?.background === 'string'
-      ? orchestrator['characterState'].background
-      : undefined,
     previousNode,
     basePointsPassed: context.basePointsPassed,
     eventNodeIndex,
@@ -368,7 +359,6 @@ export function assemblePromptContextRuntime(
   const timeGuideText = buildNarrativeTimeGuide(
     orchestrator,
     context,
-    worldSetting,
     narrativeTime,
     timeBridgeSummary,
   )

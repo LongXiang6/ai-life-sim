@@ -48,11 +48,6 @@
       "sha256": "662574652b5f657c33234aad02b05c2d27e176d73755abeb033541660323a5ef"
     },
     {
-      "path": "scripts/check/domains/calibration/world-calibration-test-helpers.ts",
-      "owner": "quality:calibration",
-      "sha256": "620b09d078ba13c13b6284c2cd0b10842ba9aa1f81a3f28923bd007e318466ee"
-    },
-    {
       "path": "scripts/check/domains/narrative/adaptation-calibration-audit.mjs",
       "owner": "quality:narrative",
       "sha256": "541e412d03de1f1a2cf1b97fcd03fa46e83931e1c7b25aefa89f7e2c897998d7"

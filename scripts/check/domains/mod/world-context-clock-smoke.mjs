@@ -33,7 +33,6 @@ function config(name) {
     civilizationStage: 'modern',
     difficulty: 'normal',
     description: `${name}基础点验收设定。`,
-    festivalScope: 'china-and-international',
     worldType: 'mixed',
   }
 }

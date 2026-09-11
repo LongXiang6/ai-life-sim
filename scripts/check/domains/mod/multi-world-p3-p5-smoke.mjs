@@ -51,7 +51,6 @@ function worldConfig(name) {
     civilizationStage: 'modern',
     difficulty: 'normal',
     description: `${name}的空间区域验收设定。`,
-    festivalScope: 'china',
     worldType: 'mixed',
   }
 }

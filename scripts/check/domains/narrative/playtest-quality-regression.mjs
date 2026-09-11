@@ -54,7 +54,6 @@ import {
 } from '../../../../src/mods/mod-character/reincarnation-talent-access.ts'
 import { destinyPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
 import { parseDestinyPatternAIResponse } from '../../../../src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts'
-import { buildFestivalNarrativeHint } from '../../../../src/mods/mod-engine/subsystems/time-system/festival-calendar.ts'
 import {
   formatWorldTagsText,
   WORLDVIEW_TAG_DEFAULTS,
@@ -331,7 +330,7 @@ const januaryCalendar = buildCanonicalCalendarNarrativeHint({
   day: 2,
 })
 assertIncludes(januaryCalendar, '1月属于冬', 'calendar hint must retain the canonical January season')
-assertIncludes(januaryCalendar, '日期、季节和节日仅作为可用背景事实', 'calendar hint must keep calendar facts optional')
+assertIncludes(januaryCalendar, '日期和季节仅作为可用背景事实', 'calendar hint must keep calendar facts optional')
 assertOk(!januaryCalendar.includes('天气、衣着、农事'), 'calendar guidance must not prescribe scene background details')
 assertIncludes(januaryCalendar, '本轮按事件节点推进', 'event calendar guidance must use the canonical event clock')
 assertIncludes(januaryCalendar, '12个故事节点', 'event calendar guidance must expose the annual event budget')
@@ -593,28 +592,6 @@ const sameNameCustomWorld = sanitizeWorldStateSnapshot({
 })
 assertSame(sameNameCustomWorld.worldConfig.essenceTag, 'modern', 'same-name custom worlds must not be mistaken for the SCP preset')
 assertSame(sameNameCustomWorld.worldConfig.powerSystemTag, 'none', 'same-name custom world power systems must remain unchanged')
-
-const newYearFestivalHint = buildFestivalNarrativeHint({
-  scope: 'china',
-  timeStep: { unit: 'event', value: 12 },
-  month: 1,
-  day: 1,
-})
-assertOk(newYearFestivalHint?.includes('按事件节点推进'), 'event clock must treat festivals as optional calendar rhythm')
-assertSame(
-  buildFestivalNarrativeHint({ scope: 'china', timeStep: { unit: 'year', value: 1 }, month: 1, day: 2 })?.includes('节日数据范围：中国节日。'),
-  true,
-  'annual calendar guidance must expose the configured festival scope',
-)
-assertOk(
-  buildFestivalNarrativeHint({
-    scope: 'china-and-international',
-    timeStep: { unit: 'year', value: 1 },
-    month: 2,
-    day: 14,
-  })?.includes('节日数据范围：中国节日与国际节日。'),
-  'international festival scope must remain available to annual guidance',
-)
 
 assertOk(isEligibleNarrativeBranch({
   branch: true,
@@ -1285,9 +1262,9 @@ assertOk(
   '01 world projection must keep world dimensions and power-framework rules out of the main-story context',
 )
 assertOk(
-  calendarContextSrc.includes('buildFestivalNarrativeHint')
-    && calendarContextSrc.includes('festivalScope'),
-  'time-system must expose the unified calendar and festival adapter',
+  !calendarContextSrc.includes('buildFestivalNarrativeHint')
+    && !calendarContextSrc.includes('festivalScope'),
+  'time-system must expose calendar guidance without a festival adapter',
 )
 
 assertOk(!timelineCssSrc.includes('.entryLatest'), 'latest narrative must not have a special background rule')

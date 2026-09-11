@@ -12,7 +12,6 @@ import { useWorldStore } from '@/mods/mod-world'
 import { FlowRunningHead } from '@/mods/mod-ui'
 
 import { CharacterBackgroundSection } from './CharacterBackgroundSection'
-import { CharacterCustomOptionsSection } from './CharacterCustomOptionsSection'
 import { CharacterCreateBottomBar } from './CharacterCreateBottomBar'
 import { CharacterIdentitySection } from './CharacterIdentitySection'
 import { CharacterLifespanSection } from './CharacterLifespanSection'
@@ -57,7 +56,6 @@ export function CharacterCreateMobile() {
             <div className={styles.flowSections}>
               <CharacterIdentitySection logic={logic} />
               <CharacterLifespanSection logic={logic} />
-              <CharacterCustomOptionsSection logic={logic} />
               <CharacterBackgroundSection logic={logic} />
             </div>
               </div>

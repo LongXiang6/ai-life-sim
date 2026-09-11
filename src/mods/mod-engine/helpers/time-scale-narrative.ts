@@ -141,7 +141,7 @@ export function buildCanonicalCalendarNarrativeHint(
   const amount = normalizeAmount(input.timeStep.value)
   const actualWindow = buildActualNarrativeWindow(input)
   const endSeason = SEASON_NAMES[getSeasonForMonth(input.month - 1)] ?? '未知'
-  const calendarRule = `项目历法中${input.month}月属于${endSeason}；日期、季节和节日仅作为可用背景事实，是否进入故事由当前情境自然决定。`
+  const calendarRule = `项目历法中${input.month}月属于${endSeason}；日期和季节仅作为可用背景事实，是否进入故事由当前情境自然决定。`
 
   if (actualWindow) return `${calendarRule}${actualWindow}`
 

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Provide shared WorldConfig fixtures and calibration readers for domain checks.
+ * Owner: scripts/check/domains/calibration
+ * Responsibility: Test data construction only; production state and formulas stay with their owners.
+ *
  * @module world-calibration-test-helpers.ts
  * @description 世界校准验收测试共享工具
  */
@@ -18,7 +22,6 @@ export function baseConfig(overrides: Partial<WorldConfig> = {}): WorldConfig {
     civilizationStage: 'medieval',
     difficulty: 'normal',
     description: '验收测试用世界',
-    festivalScope: 'china',
     ...overrides,
   }
 }

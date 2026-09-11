@@ -138,7 +138,6 @@ function FatePreviewContent() {
             <div className={styles.ritualDivider} aria-hidden="true"><i>✦</i></div>
             <div className={styles.stats}>
               <div><b>{lifespan.maximumLifespanYears > 0 ? lifespan.maximumLifespanYears : raceInfo.baseLifespanYears} 年</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⏳</span>预期寿命</span></div>
-              <div><b>{worldConfig?.festivalScope === 'china-and-international' ? '中国及国际' : '仅中国'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🎐</span>节日范围</span></div>
               <div><b>{startingAge} 岁</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🌱</span>起始年龄</span></div>
             </div>
           </section>

@@ -1115,7 +1115,6 @@
         "src/mods/mod-engine/subsystems/causal-delay-system",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system",
         "src/mods/mod-engine/subsystems/orchestrator-system",
-        "src/mods/mod-engine/subsystems/time-system",
         "src/mods/mod-engine/utils"
       ],
       "files": [
@@ -1233,13 +1232,13 @@
         "src/mods/mod-engine/subsystems/subsystem-relevance-system.ts",
         "src/mods/mod-engine/subsystems/summary-compressor-system.ts",
         "src/mods/mod-engine/subsystems/time-system.ts",
-        "src/mods/mod-engine/subsystems/time-system/festival-calendar.ts",
         "src/mods/mod-engine/types.ts",
         "src/mods/mod-engine/utils.ts",
         "src/mods/mod-engine/utils/time-step-resolver.ts"
       ],
       "oversized": [
         "src/mods/mod-engine/campaigns/default/index.ts",
+        "src/mods/mod-engine/helpers/narrative-response-quality.ts",
         "src/mods/mod-engine/hooks.ts",
         "src/mods/mod-engine/subsystems/causal-delay-system.ts",
         "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
@@ -1331,7 +1330,6 @@
         "src/mods/mod-pages/pages/character-create/CharacterCreateBottomBar.tsx",
         "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css",
         "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.tsx",
-        "src/mods/mod-pages/pages/character-create/CharacterCustomOptionsSection.tsx",
         "src/mods/mod-pages/pages/character-create/CharacterIdentitySection.tsx",
         "src/mods/mod-pages/pages/character-create/CharacterLifespanSection.tsx",
         "src/mods/mod-pages/pages/character-create/page.tsx",
@@ -1413,6 +1411,7 @@
         "src/mods/mod-pages/pages/talent-draw/useTalentDrawSelection.ts",
         "src/mods/mod-pages/pages/welcome/page.tsx",
         "src/mods/mod-pages/pages/welcome/WelcomeModals.tsx",
+        "src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.module.css",
         "src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx",
         "src/mods/mod-pages/pages/welcome/WelcomeView.module.css",
         "src/mods/mod-pages/pages/welcome/WelcomeView.tsx",

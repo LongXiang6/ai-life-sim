@@ -64,7 +64,6 @@ const worldConfig = {
   civilizationStage: 'modern',
   difficulty: 'normal',
   description: '用于本地候选库测试。',
-  festivalScope: 'china',
 }
 
 function makeInput(overrides = {}) {

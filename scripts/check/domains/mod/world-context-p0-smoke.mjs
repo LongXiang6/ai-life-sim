@@ -58,7 +58,6 @@ function worldConfig(name) {
     civilizationStage: 'modern',
     difficulty: 'normal',
     description: `${name}的世界上下文验收设定。`,
-    festivalScope: 'china-and-international',
     worldType: 'mixed',
   }
 }

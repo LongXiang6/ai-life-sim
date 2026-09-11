@@ -246,13 +246,12 @@ async function main() {
   await page.waitForFunction(() => location.pathname.endsWith('/new-game/character-create'))
   await page.waitForSelector('[data-flow-running-head]')
   await page.waitForFunction(() => (
-    document.body.innerText?.includes('自定义选项')
-      && document.body.innerText?.includes('节日范围')
+    document.body.innerText?.includes('角色姓名')
       && document.body.innerText?.includes('确认角色')
   ))
   await assertCreationUiContract(page, {
     header: '02 / 07', nextNumber: '03', primaryText: '确认角色',
-    includes: ['自定义选项', '节日范围'],
+    includes: ['角色姓名'],
   })
   await capture('character')
   await page.focus('#character-name')
