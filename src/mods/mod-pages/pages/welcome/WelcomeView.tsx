@@ -74,46 +74,48 @@ export default function WelcomeView({
         </button>
       </nav>
 
-      <section className={styles.intro} aria-labelledby="welcome-title">
-        <p className={styles.brand}>✦ 人生序章</p>
-        <h1 id="welcome-title" className={styles.title}>🎮 人生模拟器 ✨</h1>
-        <p className={styles.subtitle}>✦ 选择世界与角色。</p>
-      </section>
+      <div className={styles.content}>
+        <section className={styles.intro} aria-labelledby="welcome-title">
+          <p className={styles.brand}>✦ 人生序章</p>
+          <h1 id="welcome-title" className={styles.title}>🎮 人生模拟器 ✨</h1>
+          <p className={styles.subtitle}>✦ 选择世界与角色。</p>
+        </section>
 
-      <section className={styles.actions} aria-label="开始与辅助操作">
-        <button
-          type="button"
-          className={styles.primaryAction}
-          onClick={onStartNewGame}
-          title="进入世界选择界面，创建一个全新的人生"
-        >
-          🌱 开始新人生
-        </button>
+        <section className={styles.actions} aria-label="开始与辅助操作">
+          <button
+            type="button"
+            className={styles.primaryAction}
+            onClick={onStartNewGame}
+            title="进入世界选择界面，创建一个全新的人生"
+          >
+            🌱 开始新人生
+          </button>
 
-        <div className={styles.routeList}>
-          {hasAnySave && (
-            <WelcomeSaveSheet
-              runtimeReady={runtimeReady}
-              saves={saves}
-              cloudSave={cloudSave}
-              selectedSaveId={selectedSaveId}
-              onSelectSave={onSelectSave}
-              onContinueSave={onContinueSave}
-              onDeleteSave={onDeleteSave}
-              onContinueCloudSave={onContinueCloudSave}
-              onDeleteCloudSave={onDeleteCloudSave}
-            />
-          )}
-        </div>
+          <div className={styles.routeList}>
+            {hasAnySave && (
+              <WelcomeSaveSheet
+                runtimeReady={runtimeReady}
+                saves={saves}
+                cloudSave={cloudSave}
+                selectedSaveId={selectedSaveId}
+                onSelectSave={onSelectSave}
+                onContinueSave={onContinueSave}
+                onDeleteSave={onDeleteSave}
+                onContinueCloudSave={onContinueCloudSave}
+                onDeleteCloudSave={onDeleteCloudSave}
+              />
+            )}
+          </div>
 
-        <div className={styles.sectionDivider} role="presentation" />
-        <div className={styles.utilityGrid}>
-          <button type="button" className={styles.utilityAction} onClick={onOpenAccount}>☁️ 账号与云端</button>
-          <button type="button" className={styles.utilityAction} onClick={onOpenSettings}>⚙️ 设置</button>
-          <button type="button" className={styles.utilityAction} onClick={onOpenHelp}>📜 游戏说明</button>
-          <button type="button" className={styles.utilityAction} onClick={onOpenFeedback}>💬 反馈与建议</button>
-        </div>
-      </section>
+          <div className={styles.sectionDivider} role="presentation" />
+          <div className={styles.utilityGrid}>
+            <button type="button" className={styles.utilityAction} onClick={onOpenAccount}>☁️ 账号与云端</button>
+            <button type="button" className={styles.utilityAction} onClick={onOpenSettings}>⚙️ 设置</button>
+            <button type="button" className={styles.utilityAction} onClick={onOpenHelp}>📜 游戏说明</button>
+            <button type="button" className={styles.utilityAction} onClick={onOpenFeedback}>💬 反馈与建议</button>
+          </div>
+        </section>
+      </div>
     </main>
   )
 }

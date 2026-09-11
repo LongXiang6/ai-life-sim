@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SaveMetadata } from '@/core/storage/save-manager'
 import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 
-import styles from './WelcomeView.module.css'
+import viewStyles from './WelcomeView.module.css'
+import styles from './WelcomeSaveSheet.module.css'
 
 interface WelcomeSaveSheetProps {
   runtimeReady: boolean
@@ -209,7 +210,7 @@ export default function WelcomeSaveSheet({
       <button
         ref={triggerRef}
         type="button"
-        className={styles.routeAction}
+        className={viewStyles.routeAction}
         disabled={!runtimeReady}
         aria-expanded={open}
         aria-controls="welcome-save-sheet"

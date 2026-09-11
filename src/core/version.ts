@@ -9,4 +9,4 @@
  */
 
 /** 当前引擎版本（与 package.json 保持同步） */
-export const ENGINE_VERSION = '6.1.1'
+export const ENGINE_VERSION = '6.1.2'

@@ -61,6 +61,14 @@
   stroke-width: 1.6;
 }
 
+.content {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
 .intro {
   padding: calc(60 * var(--final-flow-density-px)) var(--final-flow-content-gutter) calc(33.333 * var(--final-flow-density-px));
 }
@@ -200,307 +208,10 @@
   transform: translateY(var(--final-flow-density-px));
 }
 
-.saveSheet {
-  position: absolute;
-  z-index: 30;
-  right: calc(15 * var(--final-flow-density-px));
-  bottom: calc(15 * var(--final-flow-density-px));
-  left: calc(15 * var(--final-flow-density-px));
-  max-height: 74%;
-  padding: calc(18.333 * var(--final-flow-density-px)) calc(16.667 * var(--final-flow-density-px)) calc(16.667 * var(--final-flow-density-px));
-  overflow-y: auto;
-  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-  border-radius: calc(20 * var(--final-flow-density-px));
-  background: var(--flow-paper);
-  box-shadow: 0 calc(11.667 * var(--final-flow-density-px)) calc(26.667 * var(--final-flow-density-px)) rgba(120, 100, 70, 0.16);
-  color: var(--flow-ink);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(calc(10 * var(--final-flow-density-px)));
-  transition: opacity 170ms ease, transform 190ms ease;
-}
-
-.saveSheetOpen {
-  opacity: 1;
-  pointer-events: auto;
-  transform: none;
-}
-
-.saveSheetHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: calc(10 * var(--final-flow-density-px));
-  margin-bottom: calc(15 * var(--final-flow-density-px));
-  text-align: center;
-}
-
-.saveSheetHead strong,
-.saveSheetHead small {
-  display: block;
-}
-
-.saveSheetHead strong {
-  color: var(--flow-ink);
-  font-size: calc(16.667 * var(--final-flow-density-px));
-  font-weight: 700;
-}
-
-.saveSheetHead small {
-  margin-top: calc(4.167 * var(--final-flow-density-px));
-  color: var(--flow-muted);
-  font-size: calc(10 * var(--final-flow-density-px));
-}
-
-.saveSheetClose {
-  position: absolute;
-  top: calc(16.667 * var(--final-flow-density-px));
-  right: calc(16.667 * var(--final-flow-density-px));
-  display: grid;
-  width: calc(30 * var(--final-flow-density-px));
-  height: calc(30 * var(--final-flow-density-px));
-  place-items: center;
-  padding: 0;
-  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-  border-radius: 50%;
-  background: var(--color-bg-secondary);
-  color: var(--flow-muted);
-  cursor: pointer;
-}
-
-.saveSheetClose svg {
-  width: calc(11.667 * var(--final-flow-density-px));
-  height: calc(11.667 * var(--final-flow-density-px));
-  fill: none;
-  stroke: currentcolor;
-  stroke-linecap: round;
-  stroke-width: 1.8;
-}
-
-.saveList {
-  display: grid;
-  max-height: 40vh;
-  gap: calc(8.333 * var(--final-flow-density-px));
-  overflow-y: auto;
-}
-
-.saveItem {
-  display: grid;
-  min-height: calc(53.333 * var(--final-flow-density-px));
-  grid-template-columns: minmax(0, 1fr) calc(25 * var(--final-flow-density-px));
-  align-items: center;
-  gap: calc(3.333 * var(--final-flow-density-px));
-  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-  border-radius: calc(16.667 * var(--final-flow-density-px));
-  background: var(--flow-paper);
-  overflow: hidden;
-}
-
-.saveItem[data-active="true"] {
-  border-color: var(--color-border-focus);
-  background: var(--flow-accent-soft);
-}
-
-.saveItemSelect {
-  display: grid;
-  width: 100%;
-  min-height: calc(51.667 * var(--final-flow-density-px));
-  grid-template-columns: minmax(0, 1fr) calc(20 * var(--final-flow-density-px));
-  align-items: center;
-  gap: calc(6.667 * var(--final-flow-density-px));
-  padding: calc(8.333 * var(--final-flow-density-px)) calc(3.333 * var(--final-flow-density-px)) calc(8.333 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
-  border: 0;
-  background: transparent;
-  color: var(--flow-ink);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.saveItemSelect strong,
-.saveItemSelect small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.saveItemSelect strong {
-  font-size: calc(13.333 * var(--final-flow-density-px));
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.saveItemSelect small {
-  margin-top: calc(2.5 * var(--final-flow-density-px));
-  color: var(--flow-muted);
-  font-size: calc(10 * var(--final-flow-density-px));
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.saveCheck {
-  position: relative;
-  width: calc(16.667 * var(--final-flow-density-px));
-  height: calc(16.667 * var(--final-flow-density-px));
-  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
-  border-radius: 50%;
-  background: var(--flow-paper);
-}
-
-.saveItemSelect[aria-pressed="true"] .saveCheck {
-  border-color: var(--color-border-focus);
-  background: var(--flow-muted);
-}
-
-.saveItemSelect[aria-pressed="true"] .saveCheck::after {
-  position: absolute;
-  top: calc(3.333 * var(--final-flow-density-px));
-  left: calc(2.5 * var(--final-flow-density-px));
-  width: calc(7.5 * var(--final-flow-density-px));
-  height: calc(4.167 * var(--final-flow-density-px));
-  border-bottom: calc(1.667 * var(--final-flow-density-px)) solid var(--flow-paper);
-  border-left: calc(1.667 * var(--final-flow-density-px)) solid var(--flow-paper);
-  content: "";
-  transform: rotate(-45deg);
-}
-
-.saveItemDelete {
-  display: grid;
-  width: calc(25 * var(--final-flow-density-px));
-  height: calc(25 * var(--final-flow-density-px));
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #c2b6a4;
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(14.167 * var(--final-flow-density-px));
-  line-height: 1;
-}
-
-.saveItemDelete:hover,
-.saveItemDelete:focus-visible {
-  color: #a0716a;
-  background: var(--color-bg-secondary);
-}
-
-.continueSave {
-  display: grid;
-  width: 100%;
-  min-height: calc(53.333 * var(--final-flow-density-px));
-  place-items: center;
-  gap: 0;
-  margin-top: calc(13.333 * var(--final-flow-density-px));
-  padding: calc(8.333 * var(--final-flow-density-px)) calc(15 * var(--final-flow-density-px));
-  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
-  border-radius: calc(20 * var(--final-flow-density-px));
-  background: var(--flow-paper);
-  box-shadow: 0 calc(4.167 * var(--final-flow-density-px)) calc(11.667 * var(--final-flow-density-px)) rgba(120, 100, 70, 0.1);
-  color: var(--flow-ink);
-  cursor: pointer;
-  font: inherit;
-  text-align: center;
-}
-
-.continueSave strong,
-.continueSave small {
-  display: block;
-}
-
-.continueSave strong {
-  font-size: calc(13.333 * var(--final-flow-density-px));
-  font-weight: 650;
-  line-height: 1.1;
-}
-
-.continueSave small {
-  margin-top: calc(1.667 * var(--final-flow-density-px));
-  color: var(--flow-muted);
-  font-size: calc(10 * var(--final-flow-density-px));
-  font-weight: 500;
-  line-height: 1.1;
-}
-
-.saveEmpty {
-  margin: calc(12.5 * var(--final-flow-density-px)) calc(4.167 * var(--final-flow-density-px)) 0;
-  color: var(--flow-muted);
-  font-size: calc(10 * var(--final-flow-density-px));
-  line-height: 1.5;
-}
-
-.deleteDialogOverlay {
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: calc(20 * var(--final-flow-density-px));
-  background: rgba(46, 41, 34, 0.2);
-}
-
-.deleteDialog {
-  width: 100%;
-  padding: calc(16.667 * var(--final-flow-density-px));
-  border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
-  border-radius: calc(16.667 * var(--final-flow-density-px));
-  background: var(--flow-paper);
-  box-shadow: 0 calc(16.667 * var(--final-flow-density-px)) calc(33.333 * var(--final-flow-density-px)) rgba(120, 100, 70, 0.18);
-}
-
-.deleteDialog h2 {
-  margin: 0;
-  color: var(--flow-ink);
-  font-size: calc(15 * var(--final-flow-density-px));
-}
-
-.deleteDialog p {
-  margin: calc(8.333 * var(--final-flow-density-px)) 0 0;
-  color: var(--flow-muted);
-  font-size: calc(10 * var(--final-flow-density-px));
-  line-height: 1.55;
-}
-
-.deleteDialogActions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: calc(8.333 * var(--final-flow-density-px));
-  margin-top: calc(13.333 * var(--final-flow-density-px));
-}
-
-.deleteCancel,
-.deleteConfirm {
-  min-height: calc(35 * var(--final-flow-density-px));
-  border: 0;
-  border-radius: calc(10 * var(--final-flow-density-px));
-  background: var(--color-bg-secondary);
-  color: #7a6f5e;
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(10 * var(--final-flow-density-px));
-}
-
-.deleteConfirm {
-  background: #9a716a;
-  color: #fff;
-}
-
-.continueSave:disabled,
-.saveItemDelete:disabled,
-.saveItemSelect:disabled,
-.deleteCancel:disabled,
-.deleteConfirm:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .primaryAction,
   .quickActions button,
   .routeAction,
-  .saveSheet,
   .utilityAction {
     transition: none;
   }
@@ -555,7 +266,7 @@
 
 .actions {
   width: min(100%, 760px);
-  margin: 60px auto 34px;
+  margin: auto auto 34px;
   padding: 0 28px;
 }
 
@@ -617,6 +328,80 @@
   background: transparent;
   box-shadow: none;
   color: var(--flow-accent);
+}
+
+@media (min-width: 64rem) {
+  .content {
+    display: grid;
+    width: 100%;
+    max-width: 1184px;
+    grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+    align-items: center;
+    gap: 72px;
+    margin: 0 auto;
+    padding: 64px 56px 76px;
+  }
+
+  .intro {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .intro::after {
+    display: block;
+    width: 88px;
+    height: 2px;
+    margin-top: 32px;
+    background: var(--flow-accent);
+    content: "";
+    opacity: 0.72;
+  }
+
+  .title {
+    margin-top: 18px;
+    font-size: 56px;
+    line-height: 1.12;
+  }
+
+  .subtitle {
+    max-width: 440px;
+    margin-top: 18px;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  .actions {
+    width: 100%;
+    margin: 0;
+    padding: 24px 0 24px 56px;
+    border-left: 1px solid var(--flow-line);
+  }
+
+  .primaryAction {
+    min-height: 78px;
+    padding: 0 24px;
+  }
+
+  .routeAction {
+    min-height: 70px;
+    padding: 16px 20px;
+  }
+
+  .sectionDivider {
+    margin: 28px 0 16px;
+  }
+
+  .utilityGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 20px;
+  }
+
+  .utilityAction {
+    min-height: 50px;
+    padding: 10px 0;
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 640px) {

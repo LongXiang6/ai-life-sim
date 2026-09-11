@@ -72,6 +72,7 @@ const welcomePageSrc = readRel('src/mods/mod-pages/pages/welcome/page.tsx')
 const welcomeViewSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeView.tsx')
 const welcomeSaveSheetSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx')
 const welcomeCssSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeView.module.css')
+const welcomeSaveSheetCssSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.module.css')
 const layoutCssSrc = readRel('src/foundation/tokens/layout.css')
 const mobileBaseCssSrc = readRel('src/styles/mobile/base.css')
 const settingsModalSrc = readRel('src/mods/mod-settings/components/SettingsModal.tsx')
@@ -266,8 +267,8 @@ assertOk(
     && welcomeSaveSheetSrc.includes('确认删除')
     && welcomeSaveSheetSrc.includes('onDeleteCloudSave()')
     && welcomeSaveSheetSrc.includes('onDeleteSave(deleteTarget.save.slot)')
-    && welcomeCssSrc.includes('.deleteDialogOverlay')
-    && welcomeCssSrc.includes('.deleteConfirm'),
+    && welcomeSaveSheetCssSrc.includes('.deleteDialogOverlay')
+    && welcomeSaveSheetCssSrc.includes('.deleteConfirm'),
   'welcome local and cloud save selection must expose destructive deletion with an explicit second-confirmation dialog',
 )
 assertOk(welcomeViewSrc.includes('🌱 开始新人生') && welcomeViewSrc.includes('⚙️ 设置') && welcomeViewSrc.includes('📜 游戏说明'), 'welcome actions must use the finalized semantic emoji labels')
