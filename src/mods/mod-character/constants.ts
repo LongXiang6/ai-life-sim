@@ -145,11 +145,11 @@ export const AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS: readonly (readonly DestinyPa
 
 /** 命格类别名称与说明。 */
 export const DESTINY_PATTERN_CATEGORY_CONFIG: Record<DestinyPatternCategory, { label: string; guidance: string }> = {
-  action: { label: '行动', guidance: '直接影响身体、感官、移动、反应、承压、临场执行或对抗方式。' },
-  cognition: { label: '认知', guidance: '直接影响观察、记忆、学习、知识、技术、推理或问题拆解。' },
-  expression: { label: '表达', guidance: '直接影响语言、表演、审美、娱乐、共情、社交或关系影响。' },
-  stewardship: { label: '经营', guidance: '直接影响生活、生产、经济、交易、资源、维护或组织事务。' },
-  misc: { label: '杂类', guidance: '承载前四类无法作为主要机制解释的轻微异常、跨域适配或特殊玩法；只允许普通级局部倾向。' },
+  action: { label: '行动', guidance: '以主体在当前世界可支配的行动载体、感官、移动、反应、承压、临场执行、战斗或野外行动为主要机制；没有常规身体时，映射到其实际拥有的行动与感知通道。' },
+  cognition: { label: '认知', guidance: '以观察、记忆、学习、知识应用、推理、规划、技术判断或信息处理为主要机制；技术可表现为学术、工艺、器械、术式或系统操作。' },
+  expression: { label: '表达', guidance: '以语言、符号、声音、动作、表演、审美、共情、社交或关系影响为主要机制；表达渠道随种族与世界变化。' },
+  stewardship: { label: '经营', guidance: '以生活、生产、经济、交易、资源、维护、物流或组织事务的配置与运转为主要机制；资源形态随世界与角色事实变化，不限于金钱或工业物资。' },
+  misc: { label: '杂类', guidance: '只有行动、认知、表达、经营的主作用机制都无法承载时才可使用，承载存在差异、有限时运偏移、规则敏感、跨域适配或特殊玩法；不得因世界、身份或种族特殊而自动归入。' },
 }
 
 /** 普通级命格的属性净分配与负属性绝对值上限。 */

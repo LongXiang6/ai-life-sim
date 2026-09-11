@@ -24,6 +24,7 @@ import {
   createCharacterNarrativeStatus,
 } from '../../../../src/mods/mod-character/subsystems/character-status-runtime.ts'
 import {
+  DESTINY_PATTERN_CATEGORY_CONFIG,
   DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
   DESTINY_PATTERN_DISPLAY_COUNT,
@@ -52,7 +53,10 @@ import {
   decideReincarnationPromotion,
   getReincarnationPromotionTargetRarity,
 } from '../../../../src/mods/mod-character/reincarnation-talent-access.ts'
-import { destinyPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
+import {
+  buildDestinyPatternSystemPrompt,
+  destinyPatternOutputSchema,
+} from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
 import { parseDestinyPatternAIResponse } from '../../../../src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts'
 import {
   formatWorldTagsText,
@@ -825,6 +829,27 @@ assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 20, 'destiny display count must expose
 assertSame(DESTINY_PATTERN_CATEGORY_TARGET_COUNT, 12, 'destiny background target must be twelve per category')
 assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'action,cognition,expression,stewardship,misc', 'destiny category order must remain stable')
 assertOk(
+  DESTINY_PATTERN_CATEGORY_CONFIG.action.guidance.includes('行动载体')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.action.guidance.includes('战斗或野外行动')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.cognition.guidance.includes('知识应用')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.cognition.guidance.includes('信息处理')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.expression.guidance.includes('符号')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.expression.guidance.includes('关系影响')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.stewardship.guidance.includes('物流')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.stewardship.guidance.includes('配置与运转')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.misc.guidance.includes('只有行动、认知、表达、经营')
+    && DESTINY_PATTERN_CATEGORY_CONFIG.misc.guidance.includes('不得因世界、身份或种族特殊而自动归入'),
+  'destiny category guidance must describe primary mechanisms across worlds, identities, and races',
+)
+for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
+  const prompt = buildDestinyPatternSystemPrompt(category)
+  assertOk(
+    prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].label)
+      && prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].guidance),
+    `${category} destiny prompt must carry its own primary-mechanism guidance`,
+  )
+}
+assertOk(
   /AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS[\s\S]{0,260}\['action'\][\s\S]{0,120}\['cognition'\][\s\S]{0,120}\['expression'\][\s\S]{0,120}\['stewardship'\][\s\S]{0,120}\['misc'\]/.test(constantsSrc),
   'destiny generation must keep five independent category tasks',
 )
@@ -843,10 +868,10 @@ assertOk(
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.6\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.7\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 8.6.0',
+  'destiny prompt builder and cache version must share version 8.7.0',
 )
 assertOk(
   destinyPromptSrc.includes('首句直接落到能力机制、触发条件、动作、可观察现象或世界反馈')
@@ -876,7 +901,12 @@ assertOk(
   destinyPromptSrc.includes('二至六个汉字')
     && destinyPromptSrc.includes('保留古典用词质感')
     && destinyPromptSrc.includes('比喻最多一处')
-    && destinyPromptSrc.includes('普通级只提供局部、低强度、有限条件的开局优势'),
+    && destinyPromptSrc.includes('分类按能力的主要作用机制判断')
+    && destinyPromptSrc.includes('世界题材决定机制的表现形式与凡俗尺度')
+    && destinyPromptSrc.includes('角色种族、身份与背景只限定其实际拥有的行动、感知、表达与资源通道')
+    && destinyPromptSrc.includes('普通级只提供比常人更精、更稳或更持久的局部、有限、非决定性优势')
+    && destinyPromptSrc.includes('以输入世界中普通个体与常规水平的凡俗尺度为基准')
+    && destinyPromptSrc.includes('杂类只有在前四类主作用机制都无法承载时才可使用'),
   'destiny prompt must keep direct classical wording and ordinary-tier boundaries',
 )
 assertOk(
@@ -951,7 +981,8 @@ assertOk(
 assertOk(
   destinyPromptSrc.includes('作用方式和现实边界')
     && destinyPromptSrc.includes('只有确实存在时才补充条件、代价或限制')
-    && destinyPromptSrc.includes('普通级只提供局部、低强度、有限条件的开局优势'),
+    && destinyPromptSrc.includes('每条必须明确适用范围与可观察上限')
+    && destinyPromptSrc.includes('不能保证成功、无限持续、无条件生效、跨领域通用'),
   'conceptual rules and ordinary-tier semantics must match the current prompt contract',
 )
 assertOk(/叙事与模拟长期遵守的作用方式/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')

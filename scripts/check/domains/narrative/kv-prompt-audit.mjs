@@ -11,6 +11,10 @@ import { getProjectRoot } from '../../lib/project-root.mjs'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import {
+  DESTINY_PATTERN_CATEGORY_CONFIG,
+  DESTINY_PATTERN_CATEGORY_ORDER,
+} from '../../../../src/mods/mod-character/constants.ts'
 import { buildDestinyPatternSystemPrompt } from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
 import { reincarnationPromotionPrompt } from '../../../../src/mods/mod-character/prompts/reincarnation-promotion-prompt.ts'
 import { ENDING_REVIEW_SYSTEM_PROMPT } from '../../../../src/mods/mod-pages/pages/game-over/game-over-review.ts'
@@ -28,6 +32,13 @@ const promptSources = [
   ['ending-review', ENDING_REVIEW_SYSTEM_PROMPT],
   ['life-score', LIFE_SCORING_SYSTEM_PROMPT],
 ]
+for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
+  const source = buildDestinyPatternSystemPrompt(category)
+  const config = DESTINY_PATTERN_CATEGORY_CONFIG[category]
+  if (!source.includes(config.label) || !source.includes(config.guidance)) {
+    fail(`destiny ${category} Prompt must carry its own primary-mechanism guidance`)
+  }
+}
 const detailedExample = /药剂|遗迹(?!发现)|秘境|陌生观察者|神秘来客|完整故事示例|成品示例|详细剧情示例/u
 for (const [name, source] of promptSources) {
   if (!source || source.trim().length < 20) fail(`${name} Prompt must contain its own active responsibility`)
