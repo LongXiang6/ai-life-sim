@@ -298,6 +298,7 @@ assertOk(
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮叙事必须是单独完整事件')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('严禁连载上一轮的故事继续输出')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮重新根据世界观或记忆抽取事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮故事，先宏观定调开篇，然后是具体承接，最后是收尾。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
@@ -1228,7 +1229,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.23\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.23.0')
+assertOk(/version:\s*'7\.24\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.24.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

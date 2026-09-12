@@ -37,12 +37,13 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.23\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.24\.0'/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
 assert.match(sources.mainSystemPrompt, /离散化不同轮次故事的关联性/u)
 assert.match(sources.mainSystemPrompt, /每轮叙事必须是单独完整事件/u)
 assert.match(sources.mainSystemPrompt, /严禁连载上一轮的故事继续输出/u)
 assert.match(sources.mainSystemPrompt, /每轮重新根据世界观或记忆抽取事件/u)
+assert.match(sources.mainSystemPrompt, /每轮故事，先宏观定调开篇，然后是具体承接，最后是收尾。/u)
 assert.match(sources.mainSystemPrompt, /仅当发生改写命运的大事级别，给出三个不同的命运走向/u)
 assert.match(sources.mainSystemPrompt, /故事内容必须符合对应的年龄能力边界/u)
 assert.match(sources.mainSystemPrompt, /年龄与轮次由当前信息-时间字段决定/u)

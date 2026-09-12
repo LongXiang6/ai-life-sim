@@ -88,8 +88,8 @@ assertOk(
   '01 必须宽容解析人生重开文本、简写分支结局与状态行属性，不启用工具或额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.23.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.23.0')
+  narrativePrompt.includes("version: '7.24.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.24.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '3.0.0'")
     && talentPrompt.includes("version: '3.5.0'")
