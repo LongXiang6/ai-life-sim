@@ -37,7 +37,7 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.22\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.23\.0'/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
 assert.match(sources.mainSystemPrompt, /离散化不同轮次故事的关联性/u)
 assert.match(sources.mainSystemPrompt, /每轮叙事必须是单独完整事件/u)
@@ -47,7 +47,7 @@ assert.match(sources.mainSystemPrompt, /仅当发生改写命运的大事级别�
 assert.match(sources.mainSystemPrompt, /故事内容必须符合对应的年龄能力边界/u)
 assert.match(sources.mainSystemPrompt, /年龄与轮次由当前信息-时间字段决定/u)
 assert.match(sources.mainSystemPrompt, /不得从当前年龄、轮次自行跨入下一岁/u)
-assert.match(sources.mainSystemPrompt, /世界设定是规则边界，只作为世界背景/u)
+assert.match(sources.mainSystemPrompt, /世界设定是规则边界，只作为世界观和背景信息/u)
 assert.match(sources.mainSystemPrompt, /物种上下极限为±10边界，超凡可突破±10/u)
 assert.match(sources.mainSystemPrompt, /【年龄:X岁\|心智:x\|体魄:x\|魅力:x\|家境:x】/u)
 assert.match(sources.mainSystemPrompt, /"命运分支"/u)

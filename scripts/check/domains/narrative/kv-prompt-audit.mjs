@@ -96,7 +96,7 @@ if (
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界背景')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界观和背景信息')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
