@@ -294,13 +294,16 @@ const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮叙事必须是单独完整事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('严禁连载上一轮的故事继续输出')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('模拟的是人生重开模拟器，不是让你连载小说')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮重新根据世界观或记忆抽取事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不自行增龄、跳年')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界背景')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('物种上下极限为±10边界，超凡可突破±10')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
@@ -311,6 +314,8 @@ assertOk(
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个“人生重开模拟器”系统')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('冷却'),
   'fixed Prompt must contain the approved life-restart rules and text output format',
 )
@@ -319,7 +324,7 @@ assertOk(
     && storyPromptSampleSrc.includes('"玩家属性"')
     && storyPromptSampleSrc.includes('"当前信息"')
     && storyPromptSampleSrc.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
-    && storyPromptSampleSrc.includes('你是一个“人生重开模拟器”系统'),
+    && storyPromptSampleSrc.includes('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性'),
   '01 sample must document the one-message data layer and life-restart text contract',
 )
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
@@ -1221,7 +1226,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.21\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.21.0')
+assertOk(/version:\s*'7\.22\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.22.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

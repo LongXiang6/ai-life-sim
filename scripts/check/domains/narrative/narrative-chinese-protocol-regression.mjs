@@ -195,28 +195,49 @@ const validWithBranch = JSON.stringify({
   属性变化: null,
 })
 const parsed = parseNarrativeResponseEnvelope(validWithBranch)
-assertOk(parsed.narrative.includes('旧桥边'), '01 唯一正文字符串必须保留完整正文')
-assertOk(parsed.branch?.选项.length === 2, '01 必须解析可选分支')
+assertOk(parsed.narrative.includes('旧桥边') && parsed.branch?.选项.length === 2, '01 必须保留完整正文并解析可选分支')
+const arrayWrappedNarrative = parseNarrativeResponseEnvelope(JSON.stringify([{
+  年龄: 1,
+  心智: 2,
+  体魄: 4,
+  魅力: 0,
+  家境: 0,
+  正文: '母亲把你放进学步车里，父亲弯腰捡起铜纽扣塞进你手心。',
+  命运分支: false,
+  结局: false,
+}]))
+assertOk(
+  arrayWrappedNarrative.narrative === '母亲把你放进学步车里，父亲弯腰捡起铜纽扣塞进你手心。',
+  '01 顶层数组包裹的正文必须以 JSON 字符串本体结束，不得吞入闭合引号与字段逗号',
+)
+const malformedLabeledNarrative = parseNarrativeResponseEnvelope(`[{"年龄":2岁|心智:2|体魄:4|魅力:0|家境:0]
+"正文": "父亲从旧大衣里翻出一枚银西可，放进你掌心，说这是魔法世界的钱，留着。",
+"命运分支": false,
+"结局": false}]`)
+assertOk(
+  malformedLabeledNarrative.narrative === '父亲从旧大衣里翻出一枚银西可，放进你掌心，说这是魔法世界的钱，留着。',
+  '01 畸形协议包装必须精确提取正文字符串，不得吞入闭合引号与字段逗号',
+)
 const lifeSimulatorBranch = parseNarrativeResponseEnvelope(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0】
 "正文": "你核清了旧账，三条去路同时摆到面前。"。
 "命运分支": {["留在商号","独自北上","回城查旧案"]}。
 "结局": "false"。`, {
   currentAttributes: { 心智: 2, 体魄: 1, 魅力: -1, 家境: 0 },
 })
-assertOk(
-  lifeSimulatorBranch.branch?.选项.length === 3
-    && lifeSimulatorBranch.attributeChanges?.心智 === 1,
-  '01 必须解析人生重开简写分支，并把状态行绝对值换算为本轮属性差值',
-)
+assertOk(lifeSimulatorBranch.branch?.选项.length === 3 && lifeSimulatorBranch.attributeChanges?.心智 === 1, '01 必须解析人生重开简写分支，并把状态行绝对值换算为本轮属性差值')
 const lifeSimulatorQuality = inspectNarrativeResponseQuality(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0】
 "正文": "你核清旧账后保住了商号的紧要货物。"。
 "命运分支": "false"。
 "结局": "false"。`, 200, undefined, segments.userSegments[0])
-assertOk(
-  lifeSimulatorQuality.valid
-    && lifeSimulatorQuality.parsed?.attributeChanges?.心智 === 1,
-  '01 正式质量入口必须从数据层读取当前属性并换算状态行差值',
-)
+assertOk(lifeSimulatorQuality.valid && lifeSimulatorQuality.parsed?.attributeChanges?.心智 === 1, '01 正式质量入口必须从数据层读取当前属性并换算状态行差值')
+const unlabeledLifeSimulators = [
+  parseNarrativeResponseEnvelope('【年龄:4岁|心智:5|体魄:1|魅力:1|家境:1】\n\n"考文垂的姨妈家比伦敦旧宅宽敞，却更冷清。姨父在自行车厂上班，表姐已出嫁，空出的阁楼成了你的房间。搬来第三天，你帮姨妈晾衣服，发现后院矮墙外有条窄巷，巷口废木箱下压着一份《预言家日报》——纸张泛黄，日期是1981年11月2日，头版标题只剩半行：『神秘人……败……』其余被雨水泡烂。你蹲着读完能辨认的段落，提到『巫师界欢庆』『麻瓜当局未予置评』。姨妈在屋里喊你，你把报纸折好塞进裤腰。当晚阁楼老鼠啃墙，你摸出铜钥匙对着月光看，柄上符号与报头花体字母的弧度相似——不是巧合。你把报纸藏进床垫下，钥匙重新贴身收好。"\n\n"命运分支": ["把报纸拿给姨妈看，试探她是否知情","白天再去巷口翻找废木箱下有没有更多旧报","记住报头日期与符号，暂时不动声色"]'),
+  parseNarrativeResponseEnvelope('【年龄:5岁|心智:5|体魄:1|魅力:1|家境:1】\n\n考文垂的春天多雨，阁楼墙角洇出一片水渍。你趁姨妈去集市，搬开床垫检查藏报，发现《预言家日报》边缘被水汽泡软，墨迹正一圈圈晕开。你决定把残存字句全部誊到算术本上，再烧掉原报。誊抄到『神秘人败』那半行时，你忽然想起旧货铺老板的眼神——他认得这符号，却不肯收钥匙。你翻出铜钥匙，柄上右弧与报头花体『P』完全咬合。你第一次意识到：这枚钥匙不是废铜，是某扇门或某个箱子的凭证。傍晚姨妈回来，说巷口废木箱被市政收走了，连同底下压着的一切。你点头，把誊本和钥匙分藏两处。夜里雨停，阁楼老鼠没再啃墙——它们搬走了，像知道这里已无纸可咬。'),
+  parseNarrativeResponseEnvelope('【年龄:6岁|心智:5|体魄:1|魅力:1|家境:1】\n\n补锅匠卷走誊本后，你接连几夜睡不实，听见厨房水管滴答都像有人在翻纸。姨妈为贴补家用，把临街窗台改成杂货摊，卖火柴、蜡烛和针线。你负责看摊，某日一个穿灰呢斗篷的男人停在摊前，不买货，只问了一句：“你家阁楼以前住过补锅匠？”你点头。他掏出一枚银西可放在窗台上，说那补锅匠欠他一样东西，若再有人来问，别答话，收下钱就是。银币边缘有细齿，你趁姨妈转身，将它和铜钥匙一并缝进贴身衣兜的夹层。当晚你摸着两枚硬物，明白自己手里攥的不只是遗物，而是一条正被人追查的线头。\n\n"命运分支": ["把银西可拿给姨妈，问她认不认得这种钱", "白天去巷口打听灰斗篷男人的来历", "缝死衣兜，此后不再向任何人出示钥匙与银币"]'),
+]
+assertOk(unlabeledLifeSimulators[0].narrative.startsWith('考文垂的姨妈家') && !unlabeledLifeSimulators[0].narrative.includes('【年龄') && !unlabeledLifeSimulators[0].narrative.includes('命运分支') && JSON.stringify(unlabeledLifeSimulators[0].branch?.选项) === JSON.stringify(['把报纸拿给姨妈看，试探她是否知情', '白天再去巷口翻找废木箱下有没有更多旧报', '记住报头日期与符号，暂时不动声色']), '01 缺少正文字段标签但边界唯一时必须恢复正文与三个分支')
+assertOk(unlabeledLifeSimulators[1].narrative.startsWith('考文垂的春天多雨') && !unlabeledLifeSimulators[1].narrative.includes('【年龄') && !unlabeledLifeSimulators[1].branch, '01 状态行后无标签无引号正文必须剥离状态行')
+assertOk(unlabeledLifeSimulators[2].narrative.startsWith('补锅匠卷走誊本后') && !unlabeledLifeSimulators[2].narrative.includes('【年龄') && !unlabeledLifeSimulators[2].narrative.includes('命运分支') && JSON.stringify(unlabeledLifeSimulators[2].branch?.选项) === JSON.stringify(['把银西可拿给姨妈，问她认不认得这种钱', '白天去巷口打听灰斗篷男人的来历', '缝死衣兜，此后不再向任何人出示钥匙与银币']), '01 状态行后无标签正文必须剥离状态行并保留三个分支')
 const lifeSimulatorEnding = parseNarrativeResponseEnvelope(`【年龄:80岁|心智:3|体魄:-2|魅力:1|家境:0】
 "正文": "你在旧宅中安然辞世，未再醒来。"。
 "命运分支": "false"。
@@ -334,7 +355,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.21.0'
+  narrativePrompt.version === '7.22.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -342,16 +363,18 @@ assertOk(
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不自行增龄、跳年')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界背景')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮叙事必须是单独完整事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('严禁连载上一轮的故事继续输出')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('模拟的是人生重开模拟器，不是让你连载小说')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮重新根据世界观或记忆抽取事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界背景')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个“人生重开模拟器”系统')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('冷却')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界模拟引擎'),
   '固定主故事 Prompt 必须采用最新系统提示词并保留项目输出字段',

@@ -164,12 +164,20 @@ function parseLifeSimulatorText(source: string): {
   ending?: unknown
   reportedAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>>
 } {
-  const bodyMatch = source.match(/["“]?正文["”]?\s*:\s*"([\s\S]*?)"\s*[。；;]?\s*["“]?命运分支/u)
-  if (!bodyMatch?.[1]?.trim()) return {}
-  const narrative = normalizeNarrative(bodyMatch[1].replace(/\\"/gu, '"'))
+  const statusMatch = source.match(/^\s*【\s*年龄\s*[:：]\s*[^|】]+\|\s*心智\s*[:：]\s*([+-]?\d+)\s*\|\s*体魄\s*[:：]\s*([+-]?\d+)\s*\|\s*魅力\s*[:：]\s*([+-]?\d+)\s*\|\s*家境\s*[:：]\s*([+-]?\d+)[^】]*】/u)
+  const labeledBody = extractCompleteJsonStringField(source, '正文')
+  const remainder = statusMatch ? source.slice(statusMatch[0].length).trim() : undefined
+  const hasLabeledBody = remainder !== undefined && /^["“]?正文["”]?\s*[:：]/u.test(remainder)
+  const protocolField = /(?:^|\n)\s*["“]?(?:命运分支|结局)["”]?\s*[:：]/u
+  const bodyEnd = remainder?.search(protocolField) ?? -1
+  const unlabeledBody = remainder !== undefined && !hasLabeledBody
+    ? remainder.slice(0, bodyEnd >= 0 ? bodyEnd : undefined)
+    : undefined
+  const bodyText = labeledBody ?? unlabeledBody
+  if (!bodyText?.trim()) return {}
+  const narrative = normalizeNarrative(bodyText.trim().replace(/^["“]|["”]$/gu, '').replace(/\\"/gu, '"'))
   const branchMatch = source.match(/(?:^|\n)\s*["“]?命运分支["”]?\s*[:：]\s*([\s\S]*?)(?=\n\s*["“]?结局["”]?\s*[:：]|$)/u)
   const endingMatch = source.match(/(?:^|\n)\s*["“]?结局["”]?\s*[:：]\s*([\s\S]*?)\s*$/u)
-  const statusMatch = source.match(/【\s*年龄\s*[:：]\s*[^|】]+\|\s*心智\s*[:：]\s*([+-]?\d+)\s*\|\s*体魄\s*[:：]\s*([+-]?\d+)\s*\|\s*魅力\s*[:：]\s*([+-]?\d+)\s*\|\s*家境\s*[:：]\s*([+-]?\d+)[^】]*】/u)
   const branchText = branchMatch?.[1]?.trim()
   const endingText = endingMatch?.[1]?.trim()
   return {
