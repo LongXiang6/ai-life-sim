@@ -17,10 +17,11 @@ export const NarrativeAIBranchSchema = z.object({
 })
 
 export const NarrativeAIEndingSchema = z.object({
-  四字评语: NarrativeAINonBlankStringSchema.refine(
+  评语: NarrativeAINonBlankStringSchema.refine(
     (value) => Array.from(value.trim()).length === 4,
-    '四字评语必须恰好四个字符',
+    '评语必须恰好四个字符',
   ),
+  总结: NarrativeAINonBlankStringSchema,
 })
 
 const NarrativeAIAttributeDeltaSchema = z.number().int().min(-3).max(3).refine(
@@ -29,10 +30,10 @@ const NarrativeAIAttributeDeltaSchema = z.number().int().min(-3).max(3).refine(
 )
 
 export const NarrativeAIAttributeChangesSchema = z.object({
-  体魄: NarrativeAIAttributeDeltaSchema.optional(),
   心智: NarrativeAIAttributeDeltaSchema.optional(),
-  悟性: NarrativeAIAttributeDeltaSchema.optional(),
+  体魄: NarrativeAIAttributeDeltaSchema.optional(),
   魅力: NarrativeAIAttributeDeltaSchema.optional(),
+  家境: NarrativeAIAttributeDeltaSchema.optional(),
 }).strict().refine(
   (value) => Object.keys(value).length > 0,
   '属性变化对象至少需要一个非零属性变化',
@@ -50,10 +51,10 @@ export const NarrativeAIStoryResultSchema = z.object({
 })
 
 const NarrativeAITalentAttributeBonusSchema = z.object({
-  体魄: z.number().int().optional(),
   心智: z.number().int().optional(),
-  悟性: z.number().int().optional(),
+  体魄: z.number().int().optional(),
   魅力: z.number().int().optional(),
+  家境: z.number().int().optional(),
   气运: z.number().int().optional(),
 })
 
@@ -103,18 +104,6 @@ export type NarrativeAIAttributeChanges = z.infer<typeof NarrativeAIAttributeCha
 export type NarrativeAIStoryResult = z.infer<typeof NarrativeAIStoryResultSchema>
 export type NarrativeAITalentGrowthData = z.infer<typeof NarrativeAITalentGrowthDataSchema>
 export type NarrativeAIStoryContinuityData = z.infer<typeof NarrativeAIStoryContinuityDataSchema>
-
-export const NarrativeAIEventLibraryEventSchema = z.object({
-  标题: z.string().trim().min(1),
-  描述: z.string().trim().min(1),
-}).strict()
-
-export const NarrativeAIEventLibraryResultSchema = z.object({
-  候选事件: z.array(NarrativeAIEventLibraryEventSchema).min(0).max(3),
-}).strict()
-
-export type NarrativeAIEventLibraryEvent = z.infer<typeof NarrativeAIEventLibraryEventSchema>
-export type NarrativeAIEventLibraryResult = z.infer<typeof NarrativeAIEventLibraryResultSchema>
 
 /** Read one JSON candidate; field ownership remains with each post-call normalizer. */
 export function parseNarrativeAIJson(source: string): unknown {

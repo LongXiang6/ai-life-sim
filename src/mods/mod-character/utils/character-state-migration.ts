@@ -24,7 +24,7 @@ import { basePointsFromCalendarDays } from '@/foundation'
 import { sanitizeDestinyPatternCategory } from './destiny-pattern-category-migration'
 import { normalizeCommonDestinyPatternCandidate } from '../subsystems/destiny-pattern-system/validation'
 
-const BASE_ATTRIBUTE_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
+const BASE_ATTRIBUTE_KEYS = ['mind', 'physique', 'charisma', 'familyBackground'] as const
 const ATTRIBUTE_BONUS_KEYS = [...BASE_ATTRIBUTE_KEYS, 'luck'] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -44,10 +44,10 @@ function finiteNumber(value: unknown, fallback = 0): number {
 function sanitizeBaseAttributes(value: unknown): BaseAttributes {
   const record = isRecord(value) ? value : {}
   return {
-    physique: finiteNumber(record.physique),
     mind: finiteNumber(record.mind),
-    talentAptitude: finiteNumber(record.talentAptitude),
+    physique: finiteNumber(record.physique),
     charisma: finiteNumber(record.charisma),
+    familyBackground: finiteNumber(record.familyBackground),
   }
 }
 

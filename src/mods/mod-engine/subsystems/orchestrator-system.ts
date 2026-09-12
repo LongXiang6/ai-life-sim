@@ -17,6 +17,7 @@ import {
   executionSequenceError,
   runExecutionSequence,
   BASE_POINTS_PER_YEAR,
+  normalizeCanonicalTimeStep,
 } from '@/foundation'
 import { getMvpRuntimeSubsystemOrder } from '../helpers/mvp-runtime-policy'
 import type {
@@ -25,7 +26,6 @@ import type {
   YearEvent,
 } from '@/foundation'
 import type { NarrativeRepetitionMetric } from '../helpers/narrative-repetition-metrics'
-import type { NarrativeAIEventLibraryResult } from '../helpers/narrative-ai-protocol'
 import { saveManager } from '@/core/storage/save-manager'
 import {
   DEFAULT_ENGINE_CONFIG,
@@ -33,9 +33,7 @@ import {
   sanitizeSubSystemState,
   isMvpRuntimeSubsystem,
   resolveTimeStep,
-  extractBridgeSnapshot,
   shouldAlignTimeStepTransition,
-  mapSubsystemStatesToDetectionStates,
   RoundCommitBus,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
@@ -55,7 +53,6 @@ import {
   causalDelay,
   subsystemRelevance,
   useEngineStore,
-  type EventLifecycleTracker,
   type RoundCommitSource,
   type RoundCommitResult,
   type EngineState,
@@ -67,7 +64,6 @@ import {
   type PreparedNarrativeStoryContinuity,
   type NarrativeStoryContinuityTransactionSnapshot,
   type TimeStep,
-  type BridgeSnapshot,
   type ParsedNarrative,
   createNarrativeLifeRunId,
   isNarrativeRepetitionMetric,
@@ -93,7 +89,6 @@ import {
   type NarrativeScopeView,
 } from '../helpers/narrative-context-scope'
 import type {
-  HistoricalEventCandidateAudit,
   HistoricalEventScope,
   ISubSystem,
   SubSystemState,
@@ -124,11 +119,8 @@ import {
   finalizeNarrativeResponseRuntime,
   discardNarrativeResponseRuntime,
   buildHistoricalCausalScopeRuntime,
-  getAvailableHistoricalEventCandidatesRuntime,
-  getDueHistoricalEventCandidatesRuntime,
   getCurrentHistoricalScopeRuntime,
   getHistoricalEventLedgerRuntimeRuntime,
-  notifyHistoricalEventsCommittedRuntime,
   type HistoricalEventLedgerRuntime,
   buildHistoricalDeathTransactionPlanRuntime,
   type HistoricalDeathTransactionPlan,
@@ -177,12 +169,6 @@ export interface OrchestratorPersistenceState {
   worldContextId?: string
   state: EngineState
   lastSubsystemStates: Record<string, SubSystemState>
-  eventLifecycle: EventLifecycleTracker
-  /** 大步进时间桥接摘要的起始年份与前一轮关键状态快照。 */
-  prevRoundYear?: number
-  prevBridgeSnapshot?: BridgeSnapshot
-  /** 本次叙事开始前的时间节点；用于给 Prompt 提供真实的起止窗口。 */
-  previousNarrativeRound?: RoundInfo
   timeRound: RoundInfo
   lastNarratedTimeStep?: TimeStep
   /** 当前叙事是否处于粗→细切换后的首轮边界对齐桥接。 */
@@ -279,8 +265,6 @@ function createProjectionRuntimeDependencies(): OrchestratorRuntimeDependencies 
 export interface AcceptedNarrativeResult extends RoundResult {
   narrativeId: string
   roundSequence: number
-  deliveredCausalEventIds: string[]
-  deliveredHistoricalEventCandidateIds: string[]
 }
 
 interface AcceptedNarrativeRecord {
@@ -293,8 +277,6 @@ interface AcceptedNarrativeRecord {
   narrative: ParsedNarrative
   /** Prepared visible text; the parsed protocol remains in `narrative`. */
   narrativeText: string
-  deliveredCausalEventIds: string[]
-  deliveredHistoricalEventCandidateIds: string[]
   playerChoice?: string
   ageAtRound: number
   displayTimeLabel: string
@@ -363,30 +345,8 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 角色信息 */
   private characterState: CharacterState | null = null
 
-  /** 事件生命周期追踪器 */
-  private eventLifecycle: EventLifecycleTracker = {}
-
   /** 已加载 MOD 清单；组装 Prompt 时再按实际运行绑定过滤规则。 */
   private modManifests: ModManifest[] = []
-
-  /** 大步进时间桥接：推进前记录起始年份与关键状态，供本轮 Prompt 投影。 */
-  private prevRoundYear = 0
-  private prevBridgeSnapshot: BridgeSnapshot = {}
-
-  /** 本次叙事开始前的权威时间节点（不随步长切换额外跳转）。 */
-  private previousNarrativeRound: RoundInfo = {
-    year: 0,
-    season: getSeasonForMonth(0),
-    month: 0,
-    day: 0,
-    dayOfYear: 1,
-    totalDays: 0,
-    totalBasePoints: 0,
-    basePointsPassed: 0,
-    eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined,
-    eventNodeIndex: 0,
-    ...TimeSystem.resolveDisplayEra(0),
-  }
 
   /** 上一轮叙事全文（兼容旧 RoundContext；不得用于本地语义判定） */
 
@@ -412,7 +372,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     roundSequence: number
     promptContext: PromptContext
     playerChoice?: string
-    eventInjectionText?: string
     legendaryEncounterInjected?: boolean
   }
 
@@ -421,21 +380,6 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 最近一次 AI 原始 JSON 输出，供诊断使用。 */
   private lastExecutedFullContent: string | null = null
-
-  /** 本轮已到期但尚未在有效叙事提交中确认兑现的因果事项。 */
-  private pendingNarrativeCausalEventIds: string[] = []
-
-  /** 当前 Prompt 实际投递、尚未随正文接纳的到期历史候选。 */
-  private pendingNarrativeEventCandidateIds: string[] = []
-
-  /** 上一轮事件库 04 产出，下一轮主故事投影后一次性消费；仅运行态，不进入存档。 */
-  private pendingEventLibraryResult: NarrativeAIEventLibraryResult | null = null
-
-  /** 本轮已确认世界事实投影（当前区域 + 历史账本），供事件库 04 输入使用；仅运行态。 */
-  private pendingConfirmedWorldFacts: string | undefined = undefined
-
-  /** 已随正文接纳、当前运行态已屏蔽重复投影的历史候选；候选账本状态仍由其所属系统保持。 */
-  private readonly inFlightNarrativeEventCandidateIds = new Set<string>()
 
   /** 已接纳正文的不可变来源快照；后台结果只能按此身份提交。 */
   private readonly acceptedNarrativeRecords = new Map<string, AcceptedNarrativeRecord>()
@@ -550,10 +494,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     projection.worldSetting = this.worldSetting ? structuredClone(this.worldSetting) : null
     projection.characterState = this.characterState ? structuredClone(this.characterState) : null
     projection.importPersistenceState(this.exportPersistenceState(false), false)
-    // 预生成投影需携带上一轮事件库产出：该字段是仅运行态的瞬态结果，不进入 exportPersistenceState，
-    // 且 importPersistenceState 会把投影的该字段重置为 null。若不在这里补齐，下一轮预览会缺少
-    // 「事件库候选材料」，导致预览指纹与真实回合不一致而每次回退到真实调用。
-    projection.pendingEventLibraryResult = structuredClone(this.pendingEventLibraryResult)
     return projection
   }
 
@@ -671,28 +611,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     return { ...this.state, compressionStats: { ...this.state.compressionStats } }
   }
 
-  /** 写入本轮已确认世界事实投影，供事件库 04 输入读取。 */
-  setConfirmedWorldFacts(text: string | undefined): void {
-    this.pendingConfirmedWorldFacts = text
-  }
-
-  /** 读取本轮已确认世界事实投影（当前区域 + 历史账本）。 */
-  getConfirmedWorldFacts(): string | undefined {
-    return this.pendingConfirmedWorldFacts
-  }
-
-  /** 写入上一轮事件库 04 产出，供下一轮主故事投影。 */
-  setEventLibraryResult(result: NarrativeAIEventLibraryResult | null): void {
-    this.pendingEventLibraryResult = result
-  }
-
-  /** 读取并一次性消费上一轮事件库 04 产出。 */
-  takeEventLibraryResult(): NarrativeAIEventLibraryResult | null {
-    const result = this.pendingEventLibraryResult
-    this.pendingEventLibraryResult = null
-    return result
-  }
-
   getSubsystemStateSnapshot(): Record<string, SubSystemState> {
     return structuredClone(this.lastSubsystemStates)
   }
@@ -761,9 +679,6 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 推进时间（供 stage 闭包使用） */
   advanceTime(): void {
-    this.previousNarrativeRound = { ...this.state.round }
-    this.prevRoundYear = this.state.round.year
-    this.prevBridgeSnapshot = extractBridgeSnapshot(this.lastSubsystemStates)
     this.state.round = this.advanceTimeForCurrentStep()
     this.state.totalRounds++
   }
@@ -784,25 +699,26 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 设置时间步进（UI → 引擎 + TimeSystem） */
   setTimeStep(step: RoundContext['timeStep']): void {
+    const normalizedStep = normalizeCanonicalTimeStep(step)
     if (
       !this.projectionMode
-      && (this.state.timeStep.unit !== step.unit || this.state.timeStep.value !== step.value)
+      && (this.state.timeStep.unit !== normalizedStep.unit || this.state.timeStep.value !== normalizedStep.value)
     ) invalidateNarrativePreGeneration()
     if (this.pendingTimeStepAlignmentFromUnit) {
-      if (!shouldAlignTimeStepTransition(this.pendingTimeStepAlignmentFromUnit, step.unit)) {
+      if (!shouldAlignTimeStepTransition(this.pendingTimeStepAlignmentFromUnit, normalizedStep.unit)) {
         this.pendingTimeStepAlignmentFromUnit = undefined
         this.pendingTimeStepAlignmentFromValue = undefined
       }
     } else if (
       this.state.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(this.lastNarratedTimeStep.unit, step.unit)
+      && shouldAlignTimeStepTransition(this.lastNarratedTimeStep.unit, normalizedStep.unit)
     ) {
       this.pendingTimeStepAlignmentFromUnit = this.lastNarratedTimeStep.unit
       this.pendingTimeStepAlignmentFromValue = this.lastNarratedTimeStep.value
     }
-    this.state.timeStep = step
-    this.runtime.time.setTimeStep(step)
-    if (!this.projectionMode) useEngineStore.getState().setTimeStep(step)
+    this.state.timeStep = normalizedStep
+    this.runtime.time.setTimeStep(normalizedStep)
+    if (!this.projectionMode) useEngineStore.getState().setTimeStep(normalizedStep)
   }
 
   getTimeStep(): RoundContext['timeStep'] {
@@ -817,21 +733,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 三回合收集所有子系统状态（供 stage 闭包使用） */
   async collectAllSubsystemStates(recordRelevance = true): Promise<void> {
     await this.collectSubsystemStates(false, recordRelevance)
-  }
-
-  /** 获取事件检测所需的状态快照（供 stage 闭包使用） */
-  getDetectionStates(): Record<string, unknown> {
-    return this.extractDetectionStates()
-  }
-
-  /** 获取事件生命周期追踪器（供 stage 闭包使用） */
-  getEventLifecycle(): EventLifecycleTracker {
-    return this.eventLifecycle
-  }
-
-  /** 设置事件生命周期追踪器（供 stage 闭包使用） */
-  setEventLifecycle(lifecycle: EventLifecycleTracker): void {
-    this.eventLifecycle = lifecycle
   }
 
   setLastPlayerChoice(choice: string): void {
@@ -849,7 +750,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     roundSequence: number
     promptContext: PromptContext
     playerChoice?: string
-    eventInjectionText?: string
     legendaryEncounterInjected?: boolean
   } | undefined {
     const pending = this.pendingNarrativeRoundPreparation
@@ -861,7 +761,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     roundSequence: number
     promptContext: PromptContext
     playerChoice?: string
-    eventInjectionText?: string
     legendaryEncounterInjected?: boolean
   }): void {
     this.pendingNarrativeRoundPreparation = structuredClone({
@@ -1064,10 +963,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       worldContextId: this.worldSetting?.contextId,
       state: this.state,
       lastSubsystemStates: this.lastSubsystemStates,
-      eventLifecycle: this.eventLifecycle,
-      prevRoundYear: this.prevRoundYear,
-      prevBridgeSnapshot: this.prevBridgeSnapshot,
-      previousNarrativeRound: this.previousNarrativeRound,
       timeRound: this.runtime.time.exportRound(),
       lastNarratedTimeStep: this.lastNarratedTimeStep,
       lastTimeStepAlignment: this.lastTimeStepAlignment,
@@ -1094,22 +989,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       )
       this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
     }
-    this.eventLifecycle = structuredClone(state.eventLifecycle ?? {})
-    this.prevRoundYear = state.prevRoundYear ?? this.state.round.year
-    this.prevBridgeSnapshot = structuredClone(state.prevBridgeSnapshot ?? {})
-    this.previousNarrativeRound = {
-      ...(state.previousNarrativeRound ?? state.state.round ?? this.state.round),
-    }
-    this.lastNarratedTimeStep = { ...(state.lastNarratedTimeStep ?? this.state.timeStep) }
+    this.lastNarratedTimeStep = normalizeCanonicalTimeStep(state.lastNarratedTimeStep ?? this.state.timeStep)
     this.lastTimeStepAlignment = state.lastTimeStepAlignment
       ? { ...state.lastTimeStepAlignment }
       : undefined
     this.lastExecutedFullContent = state.lastExecutedFullContent ?? null
-    this.pendingNarrativeCausalEventIds = []
-    this.pendingNarrativeEventCandidateIds = []
-    this.pendingEventLibraryResult = null
-    this.pendingConfirmedWorldFacts = undefined
-    this.inFlightNarrativeEventCandidateIds.clear()
     this.lastPlayerChoice = state.lastPlayerChoice
     this.pendingNarrativeRoundPreparation = undefined
     this.lastNarrativeLuckGuidance = state.lastNarrativeLuckGuidance
@@ -1598,10 +1482,9 @@ export class OrchestratorSystem extends BaseSubsystem {
   // === ISubSystem 实现 ===
 
   collectState(_context: RoundContext): SubSystemState {
-    const lifecycleCount = Object.keys(this.eventLifecycle).length
     return {
       id: this.id,
-      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩回合×${this.state.compressionStats.compressedRoundCount}`,
+      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 压缩回合×${this.state.compressionStats.compressedRoundCount}`,
       data: structuredClone(this.state) as unknown as Record<string, unknown>,
     }
   }
@@ -1653,37 +1536,14 @@ export class OrchestratorSystem extends BaseSubsystem {
       storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
     }
     this.lastSubsystemStates = {}
-    this.eventLifecycle = {}
-    this.prevRoundYear = 0
-    this.prevBridgeSnapshot = {}
-    this.previousNarrativeRound = {
-      year: 0,
-      season: getSeasonForMonth(0),
-      month: 0,
-      day: 0,
-      dayOfYear: 1,
-      totalDays: 0,
-      totalBasePoints: 0,
-      basePointsPassed: 0,
-      eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined,
-      eventNodeIndex: 0,
-      ...TimeSystem.resolveDisplayEra(0),
-    }
     this.lastNarratedTimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
     this.lastTimeStepAlignment = undefined
     this.pendingTimeStepAlignmentFromUnit = undefined
     this.pendingTimeStepAlignmentFromValue = undefined
     this.lastExecutedFullContent = null
-    this.pendingNarrativeCausalEventIds = []
-    this.pendingNarrativeEventCandidateIds = []
-    this.pendingEventLibraryResult = null
-    this.pendingConfirmedWorldFacts = undefined
-    this.inFlightNarrativeEventCandidateIds.clear()
     this.acceptedNarrativeRecords.clear()
     this.lastPlayerChoice = undefined
     this.pendingNarrativeRoundPreparation = undefined
-    this.pendingNarrativeCausalEventIds = []
-    this.pendingNarrativeEventCandidateIds = []
     this.lastNarrativeLuckGuidance = null
     this.worldSetting = null
     this.characterState = null
@@ -1700,8 +1560,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   hydrateFromEngineStore(previousTimeStep?: TimeStep): void {
     this.acceptedNarrativeRecords.clear()
     this.pendingNarrativeRoundPreparation = undefined
-    this.pendingNarrativeEventCandidateIds = []
-    this.inFlightNarrativeEventCandidateIds.clear()
     const store = useEngineStore.getState()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
@@ -1720,11 +1578,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       ? store.lifeRunId
       : createNarrativeLifeRunId()
     const storyRepetitionStats = summarizeNarrativeHistoryRepetition(narrativeHistory)
+    const restoredTimeStep = normalizeCanonicalTimeStep(store.timeStep)
     this.state = {
       lifeRunId,
       status: store.status === 'complete' ? 'complete' : 'idle',
       round: { ...store.round },
-      timeStep: { ...store.timeStep },
+      timeStep: restoredTimeStep,
       totalRounds: store.totalRounds,
       narrativeHistory,
       currentNarrative: store.currentNarrative,
@@ -1742,18 +1601,15 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.runtime.time.importRound(store.round)
     // 读取旧存档时不要继续信任旧 season 序号，当前节点始终按阳历月份重算。
     this.state.round = this.runtime.time.getRound()
-    this.runtime.time.setTimeStep(store.timeStep)
+    this.runtime.time.setTimeStep(restoredTimeStep)
     // EngineStore 的 round 是最近一条已完成叙事的结束节点；
     // 读档后下一轮从这里开始，不能按当前步长重新推断或回放旧周期。
-    this.previousNarrativeRound = { ...store.round }
-    this.prevRoundYear = store.round.year
-    this.prevBridgeSnapshot = extractBridgeSnapshot(this.lastSubsystemStates)
     const shouldRestorePendingAlignment = previousTimeStep
       && store.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(previousTimeStep.unit, store.timeStep.unit)
+      && shouldAlignTimeStepTransition(previousTimeStep.unit, restoredTimeStep.unit)
     this.lastNarratedTimeStep = shouldRestorePendingAlignment
       ? { ...previousTimeStep }
-      : { ...store.timeStep }
+      : { ...restoredTimeStep }
     this.pendingTimeStepAlignmentFromUnit = shouldRestorePendingAlignment
       ? previousTimeStep.unit
       : undefined
@@ -1766,17 +1622,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   // === 跨系统事务协调 ===
-
-  /**
-   * 从子系统状态中提取事件检测所需的状态快照
-   */
-  private extractDetectionStates(): Record<string, unknown> {
-    const raw: Record<string, unknown> = {}
-    for (const [id, ss] of Object.entries(this.lastSubsystemStates)) {
-      raw[id] = ss.data
-    }
-    return mapSubsystemStatesToDetectionStates(raw) as Record<string, unknown>
-  }
 
   /** 发布 SimulationSnapshot 供 UI 订阅。 */
   publishSimulationSnapshot(): void {
@@ -1795,8 +1640,8 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   // === Prompt 组装 ===
 
-  assemblePromptContext(eventInjectionText?: string): PromptContext {
-    return assemblePromptContextRuntime(this, eventInjectionText)
+  assemblePromptContext(): PromptContext {
+    return assemblePromptContextRuntime(this)
   }
 
   private buildLightWorldSetting(eraLabel: string): WorldSetting {
@@ -1804,7 +1649,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private buildRoundGuidanceInput(luckNarrativeGuidance?: LuckNarrativeGuidance): {
-    roundSystemGuidanceText?: string
     playerBranchIntent?: Record<string, unknown>
   } {
     return buildRoundGuidanceInputRuntime(this, luckNarrativeGuidance)
@@ -1838,22 +1682,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     return getHistoricalEventLedgerRuntimeRuntime(this)
   }
 
-  getAvailableHistoricalEventCandidates(): HistoricalEventCandidateAudit[] {
-    return getAvailableHistoricalEventCandidatesRuntime(this)
-  }
-
-  getDueHistoricalEventCandidates(): HistoricalEventCandidateAudit[] {
-    return getDueHistoricalEventCandidatesRuntime(
-      this,
-      [...this.inFlightNarrativeEventCandidateIds],
-    )
-  }
-
   private notifyHistoricalEventsCommitted(
     eventIds: string[],
     context: RoundContext,
   ): void {
-    notifyHistoricalEventsCommittedRuntime(this, eventIds, context)
+    for (const subsystem of this.subsystems) {
+      this.asRuntimeManaged(subsystem).onHistoricalEventsCommitted?.(eventIds, context)
+    }
   }
 
   private getCurrentHistoricalScope(contextIdInput?: string): HistoricalEventScope {
@@ -1993,12 +1828,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private releasePreparedNarrative(record: AcceptedNarrativeRecord): void {
-    // 已发布正文没有候选处置消费者；保留既有运行态屏蔽，避免同一候选在后续回合反复注入。
-    // 未发布的失败准备仍要释放，以便同一回合的手动重试再次获得候选。
-    if (record.committed) return
-    for (const candidateId of record.deliveredHistoricalEventCandidateIds) {
-      this.inFlightNarrativeEventCandidateIds.delete(candidateId)
-    }
+    void record
   }
 
   updateNarrativeTransitionAudit(

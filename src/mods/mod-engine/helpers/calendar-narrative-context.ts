@@ -4,7 +4,7 @@
  * Responsibility: Prompt projection only; time state and story selection remain with their owners.
  */
 
-import { basePointsFromCalendarDays, type TimeStep } from '@/foundation'
+import { basePointsFromCalendarDays, normalizeCanonicalTimeStep, type TimeStep } from '@/foundation'
 import { buildCanonicalCalendarNarrativeHint } from './time-scale-narrative'
 
 export interface CalendarNarrativeContextInput {
@@ -29,16 +29,18 @@ export interface CalendarNarrativeContextInput {
 }
 
 export function buildCalendarNarrativeContext(input: CalendarNarrativeContextInput): string {
-  const canonicalSpanRule = buildCanonicalCalendarNarrativeHint(input)
+  const timeStep = normalizeCanonicalTimeStep(input.timeStep)
+  const normalizedInput = { ...input, timeStep }
+  const canonicalSpanRule = buildCanonicalCalendarNarrativeHint(normalizedInput)
   // `daysPassed` is retained only as a legacy boundary value; never use it as
   // if it were the canonical annual base-point delta.
-  const elapsedBasePoints = input.basePointsPassed
-    ?? (input.daysPassed === undefined ? undefined : basePointsFromCalendarDays(input.daysPassed))
-  const hasActualWindow = input.previousNode !== undefined
+  const elapsedBasePoints = normalizedInput.basePointsPassed
+    ?? (normalizedInput.daysPassed === undefined ? undefined : basePointsFromCalendarDays(normalizedInput.daysPassed))
+  const hasActualWindow = normalizedInput.previousNode !== undefined
     && typeof elapsedBasePoints === 'number'
     && elapsedBasePoints > 0
   let granularityRule: string
-  switch (input.timeStep.unit) {
+  switch (timeStep.unit) {
     case 'event':
       granularityRule = hasActualWindow
         ? '本轮按事件节点推进；时间范围提供本轮的时间事实。'

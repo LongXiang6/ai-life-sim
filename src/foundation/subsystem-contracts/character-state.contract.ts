@@ -140,7 +140,7 @@ export interface CharacterNarrativeStatus {
 }
 
 export const CHARACTER_BASE_OPERATION_FIELDS = {
-  'adjust-attributes': ['physiqueDelta', 'mindDelta', 'talentAptitudeDelta', 'charismaDelta'],
+  'adjust-attributes': ['mindDelta', 'physiqueDelta', 'charismaDelta', 'familyBackgroundDelta'],
   'update-status': [
     'vitalityDelta',
     'staminaDelta',

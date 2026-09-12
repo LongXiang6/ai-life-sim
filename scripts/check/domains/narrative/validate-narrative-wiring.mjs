@@ -1,5 +1,5 @@
 /**
- * Purpose: Validate the approved 01/02/03/04 narrative Prompt and execution wiring.
+ * Purpose: Validate the approved 01/02/03 narrative Prompt and execution wiring.
  * Owner: quality:narrative
  * Responsibility: Static call, asset, stage, and no-repair assertions only.
  */
@@ -29,11 +29,10 @@ const promptBuilder = read('src/core/ai-service/prompt-builder.ts')
 const narrativePrompt = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const continuityPrompt = read('src/mods/mod-engine/prompts/narrative-story-continuity-prompt.ts')
 const talentPrompt = read('src/mods/mod-engine/prompts/narrative-talent-growth-prompt.ts')
-const eventLibraryPrompt = read('src/mods/mod-engine/prompts/narrative-event-library-prompt.ts')
 const narrativeServer = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const worldCatalog = read('src/mods/mod-world/constants/presets/catalog.ts')
 const continuityServer = read('src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts')
 const talentServer = read('src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts')
-const eventLibraryServer = read('src/mods/mod-engine/server/narrative-event-library-system-prompt.ts')
 const serverAssets = read('src/mods/mod-engine/server-prompt-assets.ts')
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
@@ -89,23 +88,33 @@ assertOk(
   '01 必须宽容解析人生重开文本、简写分支结局与状态行属性，不启用工具或额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.16.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.16.0')
+  narrativePrompt.includes("version: '7.20.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.20.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '3.0.0'")
     && talentPrompt.includes("version: '3.5.0'")
     && talentPrompt.includes('mod-engine:narrative-talent-growth:3.5.0')
-    && eventLibraryPrompt.includes("version: '1.0.0'")
-    && eventLibraryPrompt.includes('mod-engine:narrative-event-library:1.0.0')
-    && [narrativePrompt, continuityPrompt, talentPrompt, eventLibraryPrompt].every((source) => (
+    && [narrativePrompt, continuityPrompt, talentPrompt].every((source) => (
       source.includes("systemPrompt: ''") && source.includes('serverPromptAssetId:')
     )),
-  '01/02/03/04 客户端契约必须绑定当前四个受保护资产版本',
+  '01/02/03 客户端契约必须绑定当前三个受保护资产版本',
 )
 assertOk(
-  narrativeServer.includes('你是专业版人生重开模拟器')
-    && narrativeServer.includes('每轮跨度为1年')
-    && narrativeServer.includes('每条使用以下格式')
+  worldCatalog.includes('霍格沃茨是欧洲最著名的魔法学校，接收适龄巫师入学')
+    && !worldCatalog.includes('你收到了一封来自霍格沃茨魔法学校的录取通知书'),
+  '世界预设不得把后续年龄事件写成当前既成事实',
+)
+assertOk(
+  narrativeServer.includes('你是一个“人生重开模拟器”系统')
+    && narrativeServer.includes('年龄与轮次由外部程序控制')
+    && narrativeServer.includes('故事内容必须符合对应的年龄能力边界')
+    && narrativeServer.includes('本轮正文只能叙述当前年龄正在发生或已经发生的事')
+    && narrativeServer.includes('正文只能包含状态行当前年龄这一岁内的一个完整事件')
+    && narrativeServer.includes('不得出现任何大于当前年龄的年龄数字或年龄阶段词')
+    && narrativeServer.includes('不得回顾成长，不得写人生概览或成长蒙太奇')
+    && narrativeServer.includes('不得出现下一岁及以后的年龄、事件、成长、关系变化或结果')
+    && narrativeServer.includes('世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景')
+    && narrativeServer.includes('每轮只能输出以下结构')
     && narrativeServer.includes('正文')
     && narrativeServer.includes('分支')
     && narrativeServer.includes('结局')
@@ -135,15 +144,8 @@ assertOk(
     && talentServer.includes('二至六个汉字')
     && talentServer.includes('三项共同成立')
     && !talentServer.includes('不得转为直接')
-    && !talentServer.includes('禁止直接操控')
-    && eventLibraryServer.includes('你是无限事件库生成器。')
-    && eventLibraryServer.includes('候选事件')
-    && eventLibraryServer.includes('输出契约')
-    && eventLibraryServer.includes('0至3条')
-    && !eventLibraryServer.includes('世界演变模拟器')
-    && !eventLibraryServer.includes('世界变化')
-    && !eventLibraryServer.includes('概况变更'),
-  '四个固定 Prompt 必须分别承担故事、连续性、成长和事件库职责，且 03 不增加转变路线替代限制',
+    && !talentServer.includes('禁止直接操控'),
+  '三个固定 Prompt 必须分别承担故事、连续性和成长职责，且 03 不增加转变路线替代限制',
 )
 
 const registeredAssetIds = sortedMatches(serverAssets, /^\s*\[(NARRATIVE(?:_[A-Z]+)*_SERVER_PROMPT_ASSET_ID)\]:/gmu)
@@ -152,9 +154,8 @@ assertOk(
     'NARRATIVE_SERVER_PROMPT_ASSET_ID',
     'NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID',
     'NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID',
-    'NARRATIVE_EVENT_LIBRARY_SERVER_PROMPT_ASSET_ID',
   ].sort()),
-  '服务端资产注册表必须恰好登记 01/02/03/04 四个 Prompt',
+  '服务端资产注册表必须恰好登记 01/02/03 三个 Prompt',
 )
 
 const aiStages = sortedMatches(campaign, /name: '(ai-[^']+)'/gu)
@@ -163,9 +164,8 @@ assertOk(
     'ai-narration',
     'ai-story-continuity',
     'ai-talent-growth',
-    'ai-event-library',
   ].sort()),
-  'Campaign 必须恰好包含 01 主故事和 02/03/04 三个 AI 阶段',
+  'Campaign 必须恰好包含 01 主故事和 02/03 两个专项阶段',
 )
 assertOk(
   campaign.includes("name: 'prepare-narrative'")
@@ -173,19 +173,18 @@ assertOk(
     && campaign.includes("name: 'finalize-round'")
     && /name: 'ai-story-continuity'[\s\S]{0,220}dependsOn: \['prepare-narrative'\][\s\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP/u.test(campaign)
     && /name: 'ai-talent-growth'[\s\S]{0,220}dependsOn: \['prepare-narrative'\][\s\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP/u.test(campaign)
-    && /name: 'ai-event-library'[\s\S]{0,220}dependsOn: \['prepare-narrative'\][\s\S]{0,120}parallelGroup: SPECIALIST_PARALLEL_GROUP/u.test(campaign)
     && campaign.includes("ctx._talentInput.eligiblePatterns.length === 0")
     && campaign.includes('getRoundContextSnapshot')
     && campaign.includes('totalBasePoints: roundContext.totalBasePoints')
-    && /name: 'commit-round'[\s\S]{0,220}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-event-library',?\s*\]/u.test(campaign)
+    && /name: 'commit-round'[\s\S]{0,220}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign)
     && /name: 'finalize-round'[\s\S]{0,260}dependsOn: \['commit-round'\][\s\S]{0,500}startNarrativePreGeneration\(/u.test(campaign),
-  '正文发布后必须并行执行 02/03/04，并由 commit-round 唯一汇合',
+  '正文发布后必须并行执行 02/03，并由 commit-round 唯一汇合',
 )
 assertOk(
-  ['ai-narration', 'prepare-narrative', 'ai-story-continuity', 'ai-talent-growth', 'ai-event-library', 'commit-round', 'finalize-round']
+  ['ai-narration', 'prepare-narrative', 'ai-story-continuity', 'ai-talent-growth', 'commit-round', 'finalize-round']
     .every((stage) => manifest.includes(`'${stage}'`))
     && sortedMatches(manifest, /'(ai-[^']+)'/gu).join('|') === aiStages.join('|'),
-  'Manifest 必须与 Campaign 的四个 AI 阶段唯一对齐',
+  'Manifest 必须与 Campaign 的三个 AI 阶段唯一对齐',
 )
 
 const promptContracts = fs.readdirSync(path.join(ROOT, 'src/mods/mod-engine/prompts'))
@@ -200,21 +199,19 @@ assertOk(
     'narrative-prompt.ts',
     'narrative-story-continuity-prompt.ts',
     'narrative-talent-growth-prompt.ts',
-    'narrative-event-library-prompt.ts',
   ].sort())
     && JSON.stringify(serverContracts) === JSON.stringify([
       'narrative-story-continuity-system-prompt.ts',
       'narrative-system-prompt.ts',
       'narrative-talent-growth-system-prompt.ts',
-      'narrative-event-library-system-prompt.ts',
     ].sort()),
-  '运行时叙事 Prompt 资产文件必须只剩 01/02/03/04',
+  '运行时叙事 Prompt 资产文件必须只剩 01/02/03',
 )
 assertOk(
   protocol.includes('NarrativeAIStoryContinuityDataSchema')
     && protocol.includes('NarrativeAITalentGrowthDataSchema')
-    && protocol.includes('NarrativeAIEventLibraryResultSchema')
-    && quality.includes('inspectNarrativeEventLibraryQuality')
+    && !protocol.includes('NarrativeAIEventLibraryResultSchema')
+    && !quality.includes('inspectNarrativeEventLibraryQuality')
     && !protocol.includes('NarrativeAIWorldSimulationResultSchema')
     && !quality.includes('inspectNarrativeWorldSimulationQuality')
     && protocol.includes('min(2).max(4)')
@@ -222,15 +219,15 @@ assertOk(
     && !quality.includes('系统操作')
     && !quality.includes('剧情进度')
     && !quality.includes('到期候选判定'),
-  '协议与质量检查必须只保留 01/02/03/04 的输出职责',
+  '协议与质量检查必须只保留 01/02/03 的输出职责',
 )
 assertOk(
   cachePool.includes("'narrative-main'")
     && cachePool.includes("'narrative-story-continuity'")
     && cachePool.includes("'narrative-talent-growth'")
-    && cachePool.includes("'narrative-event-library'")
-    && sortedMatches(cachePool, /^\s*'((?:narrative)-(?:main|story-continuity|talent-growth|event-library))',?$/gmu).length === 4,
-  '叙事缓存池必须恰好隔离 01/02/03/04',
+    && !cachePool.includes("'narrative-event-library'")
+    && sortedMatches(cachePool, /^\s*'((?:narrative)-(?:main|story-continuity|talent-growth))',?$/gmu).length === 3,
+  '叙事缓存池必须恰好隔离 01/02/03',
 )
 assertOk(
   fetchExecutor.includes('maxAttempts: 1')
@@ -253,4 +250,4 @@ if (failed > 0) {
   process.exit(1)
 }
 
-console.log('[OK] 01 主故事与并行 02/03/04 接线验证通过')
+console.log('[OK] 01 主故事与并行 02/03 接线验证通过')

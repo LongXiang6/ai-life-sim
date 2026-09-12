@@ -61,9 +61,9 @@ function normalizeEquippedReincarnationTalents(talents: readonly ReincarnationTa
 const HUMAN_RACE = RACE_LIFESPAN.human!
 
 const initialCharacterBase = (): CharacterBaseState => ({
-  base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-  current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-  modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+  base: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
+  current: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
+  modifiers: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
   contextModifiers: {},
   startingAge: 0,
 })

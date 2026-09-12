@@ -38,7 +38,7 @@ export interface NarrativeAICharacterStatusView extends Record<string, unknown> 
   属性数值: Record<NarrativeAttributeKey, number>
 }
 
-type NarrativeAttributeKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma'
+type NarrativeAttributeKey = 'mind' | 'physique' | 'charisma' | 'familyBackground'
 
 export interface NarrativeAICharacterBaseState {
   base: Record<NarrativeAttributeKey, number>
@@ -48,10 +48,10 @@ export interface NarrativeAICharacterBaseState {
 }
 
 export interface NarrativeAIAttributeSemanticSet extends Record<string, unknown> {
-  体魄: string
   心智: string
-  悟性: string
+  体魄: string
   魅力: string
+  家境: string
   气运: string
 }
 
@@ -64,10 +64,10 @@ const CHARACTER_ATTRIBUTE_DEFINITIONS: Readonly<Record<
   NarrativeAttributeKey,
   { label: string }
 >> = {
-  physique: { label: '体魄' },
   mind: { label: '心智' },
-  talentAptitude: { label: '悟性' },
+  physique: { label: '体魄' },
   charisma: { label: '魅力' },
+  familyBackground: { label: '家境' },
 }
 
 function projectCharacterBaseAttributes(
@@ -176,10 +176,10 @@ export function projectCharacterForNarrativeAI(
     status: {
       年龄: character.age,
       属性数值: {
-        physique: baseState.current.physique,
         mind: baseState.current.mind,
-        talentAptitude: baseState.current.talentAptitude,
+        physique: baseState.current.physique,
         charisma: baseState.current.charisma,
+        familyBackground: baseState.current.familyBackground,
       },
     },
   }

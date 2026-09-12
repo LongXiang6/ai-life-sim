@@ -28,4 +28,4 @@
 - 开发者通过现有运维邮件入口创建稳定 `rewardId` 的奖励活动，不新增后台页面、外部发送服务或 AI 调用。
 - 奖励活动使用 `login-window` 或 `registered-account` 资格模式，默认采用 `login-window` 且从发送时起三天有效；`registered-account` 允许活动结束前已注册、当前已登录的账号领取；开始和结束时间由活动定义明确给出。
 - 每个 `rewardId` 与注册账号只允许一条成功领取记录。重复领取返回已领取状态，不重复写入天赋，也不改变当前人生中的普通命格。
-- 自定义天赋必须符合现有轮回天赋契约，可填写类别、稀有度、效果及 `physique`、`mind`、`talentAptitude`、`charisma`、`luck` 属性点；领取后不经 AI 改写。
+- 自定义天赋必须符合现有轮回天赋契约，可填写类别、稀有度、效果及 `mind`、`physique`、`charisma`、`familyBackground`、`luck` 属性点；领取后不经 AI 改写。

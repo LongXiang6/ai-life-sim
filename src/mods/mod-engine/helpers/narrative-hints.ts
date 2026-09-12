@@ -11,8 +11,8 @@
  *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-narrative.ts（hint 生成逻辑）
  *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-lifecycle.ts（lifespan）
  *
- * 职责：根据当前回合状态生成 mandatory（必遵）与 optional（参考）两类 hint，
- * 由 orchestrator 注入 PromptContext.roundSystemGuidanceText，再由本地引导编译器投影到 AI 输入。
+ * 职责：根据当前回合状态生成 mandatory（必遵）与 optional（参考）两类 hint；
+ * 主叙事数据层不再接收这些 hint，只有玩家明确行动进入命运抉择字段。
  */
 
 // ═══════════════════ 类型定义 ═══════════════════

@@ -12,13 +12,11 @@ export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
   "advance-time",
   "subsystem-advance",
   "collect-states",
-  "event-lifecycle",
   "assemble-prompt",
   "ai-narration",
   "prepare-narrative",
   "ai-story-continuity",
   "ai-talent-growth",
-  "ai-event-library",
   "commit-round",
   "finalize-round"
 ] as const

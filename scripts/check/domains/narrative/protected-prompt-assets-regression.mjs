@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Purpose: Verify the approved 01/02/03/04 Prompt assets remain server-owned and client-safe.
+ * Purpose: Verify the approved 01/02/03 Prompt assets remain server-owned and client-safe.
  * Owner: quality:narrative
  * Responsibility: Protected asset allow-list and injection-boundary regression only.
  */
@@ -22,13 +22,11 @@ const contractPaths = [
   'src/mods/mod-engine/prompts/narrative-prompt.ts',
   'src/mods/mod-engine/prompts/narrative-story-continuity-prompt.ts',
   'src/mods/mod-engine/prompts/narrative-talent-growth-prompt.ts',
-  'src/mods/mod-engine/prompts/narrative-event-library-prompt.ts',
 ]
 const serverPaths = [
   'src/mods/mod-engine/server/narrative-system-prompt.ts',
   'src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts',
   'src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts',
-  'src/mods/mod-engine/server/narrative-event-library-system-prompt.ts',
 ]
 const contracts = contractPaths.map(read)
 const servers = serverPaths.map(read)
@@ -48,15 +46,14 @@ assertOk(
     && serverEntry.includes('NARRATIVE_SERVER_PROMPT_ASSET_ID')
     && serverEntry.includes('NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID')
     && serverEntry.includes('NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID')
-    && serverEntry.includes('NARRATIVE_EVENT_LIBRARY_SERVER_PROMPT_ASSET_ID')
-    && [...serverEntry.matchAll(/^\s*\[(NARRATIVE(?:_[A-Z]+)*_SERVER_PROMPT_ASSET_ID)\]:/gmu)].length === 4,
-  'server registry must expose exactly the 01/02/03/04 protected assets',
+    && !serverEntry.includes('NARRATIVE_EVENT_LIBRARY_SERVER_PROMPT_ASSET_ID')
+    && [...serverEntry.matchAll(/^\s*\[(NARRATIVE(?:_[A-Z]+)*_SERVER_PROMPT_ASSET_ID)\]:/gmu)].length === 3,
+  'server registry must expose exactly the 01/02/03 protected assets',
 )
 assertOk(
   servers[0].includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')
     && servers[1].includes('COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT')
     && servers[2].includes('COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT')
-    && servers[3].includes('COMPILED_NARRATIVE_EVENT_LIBRARY_SYSTEM_PROMPT')
     && servers.every((source) => !/详细故事输出示例|示例正文|few-shot|examples\s*:/iu.test(source)),
   'fixed assets must own only their stable responsibilities without detailed examples',
 )
@@ -84,7 +81,7 @@ const serverAssets = fs.readdirSync(path.join(root, 'src/mods/mod-engine/server'
 assertOk(
   JSON.stringify(promptAssets) === JSON.stringify(contractPaths.map((item) => path.basename(item)).sort())
     && JSON.stringify(serverAssets) === JSON.stringify(serverPaths.map((item) => path.basename(item)).sort()),
-  'narrative asset directories must contain only the approved 01/02/03/04 runtime assets',
+  'narrative asset directories must contain only the approved 01/02/03 runtime assets',
 )
 
 if (failed > 0) process.exit(1)

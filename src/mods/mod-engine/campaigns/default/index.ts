@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Purpose: Declare the default narrative round as one main-story call plus active parallel specialist calls.
  * Owner: mod-engine
  * Responsibility: Stage ordering, frozen-input handoff, deterministic commit, and reverse recovery only.
@@ -35,7 +35,6 @@ import {
 } from '@/mods/mod-character/destiny-pattern-access'
 import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
-import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
 import {
   executeMainNarrativeRequest,
   prepareMainNarrativeRequest,
@@ -49,13 +48,8 @@ import {
   type NarrativeStoryContinuityPromptInput,
 } from '../../helpers/narrative-story-continuity-context'
 import {
-  buildNarrativeEventLibraryPromptInput,
-  type NarrativeEventLibraryPromptInput,
-} from '../../helpers/narrative-event-library-context'
-import {
   inspectNarrativeStoryContinuityQuality,
   inspectNarrativeTalentGrowthQuality,
-  inspectNarrativeEventLibraryQuality,
 } from '../../helpers/narrative-response-quality'
 import {
   buildAllStoriesForRound,
@@ -69,7 +63,6 @@ import {
 } from '../../helpers/narrative-talent-growth-context'
 import { narrativeStoryContinuityPrompt } from '../../prompts/narrative-story-continuity-prompt'
 import { narrativeTalentGrowthPrompt } from '../../prompts/narrative-talent-growth-prompt'
-import { narrativeEventLibraryPrompt } from '../../prompts/narrative-event-library-prompt'
 import { prepareNarrativeRoundPromptContext } from '../../helpers/narrative-round-prompt-preparation'
 import { useEngineStore } from '../../store'
 import type { ParsedNarrative } from '../../subsystems/narrative-parser-system'
@@ -88,7 +81,6 @@ type PreparedStoryContinuityLedger = ReturnType<typeof orchestrator.prepareNarra
 export interface StageRuntimeContext extends RoundContext {
   _promptContext?: ReturnType<typeof orchestrator.assemblePromptContext>
   _playerChoice?: string
-  _eventInjectionText?: string
   _legendaryEncounterInjected?: boolean
   _narrativeResponse?: string
   _narrativeParsed?: ParsedNarrative
@@ -99,7 +91,6 @@ export interface StageRuntimeContext extends RoundContext {
   _frozenNarrativeHistory?: NarrativeChunk[]
   _talentInput?: NarrativeTalentGrowthPromptInput
   _continuityInput?: NarrativeStoryContinuityPromptInput
-  _eventLibraryInput?: NarrativeEventLibraryPromptInput
   _preparedTalentGrowth?: PreparedDestinyPatternGrowthChoice | null
   _preparedStoryContinuity?: PreparedStoryContinuity
   _preparedStoryContinuityLedger?: PreparedStoryContinuityLedger
@@ -273,16 +264,6 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     compressionStats: structuredClone(engineState.compressionStats),
     recentStories: continuityStories,
   })
-  ctx._eventLibraryInput = buildNarrativeEventLibraryPromptInput({
-    currentRound: ctx._preparedNarrative.roundSequence,
-    currentNarrative,
-    compressedSummaries: structuredClone(engineState.compressedSummaries),
-    recentStories,
-    worldNarrativeView: structuredClone(ctx._promptContext.worldNarrativeView),
-    worldFactsText: orchestrator.getConfirmedWorldFacts(),
-    currentTime: ctx._promptContext.currentTime,
-    timeScaleText: ctx._promptContext.timeGuideText,
-  })
 }
 
 /** Load the only active round graph. */
@@ -306,7 +287,6 @@ export function loadStages(
           ctx._isPreparedRoundReattempt = true
           ctx._promptContext = pending.promptContext
           ctx._playerChoice = pending.playerChoice
-          ctx._eventInjectionText = pending.eventInjectionText
           ctx._legendaryEncounterInjected = pending.legendaryEncounterInjected
           return
         }
@@ -369,29 +349,9 @@ export function loadStages(
       maxRounds: 1,
     },
     {
-      name: 'event-lifecycle',
-      phase: 'execute',
-      dependsOn: ['collect-states'],
-      order: 400,
-      owner: STAGE_OWNER,
-      failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: (_ctx) => {
-        const ctx = _ctx as StageRuntimeContext
-        if (ctx._isPreparedRoundReattempt) return
-        const lifecycle = buildEventInjectionText(
-          orchestrator.getDetectionStates(),
-          orchestrator.getEventLifecycle(),
-          orchestrator.getState().totalRounds,
-        )
-        orchestrator.setEventLifecycle(lifecycle.newLifecycle)
-        ctx._eventInjectionText = lifecycle.eventInjectionText || undefined
-      },
-      maxRounds: 1,
-    },
-    {
       name: 'assemble-prompt',
       phase: 'execute',
-      dependsOn: ['event-lifecycle'],
+      dependsOn: ['collect-states'],
       order: 500,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
@@ -399,7 +359,7 @@ export function loadStages(
         const ctx = _ctx as StageRuntimeContext
         if (ctx._isPreparedRoundReattempt) return
 
-        const prepared = prepareNarrativeRoundPromptContext(orchestrator, ctx._eventInjectionText)
+        const prepared = prepareNarrativeRoundPromptContext(orchestrator)
         ctx._playerChoice = prepared.playerChoice
         ctx._promptContext = prepared.promptContext
         ctx._legendaryEncounterInjected = prepared.legendaryEncounterInjected
@@ -407,7 +367,6 @@ export function loadStages(
           roundSequence: orchestrator.getState().totalRounds,
           promptContext: ctx._promptContext,
           playerChoice: ctx._playerChoice,
-          eventInjectionText: ctx._eventInjectionText,
           legendaryEncounterInjected: ctx._legendaryEncounterInjected,
         })
       },
@@ -698,8 +657,8 @@ export function loadStages(
           attrBonus: {
             ...(direction.属性加成.体魄 === undefined ? {} : { physique: direction.属性加成.体魄 }),
             ...(direction.属性加成.心智 === undefined ? {} : { mind: direction.属性加成.心智 }),
-            ...(direction.属性加成.悟性 === undefined ? {} : { talentAptitude: direction.属性加成.悟性 }),
             ...(direction.属性加成.魅力 === undefined ? {} : { charisma: direction.属性加成.魅力 }),
+            ...(direction.属性加成.家境 === undefined ? {} : { familyBackground: direction.属性加成.家境 }),
             ...(direction.属性加成.气运 === undefined ? {} : { luck: direction.属性加成.气运 }),
           },
         }))
@@ -726,60 +685,11 @@ export function loadStages(
       maxRounds: 1,
     },
     {
-      name: 'ai-event-library',
-      phase: 'execute',
-      dependsOn: ['prepare-narrative'],
-      order: 700,
-      parallelGroup: SPECIALIST_PARALLEL_GROUP,
-      owner: STAGE_OWNER,
-      failureTarget: STAGE_FAILURE_TARGET,
-      onUpdate: async (_ctx) => {
-        const ctx = _ctx as StageRuntimeContext
-        const prepared = requirePreparedNarrative(ctx, '事件库')
-        if (!ctx._eventLibraryInput) {
-          throw specialistRejection('EventLibrary', '事件库', '缺少冻结输入。')
-        }
-        try {
-          const response = await callStructuredSpecialist({
-            label: '事件库',
-            errorKind: 'EventLibrary',
-            callKind: 'narrative-event-library',
-            prompt: narrativeEventLibraryPrompt,
-            userSegments: ctx._eventLibraryInput.userSegments,
-            aiConfig,
-            sessionId,
-          })
-          const quality = inspectNarrativeEventLibraryQuality(response)
-          if (!quality.valid || !quality.result) {
-            throw specialistRejection(
-              'EventLibrary',
-              '事件库',
-              `响应未通过事件库契约：${quality.reason}`,
-            )
-          }
-          orchestrator.setEventLibraryResult(quality.result)
-          logger.info('narrative-quality', 'event-library-response-accepted', {
-            round: prepared.roundSequence,
-            eventCount: quality.result.候选事件.length,
-          })
-        } catch (error) {
-          const reason = error instanceof Error ? error.message : String(error)
-          orchestrator.setEventLibraryResult(null)
-          logger.info('narrative-quality', 'event-library-response-deferred', {
-            round: prepared.roundSequence,
-            reason,
-          })
-        }
-      },
-      maxRounds: 1,
-    },
-    {
       name: 'commit-round',
       phase: 'transition',
       dependsOn: [
         'ai-story-continuity',
         'ai-talent-growth',
-        'ai-event-library',
       ],
       order: 800,
       owner: STAGE_OWNER,

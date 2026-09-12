@@ -7,9 +7,9 @@
 import type { OrchestratorSystem } from '../orchestrator-system'
 import type {
   HistoricalEventCandidateAudit,
+  HistoricalEventCandidateQuery,
   HistoricalEventCandidateDispositionBatch,
   HistoricalEventCandidateDispositionResult,
-  HistoricalEventCandidateQuery,
   HistoricalEventCandidateSubmission,
   HistoricalEventCommitBatch,
   HistoricalEventCommitResult,
@@ -86,44 +86,6 @@ export function getHistoricalEventLedgerRuntimeRuntime(
     return undefined
   }
   return subsystem as HistoricalEventLedgerRuntime
-}
-
-/** 读取当前上下文相关的全部可用候选；未声明 limit 时查询契约默认全量返回。 */
-export function getAvailableHistoricalEventCandidatesRuntime(
-  orchestrator: OrchestratorSystem,
-): HistoricalEventCandidateAudit[] {
-  const ledger = orchestrator['getHistoricalEventLedgerRuntime']()
-  if (!ledger) throw new Error('historical-event-ledger 未注册或公开契约不完整')
-
-  const context = orchestrator['buildRoundContext']()
-  return ledger.queryCandidates({
-    contextId: context.contextId,
-    statuses: ['available'],
-    latestOnly: true,
-  }).sort((left, right) => left.candidateId.localeCompare(right.candidateId))
-}
-
-export function getDueHistoricalEventCandidatesRuntime(
-  orchestrator: OrchestratorSystem,
-  excludedCandidateIds: readonly string[] = [],
-): HistoricalEventCandidateAudit[] {
-  const ledger = orchestrator['getHistoricalEventLedgerRuntime']()
-  if (!ledger) throw new Error('historical-event-ledger 未注册或公开契约不完整')
-  const excluded = new Set(excludedCandidateIds)
-  return ledger.getDueCandidates(orchestrator['buildRoundContext']())
-    .filter((audit) => !excluded.has(audit.candidateId))
-}
-
-export function notifyHistoricalEventsCommittedRuntime(
-  orchestrator: OrchestratorSystem,
-  
-  eventIds: readonly string[],
-  context: RoundContext,
-): void {
-  const committedIds = [...eventIds]
-  for (const subsystem of orchestrator['subsystems']) {
-    orchestrator['asRuntimeManaged'](subsystem).onHistoricalEventsCommitted?.(committedIds, context)
-  }
 }
 
 export function getCurrentHistoricalScopeRuntime(

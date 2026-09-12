@@ -10,10 +10,10 @@ import type { BaseAttributes, LifespanDraftState, RaceLifespanConfig } from '@/m
 export const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
 
 export const ATTRIBUTE_ICONS: Record<keyof BaseAttributes, string> = {
-  physique: '💪',
   mind: '🧠',
-  talentAptitude: '✨',
+  physique: '💪',
   charisma: '💫',
+  familyBackground: '🏠',
 }
 
 export function resolveDisplayName(rawName: string, gender: string): string {

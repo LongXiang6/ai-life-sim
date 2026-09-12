@@ -65,7 +65,7 @@ export interface NarrativeDestinyPatternGrowthPattern {
   rarity: NarrativeDestinyPatternGrowthRarity
   description: string
   effect: string
-  attrBonus: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck', number>>
+  attrBonus: Partial<Record<'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck', number>>
 }
 
 export interface NarrativeDestinyPatternGrowthOption extends NarrativeDestinyPatternGrowthPattern {
@@ -110,8 +110,10 @@ export interface NarrativeChunk {
   isBranchPoint?: boolean,
   branchTitle?: string,
   branchOptions?: string[],
-  /** 故事 AI 确认当前人生不再存在任何操作空间时给出的四字结局。 */
+  /** 故事 AI 确认当前人生不再存在任何操作空间时给出的结局评语。 */
   endingTitle?: string,
+  /** 结局对象中的最终总结。 */
+  endingSummary?: string,
   /** 玩家已确认的分支选择 */
   resolvedChoice?: string,
   /** 玩家实际确认该选择时的回合；旧存档缺失时回退到原分支条目轮次。 */

@@ -102,9 +102,6 @@ export default function GamePage() {
     worldTagSections,
   } = presentation
   const projectedNarrativeLength = narrativeHistory.length + (hasVisiblePendingNarrative ? 1 : 0)
-  const displayRoundCount = hasVisiblePendingNarrative
-    ? pendingNarrative?.roundSequence ?? totalRounds
-    : totalRounds
   const {
     activeTimeStepKey,
     activeTimeStepLabel,
@@ -209,7 +206,6 @@ export default function GamePage() {
 
   return (
     <GameStoryBook
-      displayRoundCount={displayRoundCount}
       endingDescription={isDead
         ? `角色在第 ${round.year} 年 ${seasonName} 离世。`
         : `共走过 ${totalRounds} 轮，结算页将整理这一生的轨迹。`}
@@ -291,7 +287,6 @@ export default function GamePage() {
       storyProgressSteps={storyProgressSteps}
       timelineProps={{
         entries: narrativeEntries,
-        turnCount: displayRoundCount,
         showAdvance: !isDead && !isComplete,
         advanceBlocked: !isRuntimeReady || hasUnresolvedBranch || hasPendingDestinyPatternGrowth,
         advanceBlockedText: narrativeAdvanceBlockedText,

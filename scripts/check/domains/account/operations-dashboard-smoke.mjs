@@ -116,7 +116,7 @@ try {
     rounds: 120,
     died: false,
     overallScore: 98,
-    attributes: { physique: 12, mind: 12, talentAptitude: 12, charisma: 12 },
+    attributes: { mind: 12, physique: 12, charisma: 12, familyBackground: 12 },
     dimensions: scoreResult.dimensions,
     destinyNames: [],
     achievements: [{ id: 'event-a', kind: 'choice', title: '完成测试', detail: '保留了完整记录', timeLabel: '第 120 轮' }],

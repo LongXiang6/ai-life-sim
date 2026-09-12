@@ -23,11 +23,8 @@ export {
 } from './narrative-acceptance-runtime'
 export {
   buildHistoricalCausalScopeRuntime,
-  getAvailableHistoricalEventCandidatesRuntime,
-  getDueHistoricalEventCandidatesRuntime,
   getCurrentHistoricalScopeRuntime,
   getHistoricalEventLedgerRuntimeRuntime,
-  notifyHistoricalEventsCommittedRuntime,
   type HistoricalEventLedgerRuntime,
 } from './historical-ledger-runtime'
 export {

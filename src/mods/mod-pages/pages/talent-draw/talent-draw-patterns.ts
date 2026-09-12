@@ -18,7 +18,7 @@ import type {
   TalentLoadoutSlots,
 } from './talent-draw.types'
 
-const ATTR_BONUS_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
+const ATTR_BONUS_KEYS = ['mind', 'physique', 'charisma', 'familyBackground'] as const
 
 export function createLoadoutSlots(entries: readonly TalentLoadoutEntry[]): TalentLoadoutSlots {
   const seen = new Set<string>()

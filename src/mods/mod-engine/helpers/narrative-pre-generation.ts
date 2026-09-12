@@ -10,7 +10,6 @@ import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { useEngineStore } from '../store'
 import type { OrchestratorSystem } from '../subsystems/orchestrator-system'
-import { buildEventInjectionText } from './event-lifecycle-tracker'
 import {
   executeMainNarrativeRequest,
   prepareMainNarrativeRequest,
@@ -117,13 +116,7 @@ async function generateNextMainNarrative(input: {
   await projection.advanceAllSubsystems()
   await projection.collectAllSubsystemStates()
 
-  const lifecycle = buildEventInjectionText(
-    projection.getDetectionStates(),
-    projection.getEventLifecycle(),
-    projection.getState().totalRounds,
-  )
-  projection.setEventLifecycle(lifecycle.newLifecycle)
-  const prepared = prepareNarrativeRoundPromptContext(projection, lifecycle.eventInjectionText || undefined)
+  const prepared = prepareNarrativeRoundPromptContext(projection)
   const request = prepareMainNarrativeRequest({
     owner: projection,
     promptTemplate: input.promptTemplate,

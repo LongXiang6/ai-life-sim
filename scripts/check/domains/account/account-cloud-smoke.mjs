@@ -61,7 +61,7 @@ const characterDraft = {
   gender: '无性别',
   race: '星海旅者',
   background: longBackground,
-  attributes: { physique: 3, mind: 8, talentAptitude: 9, charisma: 6 },
+  attributes: { mind: 8, physique: 3, charisma: 6, familyBackground: 9 },
   manualLifespan: '360',
   manualStartingAge: '18',
   customGenders: ['无性别'],

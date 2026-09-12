@@ -124,7 +124,7 @@ export function GameStoryReaderBar({
         <div className={styles.barAttrs} aria-label="四维属性">
           {ATTR_KEYS.map((key) => {
             const value = displayBaseAttrs[key] ?? 0
-            const icon = key === 'physique' ? '💪' : key === 'mind' ? '🧠' : key === 'talentAptitude' ? '✨' : '💫'
+            const icon = key === 'mind' ? '🧠' : key === 'physique' ? '💪' : key === 'charisma' ? '💫' : '🏠'
             return <span key={key}><em aria-hidden="true">{icon}</em><i>{ATTRIBUTE_NAMES[key]}</i><b className={value > 0 ? styles.rise : ''}>{value}</b></span>
           })}
         </div>

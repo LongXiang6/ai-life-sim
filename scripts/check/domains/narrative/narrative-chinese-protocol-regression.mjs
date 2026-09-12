@@ -59,7 +59,7 @@ const promptContext = {
   },
   characterStatusView: {
     年龄: 19,
-    属性数值: { physique: 1, mind: 2, talentAptitude: 3, charisma: -1 },
+    属性数值: { mind: 2, physique: 1, charisma: -1, familyBackground: 0 },
     伤势: '不应发送',
   },
   talents: [{ 名称: '听潮辨隙', 效果: '能根据近处水声察觉明显堵塞。' }],
@@ -190,7 +190,7 @@ const underagePendingGrowth = createPendingDestinyPatternGrowth({
   narrativeId: 'underage-narrative', roundSequence: 3, source: underageGrowthSource,
   directions: [
     { route: '深度强化', name: '观火入微', description: '辨认更细微的火色差异。', effect: '观察火候时更准确。', attrBonus: { mind: 1 } },
-    { route: '广度强化', name: '百材通识', description: '把观察经验用于更多材料。', effect: '处理不同材料时更从容。', attrBonus: { talentAptitude: 1 } },
+    { route: '广度强化', name: '百材通识', description: '把观察经验用于更多材料。', effect: '处理不同材料时更从容。', attrBonus: { familyBackground: 1 } },
     { route: '转变强化', name: '听声辨质', description: '改用敲击声音判断材料状态。', effect: '可通过声音识别材料变化。', attrBonus: { mind: 1 } },
   ],
 })
@@ -209,18 +209,18 @@ const validWithBranch = JSON.stringify({
 const parsed = parseNarrativeResponseEnvelope(validWithBranch)
 assertOk(parsed.narrative.includes('旧桥边'), '01 唯一正文字符串必须保留完整正文')
 assertOk(parsed.branch?.选项.length === 2, '01 必须解析可选分支')
-const lifeSimulatorBranch = parseNarrativeResponseEnvelope(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0|冷却:0】
+const lifeSimulatorBranch = parseNarrativeResponseEnvelope(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0】
 "正文": "你核清了旧账，三条去路同时摆到面前。"。
 "命运分支": {["留在商号","独自北上","回城查旧案"]}。
 "结局": "false"。`, {
-  currentAttributes: { 心智: 2, 体魄: 1, 魅力: -1 },
+  currentAttributes: { 心智: 2, 体魄: 1, 魅力: -1, 家境: 0 },
 })
 assertOk(
   lifeSimulatorBranch.branch?.选项.length === 3
     && lifeSimulatorBranch.attributeChanges?.心智 === 1,
   '01 必须解析人生重开简写分支，并把状态行绝对值换算为本轮属性差值',
 )
-const lifeSimulatorQuality = inspectNarrativeResponseQuality(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0|冷却:0】
+const lifeSimulatorQuality = inspectNarrativeResponseQuality(`【年龄:20岁|心智:3|体魄:1|魅力:-1|家境:0】
 "正文": "你核清旧账后保住了商号的紧要货物。"。
 "命运分支": "false"。
 "结局": "false"。`, 200, undefined, segments.userSegments[0])
@@ -229,11 +229,15 @@ assertOk(
     && lifeSimulatorQuality.parsed?.attributeChanges?.心智 === 1,
   '01 正式质量入口必须从数据层读取当前属性并换算状态行差值',
 )
-const lifeSimulatorEnding = parseNarrativeResponseEnvelope(`【年龄:80岁|心智:3|体魄:-2|魅力:1|家境:0|冷却:0】
+const lifeSimulatorEnding = parseNarrativeResponseEnvelope(`【年龄:80岁|心智:3|体魄:-2|魅力:1|家境:0】
 "正文": "你在旧宅中安然辞世，未再醒来。"。
 "命运分支": "false"。
-"结局": {"此生无憾"}。`)
-assertOk(lifeSimulatorEnding.ending?.四字评语 === '此生无憾', '01 必须解析人生重开简写结局')
+"结局": {"评语":"此生无憾","总结":"你把未竟之事交给了后来者。"}。`)
+assertOk(
+  lifeSimulatorEnding.ending?.评语 === '此生无憾'
+    && lifeSimulatorEnding.ending?.总结 === '你把未竟之事交给了后来者。',
+  '01 必须解析人生重开结局的评语与总结',
+)
 const missingBodyQuote = '{"正文":"你在旧闸前听潮。\n复测后确认石缝已稳定。,"分支":null,"结局":null,"属性变化":null}'
 assertOk(parseAIJSON(missingBodyQuote) === null, '通用 JSON 解析未授权时不得猜测故事字段')
 const recoveredBodyQuote = parseNarrativeResponseEnvelope(missingBodyQuote)
@@ -254,7 +258,7 @@ assertOk(
 const attributeChange = parseNarrativeResponseEnvelope(JSON.stringify({ 结局: null, 属性变化: { 体魄: 1 }, 正文: '正文', 分支: null }))
 assertOk(attributeChange.narrative === '正文' && attributeChange.attributeChanges?.体魄 === 1, '01 必须保留属性变化字段')
 const endingWins = parseNarrativeResponseEnvelope(JSON.stringify({ 正文: '正文', 分支: { 选项: ['留下', '离开'] }, 结局: { 四字评语: '灯火长明' } }))
-assertOk(!endingWins.branch && endingWins.ending?.四字评语 === '灯火长明', '01 分支与结局冲突时结局优先')
+assertOk(!endingWins.branch && endingWins.ending?.评语 === '灯火长明', '01 分支与结局冲突时结局优先')
 assertThrows(() => parseNarrativeResponseEnvelope('   '), '真正空响应仍必须拒绝')
 
 const continuity = NarrativeAIStoryContinuityDataSchema.parse({
@@ -309,9 +313,9 @@ const growthResult = {
     成长依据: '连续复测中，听潮辨隙直接定位了堵塞并形成验证结果。',
     依据窗口编号: ['round:16', 'round:17'],
     下一阶方向: [
-      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能分辨更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 悟性: 4, 体魄: -1 } },
-      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 2, 悟性: 1 } },
-      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不额外扩大影响总量。', 属性加成: { 心智: -1, 悟性: 4 } },
+      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能分辨更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 家境: 4, 体魄: -1 } },
+      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 2, 家境: 1 } },
+      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不额外扩大影响总量。', 属性加成: { 心智: -1, 家境: 4 } },
     ],
   },
 }
@@ -323,10 +327,10 @@ assertOk(
   '03 必须允许感知判断能力质变为直接操控类，只约束不扩大影响总量',
 )
 const noLocalBudget = structuredClone(growthResult)
-noLocalBudget.成长判定.下一阶方向[0].属性加成 = { 悟性: 100, 体魄: -50 }
+noLocalBudget.成长判定.下一阶方向[0].属性加成 = { 家境: 100, 体魄: -50 }
 assertOk(
   NarrativeAITalentGrowthDataSchema.safeParse(noLocalBudget).success
-    && !validateDestinyPatternAttrBonusForRarity({ talentAptitude: 100, physique: -50 }, 'fine'),
+    && !validateDestinyPatternAttrBonusForRarity({ familyBackground: 100, physique: -50 }, 'fine'),
   '03 传输协议保持宽容，但本地天赋提交必须拒绝越过等级边界的属性',
 )
 const wrongOrder = structuredClone(growthResult)
@@ -342,7 +346,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.16.0'
+  narrativePrompt.version === '7.20.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -350,12 +354,20 @@ assertOk(
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是专业版人生重开模拟器。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮跨度为1年')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('从0岁开始模拟人生')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由外部程序控制')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不自行增龄、跳年')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮正文只能叙述当前年龄正在发生或已经发生的事')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文只能包含状态行当前年龄这一岁内的一个完整事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现任何大于当前年龄的年龄数字或年龄阶段词')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得回顾成长，不得写人生概览或成长蒙太奇')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现下一岁及以后的年龄、事件、成长、关系变化或结果')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('冷却')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界模拟引擎'),
   '固定主故事 Prompt 必须采用最新系统提示词并保留项目输出字段',
 )

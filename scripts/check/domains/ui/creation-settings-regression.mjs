@@ -82,10 +82,10 @@ assert.doesNotMatch(settingsExportProjection, /storySeed/)
 
 assert.equal('attributes' in useCharacterCreationDraftStore.getState().draft, false)
 assert.deepEqual(getCharacterCreationDraftSnapshot().attributes, {
-  physique: 0,
   mind: 0,
-  talentAptitude: 0,
+  physique: 0,
   charisma: 0,
+  familyBackground: 0,
 })
 assert.match(attributePage, /const TOTAL_POINTS = 4/)
 assert.match(attributePage, /setCharacterBase\(\{ base: normalizeAttributes\(attributes\) \}\)/)

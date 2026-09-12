@@ -25,7 +25,7 @@ export interface NarrativeResponseEnvelopeOptions {
   /** 只用于补全已在本轮引导中明确封闭的终态，绝不从普通正文猜测结局。 */
   terminalGuidance?: string
   /** 数据层发送的当前属性；只用于把状态行的绝对值换算为本轮差值。 */
-  currentAttributes?: Partial<Record<'心智' | '体魄' | '魅力', number>>
+  currentAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>>
 }
 
 type JsonRecord = Record<string, unknown>
@@ -124,8 +124,13 @@ function normalizeEnding(value: unknown): NarrativeAIEnding | undefined {
   const shorthand = typeof normalized === 'string'
     ? normalized.replace(/^\s*\{\s*["“]?/u, '').replace(/["”]?\s*\}\s*$/u, '')
     : normalized
-  const title = normalizedText(record?.四字评语 ?? shorthand)?.replace(/\s+/gu, '')
-  return title && Array.from(title).length === 4 ? { 四字评语: title } : undefined
+  const title = normalizedText(record?.评语 ?? record?.四字评语 ?? record?.endingTitle ?? shorthand)?.replace(/\s+/gu, '')
+  if (!title || Array.from(title).length !== 4) return undefined
+  const summary = normalizedText(record?.总结 ?? record?.endingSummary ?? record?.summary)
+  return {
+    评语: title,
+    总结: summary ?? '这一生至此结束。',
+  }
 }
 
 function normalizeAttributeChanges(value: unknown): NarrativeAIAttributeChanges | undefined {
@@ -133,7 +138,7 @@ function normalizeAttributeChanges(value: unknown): NarrativeAIAttributeChanges 
   const record = asRecord(normalized)
   if (!record) return undefined
   const result: Record<string, number> = {}
-  for (const key of ['体魄', '心智', '悟性', '魅力'] as const) {
+  for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
     const raw = record[key]
     const numeric = typeof raw === 'number' ? raw : Number.NaN
     if (!Number.isInteger(numeric) || numeric === 0 || Math.abs(numeric) > 3) continue
@@ -151,25 +156,24 @@ function parseJsonRecord(source: string): JsonRecord | undefined {
   })
   const records = candidates.map((candidate) => asRecord(candidate.value)).filter((value): value is JsonRecord => Boolean(value))
   return records.find((record) => Object.keys(record).some((key) => ['正文', '故事', '内容', 'narrative', 'story'].includes(normalizedKey(key))))
-    ?? records[0]
 }
 
 function parseLifeSimulatorText(source: string): {
   narrative?: string
   branch?: unknown
   ending?: unknown
-  reportedAttributes?: Partial<Record<'心智' | '体魄' | '魅力', number>>
+  reportedAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>>
 } {
   const bodyMatch = source.match(/["“]?正文["”]?\s*:\s*"([\s\S]*?)"\s*[。；;]?\s*["“]?命运分支/u)
   if (!bodyMatch?.[1]?.trim()) return {}
   const narrative = normalizeNarrative(bodyMatch[1].replace(/\\"/gu, '"'))
-  const branchMatch = source.match(/["“]?命运分支["”]?\s*:\s*(?:"([^"]*)"|(\{[\s\S]*?\}))/u)
-  const endingMatch = source.match(/["“]?结局["”]?\s*:\s*(?:"([^"]*)"|(\{[\s\S]*?\}))/u)
-  const statusMatch = source.match(/【\s*年龄\s*:\s*[^|】]+\|\s*心智\s*:\s*([+-]?\d+)\s*\|\s*体魄\s*:\s*([+-]?\d+)\s*\|\s*魅力\s*:\s*([+-]?\d+)\s*\|[^】]*】/u)
-  const branchText = branchMatch?.[1] ?? branchMatch?.[2]
-  const endingText = endingMatch?.[1] ?? endingMatch?.[2]
+  const branchMatch = source.match(/(?:^|\n)\s*["“]?命运分支["”]?\s*[:：]\s*([\s\S]*?)(?=\n\s*["“]?结局["”]?\s*[:：]|$)/u)
+  const endingMatch = source.match(/(?:^|\n)\s*["“]?结局["”]?\s*[:：]\s*([\s\S]*?)\s*$/u)
+  const statusMatch = source.match(/【\s*年龄\s*[:：]\s*[^|】]+\|\s*心智\s*[:：]\s*([+-]?\d+)\s*\|\s*体魄\s*[:：]\s*([+-]?\d+)\s*\|\s*魅力\s*[:：]\s*([+-]?\d+)\s*\|\s*家境\s*[:：]\s*([+-]?\d+)[^】]*】/u)
+  const branchText = branchMatch?.[1]?.trim()
+  const endingText = endingMatch?.[1]?.trim()
   return {
-    narrative,
+    ...(narrative ? { narrative } : {}),
     ...(branchText && branchText !== 'false' ? { branch: parseAIJSON(branchText) ?? branchText } : {}),
     ...(endingText && endingText !== 'false' ? { ending: parseAIJSON(endingText) ?? endingText } : {}),
     ...(statusMatch
@@ -178,6 +182,7 @@ function parseLifeSimulatorText(source: string): {
             心智: Number(statusMatch[1]),
             体魄: Number(statusMatch[2]),
             魅力: Number(statusMatch[3]),
+            家境: Number(statusMatch[4]),
           },
         }
       : {}),
@@ -185,12 +190,12 @@ function parseLifeSimulatorText(source: string): {
 }
 
 function changesFromReportedAttributes(
-  reported: Partial<Record<'心智' | '体魄' | '魅力', number>> | undefined,
-  current: Partial<Record<'心智' | '体魄' | '魅力', number>> | undefined,
+  reported: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined,
+  current: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined,
 ): NarrativeAIAttributeChanges | undefined {
   if (!reported || !current) return undefined
-  const result: Partial<Record<'心智' | '体魄' | '魅力', number>> = {}
-  for (const key of ['心智', '体魄', '魅力'] as const) {
+  const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
+  for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
     const before = current[key]
     const after = reported[key]
     if (!Number.isFinite(before) || !Number.isFinite(after)) continue
@@ -278,7 +283,7 @@ export function parseNarrativeResponseEnvelope(
   const inferredEnding = !directEnding
     && isExplicitPermanentNoAgency(options.terminalGuidance)
     && hasCompletedTerminalNarrative(narrative)
-    ? { 四字评语: '此生已尽' }
+    ? { 评语: '此生已尽', 总结: '这一生至此结束。' }
     : undefined
   const ending = directEnding ?? inferredEnding
   const branch = ending

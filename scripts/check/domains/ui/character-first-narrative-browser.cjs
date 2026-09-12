@@ -54,6 +54,7 @@ async function main() {
   let proxyPostCount = 0
   const promptAssets = []
   let managedRequestWithoutClientKey = false
+  let firstTimelineAge = ''
 
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
@@ -242,6 +243,9 @@ async function main() {
   for (const paragraph of narrativeParagraphs) {
     await page.getByText(paragraph, { exact: true }).waitFor()
   }
+  const firstAgeMarker = page.locator('[data-narrative-age]').first()
+  await firstAgeMarker.waitFor({ timeout: 60000 })
+  firstTimelineAge = (await firstAgeMarker.getAttribute('data-narrative-age')) || ''
   const requestDeadline = Date.now() + 60000
   while (proxyPostCount < 3 && Date.now() < requestDeadline) {
     await new Promise((resolve) => setTimeout(resolve, 50))
@@ -268,10 +272,14 @@ async function main() {
   if (persistedState.character.destinyPatterns?.patterns?.length !== 3) failures.push('three destiny patterns were not persisted')
   if (persistedState.character.equippedReincarnationTalents?.length !== 2) failures.push('two equipped reincarnation talents were not persisted')
   const base = persistedState.character.characterBase?.base ?? {}
-  if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '10,5,0,0') {
+  if ([base.mind, base.physique, base.charisma, base.familyBackground].join(',') !== '5,10,0,0') {
     failures.push(`base attributes were not persisted: ${JSON.stringify(base)}`)
   }
   if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
+  const firstDisplayAge = persistedState.engine.narrativeHistory?.[0]?.displayAge
+  if (typeof firstDisplayAge !== 'number' || firstTimelineAge !== `${firstDisplayAge} 岁`) {
+    failures.push(`first narrative age marker did not match displayAge: ${firstTimelineAge}`)
+  }
   if (proxyPostCount !== 3) failures.push(`expected one narrative and two post-story proxy POSTs, observed ${proxyPostCount}`)
   if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative:')).length !== 1) failures.push('first narrative prompt asset was not requested exactly once')
   if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-story-continuity:')).length !== 1) failures.push('story-continuity prompt asset was not requested exactly once')

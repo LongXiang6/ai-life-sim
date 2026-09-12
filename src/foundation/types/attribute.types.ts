@@ -16,11 +16,11 @@
 // ──── 属性键 ────
 
 /** 属性标识键 */
-export type AttributeId = 'physique' | 'mind' | 'comprehension' | 'charisma' | 'fortune'
+export type AttributeId = 'mind' | 'physique' | 'charisma' | 'familyBackground' | 'fortune'
 
 /** 玩家可见基础属性键（旧常量名保留兼容，不代表玩家可手动加点） */
 export const ASSIGNABLE_ATTRIBUTE_IDS: readonly AttributeId[] = [
-  'physique', 'mind', 'comprehension', 'charisma',
+  'mind', 'physique', 'charisma', 'familyBackground',
 ] as const
 
 /** 隐藏属性键（1项，开局随机，玩家不可见） */
@@ -38,10 +38,10 @@ export const ATTRIBUTE_IDS: readonly AttributeId[] = [
 
 /** 属性中文名称映射 */
 export const ATTRIBUTE_NAMES: Readonly<Record<AttributeId, string>> = {
-  physique: '体魄',
   mind: '心智',
-  comprehension: '悟性',
+  physique: '体魄',
   charisma: '魅力',
+  familyBackground: '家境',
   fortune: '气运',
 }
 
@@ -52,10 +52,10 @@ export const ATTRIBUTE_NAMES: Readonly<Record<AttributeId, string>> = {
  * 确保 AI 叙事时理解每个属性的实际含义而非猜测。
  */
 export const ATTRIBUTE_DESCRIPTIONS: Readonly<Record<AttributeId, string>> = {
-  physique: '身体素质、力量与体能',
   mind: '智力水平、意志力与心理韧性',
-  comprehension: '学习能力、领悟速度与理解深度',
+  physique: '身体素质、力量与体能',
   charisma: '外貌、社交感染力与领导气质',
+  familyBackground: '家庭资源、成长环境与可获得的支持',
   fortune: '运气、机遇、命运青睐程度',
 }
 
@@ -81,9 +81,9 @@ export type AttributeTier = typeof ATTRIBUTE_TIERS[number]
 
 /** 属性数据 payload */
 export interface AttributeData {
-  physique: number,
   mind: number,
-  comprehension: number,
+  physique: number,
   charisma: number,
+  familyBackground: number,
   fortune: number,
 }

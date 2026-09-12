@@ -47,6 +47,8 @@ Prompt 的唯一产品目标是：根据剧情、玩家角色、玩家选择和�
 
 纯 Prompt 测试固定模型、消息顺序、动态输入、参数和工具协议，按用户声明的轮次执行。测试用于判断故事是否达到设计目标，不把测试指标升级为新的 Prompt 限制。
 
+纯 Prompt 测试必须明确标记为独立评测，不得声称覆盖实际运行流程；实际入口、运行时资产、解析、状态提交和持久化链的保真验证由 `$ai-life-sim-testing` 负责。
+
 ## 根因修复
 
 <!-- RULE id="prompt.root-cause" source="USER-HARD" owner="prompt" status="active" -->

@@ -26,12 +26,6 @@
       "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
     },
     {
-      "path": "scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 356,
-      "reason": "单个历史账本 Prompt 投影场景，作用域夹具、到期候选、接线桩和断言共享同一顺序生命周期。"
-    },
-    {
       "path": "scripts/check/domains/narrative/playtest-quality-regression.mjs",
       "owner": "quality:narrative",
       "reviewedLines": 1223,

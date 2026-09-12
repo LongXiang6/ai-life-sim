@@ -168,30 +168,29 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-   'Does the live narrative path use the proxy and the strict 01 plus parallel 02/03/04 protocol?',
+   'Does the live narrative path use the proxy and the strict 01 plus parallel 02/03 protocol?',
   () => {
     requireModuleFragments('src/core/ai-service/ai-client/http-transport.ts', ["fetchWithDeadline('/api/proxy'"])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
-      'narrativeParser.parse(content, { terminalGuidance })',
+      'const parsed = narrativeParser.parse(content, {',
+      'terminalGuidance,',
+      'currentAttributes: extractCurrentNarrativeAttributes(terminalGuidance),',
       'parseNarrativeAIJson(content)',
       'NarrativeAITalentGrowthDataSchema.parse(',
       'const rawMemory = envelope.本轮剧情',
       'const rawFutureEvents = envelope.未来事件',
       'NarrativeAIStoryContinuityDataSchema.parse({ 本轮剧情: memory, 未来事件: futureEvents })',
-      'NarrativeAIEventLibraryResultSchema.parse(',
     ])
     requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
       'export const NarrativeAIStoryResultSchema',
       'export const NarrativeAIStoryContinuityDataSchema',
       'export const NarrativeAITalentGrowthDataSchema',
-      'export const NarrativeAIEventLibraryResultSchema',
     ])
     return requireFragments('src/mods/mod-engine/campaigns/default/index.ts', [
       "name: 'ai-narration'",
       "name: 'prepare-narrative'",
       "name: 'ai-story-continuity'",
       "name: 'ai-talent-growth'",
-      "name: 'ai-event-library'",
       "name: 'commit-round'",
     ])
   },
@@ -224,9 +223,9 @@ check(
   () => {
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
-      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 14'],
+      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 15'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 9'],
-      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 7'],
+      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 9'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])
     return `${stores.length} persisted store contracts present`

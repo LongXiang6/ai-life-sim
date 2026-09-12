@@ -1,4 +1,4 @@
 interface:
   display_name: "AI 人生模拟器测试"
-  short_description: "按证据与风险选择诊断深度并完成范围匹配的修复验证"
-  default_prompt: "使用 $ai-life-sim-testing，按证据和风险选择充分诊断深度，在根因所有者处修复并验证我报告的问题。"
+  short_description: "判定测试入口与运行路径是否一致，并完成范围匹配的修复验证"
+  default_prompt: "使用 $ai-life-sim-testing，先区分实际运行流程测试和独立 Prompt 评测，再按证据与风险在根因所有者处完成修复验证。"

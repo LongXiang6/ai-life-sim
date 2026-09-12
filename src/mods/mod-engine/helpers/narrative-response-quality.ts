@@ -9,11 +9,9 @@ import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
   NarrativeAIStoryContinuityDataSchema,
   NarrativeAITalentGrowthDataSchema,
-  NarrativeAIEventLibraryResultSchema,
   parseNarrativeAIJson,
   type NarrativeAIStoryContinuityData,
   type NarrativeAITalentGrowthData,
-  type NarrativeAIEventLibraryResult,
 } from './narrative-ai-protocol'
 import {
   narrativeParser,
@@ -45,12 +43,6 @@ export interface NarrativeStoryContinuityQuality {
   reason: string
   result?: NarrativeAIStoryContinuityData
   futureEventReason?: string
-}
-
-export interface NarrativeEventLibraryQuality {
-  valid: boolean
-  reason: string
-  result?: NarrativeAIEventLibraryResult
 }
 
 function errorMessage(error: unknown): string {
@@ -128,24 +120,24 @@ function normalizeAttributeBonus(value: unknown): Record<string, number> {
   const aliases: Record<string, string> = {
     体质: '体魄', 力量: '体魄', physique: '体魄',
     智力: '心智', 精神: '心智', mind: '心智',
-    天赋: '悟性', 学习: '悟性', aptitude: '悟性',
     魅力值: '魅力', charisma: '魅力',
+    家庭: '家境', 出身: '家境', 资源: '家境', familybackground: '家境',
     幸运: '气运', 运气: '气运', luck: '气运',
   }
   const output: Record<string, number> = {}
   if (source) {
     for (const [key, raw] of Object.entries(source)) {
       const normalized = aliases[key.trim().toLocaleLowerCase()] ?? key.trim()
-      if (!['体魄', '心智', '悟性', '魅力', '气运'].includes(normalized)) continue
+      if (!['心智', '体魄', '魅力', '家境', '气运'].includes(normalized)) continue
       output[normalized] = asInteger(raw, 0)
     }
     return output
   }
   const text = String(value)
-  const pattern = /(体魄|体质|力量|心智|智力|精神|悟性|天赋|学习|魅力|魅力值|气运|幸运|运气|physique|mind|aptitude|talent|charisma|luck)\s*[:：=]?\s*([+-]?\d+)/giu
+  const pattern = /(体魄|体质|力量|心智|智力|精神|魅力|魅力值|家境|家庭|出身|资源|气运|幸运|运气|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
   for (const match of text.matchAll(pattern)) {
     const normalized = aliases[match[1]!.trim().toLocaleLowerCase()]
-      ?? ({ 体魄: '体魄', 体质: '体魄', 力量: '体魄', 心智: '心智', 智力: '心智', 精神: '心智', 悟性: '悟性', 天赋: '悟性', 学习: '悟性', 魅力: '魅力', 魅力值: '魅力', 气运: '气运', 幸运: '气运', 运气: '气运' } as Record<string, string>)[match[1]!.trim()]
+      ?? ({ 体魄: '体魄', 体质: '体魄', 力量: '体魄', 心智: '心智', 智力: '心智', 精神: '心智', 魅力: '魅力', 魅力值: '魅力', 家境: '家境', 家庭: '家境', 出身: '家境', 资源: '家境', 气运: '气运', 幸运: '气运', 运气: '气运' } as Record<string, string>)[match[1]!.trim()]
     if (!normalized) continue
     output[normalized] = (output[normalized] ?? 0) + asInteger(match[2], 0)
   }
@@ -154,7 +146,7 @@ function normalizeAttributeBonus(value: unknown): Record<string, number> {
 
 function extractCurrentNarrativeAttributes(
   promptInput: string | undefined,
-): Partial<Record<'心智' | '体魄' | '魅力', number>> | undefined {
+): Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined {
   if (!promptInput?.trim()) return undefined
   try {
     const payload = JSON.parse(promptInput) as unknown
@@ -162,8 +154,8 @@ function extractCurrentNarrativeAttributes(
     const container = payload.find((item) => asRecord(item)?.玩家属性 !== undefined)
     const attributes = asRecord(asRecord(container)?.玩家属性)
     if (!attributes) return undefined
-    const result: Partial<Record<'心智' | '体魄' | '魅力', number>> = {}
-    for (const key of ['心智', '体魄', '魅力'] as const) {
+    const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
+    for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
       const numeric = Number(attributes[key])
       if (Number.isFinite(numeric)) result[key] = Math.trunc(numeric)
     }
@@ -352,17 +344,6 @@ export function inspectNarrativeStoryContinuityQuality(
       result,
       ...(futureErrors.length > 0 ? { futureEventReason: futureErrors.join('；') } : {}),
     }
-  } catch (error) {
-    return { valid: false, reason: errorMessage(error) }
-  }
-}
-
-export function inspectNarrativeEventLibraryQuality(content: string): NarrativeEventLibraryQuality {
-  try {
-    const envelope = asRecord(parseNarrativeAIJson(content))
-    if (!envelope) throw new Error('事件库响应不是对象')
-    const result = NarrativeAIEventLibraryResultSchema.parse(envelope)
-    return { valid: true, reason: '', result }
   } catch (error) {
     return { valid: false, reason: errorMessage(error) }
   }

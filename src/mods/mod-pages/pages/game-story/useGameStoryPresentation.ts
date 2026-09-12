@@ -148,7 +148,7 @@ export function useGameStoryPresentation({
       rarity: keyof typeof DESTINY_PATTERN_RARITY_CONFIG
       description: string
       effect: string
-      attrBonus?: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck', number>>
+      attrBonus?: Partial<Record<'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck', number>>
     }) => ({
       name: pattern.name,
       rarity: pattern.rarity,

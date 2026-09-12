@@ -43,10 +43,10 @@ interface GameStoryInformationPanelProps {
 }
 
 const ATTRIBUTE_ICONS: Record<string, string> = {
-  physique: '💪',
   mind: '🧠',
-  talentAptitude: '✨',
+  physique: '💪',
   charisma: '💫',
+  familyBackground: '🏠',
 }
 
 export function GameStoryInformationPanel(props: GameStoryInformationPanelProps) {

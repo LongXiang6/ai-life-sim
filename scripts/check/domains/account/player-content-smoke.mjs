@@ -70,7 +70,7 @@ function gameRecord(overrides = {}) {
     validationClean: true,
     reasons: [],
   }))
-  const attributes = overrides.attributes ?? { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+  const attributes = overrides.attributes ?? { mind: 0, physique: 0, charisma: 0, familyBackground: 0 }
   const audit = {
     schemaVersion: 1,
     lifeRunId: `life-${recordId}`,

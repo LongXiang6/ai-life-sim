@@ -32,18 +32,18 @@ const ATTRIBUTES: ReadonlyArray<{
   icon: string
   description: string
 }> = [
-  { key: 'physique', name: '体魄', icon: '💪', description: '体力与恢复' },
   { key: 'mind', name: '心智', icon: '🧠', description: '学习与谋略' },
-  { key: 'talentAptitude', name: '悟性', icon: '✨', description: '理解与修炼' },
+  { key: 'physique', name: '体魄', icon: '💪', description: '体力与恢复' },
   { key: 'charisma', name: '魅力', icon: '💫', description: '关系与说服' },
+  { key: 'familyBackground', name: '家境', icon: '🏠', description: '家庭资源与支持' },
 ]
 
 function normalizeAttributes(value?: Partial<BaseAttributes>): BaseAttributes {
   return {
-    physique: value?.physique ?? 0,
     mind: value?.mind ?? 0,
-    talentAptitude: value?.talentAptitude ?? 0,
+    physique: value?.physique ?? 0,
     charisma: value?.charisma ?? 0,
+    familyBackground: value?.familyBackground ?? 0,
   }
 }
 
@@ -198,7 +198,7 @@ function AttributeAllocContent() {
 
             <div className={styles.tools}>
               <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ ...initialAttributes })}><span className={styles.deco} aria-hidden="true">✧</span>重置</button>
-              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ physique: 1, mind: 1, talentAptitude: 1, charisma: 1 })}><span className={styles.deco} aria-hidden="true">✧</span>平均分配</button>
+              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ mind: 1, physique: 1, charisma: 1, familyBackground: 1 })}><span className={styles.deco} aria-hidden="true">✧</span>平均分配</button>
             </div>
           </section>
             </div>

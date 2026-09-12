@@ -61,7 +61,7 @@ export function useFatePreviewStart({
       useCharacterStore.getState().setCharacterBase({
         base: confirmedBase,
         current: { ...confirmedBase },
-        modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+        modifiers: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
         contextModifiers: {},
         startingAge,
         status: undefined,

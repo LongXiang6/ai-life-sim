@@ -32,8 +32,8 @@ const GRID_LEVELS = [100, 75, 50]
 export const GAME_OVER_DIMENSION_ICONS: Record<string, string> = {
   体魄: '💪',
   心智: '🧠',
-  悟性: '✨',
   魅力: '💫',
+  家境: '🏠',
 }
 
 function pointAt(axisIndex: number, axisCount: number, value: number) {

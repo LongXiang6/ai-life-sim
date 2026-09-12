@@ -22,7 +22,6 @@ interface StoryProgressStep {
 }
 
 interface GameStoryBookProps {
-  displayRoundCount: number
   endingDescription: string
   endingTitle: string
   hasUnresolvedBranch: boolean
@@ -48,7 +47,6 @@ interface GameStoryBookProps {
 }
 
 export function GameStoryBook({
-  displayRoundCount,
   endingDescription,
   endingTitle,
   hasUnresolvedBranch,
@@ -95,7 +93,6 @@ export function GameStoryBook({
             <main ref={narrativeEndRef} className={styles.reading}>
               <header className={styles.chapterHeadLine}>
                 <div className={styles.chapterHeadTop}>
-                  <small>第 {Math.max(displayRoundCount, 1)} 回 · 故事进程</small>
                   <h1>故事进行中</h1>
                   <div className={styles.chapterRule}><span>{storyProgressLabel}</span></div>
                 </div>

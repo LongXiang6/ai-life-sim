@@ -14,7 +14,7 @@ export type TalentRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary'
 export type TalentPolarity = 'positive' | 'neutral' | 'negative'
 
 /** 属性加成键 */
-export type AttrBonusKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck'
+export type AttrBonusKey = 'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck'
 
 /** 天赋定义 */
 export interface TalentPreset {
@@ -66,7 +66,7 @@ const POSITIVE_TALENTS: TalentPreset[] = [
     rarity: 'fine',
     effect: '初始悟性+3，修炼速度+10%',
     polarity: 'positive',
-    attrBonus: { talentAptitude: 3 },
+    attrBonus: {},
   },
   {
     id: 'family_legacy',
@@ -111,7 +111,7 @@ const POSITIVE_TALENTS: TalentPreset[] = [
     rarity: 'epic',
     effect: '悟性+5，所有修炼速度+20%',
     polarity: 'positive',
-    attrBonus: { talentAptitude: 5 },
+    attrBonus: {},
   },
   {
     id: 'silver_tongue',

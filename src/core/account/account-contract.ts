@@ -112,10 +112,10 @@ export const CloudSettingsSchema = z.object({
 }).strict()
 
 const CharacterAttributesSchema = z.object({
-  physique: z.number().int(),
   mind: z.number().int(),
-  talentAptitude: z.number().int(),
+  physique: z.number().int(),
   charisma: z.number().int(),
+  familyBackground: z.number().int(),
 }).strict()
 
 export const CloudCharacterDraftSchema = z.object({
@@ -139,10 +139,10 @@ export const DEFAULT_CLOUD_CHARACTER_DRAFT = Object.freeze({
   race: 'human',
   background: '',
   attributes: Object.freeze({
-    physique: 0,
     mind: 0,
-    talentAptitude: 0,
+    physique: 0,
     charisma: 0,
+    familyBackground: 0,
   }),
   manualLifespan: '',
   manualStartingAge: '',
@@ -161,10 +161,10 @@ export const ReincarnationTalentSchema = z.object({
   rarity: z.enum(['common', 'fine', 'rare', 'epic', 'legendary', 'mythic']),
   effect: z.string().min(1),
   attrBonus: z.object({
-    physique: z.number().finite().optional(),
     mind: z.number().finite().optional(),
-    talentAptitude: z.number().finite().optional(),
+    physique: z.number().finite().optional(),
     charisma: z.number().finite().optional(),
+    familyBackground: z.number().finite().optional(),
     luck: z.number().finite().optional(),
   }).strict(),
   strengthenLevel: z.number().int().min(0),
@@ -323,10 +323,10 @@ export const CloudGameRecordSchema = z.object({
   died: z.boolean(),
   overallScore: z.number().finite(),
   attributes: z.object({
-    physique: z.number().finite(),
     mind: z.number().finite(),
-    talentAptitude: z.number().finite(),
+    physique: z.number().finite(),
     charisma: z.number().finite(),
+    familyBackground: z.number().finite(),
   }).strict().optional(),
   dimensions: z.array(GameRecordDimensionSchema).max(10),
   destinyNames: z.array(z.string().min(1).max(100)).max(10),

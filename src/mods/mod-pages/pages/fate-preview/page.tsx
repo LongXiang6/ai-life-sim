@@ -21,6 +21,7 @@ import {
   TALENT_RARITY_CONFIG,
   TALENT_POLARITY_CONFIG,
   ATTRIBUTE_NAMES,
+  ATTR_KEYS,
   getPatternLoadoutCount,
   isPatternLoadoutComplete,
 } from '@/mods/mod-character'
@@ -105,8 +106,6 @@ function FatePreviewContent() {
 
   const raceInfo = useMemo(() => resolvePreviewRaceInfo(race, lifespan), [race, lifespan])
 
-  const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
-
   return (
     <div className="final-flow-frame">
       <div className="flow-responsive-viewport">
@@ -147,7 +146,7 @@ function FatePreviewContent() {
               <small id="attributes-patterns-title">根基既定 · 命格相赠</small>
             </div>
             <div className={styles.attrGrid}>
-              {attrKeys.map((key) => {
+              {ATTR_KEYS.map((key) => {
                 const bonus = attrBonuses[key] ?? 0
                 const baseValue = characterBase.base[key] ?? 0
                 const finalValue = baseValue + bonus

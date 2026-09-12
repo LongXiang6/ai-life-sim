@@ -205,7 +205,6 @@ export const DOMAINS = {
         typescript: true,
         triggers: [
           'src/core/ai-service/prompt-builder.ts',
-          'src/core/ai-service/narrative-guidance-compiler.ts',
           'src/mods/mod-engine/prompts/narrative-prompt-components.ts',
           'src/mods/mod-engine/server/narrative-system-prompt.ts',
           'src/mods/mod-engine/helpers/time-scale-narrative.ts',

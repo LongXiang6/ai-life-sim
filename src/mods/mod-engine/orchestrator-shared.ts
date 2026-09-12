@@ -37,8 +37,6 @@ export {
   buildWordCountInstruction,
   buildStyleInstruction,
   resolveNarrativeToneHint,
-  buildTimeBridgeSummary,
-  extractBridgeSnapshot,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
   clampNumber,
@@ -48,11 +46,8 @@ export {
   isSubsystemOpenForPrompt,
   isMvpRuntimeSubsystem,
   resolveTimeStep,
-  mapSubsystemStatesToDetectionStates,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
-  type BridgeSnapshot,
-  type EventLifecycleTracker,
   type NarrativeHintInput,
 } from './helpers/orchestrator-pipeline-support'
 

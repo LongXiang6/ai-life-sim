@@ -39,9 +39,9 @@ import { applyCharacterStatusUpdate } from './character-status-update'
 
 function emptyCharacterBaseState(): CharacterBaseState {
   return {
-    base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-    current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-    modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+    base: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
+    current: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
+    modifiers: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
     contextModifiers: {},
     startingAge: 0,
   }
@@ -277,7 +277,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
   }
 
   private aggregateModifiers(context: RoundContext): void {
-    const modifiers: AttributeModifiers = { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 }
+    const modifiers: AttributeModifiers = { mind: 0, physique: 0, charisma: 0, familyBackground: 0 }
     const raceBaseline = useCharacterStore.getState().lifespanDraft.race.attrBaselines
     for (const key of ATTR_KEYS) modifiers[key] += raceBaseline?.[key] ?? 0
     const patterns = (context.subsystemStates['destiny-pattern']?.data as {
@@ -306,7 +306,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
   }
 
   private getAttrKeyLabel(key: string, value: number): string {
-    const names: Record<string, string> = { physique: '体魄', mind: '心智', talentAptitude: '悟性', charisma: '魅力' }
+    const names: Record<string, string> = { mind: '心智', physique: '体魄', charisma: '魅力', familyBackground: '家境' }
     return `${names[key] ?? key}${value}`
   }
 }

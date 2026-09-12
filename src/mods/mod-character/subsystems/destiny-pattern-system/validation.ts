@@ -28,18 +28,18 @@ const ATTRIBUTE_BY_LABEL: Record<string, string> = {
   心智: 'mind',
   智力: 'mind',
   智慧: 'mind',
-  悟性: 'talentAptitude',
-  天赋: 'talentAptitude',
-  资质: 'talentAptitude',
   魅力: 'charisma',
   容貌: 'charisma',
   气质: 'charisma',
+  家境: 'familyBackground',
+  家庭: 'familyBackground',
+  出身: 'familyBackground',
+  资源: 'familyBackground',
   气运: 'luck',
   physique: 'physique',
   mind: 'mind',
-  talentaptitude: 'talentAptitude',
-  talent: 'talentAptitude',
   charisma: 'charisma',
+  familybackground: 'familyBackground',
   luck: 'luck',
 }
 
@@ -149,7 +149,7 @@ function normalizeAttrBonus(value: unknown): Record<string, number> {
   }
   if (typeof value !== 'string') return result
   if (/^(无|没有|无属性|无加成|none|none\s*bonus)$/iu.test(value.trim())) return result
-  const pattern = /(体魄|力量|体质|心智|智力|智慧|悟性|天赋|资质|魅力|容貌|气质|气运|physique|mind|talentaptitude|talent|charisma|luck)\s*[:：=]?\s*([+-]?\d+)/giu
+  const pattern = /(体魄|力量|体质|心智|智力|智慧|魅力|容貌|气质|家境|家庭|出身|资源|气运|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
   for (const match of value.matchAll(pattern)) addAttribute(result, match[1], match[2])
   return result
 }
@@ -218,7 +218,7 @@ export function validateDestinyPatternAttrBonus(
 ): Partial<Record<string, number>> {
   if (!bonus || typeof bonus !== 'object') return {}
 
-  const validKeys = ['physique', 'mind', 'talentAptitude', 'charisma', 'luck']
+  const validKeys = ['mind', 'physique', 'charisma', 'familyBackground', 'luck']
   const result: Record<string, number> = {}
   for (const key of validKeys) {
     const value = Number(bonus[key])

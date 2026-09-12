@@ -11,13 +11,8 @@ export const PROMPT_CONTEXT_FIELDS = [
   "characterProfileView",
   "characterStatusView",
   "subsystemSummaries",
-  "roundSystemGuidanceText",
   "playerBranchIntent",
-  "eventInjectionText",
-  "eventLibraryText",
-  "timeBridgeSummary",
   "systemChangeSummary",
-  "narrativeGuidanceText",
   "worldTagsText",
   "timelineMemory",
   "recentStories",
@@ -31,9 +26,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "calibrationSummary",
   "causalChainHint",
   "currentTime",
-  "currentDueEvents",
-  "talents",
-  "timeGuideText"
+  "talents"
 ] as const
 
 /** narrative-prompt 模板 variables[] */

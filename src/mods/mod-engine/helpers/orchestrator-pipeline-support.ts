@@ -16,15 +16,6 @@ export {
   buildStyleInstruction,
   resolveNarrativeToneHint,
 } from '../constants/narrative-config'
-export {
-  buildEventInjectionText,
-  type EventLifecycleTracker,
-} from './event-lifecycle-tracker'
-export {
-  buildTimeBridgeSummary,
-  extractBridgeSnapshot,
-  type BridgeSnapshot,
-} from './time-bridge-summary'
 export { globalDeadLoopDetector, deepSanitize, sanitizeSubSystemState, clampNumber } from './system-safety'
 // 激活 shared/ 的叙事 Prompt Key 常量 → 子系统用标准化 key 注入 Prompt 片段
 export { NARRATIVE_PROMPT_KEYS } from '@/core/shared'
@@ -42,7 +33,6 @@ export {
   isMvpRuntimeSubsystem,
 } from './mvp-runtime-policy'
 export { resolveTimeStep } from '../utils/time-step-resolver'
-export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export {
   buildNarrativeHints,

@@ -269,7 +269,7 @@ assertOk(
 )
 assertOk(
   TIME_SCALE_NARRATIVE_PROFILES.every((profile, index, profiles) => index === 0 || profile.macroLevel > profiles[index - 1].macroLevel),
-  'time-scale macro levels must increase strictly from event nodes to millennium',
+  'time-scale macro levels must increase strictly from fine event nodes to decade',
 )
 for (const option of AVAILABLE_TIME_STEPS) {
   const profile = getTimeScaleNarrativeProfile(option)
@@ -278,27 +278,33 @@ for (const option of AVAILABLE_TIME_STEPS) {
   assertIncludes(hint, profile.prompt, `${profile.id} prompt must enter the assembled time guidance`)
 }
 
-// Persisted/custom settings can carry a positive year or event count that is
-// not one of the visible presets; those values still receive neutral time facts.
+// Removed or malformed values must resolve to the canonical one-year default.
 const fallbackYearStep = { unit: 'year', value: 7 }
 const fallbackYearProfile = getTimeScaleNarrativeProfile(fallbackYearStep)
-assertSame(fallbackYearProfile.key, 'year:7', 'unlisted year step must retain its normalized key')
-assertIncludes(fallbackYearProfile.prompt, '覆盖7年', 'unlisted year step must retain its time span')
-assertOk(!buildTimeScaleNarrativeHint(fallbackYearStep).includes('事件链'), 'unlisted year hint must not force an event chain')
+assertSame(fallbackYearProfile.key, 'year:1', 'unlisted year step must restore the one-year default')
+assertIncludes(fallbackYearProfile.prompt, '覆盖一年', 'unlisted year step must restore the one-year time span')
+assertOk(!buildTimeScaleNarrativeHint(fallbackYearStep).includes('事件节点推进'), 'unlisted year hint must not retain an event clock')
 const fallbackEventStep = { unit: 'event', value: 7 }
 const fallbackEventProfile = getTimeScaleNarrativeProfile(fallbackEventStep)
-assertSame(fallbackEventProfile.key, 'event:7', 'unlisted event step must retain its normalized key')
-assertIncludes(fallbackEventProfile.prompt, '事件节点推进', 'unlisted event step must retain event-node timing')
-assertOk(!buildTimeScaleNarrativeHint(fallbackEventStep).includes('至少完成一条事件链'), 'unlisted event hint must not force an event chain')
+assertSame(fallbackEventProfile.key, 'year:1', 'unlisted event step must restore the one-year default')
+assertIncludes(fallbackEventProfile.prompt, '覆盖一年', 'unlisted event step must restore the one-year time span')
+assertOk(!buildTimeScaleNarrativeHint(fallbackEventStep).includes('事件节点推进'), 'unlisted event hint must not retain an event clock')
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是专业版人生重开模拟器。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮跨度为1年')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('从0岁开始模拟人生')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x|冷却:x】')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由外部程序控制')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不自行增龄、跳年')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮正文只能叙述当前年龄正在发生或已经发生的事')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文只能包含状态行当前年龄这一岁内的一个完整事件')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现任何大于当前年龄的年龄数字或年龄阶段词')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得回顾成长，不得写人生概览或成长蒙太奇')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现下一岁及以后的年龄、事件、成长、关系变化或结果')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
@@ -306,14 +312,16 @@ assertOk(
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出契约')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程'),
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('冷却'),
   'fixed Prompt must contain the approved life-restart rules and text output format',
 )
 assertOk(
   storyPromptSampleSrc.includes('一条四元素 JSON 数组消息')
     && storyPromptSampleSrc.includes('"玩家属性"')
     && storyPromptSampleSrc.includes('"当前信息"')
-    && storyPromptSampleSrc.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x|冷却:x】'),
+    && storyPromptSampleSrc.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
+    && storyPromptSampleSrc.includes('你是一个“人生重开模拟器”系统'),
   '01 sample must document the one-message data layer and life-restart text contract',
 )
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
@@ -322,10 +330,10 @@ assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
 assertIncludes(tenYearHint, '覆盖10年', 'ten-year hint must expose the decade span')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
-assertIncludes(fiftyYearHint, '覆盖50年', 'fifty-year hint must expose the historical span')
-assertOk(!fiftyYearHint.includes('事件链') && !fiftyYearHint.includes('单一人物线'), 'fifty-year hint must not add a historical causal template')
+assertIncludes(fiftyYearHint, '覆盖1年', 'removed fifty-year step must restore the one-year span')
+assertOk(!fiftyYearHint.includes('事件链') && !fiftyYearHint.includes('单一人物线'), 'removed fifty-year step must not add a historical template')
 const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
-assertIncludes(millenniumHint, '覆盖1000年', 'millennium hint must expose the millennium span')
+assertIncludes(millenniumHint, '覆盖1年', 'removed millennium step must restore the one-year span')
 
 const januaryCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'event', value: 12 },
@@ -340,15 +348,15 @@ assertIncludes(januaryCalendar, '本轮按事件节点推进', 'event calendar g
 assertIncludes(januaryCalendar, '12个故事节点', 'event calendar guidance must expose the annual event budget')
 
 const crossYearEvents = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'event', value: 3 },
+  timeStep: { unit: 'event', value: 4 },
   calendarYear: 2026,
   month: 1,
   day: 2,
   eventNodeIndex: 1,
-  eventNodeCount: 3,
+  eventNodeCount: 4,
 })
 assertIncludes(crossYearEvents, '本轮按事件节点推进', 'event span must stay in the event clock')
-assertIncludes(crossYearEvents, '本自然年已消费1/3个故事节点', 'event span must expose the current annual node position')
+assertIncludes(crossYearEvents, '本自然年已消费1/4个故事节点', 'event span must expose the current annual node position')
 
 const multiYearCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'year', value: 10 },
@@ -384,7 +392,7 @@ assertIncludes(coarseToFineWindow, '本轮实际时间窗口', 'runtime calendar
 assertOk(!coarseToFineWindow.includes('本轮覆盖2026年2月'), 'runtime event span must not mislabel the ended node as a year-only window')
 
 const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'event', value: 1 },
+  timeStep: { unit: 'event', value: 2 },
   calendarYear: 1003,
   month: 1,
   day: 1,
@@ -493,6 +501,8 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
   talents: [],
 })
 assertOk(!('resources' in migratedCharacter.characterBase.base), 'old character saves must remove resources from base attributes')
+assertOk(!('talentAptitude' in migratedCharacter.characterBase.base), 'old character saves must remove the retired talent attribute')
+assertSame(Object.keys(migratedCharacter.characterBase.base).join(','), 'mind,physique,charisma,familyBackground', 'migrated character saves must expose the four canonical base attributes in order')
 assertOk(!('resources' in migratedCharacter.destinyPatterns.patterns[0].attrBonus), 'old character saves must remove resources from destiny bonuses')
 assertOk(!('polarity' in migratedCharacter.destinyPatterns.patterns[0]), 'old character saves must discard the retired destiny polarity field')
 assertSame(migratedCharacter.equippedReincarnationTalents.length, 0, 'old character saves must default equipped reincarnation slots to empty')
@@ -923,7 +933,7 @@ const makeDestinyPattern = (index, category) => ({
 })
 assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '行动')] }).success, 'destiny transport schema must stay permissive')
 const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '认知', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，悟性+1，魅力-1' },
+  { 类别: '认知', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，家境+1，魅力-1' },
   { 类别: '认知', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
 ] }), 'cognition')
 assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
@@ -969,7 +979,7 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('resources:'), 'destiny output schema must reject the removed resources attribute')
 assertOk(
-  destinyPromptSrc.includes('体魄、心智、悟性、魅力或低概率出现的气运')
+  destinyPromptSrc.includes('心智、体魄、魅力、家境或低概率出现的气运')
     && destinyPromptSrc.includes('Transport-only schema'),
   'destiny prompt must keep the shared attribute semantics without strict whole-response gating',
 )
@@ -999,7 +1009,7 @@ assertOk(
   'character store must persist equipped reincarnation talents without retired candidates or sealed identity',
 )
 assertOk(
-  /BASE_ATTRIBUTE_KEYS\s*=\s*\['physique', 'mind', 'talentAptitude', 'charisma'\]/.test(characterMigrationSrc)
+  /BASE_ATTRIBUTE_KEYS\s*=\s*\['mind', 'physique', 'charisma', 'familyBackground'\]/.test(characterMigrationSrc)
     && !/BASE_ATTRIBUTE_KEYS[^\n]*resources/.test(characterMigrationSrc),
   'character migration must keep exactly four base attributes',
 )
@@ -1188,8 +1198,8 @@ assertOk(
 assertOk(
   !timeScaleSrc.includes('至少完整呈现一条事件链')
     && !timeScaleSrc.includes('不能用单一现场代替整段跨度')
-    && promptBuilderSrc.includes('context.eventInjectionText'),
-  'time guidance and dynamic facts must not add story composition pressure',
+    && !promptBuilderSrc.includes('context.eventInjectionText'),
+  'time guidance must stay factual and the data layer must not carry injected events',
 )
 assertOk(timeScaleSrc.includes('事件节点推进'), 'event step must retain event timing')
 assertOk(timeScaleSrc.includes('覆盖一年'), 'year step must retain annual timing')
@@ -1213,14 +1223,14 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.16\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.16.0')
+assertOk(/version:\s*'7\.20\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.20.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('用第二人称代指玩家角色')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称“你”')
     && promptBuilderSrc.includes('当前信息')
     && promptBuilderSrc.includes('命运抉择'),
   'fixed Prompt must own addressing while dynamic assembly owns current information',

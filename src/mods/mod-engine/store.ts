@@ -17,6 +17,8 @@ import { DEFAULT_ENGINE_CONFIG, getSeasonForMonth, } from './constants'
 import {
   DEFAULT_ANNUAL_EVENT_COUNT,
   calendarDaysToBasePoints,
+  normalizeCanonicalEventNodeCount,
+  normalizeCanonicalTimeStep,
 } from '@/foundation'
 
 import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, } from './types'
@@ -119,7 +121,7 @@ const initialState = {
   legendaryEncounterCheckedForLifeRunId: undefined,
 }
 
-export const ENGINE_STORE_SCHEMA_VERSION = 8
+export const ENGINE_STORE_SCHEMA_VERSION = 9
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -160,24 +162,14 @@ export function migrateEnginePersistedState(
       ? Math.max(0, Math.floor(round.totalBasePoints))
       : calendarDaysToBasePoints(totalDays)
     round.basePointsPassed = 0
-    if (typeof round.eventNodeCount !== 'number' || round.eventNodeCount <= 0) {
-      round.eventNodeCount = DEFAULT_ANNUAL_EVENT_COUNT
-    }
+    round.eventNodeCount = normalizeCanonicalEventNodeCount(round.eventNodeCount)
     if (typeof round.eventNodeIndex !== 'number' || round.eventNodeIndex < 0) {
       round.eventNodeIndex = 0
     }
     old.round = round
   }
-  const persistedStep = old.timeStep
-  if (persistedStep && typeof persistedStep === 'object' && !Array.isArray(persistedStep)) {
-    const step = persistedStep as Record<string, unknown>
-    const unit = step.unit
-    const value = typeof step.value === 'number' && Number.isFinite(step.value)
-      ? Math.max(1, Math.floor(step.value))
-      : 1
-    old.timeStep = unit === 'year'
-      ? { unit: 'year', value }
-      : { unit: 'event', value: unit === 'event' ? value : DEFAULT_ANNUAL_EVENT_COUNT }
+  if (old.timeStep && typeof old.timeStep === 'object' && !Array.isArray(old.timeStep)) {
+    old.timeStep = normalizeCanonicalTimeStep(old.timeStep)
   }
 
   delete old.coreMemoryNpcMap
@@ -191,7 +183,7 @@ export const useEngineStore = create<EngineStore>()(
 
       setStatus: (status,) => set({ status, },),
 
-      setTimeStep: (timeStep,) => set({ timeStep, },),
+      setTimeStep: (timeStep,) => set({ timeStep: normalizeCanonicalTimeStep(timeStep), },),
 
       appendNarrative: (chunk,) =>
         set((state,) => {

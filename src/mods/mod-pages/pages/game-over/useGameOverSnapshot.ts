@@ -28,10 +28,10 @@ export function useGameOverSnapshot() {
   const characterGender = useCharacterStore((state) => state.gender)
   const characterRace = useCharacterStore((state) => state.race)
   const characterBackground = useCharacterStore((state) => state.background)
-  const physique = useCharacterStore((state) => state.characterBase.current.physique)
   const mind = useCharacterStore((state) => state.characterBase.current.mind)
-  const talentAptitude = useCharacterStore((state) => state.characterBase.current.talentAptitude)
+  const physique = useCharacterStore((state) => state.characterBase.current.physique)
   const charisma = useCharacterStore((state) => state.characterBase.current.charisma)
+  const familyBackground = useCharacterStore((state) => state.characterBase.current.familyBackground)
   const characterStatus = useCharacterStore((state) => state.characterBase.status)
   const regularPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
   const isDead = characterStatus?.health.alive === false
@@ -47,8 +47,8 @@ export function useGameOverSnapshot() {
   const status = useEngineStore((state) => state.status)
   const canViewGameOver = status === 'complete' || isDead
   const attributes = useMemo(
-    () => ({ physique, mind, talentAptitude, charisma }),
-    [charisma, mind, physique, talentAptitude],
+    () => ({ mind, physique, charisma, familyBackground }),
+    [charisma, familyBackground, mind, physique],
   )
 
   const allNarratives = useMemo(

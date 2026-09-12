@@ -26,7 +26,6 @@ function narrativeResponse(paragraphs, branch) {
 
 const storyContinuityResponse = JSON.stringify({ 本轮剧情: [], 未来事件: [] })
 const talentGrowthResponse = JSON.stringify({ 成长判定: { 需要成长: false } })
-const eventLibraryResponse = JSON.stringify({ 候选事件: [] })
 
 const narrativeResponses = [
   narrativeResponse(firstParagraphs),
@@ -123,7 +122,7 @@ async function assertCreationUiContract(page, expected) {
         candidateCardsSeparated,
       }),
       ...(contract.loadoutSlots === undefined ? {} : { loadoutSlots: document.querySelectorAll('[aria-label^="移除普通命格："], [aria-label^="移除轮回天赋："]').length === contract.loadoutSlots }),
-      ...(contract.attributeRows === undefined ? {} : { attributeRows: ['体魄', '心智', '悟性', '魅力'].every((name) => document.querySelector(`button[aria-label="提高${name}"]`)) }),
+      ...(contract.attributeRows === undefined ? {} : { attributeRows: ['心智', '体魄', '魅力', '家境'].every((name) => document.querySelector(`button[aria-label="提高${name}"]`)) }),
       ...(contract.includes === undefined ? {} : { includes: contract.includes.every((value) => (document.body.innerText || '').includes(value)) }),
     }
     return {
@@ -179,8 +178,6 @@ async function main() {
       content = storyContinuityResponse
     } else if (promptAsset.includes('mod-engine:narrative-talent-growth:')) {
       content = talentGrowthResponse
-    } else if (promptAsset.includes('mod-engine:narrative-event-library:')) {
-      content = eventLibraryResponse
     } else {
       content = narrativeResponses[Math.min(narrativeResponseIndex++, narrativeResponses.length - 1)]
     }
@@ -319,6 +316,7 @@ async function main() {
     console.error('NARRATIVE_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-5000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled })) })))
     throw error
   }
+  await page.waitForSelector('[data-narrative-age="0 岁"]', { timeout: 60000 })
   // 即使 AI 未返回分支，强制分叉也必须提交一个仅含自定义输入的分叉点。
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('写下自己的做法')))
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('写下自己的做法'))?.click())
@@ -393,7 +391,6 @@ async function main() {
     requestCount: requests.length,
     narrativeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length,
     storyContinuityRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-story-continuity:')).length,
-    eventLibraryRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-library:')).length,
     talentGrowthRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-talent-growth:')).length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
     radioCount,
@@ -420,10 +417,9 @@ async function main() {
     !choicePass
     || result.radioCount !== 0
     || result.resolvedChoice !== expectedChoice
-    || result.requestCount < expectedRoundCount * 3
+    || result.requestCount < expectedRoundCount * 2
     || result.narrativeRequestCount < expectedRoundCount
     || result.storyContinuityRequestCount !== expectedRoundCount
-    || result.eventLibraryRequestCount !== expectedRoundCount
     || result.narrativeEntries !== expectedRoundCount
     || result.consoleErrors.length > 0
     || !repetitionPass

@@ -25,7 +25,7 @@ const MODEL = 'deepseek-v4-flash'
 const ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const REQUESTS_PER_SAMPLE = Math.max(1, Number.parseInt(process.env.LIVE_EVAL_ATTEMPTS ?? '2', 10) || 2)
 const TARGET_RARITY = { common: 'fine', fine: 'rare', rare: 'epic' }
-const ATTR_TO_INTERNAL = { 体魄: 'physique', 心智: 'mind', 悟性: 'talentAptitude', 魅力: 'charisma', 气运: 'luck' }
+const ATTR_TO_INTERNAL = { 心智: 'mind', 体魄: 'physique', 魅力: 'charisma', 家境: 'familyBackground', 气运: 'luck' }
 const COST_TERMS = /代价|限制|副作用|牺牲|消耗|必须|仅能|不能|无法|不得|受限|付出/gu
 const SYSTEM_TERMS = /成功率|触发率|判定值|冷却|概率|数值判定/u
 

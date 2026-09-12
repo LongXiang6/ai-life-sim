@@ -128,9 +128,9 @@ class ProjectionCharacter extends BaseSubsystem {
       summary: `value=${this.value}`,
       data: {
         value: this.value,
-        base: { physique: 1, mind: 1, talentAptitude: 1, charisma: 1 },
-        current: { physique: 1, mind: 1, talentAptitude: 1, charisma: 1 },
-        modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+        base: { mind: 1, physique: 1, charisma: 1, familyBackground: 1 },
+        current: { mind: 1, physique: 1, charisma: 1, familyBackground: 1 },
+        modifiers: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
         startingAge: 18,
         status: { fortune: { value: 0 } },
       },
@@ -238,7 +238,7 @@ globalThis.fetch = async (input, init) => {
   assert.equal(String(input), '/api/proxy')
   proxyRequests.push(JSON.parse(String(init?.body ?? '{}')))
   previewSequence += 1
-  const content = `【年龄:18岁|心智:0|体魄:0|魅力:0|家境:0|冷却:0】\n"正文": "这是第${previewSequence}段预生成测试正文。雨声停歇后，测试者继续前行。"。\n"命运分支": "false"。\n"结局": "false"。`
+  const content = `【年龄:18岁|心智:0|体魄:0|魅力:0|家境:0】\n"正文": "这是第${previewSequence}段预生成测试正文。雨声停歇后，测试者继续前行。"。\n"命运分支": "false"。\n"结局": "false"。`
   return new Response(JSON.stringify({ choices: [{
     message: { content }, finish_reason: 'stop',
   }] }), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -339,7 +339,7 @@ assertOk(
   'formal execution must reuse one matching preview or issue one real main-story request',
 )
 assertOk(
-  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',\s*'ai-event-library',?\s*\]/u.test(campaign),
+  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign),
   'commit must depend on exactly the 02, 03, and 04 post-story calls',
 )
 assertOk(

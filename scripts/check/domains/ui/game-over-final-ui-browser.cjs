@@ -104,9 +104,9 @@ function seedPage(page) {
         name: '沈砚', gender: 'male', race: 'human', background: '灯塔记录员', age: 73,
         worldCode: 2026072401,
         characterBase: {
-          base: { physique: 8, mind: 10, talentAptitude: 9, charisma: 7 },
-          current: { physique: 14, mind: 17, talentAptitude: 16, charisma: 12 },
-          modifiers: { physique: 6, mind: 7, talentAptitude: 7, charisma: 5 },
+          base: { mind: 10, physique: 8, charisma: 7, familyBackground: 9 },
+          current: { mind: 17, physique: 14, charisma: 12, familyBackground: 16 },
+          modifiers: { mind: 7, physique: 6, charisma: 5, familyBackground: 7 },
           contextModifiers: {},
           startingAge: 18,
         },

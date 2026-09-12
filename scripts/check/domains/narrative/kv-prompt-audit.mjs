@@ -60,7 +60,7 @@ const segments = buildSegmentedPrompt(narrativePrompt, {
   },
   characterStatusView: {
     年龄: 20,
-    属性数值: { mind: 2, physique: 1, charisma: -1, talentAptitude: 3 },
+    属性数值: { mind: 2, physique: 1, charisma: -1, familyBackground: 3 },
   },
   subsystemSummaries: [],
   timelineMemory: ['已成立记忆'],
@@ -88,9 +88,16 @@ if (/⟦(?:全局信息|记忆|本轮素材)⟧/u.test(segments.userSegments[0])
   fail('main narrative data layer must not carry object-external labels')
 }
 if (
-  !COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是专业版人生重开模拟器。')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮跨度为1年')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x|冷却:x】')
+  !COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由外部程序控制')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮正文只能叙述当前年龄正在发生或已经发生的事')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文只能包含状态行当前年龄这一岁内的一个完整事件')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现任何大于当前年龄的年龄数字或年龄阶段词')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得回顾成长，不得写人生概览或成长蒙太奇')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现下一岁及以后的年龄、事件、成长、关系变化或结果')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
 ) {

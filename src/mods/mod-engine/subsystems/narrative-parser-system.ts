@@ -22,6 +22,7 @@ import type { NarrativeAIAttributeChanges } from '../helpers/narrative-ai-protoc
 export interface ParsedNarrative {
   narrative: string
   endingTitle?: string
+  endingSummary?: string
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
@@ -59,7 +60,12 @@ export class NarrativeParserSystem extends BaseSubsystem {
     const envelope = parseNarrativeResponseEnvelope(content, options)
     const result: ParsedNarrative = {
       narrative: envelope.narrative,
-      ...(envelope.ending ? { endingTitle: envelope.ending.四字评语 } : {}),
+      ...(envelope.ending
+        ? {
+            endingTitle: envelope.ending.评语,
+            endingSummary: envelope.ending.总结,
+          }
+        : {}),
       ...(envelope.branch
         ? {
             branch: true,

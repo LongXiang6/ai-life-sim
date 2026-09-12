@@ -44,7 +44,7 @@ const shareData = {
   dimensions: [
     { label: '体魄', value: 72, comment: '出众' },
     { label: '心智', value: 86, comment: '卓越' },
-    { label: '悟性', value: 86, comment: '卓越' },
+    { label: '家境', value: 86, comment: '卓越' },
     { label: '魅力', value: 64, comment: '出众' },
     { label: '回响', value: 82, comment: '清晰' },
   ],
@@ -156,7 +156,7 @@ const mythicSource = {
   effect: '可在明确代价下调整一次既定结果。',
   category: 'cognition',
   rarity: 'mythic',
-  attrBonus: { mind: 8, talentAptitude: 7, luck: 3 },
+  attrBonus: { mind: 8, familyBackground: 7, luck: 3 },
   strengthenLevel: 5,
 }
 const firstFailure = decideReincarnationPromotion(mythicSource, () => 0)

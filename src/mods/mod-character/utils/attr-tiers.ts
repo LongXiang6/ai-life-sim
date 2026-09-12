@@ -7,13 +7,13 @@
 import { clamp } from '@/core/shared'
 import { TRANSCENDENT_ATTR_KEYS, TRANSCENDENT_TIER_THRESHOLDS } from '../constants'
 
-type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck' | 'health'
+type AttrKey = 'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck' | 'health'
 
 /** 隐藏属性列表（传给 AI 但不展示给用户） */
 export const HIDDEN_ATTRS: AttrKey[] = ['luck', 'health']
 
 /** 可见属性 */
-export const VISIBLE_ATTR_KEYS: AttrKey[] = ['physique', 'mind', 'talentAptitude', 'charisma']
+export const VISIBLE_ATTR_KEYS: AttrKey[] = ['mind', 'physique', 'charisma', 'familyBackground']
 
 /** 6 项角色属性 × -10..+10 的连续语义描述；索引为属性值 + 10，0 为普通基准。 */
 export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
@@ -63,28 +63,28 @@ export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
     '几乎触及人类心智可训练与发挥的综合极限',
     '人类物种巅峰：不借助超凡力量，理解、记忆、推理、创造与决策达到可实现的综合极限',
   ],
-  talentAptitude: [
-    '几乎无法从经验中形成稳定方法，需要长期照料',
-    '学习新事物极慢，反复示范也难以掌握',
-    '领悟力很弱，通常需要大量重复练习',
-    '面对新规则容易迷失，迁移旧经验较困难',
-    '学习速度偏慢，需要比常人更多时间和反馈',
-    '掌握新技能时常要分成很小的步骤',
-    '悟性略低于常人，但可通过练习逐步掌握',
-    '理解复杂技能时容易漏掉关键联系',
-    '小幅低于普通基准，方法迁移不够稳定',
-    '略有不足，熟悉领域内仍能正常学习',
-    '普通基准，按常态学习、领悟与迁移',
-    '学习新事物时较容易抓住要点',
-    '能较快理解规则并稳定迁移已有经验',
-    '面对复杂技能时具有明显的领悟优势',
-    '常能举一反三，在专业训练中进步迅速',
-    '属于少数高天赋学习者，能自行修正方法',
-    '对陌生体系也能较快发现核心规律',
-    '在多个领域都表现出罕见的领悟与迁移能力',
-    '能从极少信息中建立接近正确的完整理解',
-    '几乎触及人类学习、领悟与创新能力的综合极限',
-    '人类物种巅峰：不借助超凡力量，学习、领悟、迁移与创新达到可实现的综合极限',
+  familyBackground: [
+    '家庭资源极度匮乏，基本生活与照料都难以稳定维持',
+    '成长环境极差，长期缺少可靠的生活支持',
+    '家中负担沉重，日常资源经常无法满足需要',
+    '家庭条件明显拮据，许多机会会被现实开支挡住',
+    '可用资源偏少，遇到额外支出便容易陷入被动',
+    '家中支持有限，重要事情往往需要自己想办法',
+    '家庭条件略逊于常态，但基本生活仍能维持',
+    '可获得的帮助不多，起步时需要更谨慎地安排',
+    '资源略少，偶尔会因家境错过便利条件',
+    '家中支持稍弱，整体仍能按常态生活',
+    '普通家庭条件，生活资源与支持按常态提供',
+    '家庭支持较稳，遇到日常困难时较容易得到帮助',
+    '家中资源较充足，学习与生活安排更从容',
+    '家庭条件良好，能提供稳定的教育、关系或物质支持',
+    '起步资源明显优于常态，许多选择拥有更宽余的余地',
+    '家族支持强，关键阶段常能提供专业或人脉帮助',
+    '家庭资源优厚，成长路径拥有罕见的试错空间',
+    '家族势力与财富都很突出，能持续改变你的起点条件',
+    '家境极其显赫，社会资源会主动向你聚拢',
+    '几乎触及当前社会结构下家庭资源的综合极限',
+    '家族资源达到当前世界尺度的上限，仍受时代、关系与个人选择制约',
   ],
   charisma: [
     '外在与表达容易引起明显排斥，难以建立基本信任',
@@ -159,12 +159,12 @@ export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
 
 /** 可见属性沿用同一套 -10..+10 语义，保留旧导出名供现有调用方使用。 */
 export const VISIBLE_ATTR_VALUE_DESCRIPTIONS: Readonly<Record<
-  'physique' | 'mind' | 'talentAptitude' | 'charisma',
+  'mind' | 'physique' | 'charisma' | 'familyBackground',
   readonly string[]
 >> = {
   physique: ATTR_TIER_DESCRIPTIONS.physique,
   mind: ATTR_TIER_DESCRIPTIONS.mind,
-  talentAptitude: ATTR_TIER_DESCRIPTIONS.talentAptitude,
+  familyBackground: ATTR_TIER_DESCRIPTIONS.familyBackground,
   charisma: ATTR_TIER_DESCRIPTIONS.charisma,
 }
 
@@ -182,7 +182,7 @@ export function getAttrTierIndex(value: number): number {
 const TRANSCENDENT_DOMAIN_LABELS: Record<string, { noun: string; highAdj: string; lowAdj: string }> = {
   physique:       { noun: '肉身', highAdj: '', lowAdj: '' },
   mind:           { noun: '心神', highAdj: '', lowAdj: '' },
-  talentAptitude: { noun: '道基', highAdj: '', lowAdj: '' },
+  familyBackground: { noun: '家势', highAdj: '', lowAdj: '' },
   charisma:       { noun: '威仪', highAdj: '', lowAdj: '' },
 }
 

@@ -61,10 +61,10 @@ const rarityLabels: Record<string, string> = {
 }
 
 const attributeLabels: Record<string, string> = {
-  physique: '体魄',
   mind: '心智',
-  talentAptitude: '悟性',
+  physique: '体魄',
   charisma: '魅力',
+  familyBackground: '家境',
   luck: '气运',
 }
 

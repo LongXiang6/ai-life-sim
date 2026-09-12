@@ -357,7 +357,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     const entries = Object.entries(bonuses).filter(([, v]) => v !== 0)
     if (entries.length === 0) return ''
     const names: Record<string, string> = {
-      physique: '体魄', mind: '心智', talentAptitude: '悟性', charisma: '魅力',
+      mind: '心智', physique: '体魄', charisma: '魅力', familyBackground: '家境',
     }
     return entries.map(([k, v]) => {
       const sign = (v ?? 0) > 0 ? '+' : ''

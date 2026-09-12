@@ -128,10 +128,10 @@ function splitNarrativeParagraphs(text: string): string[] {
 }
 
 const ATTRIBUTE_PRESENTATION: Readonly<Record<string, { label: string; icon: string }>> = {
-  physique: { label: '体魄', icon: '💪' },
   mind: { label: '心智', icon: '🧠' },
-  talentAptitude: { label: '悟性', icon: '✨' },
+  physique: { label: '体魄', icon: '💪' },
   charisma: { label: '魅力', icon: '💫' },
+  familyBackground: { label: '家境', icon: '🏠' },
   luck: { label: '气运', icon: '🍀' },
 }
 
@@ -187,9 +187,9 @@ export function NarrativeTimelineEntryView({
 
   return (
     <div className={[styles.entry, isEnding ? styles.entryEnding : ''].filter(Boolean).join(' ')}>
-      {entry.ageLabel || entry.eraLabel ? (
-        <div className={styles.entryMeta}>
-          <span>{entry.ageLabel ?? entry.eraLabel}</span>
+      {entry.ageLabel ? (
+        <div className={styles.entryMeta} data-narrative-age={entry.ageLabel}>
+          <span>{entry.ageLabel}</span>
         </div>
       ) : null}
       <div className={styles.entryBody}>
@@ -197,40 +197,17 @@ export function NarrativeTimelineEntryView({
           <p key={paragraphIndex} className={styles.entryParagraph}>{paragraph.trim()}</p>
         ))}
       </div>
-      {entry.destinyPatternGrowth ? (
+      {entry.destinyPatternGrowth && !entry.destinyPatternGrowth.result ? (
         <section className={styles.growthPanel} aria-label="天赋成长">
           <header className={styles.growthHeader}>
             <div>
               <small>天赋成长</small>
-              <h3>{entry.destinyPatternGrowth.result ? '此途已定' : '选择下一阶走向'}</h3>
+              <h3>选择下一阶走向</h3>
             </div>
-            <span>{entry.destinyPatternGrowth.result ? '已完成' : '三选一'}</span>
+            <span>三选一</span>
           </header>
 
-          {entry.destinyPatternGrowth.result ? (
-            <div className={styles.growthResolved}>
-              <article className={styles.growthPatternSummary} data-rarity={entry.destinyPatternGrowth.source.rarity}>
-                <div className={styles.growthPatternTitle}>
-                  <span>{entry.destinyPatternGrowth.source.rarityLabel}</span>
-                  <strong>{entry.destinyPatternGrowth.source.name}</strong>
-                </div>
-                <p>{entry.destinyPatternGrowth.source.description}</p>
-                <small>{entry.destinyPatternGrowth.source.effect}</small>
-                <AttributeBonusChips attrBonus={entry.destinyPatternGrowth.source.attrBonus} />
-              </article>
-              <div className={styles.growthArrow} aria-hidden="true">至</div>
-              <article className={`${styles.growthPatternSummary} ${styles.growthPatternResult}`} data-rarity={entry.destinyPatternGrowth.result.rarity}>
-                <div className={styles.growthPatternTitle}>
-                  <span>{entry.destinyPatternGrowth.result.rarityLabel}</span>
-                  <strong>{entry.destinyPatternGrowth.result.name}</strong>
-                </div>
-                <p>{entry.destinyPatternGrowth.result.description}</p>
-                <small>{entry.destinyPatternGrowth.result.effect}</small>
-                <AttributeBonusChips attrBonus={entry.destinyPatternGrowth.result.attrBonus} />
-              </article>
-            </div>
-          ) : (
-            <>
+          <>
               <article className={styles.growthSource} data-rarity={entry.destinyPatternGrowth.source.rarity}>
                 <div className={styles.growthPatternTitle}>
                   <span>{entry.destinyPatternGrowth.source.rarityLabel}</span>
@@ -275,18 +252,11 @@ export function NarrativeTimelineEntryView({
                   确认选择
                 </button>
               </div>
-            </>
-          )}
+          </>
         </section>
       ) : null}
       {entry.isBranchPoint && !entry.resolvedChoice && showBranchEditor ? (
         <NarrativeBranchEditor key={entryIndex} entryIndex={entryIndex} {...branchProps} />
-      ) : null}
-      {entry.isBranchPoint && entry.resolvedChoice ? (
-        <div className={styles.branchResolved}>
-          <p className={styles.branchResolvedTitle}>命运分叉 · {entry.branchTitle ?? '你的抉择'}</p>
-          <p className={styles.branchResolvedChoice}>你的选择：<span>{entry.resolvedChoice}</span></p>
-        </div>
       ) : null}
     </div>
   )

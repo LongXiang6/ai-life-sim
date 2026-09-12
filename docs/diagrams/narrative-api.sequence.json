@@ -10,8 +10,8 @@
     "viewBox": [1640, 960],
     "column_fit": "spread",
     "views": [
-      { "id": "story-request", "label": "主故事请求", "focus": ["ui", "orchestrator", "prompt", "proxy", "provider", "parser"], "note": "展示一次主故事请求如何携带固定资产与六段动态 JSON。" },
-      { "id": "parallel-results", "label": "专项 API", "focus": ["orchestrator", "specialists", "commit"], "note": "展示正文接纳后的三个并行专项调用。" },
+      { "id": "story-request", "label": "主故事请求", "focus": ["ui", "orchestrator", "prompt", "proxy", "provider", "parser"], "note": "展示一次主故事请求如何携带固定资产与单条数据层。" },
+      { "id": "parallel-results", "label": "专项 API", "focus": ["orchestrator", "specialists", "commit"], "note": "展示正文接纳后的两个并行专项调用。" },
       { "id": "state-commit", "label": "状态提交", "focus": ["parser", "commit", "character", "stores", "ui"], "note": "展示属性变化、正文和连续性结果的本地提交。" }
     ]
   },
@@ -22,7 +22,7 @@
     { "id": "proxy", "type": "backend", "label": "/api/proxy" },
     { "id": "provider", "type": "cloud", "label": "AI Provider" },
     { "id": "parser", "type": "backend", "label": "解析器" },
-    { "id": "specialists", "type": "backend", "label": "02 / 03 / 04" },
+    { "id": "specialists", "type": "backend", "label": "02 / 03" },
     { "id": "commit", "type": "backend", "label": "提交" },
     { "id": "character", "type": "database", "label": "角色库" },
     { "id": "stores", "type": "database", "label": "故事库" }
@@ -36,16 +36,14 @@
     { "from": "ui", "to": "orchestrator", "y": 180, "label": "start round", "variant": "emphasis" },
     { "from": "orchestrator", "to": "prompt", "y": 222, "label": "assemble PromptContext", "variant": "emphasis" },
     { "from": "prompt", "to": "proxy", "y": 264, "label": "POST /api/proxy + prompt_asset", "variant": "emphasis" },
-    { "from": "proxy", "to": "provider", "y": 306, "label": "submit_story_turn", "variant": "emphasis" },
-    { "from": "provider", "to": "proxy", "y": 348, "label": "tool arguments: 4 fields", "variant": "return" },
+    { "from": "proxy", "to": "provider", "y": 306, "label": "system asset + data layer", "variant": "emphasis" },
+    { "from": "provider", "to": "proxy", "y": 348, "label": "人生重开文本", "variant": "return" },
     { "from": "proxy", "to": "parser", "y": 390, "label": "response content", "variant": "emphasis" },
     { "from": "parser", "to": "orchestrator", "y": 432, "label": "ParsedNarrative", "variant": "return" },
     { "from": "orchestrator", "to": "specialists", "y": 480, "label": "02 request", "variant": "dashed" },
     { "from": "orchestrator", "to": "specialists", "y": 522, "label": "03 request", "variant": "dashed" },
-    { "from": "orchestrator", "to": "specialists", "y": 564, "label": "04 request", "variant": "dashed" },
     { "from": "specialists", "to": "commit", "y": 612, "label": "剧情 + 未来事件", "variant": "return" },
     { "from": "specialists", "to": "commit", "y": 654, "label": "成长判定 + 路线", "variant": "return" },
-    { "from": "specialists", "to": "commit", "y": 696, "label": "候选事件", "variant": "return" },
     { "from": "commit", "to": "character", "y": 744, "label": "adjust-attributes", "variant": "emphasis" },
     { "from": "commit", "to": "stores", "y": 786, "label": "publish + persist", "variant": "emphasis" },
     { "from": "stores", "to": "ui", "y": 828, "label": "round-complete", "variant": "return" }
@@ -56,14 +54,14 @@
     { "participant": "proxy", "from": 258, "to": 396, "type": "backend" },
     { "participant": "provider", "from": 300, "to": 354, "type": "cloud" },
     { "participant": "parser", "from": 384, "to": 438, "type": "backend" },
-    { "participant": "specialists", "from": 474, "to": 702, "type": "backend" },
+    { "participant": "specialists", "from": 474, "to": 660, "type": "backend" },
     { "participant": "commit", "from": 606, "to": 798, "type": "backend" },
     { "participant": "character", "from": 738, "to": 756, "type": "database" },
     { "participant": "stores", "from": 780, "to": 834, "type": "database" }
   ],
   "cards": [
-    { "dot": "cyan", "title": "主故事协议", "items": ["固定服务端资产按 prompt_asset 注入", "动态输入拆为世界、历史剧情、最近五轮正文、主角、世界演变参考、本轮素材", "工具参数恰好包含四个顶层字段"] },
-    { "dot": "amber", "title": "并行专项", "items": ["02、03、04 在正文接纳后并行调用", "专项结果不替代主故事正文", "commit-round 负责唯一汇合"] },
+    { "dot": "cyan", "title": "主故事协议", "items": ["固定服务端资产按 prompt_asset 注入", "动态输入只发送一条四元素数据层", "命运抉择无玩家输入时为空字符串"] },
+    { "dot": "amber", "title": "并行专项", "items": ["02、03 在正文接纳后并行调用", "专项结果不替代主故事正文", "commit-round 负责唯一汇合"] },
     { "dot": "emerald", "title": "状态所有权", "items": ["属性变化由 Character Base 校验与持久化", "正文和连续性写入 Narrative Stores", "UI 只接收 round-complete 结果"] }
   ]
 }

@@ -9,10 +9,7 @@
  */
 
 import type { TimeStep } from '../types'
-import {
-  DEFAULT_ANNUAL_EVENT_COUNT,
-  normalizeAnnualEventCount,
-} from '../utils/annual-clock'
+import { DEFAULT_ANNUAL_EVENT_COUNT } from '../utils/annual-clock'
 
 export type TimeStepOption = TimeStep & {
   label: string
@@ -30,17 +27,14 @@ const STEP_ICONS: Record<string, string> = {
 }
 
 const RAW_STEPS: Array<TimeStep & { label: string; experimental?: boolean }> = [
+  { unit: 'event', value: 24, label: '24节点/年' },
   { unit: 'event', value: DEFAULT_ANNUAL_EVENT_COUNT, label: '12节点/年' },
-  { unit: 'event', value: 24, label: '24节点/年', experimental: true },
+  { unit: 'event', value: 4, label: '4节点/年' },
+  { unit: 'event', value: 2, label: '2节点/年' },
   { unit: 'year', value: 1, label: '年' },
   { unit: 'year', value: 3, label: '3年' },
   { unit: 'year', value: 5, label: '5年' },
   { unit: 'year', value: 10, label: '10年' },
-  { unit: 'year', value: 50, label: '50年' },
-  { unit: 'year', value: 100, label: '100年' },
-  { unit: 'year', value: 200, label: '200年' },
-  { unit: 'year', value: 500, label: '500年' },
-  { unit: 'year', value: 1000, label: '1000年' },
 ]
 
 /** 可用时间步长列表（从细到粗） */
@@ -51,8 +45,32 @@ export const AVAILABLE_TIME_STEPS: TimeStepOption[] = RAW_STEPS.map((s) => ({
 
 /** UI 默认展示（事件轮次 + 年度宏观快进） */
 export const PRIMARY_TIME_STEPS: TimeStepOption[] = AVAILABLE_TIME_STEPS.filter(
-  (s) => !s.experimental,
+  () => true,
 )
+
+export const CANONICAL_TIME_STEP_KEYS = AVAILABLE_TIME_STEPS.map(encodeTimeStepKey)
+
+const CANONICAL_TIME_STEP_KEY_SET = new Set(CANONICAL_TIME_STEP_KEYS)
+
+/** Normalize persisted or external values to one of the eight public steps. */
+export function normalizeCanonicalTimeStep(step: unknown): TimeStep {
+  if (step && typeof step === 'object' && !Array.isArray(step)) {
+    const value = step as Partial<TimeStep>
+    const numeric = typeof value.value === 'number' ? value.value : Number(value.value)
+    const key = `${value.unit}:${Number.isSafeInteger(numeric) ? numeric : ''}`
+    if (CANONICAL_TIME_STEP_KEY_SET.has(key)) {
+      const [unit, rawValue] = key.split(':')
+      return { unit: unit as TimeStep['unit'], value: Number(rawValue) }
+    }
+  }
+  return { unit: 'year', value: 1 }
+}
+
+/** Normalize the frozen annual event budget used by event-node rounds. */
+export function normalizeCanonicalEventNodeCount(value: unknown): number {
+  const normalized = normalizeCanonicalTimeStep({ unit: 'event', value })
+  return normalized.unit === 'event' ? normalized.value : DEFAULT_ANNUAL_EVENT_COUNT
+}
 
 /** 编码为 UI 选择键 `unit:value` */
 export function encodeTimeStepKey(step: TimeStep): string {
@@ -61,17 +79,14 @@ export function encodeTimeStepKey(step: TimeStep): string {
 
 /** 从 UI 键解码 */
 export function decodeTimeStepKey(key: string): TimeStep {
-  const [unit, raw] = key.split(':')
-  const value = Number(raw)
-  if (unit === 'year' && Number.isFinite(value) && value > 0) {
-    return { unit: 'year', value: Math.floor(value) }
-  }
-  if (unit === 'event' && Number.isFinite(value) && value > 0) {
-    return { unit: 'event', value: normalizeAnnualEventCount(value) }
-  }
-  // Legacy day/month/season keys are accepted only at this boundary and are
-  // normalized to the canonical annual event clock.
-  return { unit: 'event', value: DEFAULT_ANNUAL_EVENT_COUNT }
+  return normalizeCanonicalTimeStep(
+    key.includes(':')
+      ? (() => {
+          const [unit, raw] = key.split(':')
+          return { unit, value: Number(raw) }
+        })()
+      : undefined,
+  )
 }
 
 export function findTimeStepOption(key: string): TimeStepOption | undefined {

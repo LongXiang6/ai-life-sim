@@ -35,7 +35,7 @@ export interface NarrativeDestinyPatternGrowthPatternEntry {
   rarityLabel: string
   description: string
   effect: string
-  attrBonus: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck', number>>
+  attrBonus: Partial<Record<'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck', number>>
 }
 
 export interface NarrativeDestinyPatternGrowthEntry {
@@ -52,7 +52,6 @@ export interface NarrativeDestinyPatternGrowthEntry {
 export interface NarrativeTimelineProps {
   entries: NarrativeEntry[]
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>
-  turnCount?: number
   advanceText?: string
   advanceHint?: string
   showAdvance?: boolean
@@ -78,7 +77,6 @@ export interface NarrativeTimelineProps {
 export function NarrativeTimeline({
   entries,
   scrollContainerRef,
-  turnCount = 0,
   advanceText = '轻触，让岁月流转',
   advanceHint = '下一段故事已经准备好',
   showAdvance = false,
@@ -192,7 +190,6 @@ export function NarrativeTimeline({
   ])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
-  const displayTurnCount = Math.max(turnCount, 1)
   // Loading only changes availability and tone; the control keeps the ready-state copy
   // so its two-line footprint remains stable while the story is being finalized.
   const advanceTitle = !isGenerating && advanceBlocked ? advanceBlockedText : advanceText
@@ -206,7 +203,6 @@ export function NarrativeTimeline({
         <div className={styles.timelineInner}>
           <div data-narrative-header className={styles.timelineHeader}>
             <span className={styles.timelineHeaderLabel}>故事进程</span>
-            <span className={styles.timelineHeaderRound}>第 {displayTurnCount} 轮 · 已走过 {displayTurnCount} 段岁月</span>
           </div>
           {entries.length === 0 ? (
             <div className={styles.emptyState}>

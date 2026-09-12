@@ -114,7 +114,7 @@ generationSystem.setAIService(async (systemPrompt, userPrompt, options) => {
       名称: `${label}${variationWords[variationOffset + itemIndex]}倾向`,
       设定描述: `${label}在${variationWords[variationOffset + itemIndex]}方面保有普通熟练倾向。`,
       效果: `处理${variationWords[variationOffset + itemIndex]}时更容易保持稳定表现，适合日常情境。`,
-      属性加成: itemIndex === 0 ? '心智+1，悟性+1，魅力-1' : { 体魄: 1 },
+      属性加成: itemIndex === 0 ? '心智+1，家境+1，魅力-1' : { 体魄: 1 },
     })),
   })
 })

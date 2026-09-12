@@ -14,10 +14,10 @@ import { BASE_POINTS_PER_YEAR } from '@/foundation'
 import { clamp } from './common-utils'
 
 export type CharacterBalanceAttributeKey =
-  | 'physique'
   | 'mind'
-  | 'talentAptitude'
+  | 'physique'
   | 'charisma'
+  | 'familyBackground'
 
 export type NumericRange = readonly [number, number]
 
@@ -52,10 +52,10 @@ export const WORLD_DIFFICULTY_MULTIPLIERS: Readonly<Record<DifficultyLevel, numb
  * 实际单轮上限由 basePointsPassed / 1000 缩放，派生日历天数不参与业务速率。
  */
 export const CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR: Readonly<Record<CharacterBalanceAttributeKey, NumericRange>> = {
-  physique: [-8, 8],
   mind: [-8, 8],
-  talentAptitude: [-8, 8],
+  physique: [-8, 8],
   charisma: [-8, 8],
+  familyBackground: [-8, 8],
 }
 
 /**

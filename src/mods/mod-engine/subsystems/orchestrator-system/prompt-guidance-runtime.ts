@@ -12,7 +12,6 @@ export function buildRoundGuidanceInputRuntime(
   orchestrator: OrchestratorSystem,
   _luckNarrativeGuidance?: LuckNarrativeGuidance,
 ): {
-  roundSystemGuidanceText?: string
   playerBranchIntent?: Record<string, unknown>
 } {
   const action = orchestrator['lastPlayerChoice']?.trim()

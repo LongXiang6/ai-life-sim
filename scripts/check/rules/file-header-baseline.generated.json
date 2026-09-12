@@ -1063,11 +1063,6 @@
       "sha256": "74b30dd3c023ddddbbf455a44c124928e06db6e35c5fb78a6863cc7634570d6a"
     },
     {
-      "path": "src/mods/mod-engine/helpers/time-bridge-summary.ts",
-      "owner": "mod-engine",
-      "sha256": "434f9e6a5c9381c84c236fc923bd73893d4003e1d0f2736221d34bf7bd9f3d28"
-    },
-    {
       "path": "src/mods/mod-engine/patterns/base-pattern.ts",
       "owner": "mod-engine",
       "sha256": "ab131d22e87bc4d755945a70776976c2d64e679ca933e57937835d3bf0c2c05d"

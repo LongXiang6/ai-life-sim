@@ -25,7 +25,7 @@ export function parseRewardTalent(raw, rewardId, startsAt) {
   const attrBonus = value.attrBonus && typeof value.attrBonus === 'object' && !Array.isArray(value.attrBonus)
     ? { ...value.attrBonus }
     : {}
-  const allowedAttributes = new Set(['physique', 'mind', 'talentAptitude', 'charisma', 'luck'])
+  const allowedAttributes = new Set(['mind', 'physique', 'charisma', 'familyBackground', 'luck'])
   for (const [key, bonus] of Object.entries(attrBonus)) {
     if (!allowedAttributes.has(key) || typeof bonus !== 'number' || !Number.isFinite(bonus)) {
       throw new Error(`礼包天赋属性点无效：${key}`)

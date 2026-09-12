@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Purpose: Preserve the public narrative type API and the code-generated PromptContext source contract.
  * Owner: foundation:types
  * Responsibility: Prompt-facing types and explicit exports only; narrative subdomains live below narrative/.
@@ -47,14 +47,8 @@ export interface PromptContext {
   characterProfileView: Record<string, unknown>
   characterStatusView: Record<string, unknown>
   subsystemSummaries: string[]
-  roundSystemGuidanceText?: string
   playerBranchIntent?: Record<string, unknown>
-  eventInjectionText?: string
-  /** 事件库（04 调用）的候选素材；独立于其余世界事实材料。 */
-  eventLibraryText?: string
-  timeBridgeSummary?: string
   systemChangeSummary?: string
-  narrativeGuidanceText?: string
   worldTagsText?: string
   timelineMemory?: string[]
   /** 主叙事可见的最近完整正文窗口；区别于压缩后的历史连续性事实。 */
@@ -70,10 +64,7 @@ export interface PromptContext {
   calibrationSummary?: string
   causalChainHint?: string
   currentTime?: string
-  /** 当前上下文已经到期、仍可供本轮正文处理的历史事项；不含内部候选编号或审计信息。 */
-  currentDueEvents?: string[]
   talents?: NarrativeTalentPromptView[]
-  timeGuideText?: string
 }
 
 export interface PromptTemplate<TOutput = unknown> {

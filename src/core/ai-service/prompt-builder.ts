@@ -1,11 +1,10 @@
-/**
+﻿/**
  * Purpose: Assemble the current data-layer payload for the main narrative call.
  * Owner: core:ai-service
  * Responsibility: Serialize the world, player, history, attributes, and current-round data contract.
  */
 
 import type { PromptContext, PromptTemplate } from '@/foundation'
-import { compileNarrativeGuidance } from './narrative-guidance-compiler'
 
 export type PromptSegmentStrategy = 'S4'
 
@@ -20,8 +19,6 @@ export interface PromptSegments {
   roundSegmentChars: number
   totalChars: number
 }
-
-const DEFAULT_PLAYER_ACTION = '在当前条件下自然推进故事。'
 
 function nonEmpty(value: unknown): string | undefined {
   return typeof value === 'string' ? value.trim() || undefined : undefined
@@ -44,7 +41,7 @@ function buildNarrativeAttributes(value: unknown): Record<'心智' | '体魄' | 
     心智: integerString(numericSet.mind ?? numericSet.心智) ?? '0',
     体魄: integerString(numericSet.physique ?? numericSet.体魄) ?? '0',
     魅力: integerString(numericSet.charisma ?? numericSet.魅力) ?? '0',
-    家境: '0',
+    家境: integerString(numericSet.familyBackground ?? numericSet.家境) ?? '0',
   }
 }
 
@@ -70,8 +67,6 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
   }
   const rawCharacter = context.characterProfileView
   const currentAge = context.characterStatusView.年龄
-  const guidance = compileNarrativeGuidance(context)
-  const playerBranchIntent = guidance.playerBranchIntent
   const character = {
     姓名: nonEmpty(rawCharacter.姓名) ?? '',
     性别: nonEmpty(rawCharacter.性别) ?? '未设定',
@@ -83,14 +78,7 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
   const currentAgeNumeric = Number(currentAge)
   const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
   const currentTime = nonEmpty(context.currentTime) ?? '当前时间'
-  const action = [
-    nonEmpty(playerBranchIntent?.本轮明确行动) ?? DEFAULT_PLAYER_ACTION,
-    ...(guidance.systemGuidance ?? []),
-    nonEmpty(context.timeGuideText),
-    nonEmpty(context.eventInjectionText),
-    nonEmpty(context.eventLibraryText),
-    ...(context.currentDueEvents ?? []).map((event) => nonEmpty(event)),
-  ].filter((item): item is string => Boolean(item)).join('\n')
+  const action = nonEmpty(context.playerBranchIntent?.本轮明确行动) ?? ''
   const attributes = buildNarrativeAttributes(
     context.characterStatusView.属性数值 ?? rawCharacter.基础属性,
   )

@@ -32,6 +32,7 @@ try {
     { role: 'system', content: '系统原始文本' },
     { role: 'user', content: '用户原始文本' },
   ])
+  const mirroredOutbound = JSON.stringify(JSON.parse(outbound), null, 2).replace(/\\n/g, '\n')
   await mirror.writeDevelopmentLogMirror({
     callKind: 'narrative-main',
     direction: '发送',
@@ -39,7 +40,7 @@ try {
   }, new Date('2026-08-23T12:34:56.789Z'))
 
   const currentFile = path.join(oldDirectory, '发送-2026-08-23_20-34-56-789.txt')
-  assert.equal(await fs.readFile(currentFile, 'utf8'), outbound)
+  assert.equal(await fs.readFile(currentFile, 'utf8'), mirroredOutbound)
   await assert.rejects(() => fs.access(oldFile))
 
   process.env.NODE_ENV = 'production'

@@ -8,7 +8,7 @@
  * @mod mod-engine
  */
 
-import type { RoundContext, TimeStep, WorldSetting } from '@/foundation'
+import { normalizeCanonicalTimeStep, type RoundContext, type TimeStep, type WorldSetting } from '@/foundation'
 import { formatEraYear } from '@/foundation/utils/format-time'
 
 import { SEASON_NAMES } from '../constants'
@@ -87,10 +87,11 @@ export function formatNarrativeTimeLabel(
     eventNodeCount?: number
   },
 ): string {
+  const canonical = normalizeCanonicalTimeStep(timeStep)
   const seasonName = SEASON_NAMES[getSeasonForMonth(round.month)] ?? ''
-  switch (timeStep.unit) {
+  switch (canonical.unit) {
     case 'event':
-      return `${eraLabel} · 年内故事节点${Math.max(0, round.eventNodeIndex ?? 0)}/${Math.max(1, round.eventNodeCount ?? timeStep.value)}`
+      return `${eraLabel} · 年内故事节点${Math.max(0, round.eventNodeIndex ?? 0)}/${Math.max(1, round.eventNodeCount ?? canonical.value)}`
     case 'year':
       return eraLabel
   }
@@ -112,7 +113,8 @@ export interface CurrentNarrativeTimeLabelInput {
 
 /** 当前 UI 顶栏时间标签；纪元偏移、世界纪元名与步长粒度统一收口在引擎侧。 */
 export function formatCurrentNarrativeTimeLabel(input: CurrentNarrativeTimeLabelInput): string {
-  const { timeStep, round, eraStartYear, worldEraName } = input
+  const { round, eraStartYear, worldEraName } = input
+  const timeStep = normalizeCanonicalTimeStep(input.timeStep)
   const headerEraYear = eraStartYear !== 0
     ? eraStartYear + Math.max(0, round.year - 1)
     : round.eraYear
@@ -140,7 +142,7 @@ export function buildNarrativeTimeContext(
     : (eraStartYear !== 0 ? '' : '创世纪元')
   const eraLabel = formatEraYear(calendarYear, defaultEraName)
   const seasonName = timeSystem.getSeasonName()
-  const timeStep = context.timeStep ?? { unit: 'event', value: 12 }
+  const timeStep = normalizeCanonicalTimeStep(context.timeStep ?? { unit: 'event', value: 12 })
   const timeLabel = formatNarrativeTimeLabel(timeStep, eraLabel, context.round)
 
   return {

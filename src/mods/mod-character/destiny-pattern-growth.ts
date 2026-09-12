@@ -35,7 +35,7 @@ export function isDestinyPatternGrowthAgeEligible(age: number): boolean {
     && Math.max(0, Math.floor(age)) >= DESTINY_PATTERN_GROWTH_MINIMUM_AGE
 }
 
-const DESTINY_PATTERN_ATTRIBUTE_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma', 'luck'] as const
+const DESTINY_PATTERN_ATTRIBUTE_KEYS = ['mind', 'physique', 'charisma', 'familyBackground', 'luck'] as const
 
 /**
  * 校验一组完整属性加成，不做静默截断。

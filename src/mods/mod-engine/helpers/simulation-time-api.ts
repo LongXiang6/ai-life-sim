@@ -9,6 +9,7 @@ import {
   AVAILABLE_TIME_STEPS,
   decodeTimeStepKey,
   encodeTimeStepKey,
+  normalizeCanonicalTimeStep,
   type TimeStepOption,
 } from '@/foundation/constants/time-steps'
 
@@ -24,14 +25,15 @@ function sameTimeStep(a: TimeStep, b: TimeStep): boolean {
 
 /** 设置推进步长。 */
 export function setSimulationTimeStep(step: TimeStep): void {
+  const canonical = normalizeCanonicalTimeStep(step)
   const current = useEngineStore.getState().timeStep
-  if (sameTimeStep(current, step)) return
-  orchestrator.setTimeStep(step)
+  if (sameTimeStep(current, canonical)) return
+  orchestrator.setTimeStep(canonical)
 }
 
 /** 接收 UI 选择键 `unit:value`，解码后交给引擎步长命令。 */
 export function setSimulationTimeStepByKey(key: string): TimeStep {
-  const step = decodeTimeStepKey(key)
-  setSimulationTimeStep(step)
-  return step
+  const canonical = normalizeCanonicalTimeStep(decodeTimeStepKey(key))
+  setSimulationTimeStep(canonical)
+  return canonical
 }

@@ -136,7 +136,7 @@ const BASE_WORLDS: PresetWorld[] = [
   {
     id: 'harry-potter',
     name: '哈利波特',
-    description: '1991年的英国，你收到了一封来自霍格沃茨魔法学校的录取通知书。原来，你是一名巫师。魔法世界隐藏在麻瓜世界的阴影中。对角巷是巫师们购物的地方，霍格沃茨是欧洲最著名的魔法学校。伏地魔，史上最危险的黑巫师，曾经试图征服魔法世界，但在1981年被婴儿哈利波特击败。',
+    description: '1991年的英国。魔法世界隐藏在麻瓜世界的阴影中，巫师隐藏在普通人之间。对角巷是巫师们购物的地方；霍格沃茨是欧洲最著名的魔法学校，接收适龄巫师入学。伏地魔，史上最危险的黑巫师，曾经试图征服魔法世界，但在1981年被婴儿哈利波特击败。',
     worldviewId: 'idealist',
     category: 'western_fantasy',
     summary: '魔法与剑的史诗，骑士、法师与龙的传奇',
@@ -403,4 +403,3 @@ const EXTENDED_WORLDS: PresetWorld[] = [
 // ---- 合并导出 ----
 
 export const PRESET_WORLDS: PresetWorld[] = [...BASE_WORLDS, ...EXTENDED_WORLDS,]
-

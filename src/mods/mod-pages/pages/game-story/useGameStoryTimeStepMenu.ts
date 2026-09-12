@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { normalizeCanonicalTimeStep } from '@/foundation'
 import {
   AVAILABLE_TIME_STEPS,
   encodeTimeStepKey,
@@ -15,7 +16,7 @@ import {
 type TimeStepLike = Parameters<typeof encodeTimeStepKey>[0]
 
 export function useGameStoryTimeStepMenu(timeStep: TimeStepLike) {
-  const activeTimeStepKey = encodeTimeStepKey(timeStep)
+  const activeTimeStepKey = encodeTimeStepKey(normalizeCanonicalTimeStep(timeStep))
   const [showStepMenu, setShowStepMenu] = useState(false)
   const stepMenuRef = useRef<HTMLDivElement>(null)
   const stepButtonRef = useRef<HTMLButtonElement>(null)

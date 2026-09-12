@@ -11,7 +11,6 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
-import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
 import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
@@ -20,12 +19,6 @@ const PROVIDER = 'deepseek'
 const MODEL = 'deepseek-v4-flash'
 const ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const ROUNDS = 4
-const WORLD_EVENT_FIXTURES = [
-  '【本轮世界候选】迁徙：北港外海的季风航线提前改变，几批陌生船队正在寻找新的停泊点；候选不是已确认状态，可采用、合理改写或暂不采用。',
-  '【本轮世界候选】经济：邻近城邦突然暂停盐税互认，沿岸商船开始改道，鱼市价格和修船订单出现波动；候选不是已确认状态，可采用、合理改写或暂不采用。',
-  '【本轮世界候选】生态：北侧潮滩出现成群发光鱼群，渔民、学者和祭司给出了互相冲突的解释；候选不是已确认状态，可采用、合理改写或暂不采用。',
-  '【本轮世界候选】政治：港务局发布与旧航海图无关的临时禁航令，理由是外海出现未登记船队；候选不是已确认状态，可采用、合理改写或暂不采用。',
-]
 
 function readLocalEnv(name) {
   if (process.env[name]) return process.env[name]
@@ -76,8 +69,6 @@ function buildMessages(round, history) {
       : undefined,
     narrativeAddressing: 'second-person',
     talents: [],
-    eventInjectionText: WORLD_EVENT_FIXTURES[round - 1],
-    timeGuideText: buildTimeScaleNarrativeHint({ unit: 'year', value: 1 }),
     wordCountInstruction: '篇幅约200字，只作节奏参考；剧情需要时可以自然超出。',
   }
   const segments = buildSegmentedPrompt(narrativePrompt, context)
@@ -169,7 +160,6 @@ async function main() {
     model: MODEL,
     genericOpeningCount,
     repeatedOpeningCount,
-    worldEventFixtureCount: WORLD_EVENT_FIXTURES.length,
     results,
   }, null, 2))
 

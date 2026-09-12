@@ -65,10 +65,10 @@ assert.equal(persisted.state.draft.background, background)
 assert.equal('attributes' in expected, false)
 assert.equal('attributes' in persisted.state.draft, false)
 assert.deepEqual(getCharacterCreationDraftSnapshot().attributes, {
-  physique: 0,
   mind: 0,
-  talentAptitude: 0,
+  physique: 0,
   charisma: 0,
+  familyBackground: 0,
 })
 
 let changes = 0

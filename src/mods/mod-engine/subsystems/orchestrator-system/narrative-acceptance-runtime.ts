@@ -15,13 +15,11 @@ import { consumeAcceptedPlayerRoundAction } from '../../helpers/player-round-act
 import { useEngineStore } from '../../store'
 import { publishNarrativeStateToStore } from './narrative-publication-store-runtime'
 
-const NARRATIVE_DELIVERY_DISPOSITION_PREFIX = '[mod-engine:narrative-delivery]'
-
 const ATTRIBUTE_CHANGE_FIELDS = [
-  ['体魄', 'physiqueDelta'],
   ['心智', 'mindDelta'],
-  ['悟性', 'talentAptitudeDelta'],
+  ['体魄', 'physiqueDelta'],
   ['魅力', 'charismaDelta'],
+  ['家境', 'familyBackgroundDelta'],
 ] as const
 
 function buildAttributeChangeInstruction(
@@ -48,33 +46,6 @@ function buildAttributeChangeInstruction(
   }
 }
 
-function persistDeliveredHistoricalCandidateDispositions(
-  orchestrator: OrchestratorSystem,
-  prepared: AcceptedNarrativeResult,
-): void {
-  const record = orchestrator['acceptedNarrativeRecords'].get(prepared.narrativeId)
-  if (!record || record.deliveredHistoricalEventCandidateIds.length === 0) return
-  const ledger = orchestrator['getHistoricalEventLedgerRuntime']()
-  if (!ledger) return
-  const deliveredCandidateIds = [...new Set(record.deliveredHistoricalEventCandidateIds)]
-  const result = ledger.commitCandidateDispositions({
-    source: {
-      kind: 'narrative',
-      sourceId: `narrative-delivery:${record.narrativeId}`,
-      description: '正文已投递到期候选；候选仍保留为本地可用账本记录。',
-    },
-    deliveredCandidateIds,
-    dispositions: deliveredCandidateIds.map((candidateId) => ({
-      candidateId,
-      status: 'continuing' as const,
-      reason: `${NARRATIVE_DELIVERY_DISPOSITION_PREFIX} 正文已发布；候选仍保留在本地账本，不再重复投影。`,
-    })),
-  }, record.roundContext)
-  if (!result.ok) {
-    console.warn('[Orchestrator] 到期候选投递记录未能写入，正文仍保持已发布:', result.errors)
-  }
-}
-
 function buildPreparedRecord(
   orchestrator: OrchestratorSystem,
   parsed: ParsedNarrative,
@@ -88,17 +59,6 @@ function buildPreparedRecord(
   const narrativeId = `narrative-${orchestrator['state'].lifeRunId}-${roundSequence}`
   if (orchestrator['acceptedNarrativeRecords'].has(narrativeId)) {
     throw new Error(`正文已经准备：${narrativeId}`)
-  }
-
-  const deliveredCausalEventIds = [...orchestrator['pendingNarrativeCausalEventIds']]
-  const deliveredHistoricalEventCandidateIds = [...orchestrator['pendingNarrativeEventCandidateIds']]
-  for (const candidateId of deliveredHistoricalEventCandidateIds) {
-    if (orchestrator['inFlightNarrativeEventCandidateIds'].has(candidateId)) {
-      throw new Error(`到期历史候选已经属于其他回合：${candidateId}`)
-    }
-  }
-  for (const candidateId of deliveredHistoricalEventCandidateIds) {
-    orchestrator['inFlightNarrativeEventCandidateIds'].add(candidateId)
   }
 
   const ageAtRound = orchestrator['computeNarrativeAge'](roundContext)
@@ -153,8 +113,6 @@ function buildPreparedRecord(
     roundContext,
     narrative: structuredClone(parsed),
     narrativeText: narrative,
-    deliveredCausalEventIds,
-    deliveredHistoricalEventCandidateIds,
     ...(playerChoice ? { playerChoice } : {}),
     ageAtRound,
     displayTimeLabel,
@@ -167,8 +125,6 @@ function buildPreparedRecord(
       narrative,
       narrativeId,
       roundSequence,
-      deliveredCausalEventIds,
-      deliveredHistoricalEventCandidateIds,
       changes,
       notableEvents: [],
     },
@@ -225,6 +181,7 @@ export function commitNarrativeResponseRuntime(
         }
       : {}),
     ...(prepared.narrative.endingTitle ? { endingTitle: prepared.narrative.endingTitle } : {}),
+    ...(prepared.narrative.endingSummary ? { endingSummary: prepared.narrative.endingSummary } : {}),
   }
   const playerAction = consumeAcceptedPlayerRoundAction(
     orchestrator['lastPlayerChoice'],
@@ -236,8 +193,6 @@ export function commitNarrativeResponseRuntime(
   const causalSnapshot = causalDelay.capturePersistenceState()
   const memorySnapshot = memoryLifecycle.capturePersistenceState()
   const previousLastNarratedTimeStep = { ...orchestrator['lastNarratedTimeStep'] }
-  const previousPendingCausalEventIds = [...orchestrator['pendingNarrativeCausalEventIds']]
-  const previousPendingEventCandidateIds = [...orchestrator['pendingNarrativeEventCandidateIds']]
   const previousPlayerChoice = orchestrator['lastPlayerChoice']
   const previousRoundPreparation = orchestrator.getPendingNarrativeRoundPreparation()
   const previousSubsystemStates = structuredClone(orchestrator['lastSubsystemStates'])
@@ -245,14 +200,6 @@ export function commitNarrativeResponseRuntime(
   const previousTransitionAudit = structuredClone(prepared.transitionAudit)
 
   try {
-    if (prepared.deliveredCausalEventIds.length > 0) {
-      causalDelay.commitCausalTriggers(
-        prepared.deliveredCausalEventIds,
-        roundSequence,
-        '本轮正文已经完成对应因果事项',
-        { currentBasePoints: roundContext.totalBasePoints },
-      )
-    }
     prepared.transitionAudit.historicalCommitPassed = false
     prepared.transitionAudit.trusted = false
     prepared.transitionAudit.reasons = ['正文已发布，故事连续性与天赋成长正在并行收束']
@@ -260,8 +207,6 @@ export function commitNarrativeResponseRuntime(
     orchestrator['state'].narrativeHistory.push(narrativeEntry)
     orchestrator['state'].storyRepetitionStats = prepared.storyRepetitionStats
     orchestrator['lastNarratedTimeStep'] = { ...orchestrator['state'].timeStep }
-    orchestrator['pendingNarrativeCausalEventIds'] = []
-    orchestrator['pendingNarrativeEventCandidateIds'] = []
     orchestrator['lastPlayerChoice'] = playerAction.nextChoice
     if (branchMeta.isBranchPoint) {
       useEngineStore.getState().setForceBranchNext(false)
@@ -273,8 +218,6 @@ export function commitNarrativeResponseRuntime(
     orchestrator['recordSystemDiagnostic']('round-commit', 'narrative-adopted', 'ok', {
       narrativeId,
       roundSequence,
-      deliveredCausalEventIds: prepared.deliveredCausalEventIds,
-      deliveredHistoricalEventCandidateIds: prepared.deliveredHistoricalEventCandidateIds,
     })
     orchestrator['setRoundAdoption']({
       responseReceived: true,
@@ -293,8 +236,6 @@ export function commitNarrativeResponseRuntime(
     causalDelay.restorePersistenceState(causalSnapshot)
     memoryLifecycle.restorePersistenceState(memorySnapshot)
     orchestrator['lastNarratedTimeStep'] = previousLastNarratedTimeStep
-    orchestrator['pendingNarrativeCausalEventIds'] = previousPendingCausalEventIds
-    orchestrator['pendingNarrativeEventCandidateIds'] = previousPendingEventCandidateIds
     orchestrator['lastPlayerChoice'] = previousPlayerChoice
     orchestrator['pendingNarrativeRoundPreparation'] = previousRoundPreparation
       ? structuredClone(previousRoundPreparation)
@@ -322,7 +263,6 @@ export function finalizeNarrativeResponseRuntime(
     orchestrator['state'].status = 'complete'
     useEngineStore.setState({ status: 'complete' })
   }
-  persistDeliveredHistoricalCandidateDispositions(orchestrator, prepared.result)
   orchestrator['publishSimulationSnapshot']()
   orchestrator['releasePreparedNarrative'](prepared)
   orchestrator['acceptedNarrativeRecords'].delete(narrativeId)

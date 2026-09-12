@@ -16,7 +16,8 @@ import {
   advanceAnnualEvent,
   basePointsFromCalendarDays,
   calendarDaysFromBasePoints,
-  normalizeAnnualEventCount,
+  normalizeCanonicalEventNodeCount,
+  normalizeCanonicalTimeStep,
 } from '@/foundation'
 import type { TimeStep, RoundInfo } from '../types'
 import {
@@ -64,12 +65,7 @@ function createDefaultTimeStep(): TimeStep {
 }
 
 function normalizeTimeStep(step: Partial<TimeStep> | undefined): TimeStep {
-  const rawValue = typeof step?.value === 'number' ? step.value : Number(step?.value)
-  const value = Number.isFinite(rawValue) && rawValue > 0 ? Math.floor(rawValue) : 1
-  if (step?.unit === 'year') return { unit: 'year', value }
-  if (step?.unit === 'event') return { unit: 'event', value: normalizeAnnualEventCount(value) }
-  // Legacy day/month/season values are normalized only at the runtime boundary.
-  return { unit: 'event', value: DEFAULT_ANNUAL_EVENT_COUNT }
+  return normalizeCanonicalTimeStep(step)
 }
 
 function normalizeBasePoints(value: unknown, fallback = 0): number {
@@ -79,7 +75,7 @@ function normalizeBasePoints(value: unknown, fallback = 0): number {
 }
 
 function inferEventIndex(totalBasePoints: number, eventCount: number): number {
-  const count = normalizeAnnualEventCount(eventCount)
+  const count = normalizeCanonicalEventNodeCount(eventCount)
   const yearOffset = ((Math.floor(totalBasePoints) % BASE_POINTS_PER_YEAR) + BASE_POINTS_PER_YEAR)
     % BASE_POINTS_PER_YEAR
   let index = Math.floor((yearOffset * count) / BASE_POINTS_PER_YEAR)
@@ -121,7 +117,7 @@ function roundFromBasePoints(
     totalBasePoints: normalizedBasePoints,
     basePointsPassed: Math.max(0, Math.floor(options.basePointsPassed ?? 0)),
     ...(options.eventNodeCount !== undefined
-      ? { eventNodeCount: normalizeAnnualEventCount(options.eventNodeCount) }
+      ? { eventNodeCount: normalizeCanonicalEventNodeCount(options.eventNodeCount) }
       : {}),
     ...(options.eventNodeIndex !== undefined
       ? { eventNodeIndex: Math.max(0, Math.floor(options.eventNodeIndex)) }
@@ -231,7 +227,7 @@ export class TimeSystem implements ISubSystem {
         basePointsPassed: nextBasePoints - beforeBasePoints,
       })
     } else {
-      const desiredCount = normalizeAnnualEventCount(this.timeStep.value)
+      const desiredCount = normalizeCanonicalEventNodeCount(this.timeStep.value)
       // Freeze a budget once the current year has consumed an event. A new N
       // takes effect at the next natural-year boundary.
       const activeCount = this.round.eventNodeIndex && this.round.eventNodeCount
@@ -320,7 +316,7 @@ export class TimeSystem implements ISubSystem {
       ? normalizeBasePoints(legacy.totalBasePoints)
       : basePointsFromCalendarDays(normalizeBasePoints(legacy.totalDays))
     const eventCount = legacy.eventNodeCount !== undefined
-      ? normalizeAnnualEventCount(legacy.eventNodeCount)
+      ? normalizeCanonicalEventNodeCount(legacy.eventNodeCount)
       : undefined
     const eventIndex = eventCount !== undefined && Number.isSafeInteger(legacy.eventNodeIndex)
       ? Math.max(0, Math.min(eventCount - 1, legacy.eventNodeIndex ?? 0))

@@ -28,22 +28,22 @@ export type {
 
 /** 4 项基础属性；气运由角色状态独立持有。 */
 export interface BaseAttributes {
-  /** 体魄：影响生命恢复、体力上限、抗病 */
-  physique: number
   /** 心智：影响学习效率、技能上限、谋略 */
   mind: number
-  /** 悟性：天赋悟性，影响修炼 / 顿悟概率 */
-  talentAptitude: number
+  /** 体魄：影响生命恢复、体力上限、抗病 */
+  physique: number
   /** 魅力：外貌魅力，影响社交 / 关系品质 */
   charisma: number
+  /** 家境：影响起始资源、家庭支持与可获得的生活条件 */
+  familyBackground: number
 }
 
 /** 属性修正（来自命格、生命周期、伤病与上下文规则的叠加） */
 export interface AttributeModifiers {
-  physique: number
   mind: number
-  talentAptitude: number
+  physique: number
   charisma: number
+  familyBackground: number
   /** 天赋可提供的稀有气运修正；不参与四项基础属性聚合。 */
   luck?: number
 }

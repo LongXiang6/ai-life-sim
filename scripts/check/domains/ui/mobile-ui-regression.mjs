@@ -1238,6 +1238,11 @@ assertOk(
   'talent-growth cards must render separate emoji attribute chips and pale rarity-keyed containers without the old attribute prefix',
 )
 assertOk(
+  narrativeTimelineSrc.includes('data-narrative-age={entry.ageLabel}')
+    && narrativeTimelineSrc.includes('{entry.ageLabel}'),
+  'each narrative entry must display its round age',
+)
+assertOk(
   hasCssDeclaration(gameOverCssSrc, 'bottomBar', 'position', 'absolute')
     && hasCssDeclaration(gameOverCssSrc, 'backButton', 'min-height', scaledPx(38.333))
     && hasCssDeclaration(gameOverCssSrc, 'confirmButton', 'min-height', scaledPx(38.333))

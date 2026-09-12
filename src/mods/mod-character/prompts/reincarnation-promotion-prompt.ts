@@ -22,7 +22,7 @@ export const REINCARNATION_PROMOTION_SYSTEM_PROMPT = stringifyPrompt({
     name: '二至六个汉字，优先四字；在原有名称基础上更凝练、更有力量，并保留可辨认的延续感。',
     description: '先直接说明这条词条因这一生获得了什么强化，再写依据或限制；保留古典质感但必须易读。',
     effect: '先直接说明下一段人生中持续生效的非数值概念规则，再写触发条件、有限代价或现实边界。',
-    attrBonus: '输出变化后的完整属性加成的稀疏表示，只写非零的 physique、mind、talentAptitude、charisma 或低概率 luck；零值省略，无数值加成时允许 {}。负值必须形成真实牺牲；净总量不得超过 promotionDecision.attributeCap。',
+    attrBonus: '输出变化后的完整属性加成的稀疏表示，只写非零的 mind、physique、charisma、familyBackground 或低概率 luck；零值省略，无数值加成时允许 {}。负值必须形成真实牺牲；净总量不得超过 promotionDecision.attributeCap。',
   },
   writing: [
     '文字克制、具体，不堆砌意象、典故、倒装或玄虚套话；比喻最多一处且不能替代具体机制。可用前世的物件、动作、声音或关系回声作为强化依据；不杜撰超出人生记录的新事实。',
@@ -37,10 +37,10 @@ export const reincarnationPromotionSchema = z.object({
   description: z.string().min(1),
   effect: z.string().min(1),
   attrBonus: z.object({
-    physique: z.number().int().optional(),
     mind: z.number().int().optional(),
-    talentAptitude: z.number().int().optional(),
+    physique: z.number().int().optional(),
     charisma: z.number().int().optional(),
+    familyBackground: z.number().int().optional(),
     luck: z.number().int().optional(),
   }).strict(),
 }).strict()

@@ -158,7 +158,16 @@ export {
   WORLDVIEW_DESCRIPTIONS,
   EXECUTION_PHASES,
 } from './types'
-export { AVAILABLE_TIME_STEPS, PRIMARY_TIME_STEPS, encodeTimeStepKey, decodeTimeStepKey, findTimeStepOption } from './constants/time-steps'
+export {
+  AVAILABLE_TIME_STEPS,
+  PRIMARY_TIME_STEPS,
+  CANONICAL_TIME_STEP_KEYS,
+  encodeTimeStepKey,
+  decodeTimeStepKey,
+  findTimeStepOption,
+  normalizeCanonicalTimeStep,
+  normalizeCanonicalEventNodeCount,
+} from './constants/time-steps'
 export type { TimeStepOption } from './constants/time-steps'
 export {
   NARRATIVE_WORD_COUNT_TARGETS,

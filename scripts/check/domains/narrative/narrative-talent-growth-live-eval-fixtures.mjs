@@ -15,7 +15,7 @@ export const DEFAULT_TALENT_GROWTH_LIVE_EVAL_SAMPLES = [
   'growth-history-continuity',
 ]
 
-function pattern({ lineageId, name, category = 'cognition', rarity = 'common', description, effect, attrBonus = { talentAptitude: 1 } }) {
+function pattern({ lineageId, name, category = 'cognition', rarity = 'common', description, effect, attrBonus = { familyBackground: 1 } }) {
   return {
     lineageId,
     version: 1,
@@ -56,7 +56,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
     种族: '潮裔',
     背景: '北港修船匠家庭出身的检漏学徒，长期参与堤岸维护。',
     年龄: 23,
-    基础属性语义: { 体魄: '稳定耐力', 心智: '善于处理复杂信息', 悟性: '擅长从重复现象中归纳规律', 魅力: '普通', 气运: '普通' },
+    基础属性语义: { 心智: '善于处理复杂信息', 体魄: '稳定耐力', 魅力: '普通', 家境: '普通', 气运: '普通' },
   }
   const baseWorld = {
     名称: '雾潮群岛',
@@ -138,7 +138,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
       rarity: 'fine',
       description: '能主动敲击管壁、拍击水面或投入小石制造声源，再根据回声延迟与强弱勾勒近处堵塞、空洞和断裂的轮廓。',
       effect: '在静水或自然水声不足时，也能通过主动声学探查定位近处结构异常。',
-      attrBonus: { talentAptitude: 2 },
+      attrBonus: { familyBackground: 2 },
     })
     evolved.version = 2
     evolved.id = `${source.lineageId}:v2`

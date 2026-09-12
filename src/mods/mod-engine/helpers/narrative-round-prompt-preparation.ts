@@ -8,7 +8,6 @@ import type { OrchestratorSystem } from '../subsystems/orchestrator-system'
 
 export function prepareNarrativeRoundPromptContext(
   owner: OrchestratorSystem,
-  eventInjectionText?: string,
 ): {
   promptContext: ReturnType<OrchestratorSystem['assemblePromptContext']>
   playerChoice?: string
@@ -16,7 +15,7 @@ export function prepareNarrativeRoundPromptContext(
 } {
   const playerChoice = owner.getPendingPlayerChoice()
   return {
-    promptContext: owner.assemblePromptContext(eventInjectionText),
+    promptContext: owner.assemblePromptContext(),
     ...(playerChoice ? { playerChoice } : {}),
     legendaryEncounterInjected: false,
   }
