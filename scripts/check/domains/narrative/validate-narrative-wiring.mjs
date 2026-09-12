@@ -88,8 +88,8 @@ assertOk(
   '01 必须宽容解析人生重开文本、简写分支结局与状态行属性，不启用工具或额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.24.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.24.0')
+  narrativePrompt.includes("version: '7.25.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.25.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '3.0.0'")
     && talentPrompt.includes("version: '3.5.0'")
@@ -107,7 +107,8 @@ assertOk(
 assertOk(
   narrativeServer.includes('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性')
     && narrativeServer.includes('每轮叙事必须是单独完整事件')
-    && narrativeServer.includes('严禁连载上一轮的故事继续输出')
+    && narrativeServer.includes('每轮状态变化必须要大，严禁是上一轮状态的延续，必须是新的事件。')
+    && !narrativeServer.includes('严禁连载上一轮的故事继续输出')
     && narrativeServer.includes('每轮重新根据世界观或记忆抽取事件')
     && narrativeServer.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
     && narrativeServer.includes('年龄与轮次由当前信息-时间字段决定')

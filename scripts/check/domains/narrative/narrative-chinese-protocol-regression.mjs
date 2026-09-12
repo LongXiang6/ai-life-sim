@@ -355,7 +355,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.24.0'
+  narrativePrompt.version === '7.25.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -365,7 +365,7 @@ assertOk(
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮叙事必须是单独完整事件')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('严禁连载上一轮的故事继续输出')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮状态变化必须要大，严禁是上一轮状态的延续，必须是新的事件。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮重新根据世界观或记忆抽取事件')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮故事，先宏观定调开篇，然后是具体承接，最后是收尾。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')

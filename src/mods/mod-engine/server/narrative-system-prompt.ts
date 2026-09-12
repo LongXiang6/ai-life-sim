@@ -4,7 +4,7 @@
  * Responsibility: Apply the current user-owned life-simulator rules and output shape.
  */
 
-export const COMPILED_NARRATIVE_SYSTEM_PROMPT = String.raw`【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性，每轮叙事必须是单独完整事件，必须是从起因到终局的全过程。每轮事件内容禁止未完结，严禁连载上一轮的故事继续输出。禁止任何意义的偷换概念、绕过规则。
+export const COMPILED_NARRATIVE_SYSTEM_PROMPT = String.raw`【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性，每轮叙事必须是单独完整事件，必须是从起因到终局的全过程。
 【叙事】第二人称代指玩家角色。现代白话为主，古风点缀。正文100-200字。
 	正文禁止定位时间节点的词，禁止偷换概念绕过规则。
 
@@ -16,6 +16,7 @@ export const COMPILED_NARRATIVE_SYSTEM_PROMPT = String.raw`【叙事体例】人
 【事件生成】每轮重新根据世界观或记忆抽取事件。
 	事件分三类并交替：个人事件、世界事件、交织事件。不连续同类。同年龄多轮是独立抽样，可发生在不同场景，无需衔接。
 	每轮故事，先宏观定调开篇，然后是具体承接，最后是收尾。
+	每轮状态变化必须要大，严禁是上一轮状态的延续，必须是新的事件。
 
 【结果确定性】高属性+天赋匹配+前情有利决定成功概率，但成功必有代价，失败必有收获。在结果中自然呈现。
 
