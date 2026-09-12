@@ -6,21 +6,10 @@
 
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { parseAIJSON } from '../../../../src/core/ai-service/parse-ai-json.ts'
-import {
-  NarrativeAIStoryContinuityDataSchema,
-  NarrativeAITalentGrowthDataSchema,
-} from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
-import {
-  inspectNarrativeResponseQuality,
-  inspectNarrativeStoryContinuityQuality,
-  inspectNarrativeTalentGrowthQuality,
-} from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
+import { NarrativeAIStoryContinuityDataSchema, NarrativeAITalentGrowthDataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import { inspectNarrativeResponseQuality, inspectNarrativeStoryContinuityQuality, inspectNarrativeTalentGrowthQuality } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { buildNarrativeTalentGrowthPromptInput } from '../../../../src/mods/mod-engine/helpers/narrative-talent-growth-context.ts'
-import {
-  createPendingDestinyPatternGrowth,
-  registerPendingDestinyPatternGrowthInState,
-  validateDestinyPatternAttrBonusForRarity,
-} from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
+import { createPendingDestinyPatternGrowth, registerPendingDestinyPatternGrowthInState, validateDestinyPatternAttrBonusForRarity } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
 import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
@@ -44,7 +33,6 @@ function assertThrows(fn, message) {
     // expected
   }
 }
-
 const promptContext = {
   worldNarrativeView: {
     名称: '雾潮群岛',
@@ -346,7 +334,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.20.0'
+  narrativePrompt.version === '7.21.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -355,15 +343,12 @@ assertOk(
 )
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由外部程序控制')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不自行增龄、跳年')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮正文只能叙述当前年龄正在发生或已经发生的事')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文只能包含状态行当前年龄这一岁内的一个完整事件')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现任何大于当前年龄的年龄数字或年龄阶段词')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得回顾成长，不得写人生概览或成长蒙太奇')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现下一岁及以后的年龄、事件、成长、关系变化或结果')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界背景')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
@@ -371,5 +356,4 @@ assertOk(
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界模拟引擎'),
   '固定主故事 Prompt 必须采用最新系统提示词并保留项目输出字段',
 )
-
 if (failed > 0) process.exit(1); console.log('[narrative-chinese-protocol-regression] PASS')

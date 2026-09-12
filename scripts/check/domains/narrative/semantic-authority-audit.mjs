@@ -37,16 +37,15 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.20\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.21\.0'/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
 assert.match(sources.mainSystemPrompt, /你是一个“人生重开模拟器”系统/u)
 assert.match(sources.mainSystemPrompt, /故事内容必须符合对应的年龄能力边界/u)
-assert.match(sources.mainSystemPrompt, /本轮正文只能叙述当前年龄正在发生或已经发生的事/u)
-assert.match(sources.mainSystemPrompt, /正文只能包含状态行当前年龄这一岁内的一个完整事件/u)
-assert.match(sources.mainSystemPrompt, /不得出现任何大于当前年龄的年龄数字或年龄阶段词/u)
-assert.match(sources.mainSystemPrompt, /不得回顾成长，不得写人生概览或成长蒙太奇/u)
-assert.match(sources.mainSystemPrompt, /不得出现下一岁及以后的年龄、事件、成长、关系变化或结果/u)
-assert.match(sources.mainSystemPrompt, /世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景/u)
+assert.match(sources.mainSystemPrompt, /年龄与轮次由当前信息-时间字段决定/u)
+assert.match(sources.mainSystemPrompt, /不得从当前年龄、轮次自行跨入下一岁/u)
+assert.match(sources.mainSystemPrompt, /世界设定是规则边界，只作为世界背景/u)
+assert.match(sources.mainSystemPrompt, /事件必须完整：事件→直接结果→外部回响→状态改变→收束/u)
+assert.match(sources.mainSystemPrompt, /物种上下极限为±10边界，超凡可突破±10/u)
 assert.match(sources.mainSystemPrompt, /【年龄:X岁\|心智:x\|体魄:x\|魅力:x\|家境:x】/u)
 assert.match(sources.mainSystemPrompt, /"命运分支"/u)
 assert.match(sources.mainSystemPrompt, /"结局"/u)

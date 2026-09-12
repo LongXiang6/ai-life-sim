@@ -295,15 +295,13 @@ assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time sp
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('你是一个“人生重开模拟器”系统')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由外部程序控制')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不自行增龄、跳年')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮正文只能叙述当前年龄正在发生或已经发生的事')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文只能包含状态行当前年龄这一岁内的一个完整事件')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现任何大于当前年龄的年龄数字或年龄阶段词')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得回顾成长，不得写人生概览或成长蒙太奇')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得出现下一岁及以后的年龄、事件、成长、关系变化或结果')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定中的第二人称描述不是本轮已发生事实，只作为世界背景')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界背景')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('物种上下极限为±10边界，超凡可突破±10')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
@@ -1223,14 +1221,14 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.20\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.20.0')
+assertOk(/version:\s*'7\.21\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.21.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称“你”')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家角色')
     && promptBuilderSrc.includes('当前信息')
     && promptBuilderSrc.includes('命运抉择'),
   'fixed Prompt must own addressing while dynamic assembly owns current information',
