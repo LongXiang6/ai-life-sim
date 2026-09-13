@@ -88,8 +88,8 @@ assertOk(
   '01 必须宽容解析人生重开文本、简写分支结局与状态行属性，不启用工具或额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '7.26.0'")
-    && narrativePrompt.includes('mod-engine:narrative:7.26.0')
+  narrativePrompt.includes("version: '7.27.0'")
+    && narrativePrompt.includes('mod-engine:narrative:7.27.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '3.0.0'")
     && talentPrompt.includes("version: '3.5.0'")
@@ -108,7 +108,11 @@ assertOk(
   narrativeServer.includes('身份核心：单时间节点叙事生成器')
     && narrativeServer.includes('本次调用只生成当前节点的一条事件叙事')
     && narrativeServer.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
+    && narrativeServer.includes('叙事可以为人生事件、社会事件、世界事件等不同视角的事件。')
+    && narrativeServer.includes('事件叙事为因果闭合事件，纯粹事件内容体。不包含任何时间锚点。')
+    && narrativeServer.includes('天赋技能为被动效果，叙事中自动使用触发。')
     && narrativeServer.includes('只读的前情记忆，不是本次要生成的内容。')
+    && narrativeServer.includes('非连续性因果片段，离散化节点事件。')
     && narrativeServer.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
     && narrativeServer.includes('命运抉择字段内容，是上一轮的命运走向选择的内容。')
     && narrativeServer.includes('定义世界为什么样，决定什么合理。')

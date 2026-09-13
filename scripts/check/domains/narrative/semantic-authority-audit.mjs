@@ -37,12 +37,16 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.26\.0'/u)
+assert.match(sources.mainPrompt, /version: '7\.27\.0'/u)
 assert.match(sources.mainSystemPrompt, /String\.raw/u)
 assert.match(sources.mainSystemPrompt, /身份核心：单时间节点叙事生成器/u)
 assert.match(sources.mainSystemPrompt, /本次调用只生成当前节点的一条事件叙事/u)
 assert.match(sources.mainSystemPrompt, /只写当前节点，不跨时间，不总结一生，不输出多条。/u)
+assert.match(sources.mainSystemPrompt, /叙事可以为人生事件、社会事件、世界事件等不同视角的事件。/u)
+assert.match(sources.mainSystemPrompt, /事件叙事为因果闭合事件，纯粹事件内容体。不包含任何时间锚点。/u)
+assert.match(sources.mainSystemPrompt, /天赋技能为被动效果，叙事中自动使用触发。/u)
 assert.match(sources.mainSystemPrompt, /只读的前情记忆，不是本次要生成的内容。/u)
+assert.match(sources.mainSystemPrompt, /非连续性因果片段，离散化节点事件。/u)
 assert.match(sources.mainSystemPrompt, /仅当发生改写命运的大事级别，给出三个不同的命运走向/u)
 assert.match(sources.mainSystemPrompt, /命运抉择字段内容，是上一轮的命运走向选择的内容。/u)
 assert.match(sources.mainSystemPrompt, /定义世界为什么样，决定什么合理。/u)
