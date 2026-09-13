@@ -75,7 +75,7 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
   const currentAgeNumeric = Number(currentAge)
   const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
   const currentTime = nonEmpty(context.currentTime) ?? '当前时间'
-  const action = nonEmpty(context.playerBranchIntent?.本轮明确行动) ?? ''
+  const currentState = nonEmpty(context.playerBranchIntent?.当前状态) ?? ''
   const attributes = buildNarrativeAttributes(
     context.characterStatusView.属性数值 ?? rawCharacter.基础属性,
   )
@@ -88,7 +88,7 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     玩家本节点属性: attributes,
     本节点信息: {
       时间节点: `${currentAgeValue}岁-${currentTime}`,
-      命运抉择: action,
+      当前状态: currentState,
     },
   }
 }

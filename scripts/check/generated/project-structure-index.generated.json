@@ -2154,7 +2154,8 @@
       ],
       "oversized": [
         "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
-        "scripts/check/domains/narrative/playtest-quality-regression.mjs"
+        "scripts/check/domains/narrative/playtest-quality-regression.mjs",
+        "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs"
       ]
     },
     {

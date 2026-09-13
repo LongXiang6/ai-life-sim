@@ -224,7 +224,7 @@ function readRoundPromptPayload(owner) {
 }
 
 function readRoundChoice(owner) {
-  return readRoundPromptPayload(owner).本节点信息.命运抉择
+  return readRoundPromptPayload(owner).本节点信息.当前状态
 }
 
 async function assertPreGenerationInvalidated(label, mutate) {

@@ -12,7 +12,7 @@
  *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-lifecycle.ts（lifespan）
  *
  * 职责：根据当前回合状态生成 mandatory（必遵）与 optional（参考）两类 hint；
- * 主叙事数据层不再接收这些 hint，只有玩家明确行动进入命运抉择字段。
+ * 主叙事数据层不再接收这些 hint，只有玩家明确行动进入当前状态字段。
  */
 
 // ═══════════════════ 类型定义 ═══════════════════

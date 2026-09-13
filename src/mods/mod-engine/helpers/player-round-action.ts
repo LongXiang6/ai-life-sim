@@ -17,7 +17,7 @@ export function buildPlayerRoundActionProjection(
   choice: string | undefined,
 ): Record<string, unknown> | undefined {
   const normalized = normalizePlayerRoundAction(choice)
-  return normalized ? { 本轮明确行动: normalized } : undefined
+  return normalized ? { 当前状态: normalized } : undefined
 }
 
 export function consumeAcceptedPlayerRoundAction(

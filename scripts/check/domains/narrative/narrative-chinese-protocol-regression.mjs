@@ -54,14 +54,14 @@ const promptContext = {
   timelineMemory: ['317年3月12日：议事会同意先做低潮勘查。'],
   currentTime: '317年4月',
   playerBranchIntent: {
-    本轮明确行动: '利用低潮窗口复测闸槽，确认安全后完成临时封堵。',
+    当前状态: '利用低潮窗口复测闸槽，确认安全后完成临时封堵。',
     当前可叙述状态: '不应发送',
   },
   wordCountInstruction: '正文约 300 字',
   subsystemStates: { hidden: true },
 }
 const segments = buildSegmentedPrompt(narrativePrompt, promptContext)
-assertOk(segments.userSegments.length === 1 && segments.userMessageCount === 1, '01 必须发送一条数据层数组消息')
+assertOk(segments.userSegments.length === 1 && segments.userMessageCount === 1, '01 必须发送一条数据层对象消息')
 const storyMessages = JSON.parse(segments.userSegments[0])
 assertOk(
   !Array.isArray(storyMessages)
@@ -86,12 +86,12 @@ assertOk(
 )
 assertOk(
   JSON.stringify(Object.keys(storyMessages.玩家本节点属性)) === JSON.stringify(['心智', '体魄', '魅力', '家境'])
-    && JSON.stringify(Object.keys(storyMessages.本节点信息)) === JSON.stringify(['时间节点', '命运抉择']),
+    && JSON.stringify(Object.keys(storyMessages.本节点信息)) === JSON.stringify(['时间节点', '当前状态']),
   '01 数据层最后两个字段必须是玩家本节点属性与本节点信息',
 )
 assertOk(
   storyMessages.玩家信息.天赋技能[0].includes('听潮辨隙')
-    && storyMessages.本节点信息.命运抉择.includes('利用低潮窗口')
+    && storyMessages.本节点信息.当前状态.includes('利用低潮窗口')
     && JSON.stringify(storyMessages.玩家本节点属性) === JSON.stringify({ 心智: '2', 体魄: '1', 魅力: '-1', 家境: '0' }),
   '01 数据层必须传递天赋、玩家行动和整数字符串属性',
 )
@@ -401,7 +401,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.30.0'
+  narrativePrompt.version === '7.32.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -409,28 +409,22 @@ assertOk(
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：单时间节点叙事生成器')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本次调用只生成当前节点的一条事件叙事')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得重复历史事件；可以承接历史因果，也可以是当前节点新触发的事件，但严禁以任何形式重复历史内容。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件叙事为局部因果闭合，全局上下文依赖。不包含任何时间锚点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件体现宏观跨度，每句一个分镜，短句，跳切，不写过渡，不写心理。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件为随机生成，适配当前的节点与世界观。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输入定义：')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界观与题材：只读全局约束。包含规则、禁忌、时代、力量体系、调性、风格。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('玩家信息：角色身份、天赋技能、当前属性。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史事件上下文：按时间升序排列的只读节点事件序列。用于前情和防重复。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前节点：本次唯一要生成的时间点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生命运级事件，才给出三个不同的命运走向。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('三个选项必须具体、互斥、符合世界观。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('如果上一节点有已选命运，将选择结果作为输入上下文。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本次输出新分支，不要复述旧选择。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('否则输出 null。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家。现代白话为主，古风点缀。正文100-200字。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('开篇宏大事件、场景定调，承接体现回响或是荒诞破局，结尾收束余波或是快速爽点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式为标准的JSON：')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": [false]或者["选项一", "选项二", "选项三"],')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局": [false]或[四字评语, 一句最终总结]')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生模拟器')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('时间由程序控制，你只处理当前节点，不推进、跳过或改变时间。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('状态连续，事件离散；每个节点都是独立的事件单元，而不是上一节点的下一幕。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得拆分同一事件、延续同一场景或逐步推进同一行动。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件应体现玩家人生、现实处境或所处世界的明显变化')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界独立运行，玩家只是其中一员')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史用于维持人物和世界状态的一致性，不用于规定下一事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境只在事件产生真实且持续的影响时改变。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有当前事件自然构成重大人生转折时才生成三个互斥的命运走向，否则为null。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('死亡、永久失去意识或其他不可逆的生命终止状态触发结局并停止模拟。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('以事件和结果为主，压缩过程')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不使用明确年份、轮次等时间锚点')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式：')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": null或者["选项一", "选项二", "选项三"],')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局": null或者["四字评语", "一句最终总结"]')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('人生重开模拟器体例')
