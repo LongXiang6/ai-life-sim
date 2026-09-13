@@ -299,7 +299,8 @@ assertOk(
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得重复历史事件；可以承接历史因果，也可以是当前节点新触发的事件，但严禁以任何形式重复历史内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件叙事为局部因果闭合，全局上下文依赖。不包含任何时间锚点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件体现宏观跨度，或是全新的离散化独立事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件体现宏观跨度，每句一个分镜，短句，跳切，不写过渡，不写心理。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件为随机生成，适配当前的节点与世界观。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输入定义：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界观与题材：只读全局约束。包含规则、禁忌、时代、力量体系、调性、风格。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('玩家信息：角色身份、天赋技能、当前属性。')
@@ -312,11 +313,11 @@ assertOk(
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('否则输出 null。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('上下极限为±10边界，超凡可突破±10')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家。现代白话为主，古风点缀。正文100-200字。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('开篇事件定论，中间承接体现回响，结尾收束余波。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('开篇宏大事件、场景定调，承接体现回响或是荒诞破局，结尾收束余波或是快速爽点。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式为标准的JSON：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": [false]或者["选项一", "选项二", "选项三"],')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局": [false]或[四字评语, 一句最终总结]')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界故事模拟器')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出契约')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
@@ -336,9 +337,11 @@ assertOk(
   storyPromptSampleSrc.includes('一条五字段 JSON 对象消息')
     && storyPromptSampleSrc.includes('"玩家本节点属性"')
     && storyPromptSampleSrc.includes('"本节点信息"')
-    && storyPromptSampleSrc.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
+    && storyPromptSampleSrc.includes('"年龄": "25岁"')
+    && storyPromptSampleSrc.includes('"命运分支": [false]')
+    && storyPromptSampleSrc.includes('"结局": [false]')
     && storyPromptSampleSrc.includes('身份核心：单时间节点叙事生成器'),
-  '01 sample must document the one-message data layer and single-node text contract',
+  '01 sample must document the one-message data layer and standard JSON contract',
 )
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
@@ -1239,7 +1242,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.29\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.29.0')
+assertOk(/version:\s*'7\.30\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.30.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

@@ -212,6 +212,50 @@ assertOk(
   arrayWrappedNarrative.narrative === '母亲把你放进学步车里，父亲弯腰捡起铜纽扣塞进你手心。',
   '01 顶层数组包裹的正文必须以 JSON 字符串本体结束，不得吞入闭合引号与字段逗号',
 )
+const standardJsonBranch = parseNarrativeResponseEnvelope(JSON.stringify({
+  年龄: '20岁',
+  心智: '3',
+  体魄: '1',
+  魅力: '-1',
+  家境: '0',
+  正文: '你核清旧账，三条去路同时摆到面前。',
+  命运分支: ['留在商号', '独自北上', '回城查旧案'],
+  结局: [false],
+}), {
+  currentAttributes: { 心智: 2, 体魄: 1, 魅力: -1, 家境: 0 },
+})
+assertOk(
+  JSON.stringify(standardJsonBranch.branch?.选项) === JSON.stringify(['留在商号', '独自北上', '回城查旧案'])
+    && standardJsonBranch.attributeChanges?.心智 === 1,
+  '01 标准 JSON 必须解析命运分支顶层字段并把绝对值换算为本轮差值',
+)
+const standardJsonEnding = parseNarrativeResponseEnvelope(JSON.stringify({
+  年龄: '80岁',
+  心智: '0',
+  体魄: '0',
+  魅力: '0',
+  家境: '0',
+  正文: '你在旧宅中安然辞世。',
+  命运分支: [false],
+  结局: ['此生无憾', '你把未竟之事交给了后来者。'],
+}))
+assertOk(
+  !standardJsonEnding.branch
+    && standardJsonEnding.ending?.评语 === '此生无憾'
+    && standardJsonEnding.ending?.总结 === '你把未竟之事交给了后来者。',
+  '01 标准 JSON 必须解析两元素结局数组并清除未触发分支',
+)
+const standardJsonInactive = parseNarrativeResponseEnvelope(JSON.stringify({
+  年龄: '20岁',
+  心智: '0',
+  体魄: '0',
+  魅力: '0',
+  家境: '0',
+  正文: '你在渡口等了很久，风停了。',
+  命运分支: [false],
+  结局: [false],
+}))
+assertOk(!standardJsonInactive.branch && !standardJsonInactive.ending, '01 标准 JSON 的 [false] 必须表示未触发')
 const malformedLabeledNarrative = parseNarrativeResponseEnvelope(`[{"年龄":2岁|心智:2|体魄:4|魅力:0|家境:0]
 "正文": "父亲从旧大衣里翻出一枚银西可，放进你掌心，说这是魔法世界的钱，留着。",
 "命运分支": false,
@@ -357,7 +401,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.29.0'
+  narrativePrompt.version === '7.30.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -370,7 +414,8 @@ assertOk(
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得重复历史事件；可以承接历史因果，也可以是当前节点新触发的事件，但严禁以任何形式重复历史内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件叙事为局部因果闭合，全局上下文依赖。不包含任何时间锚点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件体现宏观跨度，或是全新的离散化独立事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件体现宏观跨度，每句一个分镜，短句，跳切，不写过渡，不写心理。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件为随机生成，适配当前的节点与世界观。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输入定义：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界观与题材：只读全局约束。包含规则、禁忌、时代、力量体系、调性、风格。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('玩家信息：角色身份、天赋技能、当前属性。')
@@ -382,7 +427,10 @@ assertOk(
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本次输出新分支，不要复述旧选择。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('否则输出 null。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家。现代白话为主，古风点缀。正文100-200字。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('开篇事件定论，中间承接体现回响，结尾收束余波。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('开篇宏大事件、场景定调，承接体现回响或是荒诞破局，结尾收束余波或是快速爽点。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式为标准的JSON：')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": [false]或者["选项一", "选项二", "选项三"],')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局": [false]或[四字评语, 一句最终总结]')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('人生重开模拟器体例')

@@ -24,7 +24,7 @@ export interface NarrativeResponseEnvelope {
 export interface NarrativeResponseEnvelopeOptions {
   /** 只用于补全已在本轮引导中明确封闭的终态，绝不从普通正文猜测结局。 */
   terminalGuidance?: string
-  /** 数据层发送的当前属性；只用于把状态行的绝对值换算为本轮差值。 */
+  /** 数据层发送的当前属性；只用于把 JSON 顶层属性的绝对值换算为本轮差值。 */
   currentAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>>
 }
 
@@ -120,6 +120,16 @@ function normalizeBranch(value: unknown): NarrativeAIBranch | undefined {
 
 function normalizeEnding(value: unknown): NarrativeAIEnding | undefined {
   const normalized = normalizeOptionalJsonValue(value)
+  if (Array.isArray(normalized)) {
+    const [rawTitle, rawSummary] = normalized
+    if (rawTitle === false) return undefined
+    const title = normalizedText(rawTitle)?.replace(/\s+/gu, '')
+    if (!title || Array.from(title).length !== 4) return undefined
+    return {
+      评语: title,
+      总结: normalizedText(rawSummary) ?? '这一生至此结束。',
+    }
+  }
   const record = asRecord(normalized)
   const shorthand = typeof normalized === 'string'
     ? normalized.replace(/^\s*\{\s*["“]?/u, '').replace(/["”]?\s*\}\s*$/u, '')
@@ -151,11 +161,28 @@ function parseJsonRecord(source: string): JsonRecord | undefined {
   const candidates = parseAIJSONCandidates<unknown>(source, {
     recoverUnclosedString: {
       field: '正文',
-      followingTopLevelFields: ['正文', '分支', '结局', '属性变化'],
+      followingTopLevelFields: ['正文', '命运分支', '分支', '结局', '属性变化'],
     },
   })
   const records = candidates.map((candidate) => asRecord(candidate.value)).filter((value): value is JsonRecord => Boolean(value))
   return records.find((record) => Object.keys(record).some((key) => ['正文', '故事', '内容', 'narrative', 'story'].includes(normalizedKey(key))))
+}
+
+function reportedAttributesFromJson(
+  record: JsonRecord | undefined,
+): Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined {
+  if (!record) return undefined
+  const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
+  for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
+    const raw = record[key]
+    const numeric = typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string' && raw.trim()
+        ? Number(raw)
+        : Number.NaN
+    if (Number.isFinite(numeric)) result[key] = Math.trunc(numeric)
+  }
+  return Object.keys(result).length > 0 ? result : undefined
 }
 
 function parseLifeSimulatorText(source: string): {
@@ -297,13 +324,16 @@ export function parseNarrativeResponseEnvelope(
   const branch = ending
     ? undefined
     : normalizeBranch(
-        pickEnvelopeField(json, ['分支', '选择', '选项', 'branch', 'branches'])
+        pickEnvelopeField(json, ['命运分支', '分支', '选择', '选项', 'branch', 'branches'])
           ?? lifeSimulator.branch
           ?? tagged.branch,
       )
   const attributeChanges = normalizeAttributeChanges(
     pickEnvelopeField(json, ['属性变化']),
-  ) ?? changesFromReportedAttributes(lifeSimulator.reportedAttributes, options.currentAttributes)
+  ) ?? changesFromReportedAttributes(
+    reportedAttributesFromJson(json) ?? lifeSimulator.reportedAttributes,
+    options.currentAttributes,
+  )
 
   return {
     narrative,
