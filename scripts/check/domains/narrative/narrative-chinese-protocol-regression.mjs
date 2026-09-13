@@ -357,7 +357,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.27.0'
+  narrativePrompt.version === '7.28.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -368,15 +368,16 @@ assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：单时间节点叙事生成器')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本次调用只生成当前节点的一条事件叙事')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('叙事可以为人生事件、社会事件、世界事件等不同视角的事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('当前节点生成叙事必须是全新的变化事件，或者和上一节点独立无关的内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件叙事为因果闭合事件，纯粹事件内容体。不包含任何时间锚点。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('天赋技能为被动效果，叙事中自动使用触发。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只读的前情记忆，不是本次要生成的内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('非连续性因果片段，离散化节点事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅用于参考，严禁抄袭、不得出现任何意义上的重复内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运抉择字段内容，是上一轮的命运走向选择的内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('定义世界为什么样，决定什么合理。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家。现代白话为主，古风点缀。正文100-200字。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('开篇事件定论，中间承接体现回响，结尾收束余波。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('人生重开模拟器体例')
