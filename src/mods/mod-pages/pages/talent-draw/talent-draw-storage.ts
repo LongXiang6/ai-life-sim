@@ -194,3 +194,10 @@ export function resolveInitialTalentDrawState(): InitialTalentDrawState {
     pool: cached,
   }
 }
+
+/** 角色确认进入命格流程前，复用有效缓存并直接准备选择阶段。 */
+export function prepareCachedTalentDrawSelection(): void {
+  const initial = resolveInitialTalentDrawState()
+  if (initial.phase !== 'ready') return
+  persistTalentDrawState('selecting', initial.slots, initial.loadoutSlots)
+}

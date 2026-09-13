@@ -84,15 +84,23 @@ check(
   'V2',
   'Product/OpeningFlow/CharacterCreation',
   'Does character confirmation write identity, age, base attributes, lifespan, and then navigate?',
-  () => requireFragments('src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts', [
-    'setName(trimmed)',
-    'setGender(gender)',
-    'setAge(startingAge)',
-    'setCharacterBase({',
-    'startingAge,',
-    'setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })',
-    "router.push('/talent-draw')",
-  ]),
+  () => {
+    requireFragments('src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts', [
+      'setName(trimmed)',
+      'setGender(gender)',
+      'setAge(startingAge)',
+      'setCharacterBase({',
+      'startingAge,',
+      'setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })',
+      'prepareCachedTalentDrawSelection()',
+      "router.push('/talent-draw')",
+    ])
+    return requireModuleFragments('src/mods/mod-pages/pages/talent-draw/talent-draw-storage.ts', [
+      'export function prepareCachedTalentDrawSelection',
+      "if (initial.phase !== 'ready') return",
+      "persistTalentDrawState('selecting', initial.slots, initial.loadoutSlots)",
+    ])
+  },
 )
 
 check(

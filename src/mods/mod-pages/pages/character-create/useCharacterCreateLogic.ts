@@ -34,6 +34,7 @@ import {
 } from './character-create-helpers'
 import type { UseCharacterCreateLogicReturn } from './character-create.types'
 import { useCharacterCreateCustomOptions } from './useCharacterCreateCustomOptions'
+import { prepareCachedTalentDrawSelection } from '../talent-draw/talent-draw-storage'
 
 export { LABELS } from './character-create-options'
 export type { UseCharacterCreateLogicReturn } from './character-create.types'
@@ -201,6 +202,7 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     store.getState().setRace(race)
     store.getState().setBackground(background)
 
+    prepareCachedTalentDrawSelection()
     router.push('/talent-draw')
   }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespanDraft, background, router, setNameError, store, resolveAgeSetup, ageSetupPreview.error])
 
