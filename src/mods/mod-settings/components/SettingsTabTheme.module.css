@@ -183,9 +183,9 @@
 .themeSwatch[data-theme-preview="night"] span { background: #171a20; }
 .themeSwatch[data-theme-preview="night"] i { background: #1e232c; }
 .themeSwatch[data-theme-preview="night"] b { background: #2c302f; }
-.themeSwatch[data-theme-preview="white"] span { background: #ffffff; }
-.themeSwatch[data-theme-preview="white"] i { background: #f8f9fb; }
-.themeSwatch[data-theme-preview="white"] b { background: #edf2f7; }
+.themeSwatch[data-theme-preview="white"] span { background: #fcfdfc; }
+.themeSwatch[data-theme-preview="white"] i { background: #f5f8f6; }
+.themeSwatch[data-theme-preview="white"] b { background: #356c68; }
 .themeSwatch[data-theme-preview="colorful"] span { background: #f8fbff; }
 .themeSwatch[data-theme-preview="colorful"] i { background: #ffffff; }
 .themeSwatch[data-theme-preview="colorful"] b { background: linear-gradient(90deg, #e11d48 0 14%, #ea580c 14% 28%, #ca8a04 28% 42%, #16a34a 42% 56%, #0891b2 56% 70%, #2563eb 70% 84%, #9333ea 84%); }

@@ -32,7 +32,7 @@ const STREAMING_OPTIONS = [
 const THEME_OPTIONS: Array<{ id: ThemeType; label: string; description: string }> = [
   { id: 'reading', label: '阅读主题', description: '淡黄色纸面，适合长文阅读' },
   { id: 'night', label: '暗夜主题', description: '低亮度深色，夜间更舒适' },
-  { id: 'white', label: '白色主题', description: '中性白色，清爽明亮' },
+  { id: 'white', label: '白色主题', description: '雾青点缀，清爽沉静' },
   { id: 'colorful', label: '多彩主题', description: '鲜艳高对比，彩色语义更醒目' },
 ]
 

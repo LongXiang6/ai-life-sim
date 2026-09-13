@@ -1,57 +1,57 @@
 /**
  * Purpose: Define the neutral white theme.
  * Owner: foundation / theme tokens
- * Responsibility: A clean light surface with neutral gray hierarchy.
+ * Responsibility: A clean light surface with a restrained mist-teal hierarchy.
  */
 
 [data-theme='white'] {
   --color-scheme: light;
 
-  --color-primary: #627489;
-  --color-primary-hover: #4d6075;
-  --color-primary-light: #edf2f7;
-  --color-secondary: #68717c;
+  --color-primary: #356c68;
+  --color-primary-hover: #2a5955;
+  --color-primary-light: #e3f0ed;
+  --color-secondary: #60716d;
   --color-text-on-primary: #ffffff;
 
-  --color-success: #3b8360;
-  --color-warning: #a87936;
-  --color-error: #b85d5d;
-  --color-info: #557b9d;
-  --color-success-bg: #eff7f2;
-  --color-warning-bg: #fcf6e9;
-  --color-error-bg: #fff3f3;
-  --color-info-bg: #f0f5fa;
+  --color-success: #2f7d57;
+  --color-warning: #a36e2a;
+  --color-error: #b4514d;
+  --color-info: #4f7198;
+  --color-success-bg: #edf7f1;
+  --color-warning-bg: #fbf4e8;
+  --color-error-bg: #fdf1f0;
+  --color-info-bg: #eef4fa;
 
-  --color-bg: #ffffff;
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f8f9fb;
-  --color-bg-tertiary: #f0f2f5;
+  --color-bg: #fcfdfc;
+  --color-bg-primary: #fcfdfc;
+  --color-bg-secondary: #f5f8f6;
+  --color-bg-tertiary: #edf2ef;
   --color-bg-card: #ffffff;
   --color-surface: rgba(255, 255, 255, 0.96);
 
-  --color-text-primary: #20262e;
-  --color-text-secondary: #5d6670;
-  --color-text-tertiary: #8e98a3;
+  --color-text-primary: #1b2523;
+  --color-text-secondary: #596762;
+  --color-text-tertiary: #8b9894;
   --text-on-accent: #ffffff;
 
-  --color-border: rgba(83, 96, 111, 0.14);
-  --color-border-focus: #9aaabd;
-  --color-border-hover: rgba(83, 96, 111, 0.22);
+  --color-border: rgba(53, 108, 104, 0.14);
+  --color-border-focus: #7aa39e;
+  --color-border-hover: rgba(53, 108, 104, 0.22);
 
-  --shadow-sm: 0 1px 3px rgba(29, 43, 58, 0.06);
-  --shadow: 0 4px 24px rgba(29, 43, 58, 0.06);
-  --shadow-lg: 0 8px 40px rgba(29, 43, 58, 0.09);
-  --color-accent-glow: rgba(98, 116, 137, 0.08);
+  --shadow-sm: 0 1px 3px rgba(31, 57, 54, 0.06);
+  --shadow: 0 4px 24px rgba(31, 57, 54, 0.06);
+  --shadow-lg: 0 8px 40px rgba(31, 57, 54, 0.09);
+  --color-accent-glow: rgba(53, 108, 104, 0.08);
 
-  --flow-canvas: #ffffff;
+  --flow-canvas: #fcfdfc;
   --flow-paper: #ffffff;
-  --flow-ink: #20262e;
-  --flow-muted: #65707c;
-  --flow-faint: #909aa5;
-  --flow-line: #e8ebef;
-  --flow-line-strong: #d8dee5;
-  --flow-accent: #627489;
-  --flow-accent-soft: #edf2f7;
+  --flow-ink: #1b2523;
+  --flow-muted: #596762;
+  --flow-faint: #8b9894;
+  --flow-line: #e3e9e6;
+  --flow-line-strong: #d3ddd9;
+  --flow-accent: #356c68;
+  --flow-accent-soft: #e3f0ed;
 
   --color-rainbow-red: #b65d5c;
   --color-rainbow-orange: #bd7748;
