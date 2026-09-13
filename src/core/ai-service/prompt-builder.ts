@@ -45,20 +45,17 @@ function buildNarrativeAttributes(value: unknown): Record<'心智' | '体魄' | 
   }
 }
 
-function buildHistoryTexts(context: PromptContext): {
-  longTerm: string[]
-  recent: string[]
-} {
-  const longTerm = (context.timelineMemory ?? [])
+function buildNodeEvents(context: PromptContext): string[] {
+  const compressed = (context.timelineMemory ?? [])
     .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     .map((item) => item.trim())
   const recent = (context.recentStories ?? [])
     .filter((story): story is string => typeof story === 'string' && story.trim().length > 0)
     .map((story) => story.trim())
-  return { longTerm, recent }
+  return [...compressed, ...recent]
 }
 
-/** PromptContext 转为当前数据层示例的固定键序结构。 */
+/** PromptContext 转为当前数据层示例的单对象固定键序结构。 */
 export function buildNarrativeUserJson(context: PromptContext): unknown {
   const rawWorld = context.worldNarrativeView
   const world = {
@@ -74,7 +71,7 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     背景: nonEmpty(rawCharacter.背景) ?? '',
     天赋技能: (context.talents ?? []).map((talent) => `${talent.名称}：${talent.效果}`),
   }
-  const history = buildHistoryTexts(context)
+  const nodeEvents = buildNodeEvents(context)
   const currentAgeNumeric = Number(currentAge)
   const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
   const currentTime = nonEmpty(context.currentTime) ?? '当前时间'
@@ -82,26 +79,21 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
   const attributes = buildNarrativeAttributes(
     context.characterStatusView.属性数值 ?? rawCharacter.基础属性,
   )
-  return [
-    { 世界: world },
-    { 玩家信息: character },
-    {
-      剧情: {
-        长期记忆: history.longTerm,
-        近期记忆: history.recent,
-      },
+  return {
+    世界: world,
+    玩家信息: character,
+    历史事件上下文: {
+      节点事件: nodeEvents,
     },
-    {
-      玩家属性: attributes,
-      当前信息: {
-        时间: `${currentAgeValue}岁-${currentTime}`,
-        命运抉择: action,
-      },
+    玩家本节点属性: attributes,
+    本节点信息: {
+      时间节点: `${currentAgeValue}岁-${currentTime}`,
+      命运抉择: action,
     },
-  ]
+  }
 }
 
-/** 输出单条数据层 JSON 消息，顺序与数据层示例一致。 */
+/** 输出单条数据层 JSON 对象消息，顺序与数据层示例一致。 */
 export function buildSegmentedPrompt(
   _template: PromptTemplate,
   context: PromptContext,

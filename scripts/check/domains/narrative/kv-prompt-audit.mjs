@@ -69,39 +69,41 @@ const segments = buildSegmentedPrompt(narrativePrompt, {
 if (segments.userSegments.length !== 1) fail('dynamic narrative assembly must produce one data-layer message')
 const parsedSegments = JSON.parse(segments.userSegments[0])
 if (
-  !Array.isArray(parsedSegments)
-  || parsedSegments.length !== 4
-  || JSON.stringify(Object.keys(parsedSegments[0])) !== JSON.stringify(['世界'])
-  || JSON.stringify(Object.keys(parsedSegments[0].世界 ?? {})) !== JSON.stringify(['名称', '描述'])
-  || JSON.stringify(Object.keys(parsedSegments[1])) !== JSON.stringify(['玩家信息'])
-  || JSON.stringify(Object.keys(parsedSegments[1].玩家信息 ?? {})) !== JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能'])
-  || JSON.stringify(Object.keys(parsedSegments[2])) !== JSON.stringify(['剧情'])
-  || JSON.stringify(Object.keys(parsedSegments[2].剧情 ?? {})) !== JSON.stringify(['长期记忆', '近期记忆'])
-  || JSON.stringify(Object.keys(parsedSegments[3])) !== JSON.stringify(['玩家属性', '当前信息'])
-  || JSON.stringify(Object.keys(parsedSegments[3].玩家属性 ?? {})) !== JSON.stringify(['心智', '体魄', '魅力', '家境'])
-  || Object.values(parsedSegments[3].玩家属性 ?? {}).some((value) => typeof value !== 'string' || !/^-?\d+$/u.test(value))
-  || JSON.stringify(Object.keys(parsedSegments[3].当前信息 ?? {})) !== JSON.stringify(['时间', '命运抉择'])
+  Array.isArray(parsedSegments)
+  || JSON.stringify(Object.keys(parsedSegments)) !== JSON.stringify([
+    '世界',
+    '玩家信息',
+    '历史事件上下文',
+    '玩家本节点属性',
+    '本节点信息',
+  ])
+  || JSON.stringify(Object.keys(parsedSegments.世界 ?? {})) !== JSON.stringify(['名称', '描述'])
+  || JSON.stringify(Object.keys(parsedSegments.玩家信息 ?? {})) !== JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能'])
+  || JSON.stringify(Object.keys(parsedSegments.历史事件上下文 ?? {})) !== JSON.stringify(['节点事件'])
+  || !Array.isArray(parsedSegments.历史事件上下文?.节点事件)
+  || JSON.stringify(Object.keys(parsedSegments.玩家本节点属性 ?? {})) !== JSON.stringify(['心智', '体魄', '魅力', '家境'])
+  || Object.values(parsedSegments.玩家本节点属性 ?? {}).some((value) => typeof value !== 'string' || !/^-?\d+$/u.test(value))
+  || JSON.stringify(Object.keys(parsedSegments.本节点信息 ?? {})) !== JSON.stringify(['时间节点', '命运抉择'])
 ) {
-  fail('main narrative data layer must match the four-element world, player, story, attributes/current-info contract')
+  fail('main narrative data layer must match the five-field world, player, history, attributes, and current-node contract')
 }
 if (/⟦(?:全局信息|记忆|本轮素材)⟧/u.test(segments.userSegments[0])) {
   fail('main narrative data layer must not carry object-external labels')
 }
 if (
-  !COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮叙事必须是单独完整事件')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮状态变化必须要大，严禁是上一轮状态的延续，必须是新的事件。')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮重新根据世界观或记忆抽取事件')
+  !COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：单时间节点叙事生成器')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本次调用只生成当前节点的一条事件叙事')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只读的前情记忆，不是本次要生成的内容。')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界观和背景信息')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运抉择字段内容，是上一轮的命运走向选择的内容。')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('定义世界为什么样，决定什么合理。')
+  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家。现代白话为主，古风点缀。正文100-200字。')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【年龄:X岁|心智:x|体魄:x|魅力:x|家境:x】')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
   || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
 ) {
-  fail('main narrative fixed Prompt must contain the current life-restart text rules and output format')
+  fail('main narrative fixed Prompt must contain the current single-node narrative rules and output format')
 }
 
 const gameOverReview = read('src/mods/mod-pages/pages/game-over/game-over-review.ts')

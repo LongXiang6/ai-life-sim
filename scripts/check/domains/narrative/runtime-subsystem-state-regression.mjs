@@ -218,9 +218,13 @@ async function prepareNextNarrativeRequest(owner) {
   })
 }
 
-function readRoundChoice(owner) {
+function readRoundPromptPayload(owner) {
   const promptContext = owner.assemblePromptContext()
-  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[0])[3].当前信息.命运抉择
+  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[0])
+}
+
+function readRoundChoice(owner) {
+  return readRoundPromptPayload(owner).本节点信息.命运抉择
 }
 
 async function assertPreGenerationInvalidated(label, mutate) {
@@ -260,9 +264,15 @@ try {
   const customStyle = await createPreGenerationFixture(0)
   useSettingsStore.getState().saveNarrativeStyleText(rawCustomStyle)
   const customStyleChoice = readRoundChoice(customStyle.owner)
+  const customStylePayload = readRoundPromptPayload(customStyle.owner)
   assert.equal(customStyle.owner.getNarrativeStyleSnapshot().source, 'custom', 'non-empty saved style must resolve to the custom source')
   assert.equal(customStyle.owner.getNarrativeStyleSnapshot().text, rawCustomStyle, 'orchestrator must retain the exact saved custom style bytes')
-  assert.ok(!customStyleChoice.includes(rawCustomStyle) && customStyleChoice.includes('时间'), 'custom style must not override the fixed Prompt while current-time guidance remains available')
+  assert.ok(
+    !customStyleChoice.includes(rawCustomStyle)
+      && !JSON.stringify(customStylePayload).includes(rawCustomStyle)
+      && customStylePayload.本节点信息.时间节点.length > 0,
+    'custom style must not override the fixed Prompt while current-time guidance remains available',
+  )
 
   const whitespaceStyle = await createPreGenerationFixture(0); useSettingsStore.getState().saveNarrativeStyleText('  \n\t  ')
   assert.equal(whitespaceStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'whitespace-only saved style must normalize to the default source')

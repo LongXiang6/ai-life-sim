@@ -64,33 +64,35 @@ const segments = buildSegmentedPrompt(narrativePrompt, promptContext)
 assertOk(segments.userSegments.length === 1 && segments.userMessageCount === 1, '01 必须发送一条数据层数组消息')
 const storyMessages = JSON.parse(segments.userSegments[0])
 assertOk(
-  Array.isArray(storyMessages)
-    && storyMessages.length === 4
-    && JSON.stringify(Object.keys(storyMessages[0])) === JSON.stringify(['世界'])
-    && JSON.stringify(Object.keys(storyMessages[0].世界)) === JSON.stringify(['名称', '描述']),
-  '01 数据层数组必须保留世界对象及字段顺序',
+  !Array.isArray(storyMessages)
+    && JSON.stringify(Object.keys(storyMessages)) === JSON.stringify([
+      '世界',
+      '玩家信息',
+      '历史事件上下文',
+      '玩家本节点属性',
+      '本节点信息',
+    ])
+    && JSON.stringify(Object.keys(storyMessages.世界)) === JSON.stringify(['名称', '描述']),
+  '01 数据层对象必须保留世界对象及字段顺序',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[1])) === JSON.stringify(['玩家信息'])
-    && JSON.stringify(Object.keys(storyMessages[1].玩家信息)) === JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能']),
-  '01 数据层第二项必须是玩家信息',
+  JSON.stringify(Object.keys(storyMessages.玩家信息)) === JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能']),
+  '01 数据层第二个字段必须是玩家信息',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[2])) === JSON.stringify(['剧情'])
-    && Array.isArray(storyMessages[2].剧情.长期记忆)
-    && Array.isArray(storyMessages[2].剧情.近期记忆),
-  '01 数据层第三项必须是长期记忆与近期记忆',
+  JSON.stringify(Object.keys(storyMessages.历史事件上下文)) === JSON.stringify(['节点事件'])
+    && Array.isArray(storyMessages.历史事件上下文.节点事件),
+  '01 数据层第三个字段必须是历史事件上下文',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[3])) === JSON.stringify(['玩家属性', '当前信息'])
-    && JSON.stringify(Object.keys(storyMessages[3].玩家属性)) === JSON.stringify(['心智', '体魄', '魅力', '家境'])
-    && JSON.stringify(Object.keys(storyMessages[3].当前信息)) === JSON.stringify(['时间', '命运抉择']),
-  '01 数据层第四项必须是玩家属性与当前信息',
+  JSON.stringify(Object.keys(storyMessages.玩家本节点属性)) === JSON.stringify(['心智', '体魄', '魅力', '家境'])
+    && JSON.stringify(Object.keys(storyMessages.本节点信息)) === JSON.stringify(['时间节点', '命运抉择']),
+  '01 数据层最后两个字段必须是玩家本节点属性与本节点信息',
 )
 assertOk(
-  storyMessages[1].玩家信息.天赋技能[0].includes('听潮辨隙')
-    && storyMessages[3].当前信息.命运抉择.includes('利用低潮窗口')
-    && JSON.stringify(storyMessages[3].玩家属性) === JSON.stringify({ 心智: '2', 体魄: '1', 魅力: '-1', 家境: '0' }),
+  storyMessages.玩家信息.天赋技能[0].includes('听潮辨隙')
+    && storyMessages.本节点信息.命运抉择.includes('利用低潮窗口')
+    && JSON.stringify(storyMessages.玩家本节点属性) === JSON.stringify({ 心智: '2', 体魄: '1', 魅力: '-1', 家境: '0' }),
   '01 数据层必须传递天赋、玩家行动和整数字符串属性',
 )
 const infantSegments = buildSegmentedPrompt(narrativePrompt, {
@@ -98,8 +100,8 @@ const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   characterStatusView: { ...promptContext.characterStatusView, 年龄: 1 },
 })
 assertOk(
-  JSON.parse(infantSegments.userSegments[0])[3].当前信息.时间.startsWith('1岁-'),
-  '01 当前信息必须保留当前年龄',
+  JSON.parse(infantSegments.userSegments[0]).本节点信息.时间节点.startsWith('1岁-'),
+  '01 本节点信息必须保留当前年龄',
 )
 assertOk(
   !segments.full.includes('subsystemStates')
@@ -355,7 +357,7 @@ const quality = inspectNarrativeResponseQuality(JSON.stringify({ 正文: '一段
 assertOk(quality.valid === true && quality.parsed?.narrative === '一段完整故事。', '01 质量检查优先发布可恢复正文')
 
 assertOk(
-  narrativePrompt.version === '7.25.0'
+  narrativePrompt.version === '7.26.0'
     && narrativeStoryContinuityPrompt.version === '3.0.0'
     && narrativeTalentGrowthPrompt.version === '3.5.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
@@ -363,16 +365,18 @@ assertOk(
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('【叙事体例】人生重开模拟器体例：离散化不同轮次故事的关联性')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮叙事必须是单独完整事件')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮状态变化必须要大，严禁是上一轮状态的延续，必须是新的事件。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮重新根据世界观或记忆抽取事件')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每轮故事，先宏观定调开篇，然后是具体承接，最后是收尾。')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：单时间节点叙事生成器')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本次调用只生成当前节点的一条事件叙事')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只写当前节点，不跨时间，不总结一生，不输出多条。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只读的前情记忆，不是本次要生成的内容。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('仅当发生改写命运的大事级别，给出三个不同的命运走向')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄与轮次由当前信息-时间字段决定') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('故事内容必须符合对应的年龄能力边界')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得从当前年龄、轮次自行跨入下一岁') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界设定是规则边界，只作为世界观和背景信息')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运抉择字段内容，是上一轮的命运走向选择的内容。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('定义世界为什么样，决定什么合理。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称代指玩家。现代白话为主，古风点缀。正文100-200字。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('命运分支') && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('结局')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('人生重开模拟器体例')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄边界')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('通过状态改变体现时间流逝')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('前轮未决事件最多一句话交代')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【具体性】')

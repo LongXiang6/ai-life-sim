@@ -1,7 +1,7 @@
 /**
  * Purpose: Verify the main narrative data layer carries no time-bridge or time-guide text.
  * Owner: quality:narrative
- * Responsibility: Keep 当前信息.时间 the only time coordinate in the story Prompt.
+ * Responsibility: Keep 本节点信息.时间节点 the only time coordinate in the story Prompt.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -21,9 +21,9 @@ const promptContextRuntime = fs.readFileSync(
 
 if (
   !builder.includes("const currentTime = nonEmpty(context.currentTime) ?? '当前时间'")
-  || !builder.includes('时间: `${currentAgeValue}岁-${currentTime}`')
+  || !builder.includes('时间节点: `${currentAgeValue}岁-${currentTime}`')
 ) {
-  console.error('FAIL: prompt-builder must project current time into 当前信息')
+  console.error('FAIL: prompt-builder must project current time into 本节点信息')
   failed++
 }
 if (

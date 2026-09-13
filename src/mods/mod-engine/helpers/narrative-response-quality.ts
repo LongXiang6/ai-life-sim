@@ -150,9 +150,7 @@ function extractCurrentNarrativeAttributes(
   if (!promptInput?.trim()) return undefined
   try {
     const payload = JSON.parse(promptInput) as unknown
-    if (!Array.isArray(payload)) return undefined
-    const container = payload.find((item) => asRecord(item)?.玩家属性 !== undefined)
-    const attributes = asRecord(asRecord(container)?.玩家属性)
+    const attributes = asRecord(asRecord(payload)?.玩家本节点属性)
     if (!attributes) return undefined
     const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
     for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
