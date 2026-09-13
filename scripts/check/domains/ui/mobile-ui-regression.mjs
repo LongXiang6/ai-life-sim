@@ -273,6 +273,11 @@ assertOk(
 )
 assertOk(welcomeViewSrc.includes('🌱 开始新人生') && welcomeViewSrc.includes('⚙️ 设置') && welcomeViewSrc.includes('📜 游戏说明'), 'welcome actions must use the finalized semantic emoji labels')
 assertOk(
+  /\.primaryAction:hover,\s*\.primaryAction:focus-visible\s*\{[^}]*background:\s*var\(--flow-accent\);[^}]*color:\s*var\(--text-on-accent/u.test(welcomeCssSrc)
+    && !/\.primaryAction:hover,\s*\.primaryAction:focus-visible,\s*\.routeAction/u.test(welcomeCssSrc),
+  'welcome primary action hover and focus must preserve the theme accent and high-contrast text',
+)
+assertOk(
   welcomePageSrc.includes('flow-responsive-viewport')
     && welcomePageSrc.includes('flow-responsive-layout')
     && !welcomePageSrc.includes('final-flow-design-fit'),
