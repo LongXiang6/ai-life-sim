@@ -87,7 +87,7 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     },
     玩家本节点属性: attributes,
     本节点信息: {
-      时间节点: `${currentAgeValue}岁-${currentTime}`,
+      时间节点: `${currentAgeValue}岁·${currentTime}`,
       当前状态: currentState,
     },
   }

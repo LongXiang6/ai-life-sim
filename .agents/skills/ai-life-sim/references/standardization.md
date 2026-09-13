@@ -41,8 +41,8 @@ Prompt 专项语义、缓存排列和样品规则由 [Prompt 标准](../../ai-li
 ## 文件与目录标准
 
 - 目录和机器文件名默认使用 ASCII 小写 kebab-case；子系统文件使用 `{subsystem-id}-system.ts`，MOD 目录使用 `mod-{name}`。
-- `SKILL.md`、`README.md`、活动权威和任务溯源使用 Markdown；机器配置使用 JSON；Skill 入口使用 YAML；运行代码使用 TypeScript/JavaScript；脚本扩展名必须与解释器一致。
-- Skill reference 文件名使用 ASCII 小写 kebab-case；任务溯源文件使用任务溯源规范规定的时间前缀。
+- `SKILL.md`、`README.md` 和活动权威使用 Markdown；机器配置使用 JSON；Skill 入口使用 YAML；运行代码使用 TypeScript/JavaScript；脚本扩展名必须与解释器一致；任务溯源只保存到 SQLite。
+- Skill reference 文件名使用 ASCII 小写 kebab-case；任务溯源记录使用任务溯源规范规定的稳定 ID 和字段。
 - 生成文件使用 `.generated` 文件名标识，并在文件头写明自动生成、生成源和禁止手工编辑；临时文件只能进入项目既有临时目录。
 - 文件必须归入所属项目、体系、系统和所有者；根目录不放散落副本，不以页面或聚合器持有业务真源。
 - 手写活动源码、样式、测试、扫描器和运维脚本优先保持在 300 行以内；超过目标时先判断是否职责混杂或持续膨胀，确属单一职责的静态数据、生成物、第三方内容和只读历史证据可以具名保留。

@@ -21,7 +21,7 @@ const promptContextRuntime = fs.readFileSync(
 
 if (
   !builder.includes("const currentTime = nonEmpty(context.currentTime) ?? '当前时间'")
-  || !builder.includes('时间节点: `${currentAgeValue}岁-${currentTime}`')
+  || !builder.includes('时间节点: `${currentAgeValue}岁·${currentTime}`')
 ) {
   console.error('FAIL: prompt-builder must project current time into 本节点信息')
   failed++

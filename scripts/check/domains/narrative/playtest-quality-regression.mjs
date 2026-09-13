@@ -295,17 +295,17 @@ assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time sp
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生模拟器')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('时间由程序控制，你只处理当前节点，不推进、跳过或改变时间。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('状态连续，事件离散；每个节点都是独立的事件单元，而不是上一节点的下一幕。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得拆分同一事件、延续同一场景或逐步推进同一行动。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件应体现玩家人生、现实处境或所处世界的明显变化')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生事件模拟器')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('程序负责时间推进，你只负责当前节点。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('状态连续，事件离散；上一节点留下的状态可以存在，但本节点不是上一节点的下一幕。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得拆分同一事件、延续同一场景、继续同一组人物行动或逐步完成同一件事情。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使玩家的人生状态、现实处境或所处世界产生明确变化。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界独立运行，玩家只是其中一员')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史用于维持人物和世界状态的一致性，不用于规定下一事件。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境只在事件产生真实且持续的影响时改变。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有当前事件自然构成重大人生转折时才生成三个互斥的命运走向，否则为null。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史只用于维持人物、关系和世界状态的一致性，不规定本节点必须发生什么。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境代表玩家当前状态，只有事件造成真实且持续的影响时才改变。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有当前事件自然构成重大人生转折时才生成三个命运走向，否则为null。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('死亡、永久失去意识或其他不可逆的生命终止状态触发结局并停止模拟。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('以事件和结果为主，压缩过程')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('以事件和结果为中心，压缩过程')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不使用明确年份、轮次等时间锚点')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
@@ -334,7 +334,7 @@ assertOk(
     && storyPromptSampleSrc.includes('"命运分支": null')
     && storyPromptSampleSrc.includes('"结局": null')
     && storyPromptSampleSrc.includes('身份核心：')
-    && storyPromptSampleSrc.includes('你是一个离散化人生模拟器'),
+    && storyPromptSampleSrc.includes('你是一个离散化人生事件模拟器'),
   '01 sample must document the one-message data layer and standard JSON contract',
 )
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
@@ -1236,7 +1236,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.32\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.32.0')
+assertOk(/version:\s*'7\.33\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.33.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
@@ -1277,7 +1277,7 @@ assertOk(
     && promptBuilderSrc.includes('节点事件: nodeEvents')
     && promptBuilderSrc.includes('玩家本节点属性: attributes')
     && promptBuilderSrc.includes('本节点信息: {')
-    && promptBuilderSrc.includes('时间节点: `${currentAgeValue}岁-${currentTime}`')
+    && promptBuilderSrc.includes('时间节点: `${currentAgeValue}岁·${currentTime}`')
     && promptBuilderSrc.includes("家境: '0'")
     && !promptBuilderSrc.includes('当前到期事件')
     && promptBuilderSrc.includes('const segments = [dataLayerSegment]')
