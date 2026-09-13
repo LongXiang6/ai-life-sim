@@ -296,16 +296,17 @@ assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生事件模拟器')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('程序负责时间推进，你只负责当前节点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('状态连续，事件离散；上一节点留下的状态可以存在，但本节点不是上一节点的下一幕。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得拆分同一事件、延续同一场景、继续同一组人物行动或逐步完成同一件事情。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使玩家的人生状态、现实处境或所处世界产生明确变化。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('负责在程序确定的当前时间节点上，模拟玩家人生中发生的一件重要事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('时间由程序控制，你只处理当前节点。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每个节点都是新的事件单元，而不是上一节点的下一幕。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得拆分同一事件、延续同一场景或逐步推进同一行动。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只保留具有实际意义的变化，忽略无意义的日常与自然成长。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界独立运行，玩家只是其中一员')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史只用于维持人物、关系和世界状态的一致性，不规定本节点必须发生什么。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境代表玩家当前状态，只有事件造成真实且持续的影响时才改变。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有当前事件自然构成重大人生转折时才生成三个命运走向，否则为null。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史用于保持状态一致性，不用于规定下一事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境只在事件造成真实且持续的影响时改变。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('自然形成重大人生转折时生成三个互斥的命运走向，否则为null')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('死亡、永久失去意识或其他不可逆的生命终止状态触发结局并停止模拟。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('以事件和结果为中心，压缩过程')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先确定事件及结果，再把它写成一个完整的离散事件。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不使用明确年份、轮次等时间锚点')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
@@ -1236,7 +1237,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.33\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.33.0')
+assertOk(/version:\s*'7\.34\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.34.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
