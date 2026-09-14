@@ -294,19 +294,21 @@ const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份核心：')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生事件模拟器')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('重新生成一件全新且有意义的人生事件。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('时间由程序控制，你只处理当前节点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每个节点都是独立事件，默认与上一节点没有剧情上的因果关联。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('上一节点的事件、人物、场景、线索、目标、冲突、悬念和未完成事项不得默认延续或成为本节点主要内容；不得将同一事件拆分到不同节点。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界独立运行，玩家只是其中一员')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史仅用于理解人物、世界和既有事实，并避免直接矛盾，不用于规定下一轮剧情。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境只在本节点事件造成真实且持续的影响时改变。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有本节点事件自然构成重大人生转折时才生成三个互斥的命运走向，否则为null。')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份：')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生模拟器')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你的输出是一条已经结算的人生事件，而不是对生活过程的连续记录。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每个时间节点都重新观察世界与玩家，从当前可能发生的变化中独立选择一件事件。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先确定事件已经形成的事实、局势和结果，再决定如何呈现。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('上一节点可以作为已经存在的背景事实，但本轮不需要解释它的后续')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界与玩家同时运行。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出的是这一节点最值得记录的事实，而不是这一节点发生过的全部事情。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('采用结果式叙述')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史主要承担一致性与去重作用')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('属性变化必须有正文依据：重大事件±1，扭转人生走向±2，改写命运±3。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('通常以±10为边界，超凡状态可突破。')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有本次事件自然形成重大人生转折时才生成三个命运走向，否则为null。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('死亡、永久失去意识或其他不可逆的生命终止状态触发结局并停止模拟。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先确定本节点独立发生的事件及结果，再将其写成完整的离散事件。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不使用明确年份、轮次等时间锚点')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使用第二人称。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式：')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": null或者["选项一", "选项二", "选项三"],')
@@ -323,8 +325,8 @@ assertOk(
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('通过状态改变体现时间流逝')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('前轮未决事件最多一句话交代')
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【具体性】')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('冷却'),
-  'fixed Prompt must contain the approved life-event rules and JSON output format',
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界模拟引擎'),
+  'fixed Prompt must contain the current discrete life-event rules and JSON output format',
 )
 assertOk(
   storyPromptSampleSrc.includes('一条五字段 JSON 对象消息')
@@ -333,8 +335,8 @@ assertOk(
     && storyPromptSampleSrc.includes('"年龄": "25岁"')
     && storyPromptSampleSrc.includes('"命运分支": null')
     && storyPromptSampleSrc.includes('"结局": null')
-    && storyPromptSampleSrc.includes('身份核心：')
-    && storyPromptSampleSrc.includes('你是一个离散化人生事件模拟器'),
+    && storyPromptSampleSrc.includes('身份：')
+    && storyPromptSampleSrc.includes('你的输出是一条已经结算的人生事件，而不是对生活过程的连续记录。'),
   '01 sample must document the one-message data layer and standard JSON contract',
 )
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
@@ -1236,14 +1238,14 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.35\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.35.0')
+assertOk(/version:\s*'7\.40\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.40.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使用第二人称')
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使用第二人称。')
     && promptBuilderSrc.includes('本节点信息')
     && promptBuilderSrc.includes('当前状态'),
   'fixed Prompt must own addressing while dynamic assembly owns current information',
