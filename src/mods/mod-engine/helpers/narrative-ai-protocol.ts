@@ -24,6 +24,13 @@ export const NarrativeAIEndingSchema = z.object({
   总结: NarrativeAINonBlankStringSchema,
 })
 
+export const NarrativeAIEventResultSchema = z.object({
+  事件: NarrativeAINonBlankStringSchema,
+  成因: NarrativeAINonBlankStringSchema,
+  结果: NarrativeAINonBlankStringSchema,
+  影响: NarrativeAINonBlankStringSchema,
+})
+
 const NarrativeAIAttributeDeltaSchema = z.number().int().min(-3).max(3).refine(
   (value) => value !== 0,
   '属性变化不能为0',
@@ -33,20 +40,43 @@ export const NarrativeAIAttributeChangesSchema = z.object({
   心智: NarrativeAIAttributeDeltaSchema.optional(),
   体魄: NarrativeAIAttributeDeltaSchema.optional(),
   魅力: NarrativeAIAttributeDeltaSchema.optional(),
-  家境: NarrativeAIAttributeDeltaSchema.optional(),
+  财富: NarrativeAIAttributeDeltaSchema.optional(),
 }).strict().refine(
   (value) => Object.keys(value).length > 0,
   '属性变化对象至少需要一个非零属性变化',
 )
 
+const NarrativeAIReportedAttributesSchema = z.object({
+  心智: z.number().int(),
+  体魄: z.number().int(),
+  魅力: z.number().int(),
+  财富: z.number().int(),
+})
+
 export const NarrativeAIStoryResultSchema = z.object({
+  时间定位: z.string(),
+  事件结果: z.array(z.object({
+    事件: z.string(),
+    成因: z.string(),
+    结果: z.string(),
+    影响: z.string(),
+  })),
   正文: NarrativeAINonBlankStringSchema,
-  分支: NarrativeAIBranchSchema.nullable(),
-  结局: NarrativeAIEndingSchema.nullable(),
-  属性变化: NarrativeAIAttributeChangesSchema.nullable(),
+  属性: NarrativeAIReportedAttributesSchema,
+  命运分支: z.union([
+    z.literal(false),
+    z.array(NarrativeAINonBlankStringSchema).min(2).max(4),
+  ]),
+  结局: z.union([
+    z.literal(false),
+    NarrativeAINonBlankStringSchema.refine(
+      (value) => Array.from(value.trim()).length === 4,
+      '结局评语必须恰好四个字符',
+    ),
+  ]),
 }).superRefine((data, context) => {
-  if (data.分支 !== null && data.结局 !== null) {
-    context.addIssue({ code: 'custom', message: '分支与结局必须互斥' })
+  if (data.命运分支 !== false && data.结局 !== false) {
+    context.addIssue({ code: 'custom', message: '命运分支与结局必须互斥' })
   }
 })
 
@@ -54,7 +84,7 @@ const NarrativeAITalentAttributeBonusSchema = z.object({
   心智: z.number().int().optional(),
   体魄: z.number().int().optional(),
   魅力: z.number().int().optional(),
-  家境: z.number().int().optional(),
+  财富: z.number().int().optional(),
   气运: z.number().int().optional(),
 })
 
@@ -100,6 +130,7 @@ export const NarrativeAIStoryContinuityDataSchema = z.object({
 
 export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
 export type NarrativeAIEnding = z.infer<typeof NarrativeAIEndingSchema>
+export type NarrativeAIEventResult = z.infer<typeof NarrativeAIEventResultSchema>
 export type NarrativeAIAttributeChanges = z.infer<typeof NarrativeAIAttributeChangesSchema>
 export type NarrativeAIStoryResult = z.infer<typeof NarrativeAIStoryResultSchema>
 export type NarrativeAITalentGrowthData = z.infer<typeof NarrativeAITalentGrowthDataSchema>

@@ -238,7 +238,7 @@ const NEGATIVE_TALENTS: TalentPreset[] = [
   {
     id: 'poor_background',
     name: '出身寒微',
-    description: '家境贫寒，资源匮乏',
+    description: '财富匮乏，可用资源有限',
     rarity: 'common',
     effect: '初始家庭资源匮乏，需要依靠后续经历改善处境',
     polarity: 'negative',

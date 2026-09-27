@@ -51,7 +51,7 @@ export interface NarrativeAIAttributeSemanticSet extends Record<string, unknown>
   心智: string
   体魄: string
   魅力: string
-  家境: string
+  财富: string
   气运: string
 }
 
@@ -67,7 +67,7 @@ const CHARACTER_ATTRIBUTE_DEFINITIONS: Readonly<Record<
   mind: { label: '心智' },
   physique: { label: '体魄' },
   charisma: { label: '魅力' },
-  familyBackground: { label: '家境' },
+  familyBackground: { label: '财富' },
 }
 
 function projectCharacterBaseAttributes(

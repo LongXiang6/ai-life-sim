@@ -277,6 +277,8 @@ interface AcceptedNarrativeRecord {
   narrative: ParsedNarrative
   /** Prepared visible text; the parsed protocol remains in `narrative`. */
   narrativeText: string
+  /** Structured event facts are persisted with the narrative history entry and projected later. */
+  eventResults?: import('../types').NarrativeEventResult[]
   playerChoice?: string
   ageAtRound: number
   displayTimeLabel: string

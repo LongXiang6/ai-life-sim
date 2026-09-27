@@ -33,7 +33,7 @@ export const GAME_OVER_DIMENSION_ICONS: Record<string, string> = {
   体魄: '💪',
   心智: '🧠',
   魅力: '💫',
-  家境: '🏠',
+  财富: '🏠',
 }
 
 function pointAt(axisIndex: number, axisCount: number, value: number) {

@@ -34,7 +34,7 @@ export interface BaseAttributes {
   physique: number
   /** 魅力：外貌魅力，影响社交 / 关系品质 */
   charisma: number
-  /** 家境：影响起始资源、家庭支持与可获得的生活条件 */
+  /** 财富：影响起始资源、家庭支持与可获得的生活条件 */
   familyBackground: number
 }
 

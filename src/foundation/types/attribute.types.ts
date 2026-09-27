@@ -41,7 +41,7 @@ export const ATTRIBUTE_NAMES: Readonly<Record<AttributeId, string>> = {
   mind: '心智',
   physique: '体魄',
   charisma: '魅力',
-  familyBackground: '家境',
+  familyBackground: '财富',
   fortune: '气运',
 }
 

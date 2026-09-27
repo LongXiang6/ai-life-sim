@@ -87,6 +87,14 @@ export interface NarrativeDestinyPatternGrowthProjection {
   result?: NarrativeDestinyPatternGrowthPattern
 }
 
+/** 主叙事同次生成、并由叙事历史承接的结构化事件事实。 */
+export interface NarrativeEventResult {
+  事件: string
+  成因: string
+  结果: string
+  影响: string
+}
+
 /** 已提交的逐轮叙事记录 */
 export interface NarrativeChunk {
   /** 唯一标识（生成时用 timestamp + 随机数填充，用于 resolveBranch 索引漂移防御） */
@@ -114,6 +122,8 @@ export interface NarrativeChunk {
   endingTitle?: string,
   /** 结局对象中的最终总结。 */
   endingSummary?: string,
+  /** 本轮生成并已提交的事件事实；不直接展示，由历史投影供后续主故事读取。 */
+  eventResults?: NarrativeEventResult[],
   /** 玩家已确认的分支选择 */
   resolvedChoice?: string,
   /** 玩家实际确认该选择时的回合；旧存档缺失时回退到原分支条目轮次。 */

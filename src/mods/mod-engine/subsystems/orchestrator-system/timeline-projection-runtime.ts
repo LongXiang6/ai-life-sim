@@ -1,10 +1,10 @@
 /**
- * Purpose: Build the deterministic timeline-memory projection used by the main narrative prompt.
+ * Purpose: Build deterministic timeline projections for continuity and historical records.
  * Owner: mod-engine
- * Responsibility: Merge compressed long-term memory, the full stories older than the recent five-round window, and creations in time order.
+ * Responsibility: Project committed narrative rounds into the existing continuity timeline.
  */
 
-import type { NarrativeChunk } from '../../orchestrator-shared'
+import { RECENT_NARRATIVE_WINDOW, type NarrativeChunk } from '../../orchestrator-shared'
 import { isNarrativeRecordVisible } from '../../helpers/narrative-context-scope'
 import {
   formatNarrativeTimelineEntries,
@@ -20,7 +20,7 @@ export function buildPromptTimelineMemoryRuntime(
   const { memoryLifecycle, summaryCompressor } = orchestrator.getRuntimeDependencies()
   const history = orchestrator['state'].narrativeHistory
   const firstCommittedRound = Math.max(1, orchestrator['state'].totalRounds - history.length)
-  const firstDetailedIndex = Math.max(0, history.length - 5)
+  const firstDetailedIndex = Math.max(0, history.length - RECENT_NARRATIVE_WINDOW)
   const compressedRounds = new Set(
     summaryCompressor.getSummaries().summaries.map((summary) => summary.sourceRound),
   )
@@ -36,10 +36,13 @@ export function buildPromptTimelineMemoryRuntime(
     summaryCompressor.getSummaries(),
     scopeView,
   )
-  const timelineMemory = formatNarrativeTimelineForPrompt([
-    ...timelineProjection.timelineEntries,
-  ])
-
+  const timelineMemory = formatNarrativeTimelineForPrompt(
+    timelineProjection.timelineEntries.map((entry) => ({
+      ...entry,
+      displayAge: entry.displayAge
+        ?? orchestrator['resolveNarrativeRoundTime'](entry.sortRound)?.displayAge,
+    })),
+  )
   return timelineMemory.length > 0 ? timelineMemory : undefined
 }
 
@@ -84,6 +87,7 @@ export function projectRoundMemoryEventRuntime(
     occurrenceTime: [timeLabel, ageLabel].filter(Boolean).join(' · '),
     text: contextLabel ? `【发生上下文：${contextLabel}】\n${text}` : text,
     sortRound: round,
+    displayAge: time?.displayAge,
     sortTotalDays: time?.totalDays,
   }
 }
@@ -104,6 +108,7 @@ export function projectNarrativeHistoryEntryRuntime(
     occurrenceTime: [timeLabel, ageLabel].filter(Boolean).join(' · '),
     text: contextLabel ? `【发生上下文：${contextLabel}】\n${narrative}` : narrative,
     sortRound: round,
+    displayAge: entry.displayAge,
     sortTotalDays: entry.totalDays,
   }
 }

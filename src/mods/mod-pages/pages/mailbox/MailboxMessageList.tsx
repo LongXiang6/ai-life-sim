@@ -64,7 +64,7 @@ const attributeLabels: Record<string, string> = {
   mind: '心智',
   physique: '体魄',
   charisma: '魅力',
-  familyBackground: '家境',
+  familyBackground: '财富',
   luck: '气运',
 }
 

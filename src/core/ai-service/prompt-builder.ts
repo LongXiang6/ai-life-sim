@@ -1,7 +1,7 @@
-﻿/**
- * Purpose: Assemble the current data-layer payload for the main narrative call.
+/**
+ * Purpose: Assemble the main-narrative data-layer payload.
  * Owner: core:ai-service
- * Responsibility: Serialize the world, player, history, attributes, and current-round data contract.
+ * Responsibility: Preserve the five fields from D:/AI/docs/数据层示例.txt.
  */
 
 import type { PromptContext, PromptTemplate } from '@/foundation'
@@ -29,9 +29,9 @@ function integerString(value: unknown): string | undefined {
   return Number.isFinite(numeric) ? String(Math.trunc(numeric)) : undefined
 }
 
-function buildNarrativeAttributes(value: unknown): Record<'心智' | '体魄' | '魅力' | '家境', string> {
+function buildNarrativeAttributes(value: unknown): Record<'心智' | '体魄' | '魅力' | '财富', string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return { 心智: '0', 体魄: '0', 魅力: '0', 家境: '0' }
+    return { 心智: '0', 体魄: '0', 魅力: '0', 财富: '0' }
   }
   const source = value as Record<string, unknown>
   const numericSet = source.当前数值 && typeof source.当前数值 === 'object' && !Array.isArray(source.当前数值)
@@ -41,21 +41,21 @@ function buildNarrativeAttributes(value: unknown): Record<'心智' | '体魄' | 
     心智: integerString(numericSet.mind ?? numericSet.心智) ?? '0',
     体魄: integerString(numericSet.physique ?? numericSet.体魄) ?? '0',
     魅力: integerString(numericSet.charisma ?? numericSet.魅力) ?? '0',
-    家境: integerString(numericSet.familyBackground ?? numericSet.家境) ?? '0',
+    财富: integerString(numericSet.familyBackground ?? numericSet.财富) ?? '0',
   }
 }
 
-function buildNodeEvents(context: PromptContext): string[] {
-  const compressed = (context.timelineMemory ?? [])
+function buildHistoricalEvents(context: PromptContext): string[] {
+  const timeline = (context.timelineMemory ?? [])
     .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     .map((item) => item.trim())
   const recent = (context.recentStories ?? [])
-    .filter((story): story is string => typeof story === 'string' && story.trim().length > 0)
-    .map((story) => story.trim())
-  return [...compressed, ...recent]
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.trim())
+  return [...timeline, ...recent]
 }
 
-/** PromptContext 转为当前数据层示例的单对象固定键序结构。 */
+/** PromptContext 转为数据层示例声明的五元素数组。 */
 export function buildNarrativeUserJson(context: PromptContext): unknown {
   const rawWorld = context.worldNarrativeView
   const world = {
@@ -71,29 +71,31 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     背景: nonEmpty(rawCharacter.背景) ?? '',
     天赋技能: (context.talents ?? []).map((talent) => `${talent.名称}：${talent.效果}`),
   }
-  const nodeEvents = buildNodeEvents(context)
+  const historicalEvents = buildHistoricalEvents(context)
   const currentAgeNumeric = Number(currentAge)
   const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
   const currentTime = nonEmpty(context.currentTime) ?? '当前时间'
-  const currentState = nonEmpty(context.playerBranchIntent?.当前状态) ?? ''
-  const attributes = buildNarrativeAttributes(
-    context.characterStatusView.属性数值 ?? rawCharacter.基础属性,
-  )
-  return {
-    世界: world,
-    玩家信息: character,
-    历史事件上下文: {
-      节点事件: nodeEvents,
+  const branch = nonEmpty(context.playerBranchIntent?.命运分支) ?? ''
+  return [
+    { 世界: world },
+    { 玩家信息: character },
+    { 历史输出: { 事件: historicalEvents } },
+    {
+      玩家本次点属性: buildNarrativeAttributes(
+        context.characterStatusView.属性数值 ?? rawCharacter.基础属性,
+      ),
     },
-    玩家本节点属性: attributes,
-    本节点信息: {
-      时间节点: `${currentAgeValue}岁·${currentTime}`,
-      当前状态: currentState,
+    {
+      本次信息: {
+        时间节点: `${currentAgeValue}岁·${currentTime}`,
+        命运分支: branch,
+        篇幅偏好: nonEmpty(context.wordCountInstruction) ?? '',
+      },
     },
-  }
+  ]
 }
 
-/** 输出单条数据层 JSON 对象消息，顺序与数据层示例一致。 */
+/** 输出单条数据层消息；服务端受保护资产将其填入 prompt.txt。 */
 export function buildSegmentedPrompt(
   _template: PromptTemplate,
   context: PromptContext,

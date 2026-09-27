@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   deleteDestinyPatternPool,
-  hasDestinyPatternPool,
+  listDestinyPatternPoolWorldCodes,
 } from '@/mods/mod-character/destiny-pattern-access'
 
 import {
@@ -28,7 +28,7 @@ function normalizeWorldCodes(worldCodes: readonly number[]): number[] {
 }
 
 function hasWorldCache(worldCode: number): boolean {
-  return hasDestinyPatternPool(worldCode) || hasTalentDrawState(worldCode)
+  return listDestinyPatternPoolWorldCodes().has(worldCode) || hasTalentDrawState(worldCode)
 }
 
 export function useWorldSelectCache(worldCodes: readonly number[]) {
@@ -39,8 +39,9 @@ export function useWorldSelectCache(worldCodes: readonly number[]) {
 
   const refreshWorldCodesWithCache = useCallback(() => {
     const next = new Set<number>()
+    const patternPoolWorldCodes = listDestinyPatternPoolWorldCodes()
     for (const worldCode of normalizedWorldCodes) {
-      if (hasWorldCache(worldCode)) next.add(worldCode)
+      if (patternPoolWorldCodes.has(worldCode) || hasTalentDrawState(worldCode)) next.add(worldCode)
     }
     setWorldCodesWithCache(next)
   }, [normalizedWorldCodes])

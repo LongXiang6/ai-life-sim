@@ -118,6 +118,6 @@ export const STORAGE_KEYS = {
 } as const
 
 /**
- * 主故事 Prompt 保留的最近完整故事轮数；更早内容读取逐轮压缩派生记忆。
+ * 主故事 Prompt 保留的最近完整故事轮数；更早内容读取事实与压缩派生记忆。
  */
-export const RECENT_NARRATIVE_WINDOW = 5
+export const RECENT_NARRATIVE_WINDOW = 3

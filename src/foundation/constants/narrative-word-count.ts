@@ -1,3 +1,9 @@
+/**
+ * Purpose: Define narrative length preferences and the shared default.
+ * Owner: foundation
+ * Responsibility: Resolve supported player preferences without changing saved valid choices.
+ */
+
 /** 主叙事正文允许的固定字数目标。 */
 export const NARRATIVE_WORD_COUNT_TARGETS = [
   50,
@@ -20,7 +26,7 @@ export const NARRATIVE_WORD_COUNT_TARGETS = [
 
 export type NarrativeWordCountTarget = (typeof NARRATIVE_WORD_COUNT_TARGETS)[number]
 
-export const DEFAULT_WORD_COUNT_TARGET: NarrativeWordCountTarget = 200
+export const DEFAULT_WORD_COUNT_TARGET: NarrativeWordCountTarget = 100
 
 const NARRATIVE_WORD_COUNT_TARGET_SET = new Set<number>(NARRATIVE_WORD_COUNT_TARGETS)
 

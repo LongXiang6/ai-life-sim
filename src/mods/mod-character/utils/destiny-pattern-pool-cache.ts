@@ -14,12 +14,47 @@ import {
 } from '../subsystems/destiny-pattern-system/validation'
 import { sanitizeDestinyPattern } from './character-state-migration'
 
+const DESTINY_PATTERN_POOL_KEY_PREFIX = 'destiny-pool:'
+const DESTINY_PATTERN_POOL_PHYSICAL_PREFIX = `ai-life-sim:mod-character:cache:${DESTINY_PATTERN_POOL_KEY_PREFIX}`
+
 export function getDestinyPatternPoolCacheKey(worldCode: number): string {
-  return `destiny-pool:${DESTINY_PATTERN_PROMPT_VERSION}:${worldCode || 'default'}`
+  return `${DESTINY_PATTERN_POOL_KEY_PREFIX}${DESTINY_PATTERN_PROMPT_VERSION}:${worldCode || 'default'}`
+}
+
+function deleteStaleDestinyPatternPools(): Set<number> {
+  const currentWorldCodes = new Set<number>()
+  if (typeof window === 'undefined') return currentWorldCodes
+
+  const staleLogicalKeys: string[] = []
+  const currentVersionPrefix = `${DESTINY_PATTERN_PROMPT_VERSION}:`
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const physicalKey = localStorage.key(index)
+    if (!physicalKey?.startsWith(DESTINY_PATTERN_POOL_PHYSICAL_PREFIX)) continue
+
+    const suffix = physicalKey.slice(DESTINY_PATTERN_POOL_PHYSICAL_PREFIX.length)
+    if (!suffix.startsWith(currentVersionPrefix)) {
+      staleLogicalKeys.push(`${DESTINY_PATTERN_POOL_KEY_PREFIX}${suffix}`)
+      continue
+    }
+
+    const rawWorldCode = suffix.slice(currentVersionPrefix.length)
+    const worldCode = Number.parseInt(rawWorldCode, 10)
+    if (Number.isFinite(worldCode) && worldCode > 0 && String(worldCode) === rawWorldCode) {
+      currentWorldCodes.add(worldCode)
+    } else {
+      staleLogicalKeys.push(`${DESTINY_PATTERN_POOL_KEY_PREFIX}${suffix}`)
+    }
+  }
+
+  for (const logicalKey of staleLogicalKeys) {
+    cacheStore.remove('mod-character', logicalKey)
+  }
+  return currentWorldCodes
 }
 
 export function loadDestinyPatternPool(worldCode: number): DestinyPattern[] {
   try {
+    deleteStaleDestinyPatternPools()
     const cached = cacheStore.get<DestinyPattern[]>('mod-character', getDestinyPatternPoolCacheKey(worldCode)) ?? []
     const normalized = cached
       .map(sanitizeDestinyPattern)
@@ -35,6 +70,7 @@ export function loadDestinyPatternPool(worldCode: number): DestinyPattern[] {
 export function saveDestinyPatternPool(worldCode: number, patterns: DestinyPattern[]): void {
   if (patterns.length === 0) return
   try {
+    deleteStaleDestinyPatternPools()
     const sanitizedCandidates = patterns
       .map(sanitizeDestinyPattern)
       .filter((pattern): pattern is DestinyPattern => pattern !== null)
@@ -50,50 +86,24 @@ export function saveDestinyPatternPool(worldCode: number, patterns: DestinyPatte
 export function deleteDestinyPatternPool(worldCode: number): void {
   if (!worldCode) return
   try {
+    deleteStaleDestinyPatternPools()
     cacheStore.remove('mod-character', getDestinyPatternPoolCacheKey(worldCode))
-
-    // Clear older prompt-version entries for the same world as well. They are
-    // no longer eligible for loading, but should not remain behind the reset
-    // control as stale generated data.
-    if (typeof window !== 'undefined') {
-      const prefix = 'ai-life-sim:mod-character:cache:destiny-pool:'
-      for (let index = localStorage.length - 1; index >= 0; index -= 1) {
-        const key = localStorage.key(index)
-        if (!key || !key.startsWith(prefix)) continue
-        const suffix = key.slice(prefix.length)
-        const rawWorldCode = suffix.slice(suffix.lastIndexOf(':') + 1)
-        if (rawWorldCode === String(worldCode)) localStorage.removeItem(key)
-      }
-    }
   } catch {
     /* ignore */
   }
 }
 
-/** Whether any prompt-versioned candidate pool exists for this world. */
+/** Whether the current Prompt version has a usable candidate pool for this world. */
 export function hasDestinyPatternPool(worldCode: number): boolean {
   if (!worldCode) return false
   try {
-    return listDestinyPatternPoolWorldCodes().has(worldCode)
+    return loadDestinyPatternPool(worldCode).length > 0
   } catch {
     return false
   }
 }
 
-/** Enumerate all world codes represented by prompt-versioned candidate pools. */
+/** Enumerate worlds represented by the current Prompt version after deleting stale assets. */
 export function listDestinyPatternPoolWorldCodes(): Set<number> {
-  const worldCodes = new Set<number>()
-  if (typeof window === 'undefined') return worldCodes
-  const prefix = 'ai-life-sim:mod-character:cache:destiny-pool:'
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const key = localStorage.key(index)
-    if (!key || !key.startsWith(prefix)) continue
-    const suffix = key.slice(prefix.length)
-    const rawWorldCode = suffix.slice(suffix.lastIndexOf(':') + 1)
-    const worldCode = Number.parseInt(rawWorldCode, 10)
-    if (Number.isFinite(worldCode) && worldCode > 0 && String(worldCode) === rawWorldCode) {
-      worldCodes.add(worldCode)
-    }
-  }
-  return worldCodes
+  return deleteStaleDestinyPatternPools()
 }

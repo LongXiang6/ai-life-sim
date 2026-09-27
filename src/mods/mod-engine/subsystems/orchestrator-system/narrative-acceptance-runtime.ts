@@ -19,7 +19,7 @@ const ATTRIBUTE_CHANGE_FIELDS = [
   ['心智', 'mindDelta'],
   ['体魄', 'physiqueDelta'],
   ['魅力', 'charismaDelta'],
-  ['家境', 'familyBackgroundDelta'],
+  ['财富', 'familyBackgroundDelta'],
 ] as const
 
 function buildAttributeChangeInstruction(
@@ -113,6 +113,7 @@ function buildPreparedRecord(
     roundContext,
     narrative: structuredClone(parsed),
     narrativeText: narrative,
+    ...(parsed.eventResults ? { eventResults: structuredClone(parsed.eventResults) } : {}),
     ...(playerChoice ? { playerChoice } : {}),
     ageAtRound,
     displayTimeLabel,
@@ -182,6 +183,7 @@ export function commitNarrativeResponseRuntime(
       : {}),
     ...(prepared.narrative.endingTitle ? { endingTitle: prepared.narrative.endingTitle } : {}),
     ...(prepared.narrative.endingSummary ? { endingSummary: prepared.narrative.endingSummary } : {}),
+    ...(prepared.eventResults ? { eventResults: structuredClone(prepared.eventResults) } : {}),
   }
   const playerAction = consumeAcceptedPlayerRoundAction(
     orchestrator['lastPlayerChoice'],

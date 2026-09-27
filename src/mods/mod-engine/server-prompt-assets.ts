@@ -9,26 +9,38 @@ import 'server-only'
 import { NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
 import { NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-story-continuity-prompt'
 import { NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-talent-growth-prompt'
-import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './server/narrative-system-prompt'
+import { composeNarrativeUserMessage } from './server/narrative-system-prompt'
 import { COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT } from './server/narrative-story-continuity-system-prompt'
 import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from './server/narrative-talent-growth-system-prompt'
 
-export interface ServerPromptAsset {
+interface SystemServerPromptAsset {
   id: string
+  delivery: 'system'
   systemPrompt: string
 }
+
+interface ComposedUserServerPromptAsset {
+  id: string
+  delivery: 'composed-user'
+  composeUserMessage: (dynamicSource: string) => string
+}
+
+export type ServerPromptAsset = SystemServerPromptAsset | ComposedUserServerPromptAsset
 
 const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
   [NARRATIVE_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_SYSTEM_PROMPT,
+    delivery: 'composed-user',
+    composeUserMessage: composeNarrativeUserMessage,
   },
   [NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_STORY_CONTINUITY_SERVER_PROMPT_ASSET_ID,
+    delivery: 'system',
     systemPrompt: COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT,
   },
   [NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_TALENT_GROWTH_SERVER_PROMPT_ASSET_ID,
+    delivery: 'system',
     systemPrompt: COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT,
   },
 }

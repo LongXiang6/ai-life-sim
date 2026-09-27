@@ -161,7 +161,7 @@ export function SettingsTabStats() {
           <div className={styles.metricGrid}>
             <div><span>已压缩回合</span><strong>{formatTokenCount(compressionStats.compressedRoundCount)}</strong><small>逐轮处理离开三轮窗口的故事</small></div>
             <div><span>最近来源回合</span><strong>{compressionStats.lastSourceRound ?? '-'}</strong><small>完整正文仍保留在故事历史</small></div>
-            <div><span>详细窗口</span><strong>3 轮</strong><small>主故事读取最近三轮完整正文</small></div>
+            <div><span>近期窗口</span><strong>3 轮</strong><small>主故事读取最近三轮已结算结果</small></div>
             <div><span>最近完成</span><strong>{compressionStats.lastCompletedAt > 0 ? new Date(compressionStats.lastCompletedAt).toLocaleTimeString('zh-CN') : '-'}</strong><small>逐轮压缩提交时间</small></div>
           </div>
         </div>

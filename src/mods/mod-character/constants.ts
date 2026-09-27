@@ -36,7 +36,7 @@ export const MAX_ATTRIBUTE_VALUE = 10
 // ------------------------------------------------------------
 //
 // 设计（design-2026-07-06-compression-attributes.md 想法2）：
-//   ±10 是凡人（人类物种）的极限区间。心智/体魄/魅力/家境 4 项可突破此界限
+//   ±10 是凡人（人类物种）的极限区间。心智/体魄/魅力/财富 4 项可突破此界限
 //   向上（或向下）无限堆叠，进入超凡领域；气运由状态系统独立管理。
 //   永久锁定在 ±10，不参与超凡堆叠。
 //   下游系统（战力/寿命等）直接读取放开后的数值自行换算，无需额外「是否超凡」布尔字段。
@@ -70,7 +70,7 @@ export const ATTRIBUTE_NAMES: Record<string, string> = {
   mind: '心智',
   physique: '体魄',
   charisma: '魅力',
-  familyBackground: '家境',
+  familyBackground: '财富',
 }
 /** 4 项基础属性 key 数组 */
 export const ATTR_KEYS = ['mind', 'physique', 'charisma', 'familyBackground',] as const
@@ -86,7 +86,7 @@ export const ATTRIBUTE_ICONS: Record<string, string> = {
 export const ATTR_CN_ALIAS_TO_KEY: Record<string, string> = {
   '体魄': 'physique', '力量': 'physique', '体质': 'physique', '身体': 'physique',
   '心智': 'mind', '智力': 'mind', '智慧': 'mind', '头脑': 'mind',
-  '家境': 'familyBackground', '家庭': 'familyBackground', '出身': 'familyBackground',
+  '财富': 'familyBackground', '家庭': 'familyBackground', '出身': 'familyBackground',
   '资源': 'familyBackground',
   '魅力': 'charisma', '容貌': 'charisma', '气质': 'charisma',
 }

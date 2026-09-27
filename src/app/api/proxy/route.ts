@@ -283,10 +283,33 @@ export async function POST(request: Request): Promise<Response> {
         )
       }
 
-      upstreamMessages = [
-        { role: 'system', content: promptAsset.systemPrompt },
-        ...body.messages,
-      ]
+      if (promptAsset.delivery === 'composed-user') {
+        if (body.messages.length !== 1 || body.messages[0]?.role !== 'user') {
+          await Promise.all([
+            writeCurrentTrace('rejected', { status: 400, error: 'Protected composed prompt requires one user message' }),
+            writeCurrentAccessLog(400, 'Protected composed prompt requires one user message'),
+          ])
+          return jsonWithRequestId(requestId, { error: '主故事受保护提示词只接受一条动态数据消息' }, 400)
+        }
+        try {
+          upstreamMessages = [{
+            role: 'user',
+            content: promptAsset.composeUserMessage(body.messages[0].content),
+          }]
+        } catch (error) {
+          const validation = error instanceof Error ? error.message : String(error)
+          await Promise.all([
+            writeCurrentTrace('rejected', { status: 400, error: 'Invalid composed prompt data', validation }),
+            writeCurrentAccessLog(400, 'Invalid composed prompt data'),
+          ])
+          return jsonWithRequestId(requestId, { error: '主故事动态数据格式不正确', validation }, 400)
+        }
+      } else {
+        upstreamMessages = [
+          { role: 'system', content: promptAsset.systemPrompt },
+          ...body.messages,
+        ]
+      }
     }
 
     messageCount = upstreamMessages.length

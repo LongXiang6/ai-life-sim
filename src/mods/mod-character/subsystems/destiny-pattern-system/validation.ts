@@ -31,7 +31,7 @@ const ATTRIBUTE_BY_LABEL: Record<string, string> = {
   魅力: 'charisma',
   容貌: 'charisma',
   气质: 'charisma',
-  家境: 'familyBackground',
+  财富: 'familyBackground',
   家庭: 'familyBackground',
   出身: 'familyBackground',
   资源: 'familyBackground',
@@ -149,7 +149,7 @@ function normalizeAttrBonus(value: unknown): Record<string, number> {
   }
   if (typeof value !== 'string') return result
   if (/^(无|没有|无属性|无加成|none|none\s*bonus)$/iu.test(value.trim())) return result
-  const pattern = /(体魄|力量|体质|心智|智力|智慧|魅力|容貌|气质|家境|家庭|出身|资源|气运|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
+  const pattern = /(体魄|力量|体质|心智|智力|智慧|魅力|容貌|气质|财富|家庭|出身|资源|气运|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
   for (const match of value.matchAll(pattern)) addAttribute(result, match[1], match[2])
   return result
 }

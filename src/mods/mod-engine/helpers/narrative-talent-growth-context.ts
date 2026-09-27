@@ -60,7 +60,7 @@ function projectAttributeBonus(bonus: Partial<AttributeModifiers>): Record<strin
     ...(bonus.mind === undefined ? {} : { 心智: bonus.mind }),
     ...(bonus.physique === undefined ? {} : { 体魄: bonus.physique }),
     ...(bonus.charisma === undefined ? {} : { 魅力: bonus.charisma }),
-    ...(bonus.familyBackground === undefined ? {} : { 家境: bonus.familyBackground }),
+    ...(bonus.familyBackground === undefined ? {} : { 财富: bonus.familyBackground }),
     ...(bonus.luck === undefined ? {} : { 气运: bonus.luck }),
   }
 }
@@ -163,7 +163,7 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
     效果描述: pattern.effect,
       当前完整属性加成: projectAttributeBonus(pattern.attrBonus),
     目标等级: NEXT_RARITY_LABEL[pattern.rarity as Exclude<DestinyPattern['rarity'], 'legendary' | 'mythic'>],
-    允许属性: ['心智', '体魄', '魅力', '家境', '气运'],
+    允许属性: ['心智', '体魄', '魅力', '财富', '气运'],
     可用证据窗口: (evidenceWindowsByLineage[pattern.lineageId] ?? []).map((window) => ({
       编号: window.id,
       时间: window.time,

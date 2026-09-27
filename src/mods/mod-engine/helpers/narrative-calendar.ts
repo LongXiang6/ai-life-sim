@@ -97,6 +97,18 @@ export function formatNarrativeTimeLabel(
   }
 }
 
+function formatNarrativePromptTimeLabel(
+  timeStep: TimeStep,
+  eraLabel: string,
+  round: { eventNodeIndex?: number },
+): string {
+  const canonical = normalizeCanonicalTimeStep(timeStep)
+  if (canonical.unit === 'event') {
+    return `${eraLabel} · 事件${Math.max(0, round.eventNodeIndex ?? 0)}`
+  }
+  return eraLabel
+}
+
 export interface CurrentNarrativeTimeLabelInput {
   timeStep: TimeStep
   round: {
@@ -143,7 +155,7 @@ export function buildNarrativeTimeContext(
   const eraLabel = formatEraYear(calendarYear, defaultEraName)
   const seasonName = timeSystem.getSeasonName()
   const timeStep = normalizeCanonicalTimeStep(context.timeStep ?? { unit: 'event', value: 12 })
-  const timeLabel = formatNarrativeTimeLabel(timeStep, eraLabel, context.round)
+  const timeLabel = formatNarrativePromptTimeLabel(timeStep, eraLabel, context.round)
 
   return {
     calendarYear,

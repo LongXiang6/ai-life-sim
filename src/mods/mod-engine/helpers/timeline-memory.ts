@@ -5,6 +5,7 @@
  */
 
 import type { CompressedMemoryEvent, CompressedSummaryItem } from '@/foundation'
+import type { NarrativeEventResult } from '../types'
 
 /** 主叙事唯一可见的记忆投影；内部派生字段不会进入格式化文本。 */
 export interface NarrativeTimelineEntry {
@@ -12,6 +13,7 @@ export interface NarrativeTimelineEntry {
   occurrenceTime: string
   text: string
   sortRound: number
+  displayAge?: number
   sortTotalDays?: number
   /** 同一压缩来源回合的内部派生因果组；不会进入 AI 文本。 */
   causalGroupId?: string
@@ -65,6 +67,47 @@ function normalizeTimelineText(value: string): string {
   return value.replace(/\r\n?/gu, '\n').trim()
 }
 
+function formatAgePrefixedStory(age: number | undefined, story: string): string {
+  if (typeof age !== 'number' || !Number.isFinite(age)) return story
+  return `${Math.max(0, Math.floor(age))}岁：${story}`
+}
+
+/**
+ * 保留已提交正文中的完整事实证据；历史职责由固定 Prompt 约束，不在此猜测结果句。
+ * 结局总结只补充已有事实，不能替代包含身份、关系与资源变化的正文。
+ */
+export function projectNarrativeResultForPrompt(input: {
+  text: string
+  eventResults?: readonly NarrativeEventResult[]
+  displayAge?: number
+  endingSummary?: string
+  branchTitle?: string
+  branchOptions?: readonly string[]
+  resolvedChoice?: string
+}): string {
+  const narrative = normalizeTimelineText(input.text).replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
+  const endingSummary = normalizeTimelineText(input.endingSummary ?? '')
+  const eventFacts = (input.eventResults ?? []).map((event) => (
+    `已结束事件身份：${normalizeTimelineText(event.事件)}；已成立事实：成因：${normalizeTimelineText(event.成因)}；结果：${normalizeTimelineText(event.结果)}；影响：${normalizeTimelineText(event.影响)}`
+  ))
+  const facts = eventFacts.length > 0
+    // 结构化事件结果已经是本轮事实底稿；再次附加完整正文会把同一主线
+    // 以两种高密度形式重复投影，诱发下一轮把旧题当作续写入口。
+    ? eventFacts
+    : (narrative ? [narrative] : [])
+  if (endingSummary && endingSummary !== narrative) facts.push(endingSummary)
+  const branchTitle = normalizeTimelineText(input.branchTitle ?? '')
+  const branchOptions = (input.branchOptions ?? [])
+    .map((option) => normalizeTimelineText(option))
+    .filter(Boolean)
+  const resolvedChoice = normalizeTimelineText(input.resolvedChoice ?? '')
+  if (!resolvedChoice && branchTitle && branchOptions.length > 0) {
+    facts.push(`未决分支：${branchTitle}（${branchOptions.join('、')}）`)
+  }
+  if (resolvedChoice) facts.push(`已确认选择：${resolvedChoice}`)
+  return formatAgePrefixedStory(input.displayAge, facts.join('；'))
+}
+
 /** 按时间阶段组织故事记忆，同一阶段的每个事件单独一行。 */
 export function formatNarrativeTimelineEntries(
   entries: readonly NarrativeTimelineEntry[],
@@ -108,7 +151,7 @@ export function formatNarrativeTimelineEntries(
   }).join('\n\n')
 }
 
-/** 为主叙事输出同时间合并的 JSON 字符串数组。 */
+/** 为主叙事输出按既有顺序合并的年龄索引事实。 */
 export function formatNarrativeTimelineForPrompt(
   entries: readonly NarrativeTimelineEntry[],
 ): string[] {
@@ -124,13 +167,15 @@ export function formatNarrativeTimelineForPrompt(
       || (a.sortTotalDays ?? Number.MAX_SAFE_INTEGER) - (b.sortTotalDays ?? Number.MAX_SAFE_INTEGER)
       || a.occurrenceTime.localeCompare(b.occurrenceTime, 'zh-CN')
     ))
-  const grouped = new Map<string, string[]>()
+  const grouped = new Map<string, { displayAge?: number, facts: string[] }>()
   for (const entry of normalized) {
-    const facts = grouped.get(entry.occurrenceTime) ?? []
-    if (!facts.includes(entry.text)) facts.push(entry.text)
-    grouped.set(entry.occurrenceTime, facts)
+    const group = grouped.get(entry.occurrenceTime) ?? { displayAge: entry.displayAge, facts: [] }
+    if (!group.facts.includes(entry.text)) group.facts.push(entry.text)
+    grouped.set(entry.occurrenceTime, group)
   }
-  return [...grouped.entries()].map(([time, facts]) => `${time}：${facts.join('；')}`)
+  return [...grouped.values()].map((group) => (
+    formatAgePrefixedStory(group.displayAge, group.facts.join('；'))
+  ))
 }
 
 /** 将压缩节点投影为主叙事可见的时间+事件，内部计算字段不外泄。 */

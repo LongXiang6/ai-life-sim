@@ -117,6 +117,7 @@ export function useTalentDrawGeneration({
     if (!aiTalentGeneration) return
     const destinySystem = getDestinyPatternSystem()
     configureDestinyPatternAIService()
+    setErrorMsg('')
     void destinySystem.startBackgroundFill(buildDestinyPatternContext(), fullPoolRef.current).then((patterns) => {
       if (abortRef.current) return
       const complete = uniquePatternsByIdentity(patterns)
@@ -135,10 +136,13 @@ export function useTalentDrawGeneration({
         }
         return next
       })
-    }).catch(() => {
-      /* Background fill is optional after the five-category handoff is ready. */
+    }).catch((error) => {
+      if (abortRef.current) return
+      setErrorMsg(isAiCredentialError(error)
+        ? '命格后台补充失败：当前 API Key 无效、已过期或权限不足。请在设置中检查自己的 Key、接口网址和模型名称。'
+        : `命格后台补充失败：${error instanceof Error ? error.message : '请检查网络与模型设置。'} 再次进入选择页时会继续补充缺失命格。`)
     })
-  }, [abortRef, fullPoolRef, setLocalPoolSize, setSlots])
+  }, [abortRef, fullPoolRef, setErrorMsg, setLocalPoolSize, setSlots])
 
   return { doGenerate, startBackgroundFill }
 }

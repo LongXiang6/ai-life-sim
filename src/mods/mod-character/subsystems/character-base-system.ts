@@ -306,7 +306,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
   }
 
   private getAttrKeyLabel(key: string, value: number): string {
-    const names: Record<string, string> = { mind: '心智', physique: '体魄', charisma: '魅力', familyBackground: '家境' }
+    const names: Record<string, string> = { mind: '心智', physique: '体魄', charisma: '魅力', familyBackground: '财富' }
     return `${names[key] ?? key}${value}`
   }
 }

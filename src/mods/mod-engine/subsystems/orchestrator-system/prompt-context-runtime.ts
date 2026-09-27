@@ -17,29 +17,29 @@ import {
   buildNarrativeTimeContext,
   buildWordCountInstruction,
   DEFAULT_WORD_COUNT_TARGET,
+  RECENT_NARRATIVE_WINDOW,
 } from '../../orchestrator-shared'
+import { projectNarrativeResultForPrompt } from '../../helpers/timeline-memory'
 import type { OrchestratorSystem } from '../orchestrator-system'
 import {
   formatDestinyPatternsForPrompt,
   formatEquippedReincarnationTalentsForPrompt,
 } from './prompt-talent-projection'
 
-const MAIN_NARRATIVE_RECENT_STORY_WINDOW = 5
-
-/** 主叙事可见的最近完整正文窗口；只保留最近 N 轮正文，不含尚未生成的当前轮。 */
+/** 主叙事读取近期已提交正文的完整事实证据；不继承其主题与写法。 */
 function buildRecentStoriesProjection(orchestrator: OrchestratorSystem): string[] | undefined {
   const history = orchestrator['state'].narrativeHistory
   if (history.length === 0) return undefined
-  const firstCommittedRound = Math.max(1, orchestrator['state'].totalRounds - history.length)
-  const recent = history.slice(-MAIN_NARRATIVE_RECENT_STORY_WINDOW)
-  const baseIndex = history.length - recent.length
-  const stories = recent.map((entry, index) => {
-    const round = entry.transitionAudit?.round ?? firstCommittedRound + baseIndex + index
-    const timeLabel = entry.displayTimeLabel?.trim() || `第${round}轮`
-    const ageLabel = entry.displayAge === undefined ? '年龄未知' : `${entry.displayAge}岁`
-    const text = entry.text.replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
-    return `${ageLabel}·${timeLabel}·第${round}轮：${text}`
-  })
+  const recent = history.slice(-RECENT_NARRATIVE_WINDOW)
+  const stories = recent.map((entry) => projectNarrativeResultForPrompt({
+    text: entry.text,
+    eventResults: entry.eventResults,
+    displayAge: entry.displayAge,
+    endingSummary: entry.endingSummary,
+    branchTitle: entry.branchTitle,
+    branchOptions: entry.branchOptions,
+    resolvedChoice: entry.resolvedChoice,
+  }))
   return stories.length > 0 ? stories : undefined
 }
 
@@ -132,7 +132,7 @@ export function assemblePromptContextRuntime(
   }
 
   if (isInstrumentEnabled()) {
-    const memoryChars = (assembled.timelineMemory ?? []).join('').length
+    const memoryChars = [...(assembled.timelineMemory ?? []), ...(assembled.recentStories ?? [])].join('').length
     getInstrumentHooks().onPromptAssembled?.({
       round: orchestrator['state'].totalRounds,
       memorySummaryChars: memoryChars,

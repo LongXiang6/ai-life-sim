@@ -9,6 +9,7 @@
 import type {
   NarrativeAIAttributeChanges,
   NarrativeAIBranch,
+  NarrativeAIEventResult,
   NarrativeAIEnding,
 } from './narrative-ai-protocol'
 import { parseAIJSON, parseAIJSONCandidates } from '@/core/ai-service/parse-ai-json'
@@ -16,6 +17,7 @@ import { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 
 export interface NarrativeResponseEnvelope {
   narrative: string
+  eventResults?: NarrativeAIEventResult[]
   branch?: NarrativeAIBranch
   ending?: NarrativeAIEnding
   attributeChanges?: NarrativeAIAttributeChanges
@@ -25,7 +27,7 @@ export interface NarrativeResponseEnvelopeOptions {
   /** 只用于补全已在本轮引导中明确封闭的终态，绝不从普通正文猜测结局。 */
   terminalGuidance?: string
   /** 数据层发送的当前属性；只用于把 JSON 顶层属性的绝对值换算为本轮差值。 */
-  currentAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>>
+  currentAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>>
 }
 
 type JsonRecord = Record<string, unknown>
@@ -148,7 +150,7 @@ function normalizeAttributeChanges(value: unknown): NarrativeAIAttributeChanges 
   const record = asRecord(normalized)
   if (!record) return undefined
   const result: Record<string, number> = {}
-  for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
+  for (const key of ['心智', '体魄', '魅力', '财富'] as const) {
     const raw = record[key]
     const numeric = typeof raw === 'number' ? raw : Number.NaN
     if (!Number.isInteger(numeric) || numeric === 0 || Math.abs(numeric) > 3) continue
@@ -157,11 +159,35 @@ function normalizeAttributeChanges(value: unknown): NarrativeAIAttributeChanges 
   return Object.keys(result).length > 0 ? result as NarrativeAIAttributeChanges : undefined
 }
 
+function normalizeEventResults(value: unknown): NarrativeAIEventResult[] | undefined {
+  const normalized = normalizeOptionalJsonValue(value)
+  if (!Array.isArray(normalized)) return undefined
+  const results: NarrativeAIEventResult[] = []
+  for (const item of normalized) {
+    const record = asRecord(item)
+    if (!record) continue
+    const event = normalizedText(record.事件 ?? record.event)
+    const cause = normalizedText(record.成因 ?? record.cause)
+    const result = normalizedText(record.结果 ?? record.result)
+    const impact = normalizedText(record.影响 ?? record.impact)
+    if (!event || !cause || !result || !impact) continue
+    results.push({ 事件: event, 成因: cause, 结果: result, 影响: impact })
+  }
+  return results.length > 0 ? results : undefined
+}
+
 function parseJsonRecord(source: string): JsonRecord | undefined {
   const candidates = parseAIJSONCandidates<unknown>(source, {
     recoverUnclosedString: {
       field: '正文',
-      followingTopLevelFields: ['正文', '命运分支', '分支', '结局', '属性变化'],
+      followingTopLevelFields: [
+        '正文',
+        '属性',
+        '命运分支',
+        '分支',
+        '结局',
+        '属性变化',
+      ],
     },
   })
   const records = candidates.map((candidate) => asRecord(candidate.value)).filter((value): value is JsonRecord => Boolean(value))
@@ -170,11 +196,12 @@ function parseJsonRecord(source: string): JsonRecord | undefined {
 
 function reportedAttributesFromJson(
   record: JsonRecord | undefined,
-): Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined {
+): Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> | undefined {
   if (!record) return undefined
-  const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
-  for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
-    const raw = record[key]
+  const result: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> = {}
+  const attributes = asRecord(record.属性)
+  for (const key of ['心智', '体魄', '魅力', '财富'] as const) {
+    const raw = attributes?.[key] ?? record[key]
     const numeric = typeof raw === 'number'
       ? raw
       : typeof raw === 'string' && raw.trim()
@@ -189,9 +216,9 @@ function parseLifeSimulatorText(source: string): {
   narrative?: string
   branch?: unknown
   ending?: unknown
-  reportedAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>>
+  reportedAttributes?: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>>
 } {
-  const statusMatch = source.match(/^\s*【\s*年龄\s*[:：]\s*[^|】]+\|\s*心智\s*[:：]\s*([+-]?\d+)\s*\|\s*体魄\s*[:：]\s*([+-]?\d+)\s*\|\s*魅力\s*[:：]\s*([+-]?\d+)\s*\|\s*家境\s*[:：]\s*([+-]?\d+)[^】]*】/u)
+  const statusMatch = source.match(/^\s*【\s*年龄\s*[:：]\s*[^|】]+\|\s*心智\s*[:：]\s*([+-]?\d+)\s*\|\s*体魄\s*[:：]\s*([+-]?\d+)\s*\|\s*魅力\s*[:：]\s*([+-]?\d+)\s*\|\s*财富\s*[:：]\s*([+-]?\d+)[^】]*】/u)
   const labeledBody = extractCompleteJsonStringField(source, '正文')
   const remainder = statusMatch ? source.slice(statusMatch[0].length).trim() : undefined
   const hasLabeledBody = remainder !== undefined && /^["“]?正文["”]?\s*[:：]/u.test(remainder)
@@ -217,7 +244,7 @@ function parseLifeSimulatorText(source: string): {
             心智: Number(statusMatch[1]),
             体魄: Number(statusMatch[2]),
             魅力: Number(statusMatch[3]),
-            家境: Number(statusMatch[4]),
+            财富: Number(statusMatch[4]),
           },
         }
       : {}),
@@ -225,12 +252,12 @@ function parseLifeSimulatorText(source: string): {
 }
 
 function changesFromReportedAttributes(
-  reported: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined,
-  current: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined,
+  reported: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> | undefined,
+  current: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> | undefined,
 ): NarrativeAIAttributeChanges | undefined {
   if (!reported || !current) return undefined
-  const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
-  for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
+  const result: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> = {}
+  for (const key of ['心智', '体魄', '魅力', '财富'] as const) {
     const before = current[key]
     const after = reported[key]
     if (!Number.isFinite(before) || !Number.isFinite(after)) continue
@@ -334,9 +361,13 @@ export function parseNarrativeResponseEnvelope(
     reportedAttributesFromJson(json) ?? lifeSimulator.reportedAttributes,
     options.currentAttributes,
   )
+  const eventResults = normalizeEventResults(
+    pickEnvelopeField(json, ['事件结果', 'eventResults', 'events']),
+  )
 
   return {
     narrative,
+    ...(eventResults ? { eventResults } : {}),
     ...(branch ? { branch } : {}),
     ...(ending ? { ending } : {}),
     ...(attributeChanges ? { attributeChanges } : {}),

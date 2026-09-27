@@ -32,12 +32,12 @@ export interface RadarChartProps {
   className?: string
 }
 
-/** 默认四维（心智/体魄/魅力/家境） */
+/** 默认四维（心智/体魄/魅力/财富） */
 export const DEFAULT_DIMENSIONS: RadarDimension[] = [
   { label: '心智', value: 50 },
   { label: '体魄', value: 50 },
   { label: '魅力', value: 50 },
-  { label: '家境', value: 50 },
+  { label: '财富', value: 50 },
 ]
 
 export function RadarChart({

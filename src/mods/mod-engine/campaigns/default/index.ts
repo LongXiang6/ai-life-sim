@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Purpose: Declare the default narrative round as one main-story call plus active parallel specialist calls.
  * Owner: mod-engine
  * Responsibility: Stage ordering, frozen-input handoff, deterministic commit, and reverse recovery only.
@@ -212,6 +212,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
       timeLabel: ctx._promptContext.currentTime,
       branchTitle: ctx._narrativeParsed.branchTitle,
       branchOptions: ctx._narrativeParsed.branchOptions,
+      eventResults: ctx._narrativeParsed.eventResults,
     },
   })
   const continuityStories = buildAllStoriesForRound({
@@ -234,6 +235,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     displayTimeLabel: ctx._promptContext.currentTime,
     branchTitle: ctx._narrativeParsed.branchTitle,
     branchOptions: ctx._narrativeParsed.branchOptions,
+    eventResults: ctx._narrativeParsed.eventResults,
   }
 
   ctx._frozenRoundContext = structuredClone(roundContext)
@@ -658,7 +660,7 @@ export function loadStages(
             ...(direction.属性加成.体魄 === undefined ? {} : { physique: direction.属性加成.体魄 }),
             ...(direction.属性加成.心智 === undefined ? {} : { mind: direction.属性加成.心智 }),
             ...(direction.属性加成.魅力 === undefined ? {} : { charisma: direction.属性加成.魅力 }),
-            ...(direction.属性加成.家境 === undefined ? {} : { familyBackground: direction.属性加成.家境 }),
+            ...(direction.属性加成.财富 === undefined ? {} : { familyBackground: direction.属性加成.财富 }),
             ...(direction.属性加成.气运 === undefined ? {} : { luck: direction.属性加成.气运 }),
           },
         }))

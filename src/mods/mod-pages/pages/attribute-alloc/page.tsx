@@ -35,7 +35,7 @@ const ATTRIBUTES: ReadonlyArray<{
   { key: 'mind', name: '心智', icon: '🧠', description: '学习与谋略' },
   { key: 'physique', name: '体魄', icon: '💪', description: '体力与恢复' },
   { key: 'charisma', name: '魅力', icon: '💫', description: '关系与说服' },
-  { key: 'familyBackground', name: '家境', icon: '🏠', description: '家庭资源与支持' },
+  { key: 'familyBackground', name: '财富', icon: '🏠', description: '家庭资源与支持' },
 ]
 
 function normalizeAttributes(value?: Partial<BaseAttributes>): BaseAttributes {

@@ -131,7 +131,7 @@ const ATTRIBUTE_PRESENTATION: Readonly<Record<string, { label: string; icon: str
   mind: { label: '心智', icon: '🧠' },
   physique: { label: '体魄', icon: '💪' },
   charisma: { label: '魅力', icon: '💫' },
-  familyBackground: { label: '家境', icon: '🏠' },
+  familyBackground: { label: '财富', icon: '🏠' },
   luck: { label: '气运', icon: '🍀' },
 }
 

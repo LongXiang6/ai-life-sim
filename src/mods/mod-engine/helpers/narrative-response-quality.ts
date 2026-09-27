@@ -121,23 +121,23 @@ function normalizeAttributeBonus(value: unknown): Record<string, number> {
     体质: '体魄', 力量: '体魄', physique: '体魄',
     智力: '心智', 精神: '心智', mind: '心智',
     魅力值: '魅力', charisma: '魅力',
-    家庭: '家境', 出身: '家境', 资源: '家境', familybackground: '家境',
+    家庭: '财富', 出身: '财富', 资源: '财富', familybackground: '财富',
     幸运: '气运', 运气: '气运', luck: '气运',
   }
   const output: Record<string, number> = {}
   if (source) {
     for (const [key, raw] of Object.entries(source)) {
       const normalized = aliases[key.trim().toLocaleLowerCase()] ?? key.trim()
-      if (!['心智', '体魄', '魅力', '家境', '气运'].includes(normalized)) continue
+      if (!['心智', '体魄', '魅力', '财富', '气运'].includes(normalized)) continue
       output[normalized] = asInteger(raw, 0)
     }
     return output
   }
   const text = String(value)
-  const pattern = /(体魄|体质|力量|心智|智力|精神|魅力|魅力值|家境|家庭|出身|资源|气运|幸运|运气|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
+  const pattern = /(体魄|体质|力量|心智|智力|精神|魅力|魅力值|财富|家庭|出身|资源|气运|幸运|运气|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
   for (const match of text.matchAll(pattern)) {
     const normalized = aliases[match[1]!.trim().toLocaleLowerCase()]
-      ?? ({ 体魄: '体魄', 体质: '体魄', 力量: '体魄', 心智: '心智', 智力: '心智', 精神: '心智', 魅力: '魅力', 魅力值: '魅力', 家境: '家境', 家庭: '家境', 出身: '家境', 资源: '家境', 气运: '气运', 幸运: '气运', 运气: '气运' } as Record<string, string>)[match[1]!.trim()]
+      ?? ({ 体魄: '体魄', 体质: '体魄', 力量: '体魄', 心智: '心智', 智力: '心智', 精神: '心智', 魅力: '魅力', 魅力值: '魅力', 财富: '财富', 家庭: '财富', 出身: '财富', 资源: '财富', 气运: '气运', 幸运: '气运', 运气: '气运' } as Record<string, string>)[match[1]!.trim()]
     if (!normalized) continue
     output[normalized] = (output[normalized] ?? 0) + asInteger(match[2], 0)
   }
@@ -146,14 +146,16 @@ function normalizeAttributeBonus(value: unknown): Record<string, number> {
 
 function extractCurrentNarrativeAttributes(
   promptInput: string | undefined,
-): Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> | undefined {
+): Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> | undefined {
   if (!promptInput?.trim()) return undefined
   try {
     const payload = JSON.parse(promptInput) as unknown
-    const attributes = asRecord(asRecord(payload)?.玩家本节点属性)
+    const attributes = Array.isArray(payload)
+      ? asRecord(asRecord(payload[3])?.玩家本次点属性)
+      : undefined
     if (!attributes) return undefined
-    const result: Partial<Record<'心智' | '体魄' | '魅力' | '家境', number>> = {}
-    for (const key of ['心智', '体魄', '魅力', '家境'] as const) {
+    const result: Partial<Record<'心智' | '体魄' | '魅力' | '财富', number>> = {}
+    for (const key of ['心智', '体魄', '魅力', '财富'] as const) {
       const numeric = Number(attributes[key])
       if (Number.isFinite(numeric)) result[key] = Math.trunc(numeric)
     }

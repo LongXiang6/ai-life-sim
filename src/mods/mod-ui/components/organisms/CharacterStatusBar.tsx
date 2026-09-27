@@ -19,7 +19,7 @@
  * 布局（桌面端）：
  *   ┌──────────────────────────────────────────────────────┐
  *   │  [角色头像] [角色名] [性别] [天赋1][天赋2]  │
- *   │  [🧠心智+2] [💪体魄+3] [💫魅力+2] [🏠家境-1]  │
+ *   │  [🧠心智+2] [💪体魄+3] [💫魅力+2] [🏠财富-1]  │
  *   │  [💰财富+10] [📢声望+5] [⚔️权力+20] [🔗人脉+8]          │
  *   │                                  [纪元] [岁] [阶段]    │
  *   └──────────────────────────────────────────────────────┘
@@ -154,7 +154,7 @@ export function CharacterStatusBar({
           <AttributeTag icon="🧠" label="心智" value={base.mind} />
           <AttributeTag icon="💪" label="体魄" value={base.physique} />
           <AttributeTag icon="💫" label="魅力" value={base.charisma} />
-          <AttributeTag icon="🏠" label="家境" value={base.familyBackground} />
+          <AttributeTag icon="🏠" label="财富" value={base.familyBackground} />
         </div>
 
         {/* 第三行：动态属性标签 */}
