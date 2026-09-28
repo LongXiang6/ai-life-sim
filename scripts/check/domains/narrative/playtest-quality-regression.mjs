@@ -40,7 +40,7 @@ import {
   DEFAULT_AI_PROVIDER_ID,
 } from '../../../../src/core/ai-service/provider-config.ts'
 import { AVAILABLE_TIME_STEPS, encodeTimeStepKey } from '../../../../src/foundation/constants/time-steps.ts'
-import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
+import { COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import { NarrativeAIBranchSchema } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { NarrativeRoundMetadataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
@@ -294,54 +294,23 @@ const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
 assertOk(!oneYearHint.includes('事件链') && !oneYearHint.includes('宏观'), 'one-year hint must not add creative composition rules')
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份：')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生模拟器')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你的输出是一条已经结算的人生事件，而不是对生活过程的连续记录。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每个时间节点都重新观察世界与玩家，从当前可能发生的变化中独立选择一件事件。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先确定事件已经形成的事实、局势和结果，再决定如何呈现。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('上一节点可以作为已经存在的背景事实，但本轮不需要解释它的后续')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界与玩家同时运行。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出的是这一节点最值得记录的事实，而不是这一节点发生过的全部事情。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('采用结果式叙述')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史主要承担一致性与去重作用')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('属性变化必须有正文依据：重大事件±1，扭转人生走向±2，改写命运±3。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('通常以±10为边界，超凡状态可突破。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有本次事件自然形成重大人生转折时才生成三个命运走向，否则为null。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('死亡、永久失去意识或其他不可逆的生命终止状态触发结局并停止模拟。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使用第二人称。')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式：')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"正文"')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": null或者["选项一", "选项二", "选项三"],')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局": null或者["四字评语", "一句最终总结"]')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界故事模拟器')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出契约')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文规则')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('终态边界')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('决策流程')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('人生重开模拟器体例')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年龄边界')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个“人生重开模拟器”系统')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('事件必须完整：事件→直接结果→外部回响→状态改变→收束')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('通过状态改变体现时间流逝')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('前轮未决事件最多一句话交代')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('【具体性】')
-    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界模拟引擎'),
-  'fixed Prompt must contain the current discrete life-event rules and JSON output format',
+  storyPromptSampleSrc.includes('一条 `user` 消息')
+    && storyPromptSampleSrc.includes('"世界"')
+    && storyPromptSampleSrc.includes('"玩家信息"')
+    && storyPromptSampleSrc.includes('"历史输出"')
+    && storyPromptSampleSrc.includes('"玩家本次点属性"')
+    && storyPromptSampleSrc.includes('"本次信息"')
+    && storyPromptSampleSrc.includes('"篇幅偏好"')
+    && storyPromptSampleSrc.includes('"财富"')
+    && storyPromptSampleSrc.includes('"命运分支": false')
+    && storyPromptSampleSrc.includes('"结局": false')
+    && !storyPromptSampleSrc.includes('"历史事件"')
+    && !storyPromptSampleSrc.includes('"当前状态"'),
+  '01 sample must document the single-user five-element input and four-field output contract',
 )
-assertOk(
-  storyPromptSampleSrc.includes('一条五字段 JSON 对象消息')
-    && storyPromptSampleSrc.includes('"玩家本节点属性"')
-    && storyPromptSampleSrc.includes('"本节点信息"')
-    && storyPromptSampleSrc.includes('"年龄": "25岁"')
-    && storyPromptSampleSrc.includes('"命运分支": null')
-    && storyPromptSampleSrc.includes('"结局": null')
-    && storyPromptSampleSrc.includes('身份：')
-    && storyPromptSampleSrc.includes('你的输出是一条已经结算的人生事件，而不是对生活过程的连续记录。'),
-  '01 sample must document the one-message data layer and standard JSON contract',
-)
-assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
-assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
-assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
+assertOk(!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('年度故事弧线视角'), 'fixed prompt must not duplicate a scale-specific dynamic profile')
+assertOk(!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
+assertOk(!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
 assertIncludes(tenYearHint, '覆盖10年', 'ten-year hint must expose the decade span')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
@@ -709,13 +678,14 @@ assertSame(
   'adding two new IDs must retain only one candidate per canonicalized name',
 )
 
-assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
+assertSame(DEFAULT_WORD_COUNT_TARGET, 100, 'new and reset preferences must default to about 100 narrative characters')
 assertSame(
   NARRATIVE_WORD_COUNT_TARGETS.join(','),
   '50,100,150,200,250,300,400,500,600,700,800,1000,1200,1500,1800,2000',
   'narrative length must expose exactly the sixteen fixed player choices',
 )
-assertSame(resolveNarrativeWordCountTarget(777), 200, 'non-contract length values must not enter narrative runtime state')
+assertSame(resolveNarrativeWordCountTarget(777), 100, 'non-contract length values must not enter narrative runtime state')
+assertSame(resolveNarrativeWordCountTarget(200), 200, 'saved valid preferences must retain their chosen length')
 assertSame(resolveNarrativeWordCountRange(200).preferredMin, 160, 'the 200-character option must expose a focused lower guidance bound')
 assertSame(resolveNarrativeWordCountRange(200).preferredMax, 240, 'the 200-character option must expose a focused upper guidance bound')
 assertOk(
@@ -893,10 +863,16 @@ assertOk(
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.7\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.9\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 8.7.0',
+  'destiny prompt builder and cache version must share version 8.9.0',
+)
+assertOk(
+  destinyPromptSrc.includes('每条命格必须先提供明确、可实际生效的正向收益')
+    && destinyPromptSrc.includes('同一条命格必须同时说明额外补偿收益以及补偿如何实际兑现')
+    && destinyPromptSrc.includes('禁止生成只有损失、限制、惩罚、失败倾向或负属性的纯负面命格'),
+  'destiny prompt must require a real benefit and explicit compensation for every negative effect',
 )
 assertOk(
   destinyPromptSrc.includes('首句直接落到能力机制、触发条件、动作、可观察现象或世界反馈')
@@ -948,7 +924,7 @@ const makeDestinyPattern = (index, category) => ({
 })
 assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '行动')] }).success, 'destiny transport schema must stay permissive')
 const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '认知', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，家境+1，魅力-1' },
+  { 类别: '认知', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，财富+1，魅力-1' },
   { 类别: '认知', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
 ] }), 'cognition')
 assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
@@ -994,7 +970,7 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('resources:'), 'destiny output schema must reject the removed resources attribute')
 assertOk(
-  destinyPromptSrc.includes('心智、体魄、魅力、家境或低概率出现的气运')
+  destinyPromptSrc.includes('心智、体魄、魅力、财富或低概率出现的气运')
     && destinyPromptSrc.includes('Transport-only schema'),
   'destiny prompt must keep the shared attribute semantics without strict whole-response gating',
 )
@@ -1122,7 +1098,7 @@ assertOk(
   'destiny cache keys must follow the prompt contract version so old double-edged pools are not reused',
 )
 assertOk(
-  /const usableSaved = savedSlotsMatchMode \? saved : null/.test(talentDrawPageSrc),
+  /const usableSaved = savedSlotsAreValid && saved\?\.aiTalentGeneration === aiTalentGeneration/.test(talentDrawPageSrc),
   'an incompatible saved selection must not fall through into the selecting phase',
 )
 assertOk(
@@ -1147,8 +1123,18 @@ assertOk(
   'the destiny draw must dedupe both repeated IDs and canonicalized names',
 )
 assertOk(
-  /const savedSlotsMatchMode[\s\S]{0,360}savedPatterns\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,260}uniquePatternsByIdentity\(savedPatterns\)\.length === savedPatterns\.length/.test(talentDrawPageSrc),
+  /const savedSlotsAreValid[\s\S]{0,360}savedPatterns\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,260}uniquePatternsByIdentity\(savedPatterns\)\.length === savedPatterns\.length/.test(talentDrawPageSrc),
   'persisted selecting slots must not restore a repeated-ID set',
+)
+assertOk(
+  /cached\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,500}phase: 'selecting'/.test(talentDrawPageSrc)
+    && /initial\.phase !== 'selecting'/.test(talentDrawPageSrc),
+  'a current complete cache must enter selection on the first render without replaying the draw handoff',
+)
+assertOk(
+  /startBackgroundFill[\s\S]{0,1800}catch\(\(error\)[\s\S]{0,500}setErrorMsg/.test(talentDrawPageSrc)
+    && talentDrawPageSrc.includes('再次进入选择页时会继续补充缺失命格'),
+  'background destiny fill failures must remain visible and explain the next-entry refill behavior',
 )
 assertOk(
   /const patterns = await destinySystem\.generateWithAI\(context\)[\s\S]{0,500}completeFullDraw\(complete\)/.test(talentDrawPageSrc)
@@ -1238,16 +1224,16 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'7\.40\.0'/.test(narrativePromptSrc), 'narrative contract must use version 7.40.0')
+assertOk(/version:\s*'9\.15\.0'/.test(narrativePromptSrc), 'narrative contract must use version 9.15.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使用第二人称。')
-    && promptBuilderSrc.includes('本节点信息')
-    && promptBuilderSrc.includes('当前状态'),
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文涉及玩家时只用“你/你的”')
+    && promptBuilderSrc.includes('本次信息')
+    && promptBuilderSrc.includes('命运分支'),
   'fixed Prompt must own addressing while dynamic assembly owns current information',
 )
 assertOk(
@@ -1259,11 +1245,12 @@ assertOk(
 )
 assertOk(
   promptBuilderSrc.includes('context.timelineMemory ?? []')
-    && promptBuilderSrc.includes('compressed')
-    && promptBuilderSrc.includes('nodeEvents')
+    && promptBuilderSrc.includes('context.recentStories ?? []')
+    && promptBuilderSrc.includes('historicalEvents')
+    && !promptBuilderSrc.includes('currentNarrativeState')
     && timeScaleSrc.includes('历史和本轮事实供合理叙事参考')
     && !timeScaleSrc.includes('上一节点的既成结果'),
-  '01 must merge continuity facts into node events without adding a story template',
+  '01 must project existing timeline and recent stories into 历史输出 without a separate current-state field',
 )
 assertOk(
   talentGrowthPromptSrc.includes('程序筛选')
@@ -1271,21 +1258,24 @@ assertOk(
   '03 must prefer other eligible talents without inventing growth evidence',
 )
 assertOk(
-  promptBuilderSrc.includes('世界: world')
+  promptBuilderSrc.includes('{ 世界: world }')
     && promptBuilderSrc.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
     && promptBuilderSrc.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
-    && promptBuilderSrc.includes('玩家信息: character')
-    && promptBuilderSrc.includes('历史事件上下文: {')
-    && promptBuilderSrc.includes('节点事件: nodeEvents')
-    && promptBuilderSrc.includes('玩家本节点属性: attributes')
-    && promptBuilderSrc.includes('本节点信息: {')
+    && promptBuilderSrc.includes('{ 玩家信息: character }')
+    && promptBuilderSrc.includes('{ 历史输出: { 事件: historicalEvents } }')
+    && promptBuilderSrc.includes('玩家本次点属性: buildNarrativeAttributes')
+    && promptBuilderSrc.includes('本次信息: {')
     && promptBuilderSrc.includes('时间节点: `${currentAgeValue}岁·${currentTime}`')
-    && promptBuilderSrc.includes("家境: '0'")
+    && promptBuilderSrc.includes('篇幅偏好: nonEmpty(context.wordCountInstruction)')
+    && promptBuilderSrc.includes("财富: '0'")
     && !promptBuilderSrc.includes('当前到期事件')
     && promptBuilderSrc.includes('const segments = [dataLayerSegment]')
-    && !promptBuilderSrc.includes('recentDetailedStories')
+    && promptBuilderSrc.includes('recentStories')
+    && promptBuilderSrc.includes('timelineMemory')
+    && !promptBuilderSrc.includes('当前人生状态')
+    && !promptBuilderSrc.includes('推进跨度')
     && !/(空间形态|世界观本质|力量体系|成立规则|文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
-  '01 input assembly must keep the approved five-field whitelist and one-message order',
+  '01 dynamic assembly must keep the approved five-field whitelist before server composition',
 )
 assertOk(
   !readRel('src/mods/mod-character/prompts/destiny-pattern-context.ts').includes('姓名=')

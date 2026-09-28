@@ -15,10 +15,10 @@ import {
   NarrativeAIStoryContinuityDataSchema,
   NarrativeAITalentGrowthDataSchema,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import { COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 
 const root = getProjectRoot(import.meta.url)
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8')
-
 const sources = {
   campaign: read('src/mods/mod-engine/campaigns/default/index.ts'),
   parser: read('src/mods/mod-engine/subsystems/narrative-parser-system.ts'),
@@ -37,32 +37,61 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '7\.40\.0'/u)
-assert.match(sources.mainSystemPrompt, /String\.raw/u)
-assert.match(sources.mainSystemPrompt, /身份：/u)
-assert.match(sources.mainSystemPrompt, /你是一个离散化人生模拟器/u)
-assert.match(sources.mainSystemPrompt, /你的输出是一条已经结算的人生事件，而不是对生活过程的连续记录。/u)
-assert.match(sources.mainSystemPrompt, /每个时间节点都重新观察世界与玩家，从当前可能发生的变化中独立选择一件事件。/u)
-assert.match(sources.mainSystemPrompt, /离散化的目的，是让不同时间节点成为彼此独立的人生切片/u)
-assert.match(sources.mainSystemPrompt, /世界与玩家同时运行/u)
-assert.match(sources.mainSystemPrompt, /输出的是这一节点最值得记录的事实/u)
-assert.match(sources.mainSystemPrompt, /采用结果式叙述/u)
-assert.match(sources.mainSystemPrompt, /历史主要承担一致性与去重作用/u)
-assert.match(sources.mainSystemPrompt, /心智、体魄、魅力、家境表示玩家当前状态/u)
-assert.match(sources.mainSystemPrompt, /只有本次事件自然形成重大人生转折时才生成三个命运走向，否则为null/u)
-assert.match(sources.mainSystemPrompt, /使用第二人称。/u)
-assert.match(sources.mainSystemPrompt, /正文100-200字。/u)
-assert.match(sources.mainSystemPrompt, /输出格式：/u)
-assert.match(sources.mainSystemPrompt, /"命运分支": null或者\["选项一", "选项二", "选项三"\],/u)
-assert.match(sources.mainSystemPrompt, /"结局": null或者\["四字评语", "一句最终总结"\]/u)
-assert.match(sources.mainSystemPrompt, /"命运分支"/u)
-assert.match(sources.mainSystemPrompt, /"结局"/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /人生重开模拟器体例|年龄边界|每轮状态变化必须要大/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /你是一个“人生重开模拟器”系统|事件必须完整：事件→直接结果→外部回响→状态改变→收束/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /输出契约|世界故事模拟器|正文规则|终态边界|决策流程/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /最近两轮详细剧情|先读取最近两轮/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /examples\s*:/u)
-assert.doesNotMatch(sources.mainSystemPrompt, /详细示例|示例正文|例如：/u)
+assert.match(sources.mainPrompt, /version: '9\.15\.0'/u)
+// Asset-contract checks do not establish actual generation quality.
+for (const phrase of [
+  "本轮交付一份新的、完整的、已经发生并留下结果的人生记录",
+  "本轮由若干件各自落地的新事共同组成",
+  "现实事实可以连续，但本轮不能自动续写上一轮的主题",
+  "你是文字游戏式人生重开模拟器的世界演化与事件裁决系统",
+  "恢复已成立事实后，先从世界规则、相关者行动和开放人生可能性形成新的事件局面，再判断玩家在其中的合龄因果位置并裁决事件结果，最后将结果编译为人生记录",
+  "已确认的角色设定、自创成果及其来源归属是裁决依据",
+  "玩家决定行动意图，你依条件裁决世界响应与未决结果，不预设成败",
+  "其中尚未发生的成功、所得或数值变化仍由条件裁决，不能直接登记为事实",
+  "叙事只编译结果，不反向安排事件去满足预设情节",
+  "返回尚未发生的行动或发展方向选项，不预先承诺成败或所得",
+  "先从世界规则、相关者行动和开放人生可能性形成新的事件局面",
+  "新轮从仍开放的世界可能性中重新选题，再比较核心问题、主要行动者、因果机制、作用范围、玩家位置和结果意义",
+  "把代码区块5选出的每件新事推演到现实已经改变",
+  "事件结果是正文唯一的前置事实",
+  "事件结果在正文提交后由叙事历史记录保存",
+  "正文涉及玩家时只用“你/你的”",
+  "用“事实已经发生、状态已经改变、结果已经留下”的记录口吻表达跨度",
+  "玩家姓名不进入正文",
+  "不要为了短把完整人生记录缩成一件小事",
+  "代价来自投入、放弃和反作用",
+  "惊喜和荒诞来自世界特性、偶然相遇和各方行动的交汇",
+  "事件、成因、结果、影响四个字符串字段"
+]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(phrase), phrase)
+const stageHeadings = [
+  "【代码区块1：AI身份与核心职责】",
+  "【代码区块2：执行顺序与判断】",
+  "【代码区块3：只读输入数据】",
+  "【代码区块4：恢复本轮起点】",
+  "【代码区块5：先形成世界局面，再选择离散新事】",
+  "【代码区块6：形成已成立事件结果】",
+  "【代码区块7：把结果压缩为广角人生记录】",
+  "【代码区块8：依据结果结算】",
+  "【代码区块9：完成返回】"
+]
+const stages = COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.split(/(?=【代码区块\d+：)/u)
+assert.equal(stages.length, stageHeadings.length)
+for (const [index, stage] of stages.entries()) {
+  assert(stage.startsWith(stageHeadings[index]))
+  const numbers = [...stage.matchAll(/^(\d+)\. /gmu)].map(match => Number(match[1]))
+  if (index === 2) {
+    assert.match(stage, /【输入1：世界】/u)
+    assert.match(stage, /【输入5：本次条件】/u)
+  } else {
+    assert(numbers.length > 0)
+    assert.deepEqual(numbers, numbers.map((_, index) => index + 1))
+  }
+}
+assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /编号只表示处理顺序，不表示重要程度、事件数量或正文段数/u)
+assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /只返回一个合法 JSON 对象/u)
+assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /作为文字游戏式人生重开模拟器的叙事引擎|五项数据是只读事实|已确认的命运方向必须落实/u)
+assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /本轮唯一的叙事对象|形成一条完整的叙事弧线|围绕一个主要状态变化|事件抽取器|世界演变/u)
+for (const field of ["\"时间定位\"","\"事件结果\"","\"正文\"","\"命运分支\"","\"属性\"","\"结局\""]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
 assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查', '你暂时撤回'] }).success)
 assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你先观察', '你请求协助', '你调整工具', '你退出现场'] }).success)
 assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查'] }).success, false)
@@ -99,6 +128,8 @@ assert.equal([...sources.campaign.matchAll(/name: '(ai-[^']+)'/gu)].length, 3)
 
 assert.match(sources.parser, /parseNarrativeResponseEnvelope\(content, options\)/u)
 assert.match(sources.parser, /endingTitle/u)
+assert.match(sources.parser, /eventResults/u)
+assert.match(sources.orchestrator, /eventResults/u)
 assert.doesNotMatch(sources.parser, /本轮记忆|未来事件|成长判定/u)
 assert.doesNotMatch(sources.orchestrator, /runNarrativePostProcessing|launchNarrativeBackgroundAnalysis|combineNarrativeBackgroundAnalysis/u)
 
@@ -120,9 +151,9 @@ assert(NarrativeAITalentGrowthDataSchema.safeParse({
   成长依据: '既有事实明确体现了能力效果。',
   依据窗口编号: ['round:16', 'round:17'],
     下一阶方向: [
-      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 家境: 2 } },
-      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 家境: 1 } },
-      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不能增大可影响的水量。', 属性加成: { 心智: -1, 家境: 3 } },
+      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 2 } },
+      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 财富: 1 } },
+      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不能增大可影响的水量。', 属性加成: { 心智: -1, 财富: 3 } },
     ],
   },
 }).success, 'Schema 必须允许转变路线从感知判断质变为直接操控类')
@@ -171,3 +202,4 @@ for (const token of textInferenceTokens) {
 
 assert.match(sources.fatePreview, /startingAge/u)
 console.log('PASS: semantic-authority-audit')
+
