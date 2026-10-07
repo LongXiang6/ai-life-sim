@@ -1,4 +1,8 @@
 /**
+ * Purpose: Provide the shared talent preset catalog used by character prompts.
+ * Owner: mod-character
+ * Responsibility: Declare stable talent metadata and preset values; selection and effects belong to character systems.
+ *
  * @module talent-presets.ts
  * @description 天赋预设库 —— 31 条共享普通天赋，按极性分类
  * @mod mod-character

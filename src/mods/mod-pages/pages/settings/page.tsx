@@ -30,17 +30,17 @@ export default function SettingsPage() {
               initialTab="appearance"
               isPage={true}
             />
-            <BottomActionBar
-              onBack={() => router.back()}
-              backTitle="返回上一页"
-              backDescription="退出设置"
-              onConfirm={() => router.push('/welcome')}
-              confirmNumber="00"
-              confirmText="完成"
-              confirmDescription="返回欢迎界面"
-              confirmTitle="完成设置"
-            />
           </main>
+          <BottomActionBar
+            onBack={() => router.back()}
+            backTitle="返回上一页"
+            backDescription="退出设置"
+            onConfirm={() => router.push('/welcome')}
+            confirmNumber="00"
+            confirmText="完成"
+            confirmDescription="返回欢迎界面"
+            confirmTitle="完成设置"
+          />
         </div>
       </div>
     </div>

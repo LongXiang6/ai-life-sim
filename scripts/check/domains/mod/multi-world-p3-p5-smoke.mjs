@@ -105,7 +105,7 @@ function roundContext(contextId, totalDays = 12) {
     worldId: contextId,
     characterId: 'character:region-fixture',
     round: { year: 1, season: 1, month: 1 },
-    timeStep: { unit: 'event', value: 12 },
+    timeStep: { unit: 'month', value: 1 },
     difficulty: 'normal',
     subsystemStates: {},
     roundSequence: 1,

@@ -1,10 +1,10 @@
 /**
  * Purpose: Normalize UI and persisted time-step values before runtime advancement.
  * Owner: mod-engine/time
- * Responsibility: Keep only the canonical year/event clock at the runtime boundary.
+ * Responsibility: Keep only the canonical calendar clock at the runtime boundary.
  *
  * @module time-step-resolver.ts
- * @description 年度基础点时间步长解析
+ * @description 日历时间步长解析
  * @mod mod-engine
  */
 
@@ -15,8 +15,8 @@ export interface ResolvedTick {
   calendarAdvance: TimeStep
 }
 /**
- * Normalize a persisted/UI step to one of the eight public canonical values.
- * Removed or malformed values restore the default one-year step.
+ * Normalize a persisted/UI step to one of the seven public canonical values.
+ * Removed or malformed values restore the default one-month step.
  */
 export function resolveTimeStep(step: TimeStep | undefined): ResolvedTick {
   return { calendarAdvance: normalizeCanonicalTimeStep(step) }

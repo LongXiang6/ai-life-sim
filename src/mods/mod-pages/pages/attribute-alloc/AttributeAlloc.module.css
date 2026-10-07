@@ -21,7 +21,7 @@
 
 .page {
       width: 100%;
-      padding: 0 28px 112px;
+      padding: 0 28px;
       height: 100%;
       min-height: 0;
       overflow-y: auto;
@@ -428,7 +428,7 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: 0 16px 96px;
+    padding: 0 16px;
   }
 
   .titleCopy {

@@ -1,29 +1,25 @@
+#!/usr/bin/env node
+
+/**
+ * Purpose: Regress canonical SQLite persistence for execution diagnostics.
+ * Owner: quality:narrative
+ * Responsibility: One isolated development-event write and query check.
+ */
+
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-system-diagnostic-'))
-const previousNodeEnv = process.env.NODE_ENV
-process.env.NODE_ENV = 'development'
-process.env.DEVELOPMENT_SYSTEM_DIAGNOSTIC_DIR = tempRoot
+process.env.AI_LOG_DB_PATH = path.join(tempRoot, 'logs.sqlite')
 
-const diagnostic = await import('../../../../src/core/logger/development-system-diagnostic.server.ts')
+const [diagnostic, store] = await Promise.all([
+  import('../../../../src/core/logger/development-system-diagnostic.server.ts'),
+  import('../../../../src/core/logger/server-log-store.ts'),
+])
 
 try {
-  const now = new Date()
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const old = new Date(now)
-  old.setDate(old.getDate() - 2)
-  const key = (value) => [
-    value.getFullYear(),
-    String(value.getMonth() + 1).padStart(2, '0'),
-    String(value.getDate()).padStart(2, '0'),
-  ].join('-')
-  await fs.writeFile(path.join(tempRoot, `${key(old)}.jsonl`), '{"old":true}\n', 'utf8')
-  await fs.writeFile(path.join(tempRoot, `${key(yesterday)}.jsonl`), '{"yesterday":true}\n', 'utf8')
-
   const event = {
     schemaVersion: 1,
     timestamp: Date.now(),
@@ -39,26 +35,23 @@ try {
       message: '完整明文诊断内容',
     },
   }
-  await diagnostic.appendDevelopmentSystemEvents([event])
+  await diagnostic.appendDevelopmentSystemEvents([event], {
+    ip: '198.51.100.7',
+    sourceId: 'ip-198.51.100.7',
+    diagnosticCode: 'ABC234',
+    isRegistered: false,
+  })
 
-  const lines = (await fs.readFile(diagnostic.getDevelopmentSystemDiagnosticPath(now), 'utf8'))
-    .trim()
-    .split(/\r?\n/u)
-    .map((line) => JSON.parse(line))
-  assert.deepEqual(lines.at(-1), event)
-  await assert.rejects(() => fs.access(path.join(tempRoot, `${key(old)}.jsonl`)))
-  await fs.access(path.join(tempRoot, `${key(yesterday)}.jsonl`))
-
-  process.env.NODE_ENV = 'production'
-  const before = await fs.readFile(diagnostic.getDevelopmentSystemDiagnosticPath(now), 'utf8')
-  await diagnostic.appendDevelopmentSystemEvents([{ ...event, timestamp: Date.now(), event: 'production-skip' }])
-  const after = await fs.readFile(diagnostic.getDevelopmentSystemDiagnosticPath(now), 'utf8')
-  assert.equal(after, before)
-
+  const row = store.queryServerLogEntries({ entryType: 'development-event' }).entries[0]
+  assert.equal(row.module, event.system)
+  assert.equal(row.message, event.event)
+  assert.equal(row.round, event.round)
+  assert.equal(row.payload.event, event.event)
+  assert.equal(row.payload.details.message, event.details.message)
+  assert.equal(row.sourceIp, '198.51.100.7')
   console.log('[development-system-diagnostic-smoke] PASS')
 } finally {
-  if (previousNodeEnv === undefined) delete process.env.NODE_ENV
-  else process.env.NODE_ENV = previousNodeEnv
-  delete process.env.DEVELOPMENT_SYSTEM_DIAGNOSTIC_DIR
+  store.closeServerLogDatabaseForTests()
   await fs.rm(tempRoot, { recursive: true, force: true })
+  delete process.env.AI_LOG_DB_PATH
 }

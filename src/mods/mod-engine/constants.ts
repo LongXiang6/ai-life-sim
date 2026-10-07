@@ -20,7 +20,7 @@ import {
 export const CALENDAR = {
   /** 每年正常天数 */
   DAYS_PER_YEAR: CALENDAR_DAYS_PER_YEAR,
-  /** 每年基础模拟点数；事件轮次按此值分配。 */
+  /** 每年基础点投影，用于兼容现有业务子系统的数值时间接口。 */
   BASE_POINTS_PER_YEAR,
   /** 每年月数 */
   MONTHS_PER_YEAR: 12,
@@ -89,7 +89,7 @@ export const REIGN_DURATION = 40
 /** 默认引擎配置 */
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   model: 'deepseek-chat',
-  timeStep: { unit: 'year', value: 1 },
+  timeStep: { unit: 'month', value: 1 },
   temperature: 0.8,
 }
 

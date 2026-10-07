@@ -955,10 +955,8 @@
 .summaryMeta span { display: inline-block; }
 
 .bottomBar {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      left: 0;
+      position: static;
+      width: 100%;
       z-index: 4;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1007,7 +1005,7 @@
 /* Desktop folio polish: settlement reads as a review document with a stable
  * identity header and restrained result sections. */
 .page {
-  padding: 0 28px 112px;
+  padding: 0 28px;
 }
 
 .book {
@@ -1071,7 +1069,7 @@
 
 @media (max-width: 760px) {
   .page {
-    padding: 0 16px 96px;
+    padding: 0 16px;
   }
 
   .titleCopy {

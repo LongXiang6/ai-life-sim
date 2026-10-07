@@ -29,8 +29,6 @@ export {
   subsystemRelevance,
 } from './bootstrap/engine-subsystem-registry'
 
-export { shouldAlignTimeStepTransition } from './subsystems/time-system'
-
 // helpers
 export {
   DEFAULT_ENGINE_CONFIG,
@@ -43,8 +41,11 @@ export {
   buildLayeredMemoryStateCard,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
+  isPromptNoiseSummary,
+  isSubsystemDataEnabled,
   isSubsystemOpenForPrompt,
   isMvpRuntimeSubsystem,
+  resolvePromptStateLayer,
   resolveTimeStep,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,

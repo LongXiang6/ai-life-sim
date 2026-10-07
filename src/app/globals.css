@@ -137,12 +137,15 @@ body {
   max-width: 100% !important;
 }
 
-.final-flow-frame [data-flow-bottom-bar] {
-  position: absolute !important;
-  z-index: 4;
-  right: 0 !important;
-  bottom: 0 !important;
-  left: 0 !important;
+/* Only shells with a shared action bar split content from actions. */
+.flow-responsive-layout:has(> [data-flow-bottom-bar]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.flow-responsive-layout > [data-flow-bottom-bar] {
+  grid-row: 2;
   padding-bottom: max(calc(13.333 * var(--final-flow-density-px)), env(safe-area-inset-bottom, 0px));
 }
 
@@ -159,12 +162,13 @@ body {
 }
 
 .flow-responsive-layout > * {
+  min-height: 0;
   max-width: 100%;
 }
 
 /*
- * Shared bottom actions are anchored to the real mobile viewport. Each page
- * owns only its content scrolling and keeps enough bottom padding for the bar.
+ * Shared bottom actions occupy the second layout row. Page modules own only
+ * their content scrolling; the action row is never painted over that content.
  */
 @media (min-width: 48rem) {
   .final-flow-frame {

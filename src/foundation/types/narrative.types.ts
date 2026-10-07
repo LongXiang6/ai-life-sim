@@ -37,6 +37,8 @@ export interface CharacterState {
 }
 
 export interface NarrativeTalentPromptView {
+  /** 本轮请求内的不透明引用；不暴露持久化 lineageId。 */
+  引用?: string
   名称: string
   效果: string
 }
@@ -64,6 +66,8 @@ export interface PromptContext {
   calibrationSummary?: string
   causalChainHint?: string
   currentTime?: string
+  /** 主叙事本轮实际覆盖的时间窗口；由统一时间真源派生，不是独立状态。 */
+  narrativeTimeWindow?: string
   talents?: NarrativeTalentPromptView[]
 }
 

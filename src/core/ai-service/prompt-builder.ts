@@ -55,12 +55,32 @@ function buildHistoricalEvents(context: PromptContext): string[] {
   return [...timeline, ...recent]
 }
 
+function buildNarrativeWindowProjection(context: PromptContext): string {
+  const suppliedWindow = nonEmpty(context.narrativeTimeWindow)
+  const abstractWindow = suppliedWindow?.match(/(?:本轮覆盖[^。；]+。|已推进\d+天（[^）]+）。)/u)?.[0]
+  const window = abstractWindow ?? '本轮采用日历时间尺度。'
+  return `${window}时间输入只提供本轮覆盖范围、事实顺序和生成范围，不提供已经形成的状态差事实。请依据世界规则、世界状态摘要、历史事实、玩家条件和开放可能性形成新的局面、行动、结果和代价，再编译为人生记录。具体日期、季节、年龄和内部推进数值只供内部判定，不是故事素材。`
+}
+
+function buildWorldDescription(context: PromptContext, description: unknown): string {
+  const baseDescription = nonEmpty(description) ?? ''
+  const stateSummaries = (context.subsystemSummaries ?? [])
+    .map((summary) => nonEmpty(summary))
+    .filter((summary): summary is string => Boolean(summary))
+  if (stateSummaries.length === 0) return baseDescription
+  return [
+    baseDescription,
+    '当前世界状态（只读事实，不是本轮题目）：',
+    ...stateSummaries,
+  ].filter(Boolean).join('\n')
+}
+
 /** PromptContext 转为数据层示例声明的五元素数组。 */
 export function buildNarrativeUserJson(context: PromptContext): unknown {
   const rawWorld = context.worldNarrativeView
   const world = {
     名称: nonEmpty(rawWorld.名称) ?? '',
-    描述: nonEmpty(rawWorld.描述) ?? '',
+    描述: buildWorldDescription(context, rawWorld.描述),
   }
   const rawCharacter = context.characterProfileView
   const currentAge = context.characterStatusView.年龄
@@ -69,12 +89,15 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     性别: nonEmpty(rawCharacter.性别) ?? '未设定',
     种族: nonEmpty(rawCharacter.种族) ?? '未设定',
     背景: nonEmpty(rawCharacter.背景) ?? '',
-    天赋技能: (context.talents ?? []).map((talent) => `${talent.名称}：${talent.效果}`),
+    天赋技能: (context.talents ?? []).map((talent) => ({
+      ...(talent.引用 ? { 引用: talent.引用 } : {}),
+      名称: talent.名称,
+      效果: talent.效果,
+    })),
   }
   const historicalEvents = buildHistoricalEvents(context)
   const currentAgeNumeric = Number(currentAge)
   const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
-  const currentTime = nonEmpty(context.currentTime) ?? '当前时间'
   const branch = nonEmpty(context.playerBranchIntent?.命运分支) ?? ''
   return [
     { 世界: world },
@@ -87,7 +110,8 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     },
     {
       本次信息: {
-        时间节点: `${currentAgeValue}岁·${currentTime}`,
+        时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`,
+        时间窗口: buildNarrativeWindowProjection(context),
         命运分支: branch,
         篇幅偏好: nonEmpty(context.wordCountInstruction) ?? '',
       },

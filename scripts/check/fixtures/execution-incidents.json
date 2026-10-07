@@ -16,7 +16,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL context-missing event",
+          "source": "server-log-store development-event context-missing row",
           "observation": "恢复事件在上下文登记前出现，category=context-missing"
         },
         {
@@ -41,7 +41,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL schema-conflict event",
+          "source": "server-log-store development-event schema-conflict row",
           "observation": "提交事件包含冲突字段名且未进入业务写入"
         },
         {
@@ -66,7 +66,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL and ai-error-translation-smoke.mjs",
+          "source": "server-log-store development-event and ai-error-translation-smoke.mjs",
           "observation": "响应事件未出现完成标记，节点在 durationMs 超过 timeoutMs 后被标记为 timed-out"
         },
         {
@@ -96,7 +96,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL missing-status event",
+          "source": "server-log-store development-event missing-status row",
           "observation": "事件缺失 code 且节点没有进入终态记录"
         },
         {
@@ -121,7 +121,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL invalid-status event",
+          "source": "server-log-store development-event invalid-status row",
           "observation": "事件携带未登记 code 且流程进入失败终态"
         },
         {
@@ -146,7 +146,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL duplicate-status event",
+          "source": "server-log-store development-event duplicate-status row",
           "observation": "同一节点事件包含多个终结码且没有可迁移唯一终态"
         },
         {
@@ -183,7 +183,7 @@
       "rootCauseEvidence": [
         {
           "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL and ai-error-translation-smoke.mjs",
+          "source": "server-log-store development-event and ai-error-translation-smoke.mjs",
           "observation": "同一 HTTP 状态可稳定转译为统一失败类别且保留原文关联"
         },
         {

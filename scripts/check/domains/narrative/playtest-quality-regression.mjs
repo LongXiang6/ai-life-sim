@@ -269,7 +269,7 @@ assertOk(
 )
 assertOk(
   TIME_SCALE_NARRATIVE_PROFILES.every((profile, index, profiles) => index === 0 || profile.macroLevel > profiles[index - 1].macroLevel),
-  'time-scale macro levels must increase strictly from fine event nodes to decade',
+  'time-scale macro levels must increase strictly from fine calendar steps to decade',
 )
 for (const option of AVAILABLE_TIME_STEPS) {
   const profile = getTimeScaleNarrativeProfile(option)
@@ -278,17 +278,15 @@ for (const option of AVAILABLE_TIME_STEPS) {
   assertIncludes(hint, profile.prompt, `${profile.id} prompt must enter the assembled time guidance`)
 }
 
-// Removed or malformed values must resolve to the canonical one-year default.
+// Removed or malformed values must resolve to the canonical one-month default.
 const fallbackYearStep = { unit: 'year', value: 7 }
 const fallbackYearProfile = getTimeScaleNarrativeProfile(fallbackYearStep)
-assertSame(fallbackYearProfile.key, 'year:1', 'unlisted year step must restore the one-year default')
-assertIncludes(fallbackYearProfile.prompt, '覆盖一年', 'unlisted year step must restore the one-year time span')
-assertOk(!buildTimeScaleNarrativeHint(fallbackYearStep).includes('事件节点推进'), 'unlisted year hint must not retain an event clock')
-const fallbackEventStep = { unit: 'event', value: 7 }
-const fallbackEventProfile = getTimeScaleNarrativeProfile(fallbackEventStep)
-assertSame(fallbackEventProfile.key, 'year:1', 'unlisted event step must restore the one-year default')
-assertIncludes(fallbackEventProfile.prompt, '覆盖一年', 'unlisted event step must restore the one-year time span')
-assertOk(!buildTimeScaleNarrativeHint(fallbackEventStep).includes('事件节点推进'), 'unlisted event hint must not retain an event clock')
+assertSame(fallbackYearProfile.key, 'month:1', 'unlisted year step must restore the one-month default')
+assertIncludes(fallbackYearProfile.prompt, '覆盖一个自然月', 'unlisted year step must restore the one-month span')
+const fallbackInvalidStep = { unit: 'week', value: 7 }
+const fallbackInvalidProfile = getTimeScaleNarrativeProfile(fallbackInvalidStep)
+assertSame(fallbackInvalidProfile.key, 'month:1', 'invalid step must restore the one-month default')
+assertIncludes(fallbackInvalidProfile.prompt, '覆盖一个自然月', 'invalid step must restore the one-month span')
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
@@ -314,13 +312,13 @@ assertOk(!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('先选择能在该�
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
 assertIncludes(tenYearHint, '覆盖10年', 'ten-year hint must expose the decade span')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
-assertIncludes(fiftyYearHint, '覆盖1年', 'removed fifty-year step must restore the one-year span')
+assertIncludes(fiftyYearHint, '覆盖1个月', 'removed fifty-year step must restore the one-month span')
 assertOk(!fiftyYearHint.includes('事件链') && !fiftyYearHint.includes('单一人物线'), 'removed fifty-year step must not add a historical template')
 const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
-assertIncludes(millenniumHint, '覆盖1年', 'removed millennium step must restore the one-year span')
+assertIncludes(millenniumHint, '覆盖1个月', 'removed millennium step must restore the one-month span')
 
 const januaryCalendar = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'event', value: 12 },
+  timeStep: { unit: 'month', value: 1 },
   calendarYear: 2026,
   month: 1,
   day: 2,
@@ -328,19 +326,17 @@ const januaryCalendar = buildCanonicalCalendarNarrativeHint({
 assertIncludes(januaryCalendar, '1月属于冬', 'calendar hint must retain the canonical January season')
 assertIncludes(januaryCalendar, '日期和季节仅作为可用背景事实', 'calendar hint must keep calendar facts optional')
 assertOk(!januaryCalendar.includes('天气、衣着、农事'), 'calendar guidance must not prescribe scene background details')
-assertIncludes(januaryCalendar, '本轮按事件节点推进', 'event calendar guidance must use the canonical event clock')
-assertIncludes(januaryCalendar, '12个故事节点', 'event calendar guidance must expose the annual event budget')
+assertIncludes(januaryCalendar, '本轮覆盖1个月', 'month calendar guidance must expose its calendar span')
 
-const crossYearEvents = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'event', value: 4 },
+const crossMonthWindow = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'month', value: 1 },
   calendarYear: 2026,
-  month: 1,
-  day: 2,
-  eventNodeIndex: 1,
-  eventNodeCount: 4,
+  month: 2,
+  day: 1,
+  previousNode: { calendarYear: 2026, month: 1, day: 1 },
+  daysPassed: 31,
 })
-assertIncludes(crossYearEvents, '本轮按事件节点推进', 'event span must stay in the event clock')
-assertIncludes(crossYearEvents, '本自然年已消费1/4个故事节点', 'event span must expose the current annual node position')
+assertIncludes(crossMonthWindow, '已推进31天（1月）', 'month span must expose the actual calendar delta')
 
 const multiYearCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'year', value: 10 },
@@ -362,31 +358,18 @@ assertOk(!oneYearCalendar.includes('代表性场景'), 'single-year calendar gui
 assertOk(!oneYearCalendar.includes('多年推进必须'), 'single-year calendar guidance must not request a multi-year composition')
 
 const coarseToFineWindow = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'event', value: 12 },
+  timeStep: { unit: 'month', value: 1 },
   calendarYear: 2026,
   month: 2,
   day: 1,
   previousNode: { calendarYear: 2026, month: 1, day: 1 },
-  basePointsPassed: 85,
+  daysPassed: 31,
 })
 assertIncludes(coarseToFineWindow, '上一叙事节点为2026年1月1日', 'runtime calendar hint must name the previous narrative node')
 assertIncludes(coarseToFineWindow, '当前结束节点为2026年2月1日', 'runtime calendar hint must name the current end node')
-assertIncludes(coarseToFineWindow, '已推进85个年度基础点（12事件节点/年）', 'runtime calendar hint must use actual elapsed base points')
+assertIncludes(coarseToFineWindow, '已推进31天（1月）', 'runtime calendar hint must use actual elapsed calendar days')
 assertIncludes(coarseToFineWindow, '本轮实际时间窗口', 'runtime calendar hint must only preserve the actual time boundary')
-assertOk(!coarseToFineWindow.includes('本轮覆盖2026年2月'), 'runtime event span must not mislabel the ended node as a year-only window')
-
-const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
-  timeStep: { unit: 'event', value: 2 },
-  calendarYear: 1003,
-  month: 1,
-  day: 1,
-  previousNode: { calendarYear: 1002, month: 1, day: 1 },
-  basePointsPassed: 1000,
-  timeStepAlignment: { fromUnit: 'year', fromValue: 1 },
-})
-assertIncludes(alignedBridgeWindow, '边界对齐', 'coarse-to-fine bridge must preserve the time boundary')
-assertIncludes(alignedBridgeWindow, '前一窗口已经完成', 'bridge prompt must preserve the completed coarse window')
-assertOk(!alignedBridgeWindow.includes('正文写法由合理叙事决定'), 'bridge prompt must not add a writing-style rule')
+assertOk(!coarseToFineWindow.includes('事件节点'), 'runtime calendar span must not retain event-node language')
 
 const validPromotionOutput = {
   name: '照夜升阶',
@@ -824,23 +807,27 @@ assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 20, 'destiny display count must expose
 assertSame(DESTINY_PATTERN_CATEGORY_TARGET_COUNT, 12, 'destiny background target must be twelve per category')
 assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'action,cognition,expression,stewardship,misc', 'destiny category order must remain stable')
 assertOk(
-  DESTINY_PATTERN_CATEGORY_CONFIG.action.guidance.includes('行动载体')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.action.guidance.includes('战斗或野外行动')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.cognition.guidance.includes('知识应用')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.cognition.guidance.includes('信息处理')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.expression.guidance.includes('符号')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.expression.guidance.includes('关系影响')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.stewardship.guidance.includes('物流')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.stewardship.guidance.includes('配置与运转')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.misc.guidance.includes('只有行动、认知、表达、经营')
-    && DESTINY_PATTERN_CATEGORY_CONFIG.misc.guidance.includes('不得因世界、身份或种族特殊而自动归入'),
-  'destiny category guidance must describe primary mechanisms across worlds, identities, and races',
+  DESTINY_PATTERN_CATEGORY_CONFIG.action.label === '根基'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.cognition.label === '专精'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.expression.label === '特质'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.stewardship.label === '规则'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.misc.label === '机缘'
+    && Object.values(DESTINY_PATTERN_CATEGORY_CONFIG).every((entry) => (
+      entry.guidance.includes('不限制天赋类型')
+      || entry.guidance.includes('题材、载体和作用对象不限')
+      || entry.guidance.includes('不限定为表达或性格')
+      || entry.guidance.includes('不要求属于经营或生产')
+      || entry.guidance.includes('任意类型')
+    )),
+  'destiny category guidance must stay macro and must not restrict ability types',
 )
 for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
   const prompt = buildDestinyPatternSystemPrompt(category)
   assertOk(
     prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].label)
-      && prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].guidance),
+      && prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].guidance)
+      && prompt.includes('能力类型决定能做什么，稀有度决定做到什么程度')
+      && prompt.includes('不得把特殊机制降格为普通观察力、熟练技巧或仅有属性加成'),
     `${category} destiny prompt must carry its own primary-mechanism guidance`,
   )
 }
@@ -857,16 +844,18 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(
-  destinyPromptSrc.includes('开局即可表现的能力倾向、感知方式、操作偏好、异常现象或限制')
+    destinyPromptSrc.includes('类似游戏、小说中觉醒天赋的开局能力')
+    && destinyPromptSrc.includes('主动使用或可观察的生效机制')
+    && destinyPromptSrc.includes('不把孤立的身体素质、性格标签、训练履历或身份设定当作完整天赋')
     && destinyPromptSrc.includes('能力来源、形成过程、过去经历和既定身份必须留白'),
-  'destiny prompt must require present traits while leaving biography open',
+  'destiny prompt must require skill-like present abilities while leaving biography open',
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'8\.9\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'9\.1\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 8.9.0',
+  'destiny prompt builder and cache version must share version 9.1.0',
 )
 assertOk(
   destinyPromptSrc.includes('每条命格必须先提供明确、可实际生效的正向收益')
@@ -875,7 +864,7 @@ assertOk(
   'destiny prompt must require a real benefit and explicit compensation for every negative effect',
 )
 assertOk(
-  destinyPromptSrc.includes('首句直接落到能力机制、触发条件、动作、可观察现象或世界反馈')
+  destinyPromptSrc.includes('首句直接落到技能机制、触发条件、动作、可观察现象或世界反馈')
     && destinyPromptSrc.includes('此人')
     && destinyPromptSrc.includes('该角色')
     && destinyPromptSrc.includes('这位人物')
@@ -902,13 +891,15 @@ assertOk(
   destinyPromptSrc.includes('二至六个汉字')
     && destinyPromptSrc.includes('保留古典用词质感')
     && destinyPromptSrc.includes('比喻最多一处')
-    && destinyPromptSrc.includes('分类按能力的主要作用机制判断')
-    && destinyPromptSrc.includes('世界题材决定机制的表现形式与凡俗尺度')
-    && destinyPromptSrc.includes('角色种族、身份与背景只限定其实际拥有的行动、感知、表达与资源通道')
-    && destinyPromptSrc.includes('普通级只提供比常人更精、更稳或更持久的局部、有限、非决定性优势')
-    && destinyPromptSrc.includes('以输入世界中普通个体与常规水平的凡俗尺度为基准')
-    && destinyPromptSrc.includes('杂类只有在前四类主作用机制都无法承载时才可使用'),
-  'destiny prompt must keep direct classical wording and ordinary-tier boundaries',
+    && destinyPromptSrc.includes('分类只是候选浏览和生成分配的宏观标签')
+    && destinyPromptSrc.includes('世界规则决定机制是否成立')
+    && destinyPromptSrc.includes('种族与背景不得扩写为出生、成长、职业、师承、关系或过去事件')
+    && destinyPromptSrc.includes('能力类型决定能做什么，稀有度决定做到什么程度')
+    && destinyPromptSrc.includes('普通级是输入世界允许能力的低阶形态，保留真实作用机制')
+    && destinyPromptSrc.includes('不得把特殊机制降格为普通观察力、熟练技巧或仅有属性加成')
+    && !destinyPromptSrc.includes('凡俗尺度')
+    && destinyPromptSrc.includes('不能因为分类而把普通候选集中到单一领域'),
+  'destiny prompt must preserve real ability mechanisms while rarity controls strength, not type',
 )
 assertOk(
   destinyPromptSrc.includes('幻想、虚幻、神秘、象征')
@@ -922,15 +913,28 @@ const makeDestinyPattern = (index, category) => ({
   效果: `持续提供清楚可用的影响${index}`,
   属性加成: { 心智: 1 },
 })
+const diverseDestinyCandidates = parseDestinyPatternAIResponse(JSON.stringify({ 天赋: [
+  ['画地为牢', '画出的边界产生真实阻隔。'],
+  ['体能强化', '主动增强身体力量。'],
+  ['机械亲和', '触碰机械时感应其运转状态。'],
+  ['元素掌控', '直接引导近处元素。'],
+  ['矢量操纵', '改变接触物体的运动方向。'],
+  ['无限进化', '经历促成身体或能力的适应性变化。'],
+].map(([名称, 效果]) => ({ 类别: '规则', 名称, 设定描述: 效果, 效果, 属性加成: {} })) }), 'stewardship')
+assertOk(
+  diverseDestinyCandidates.length === 6
+    && diverseDestinyCandidates.every((candidate) => candidate.category === 'stewardship' && candidate.effect),
+  'destiny parser must accept varied real ability mechanisms without a type whitelist',
+)
 assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '行动')] }).success, 'destiny transport schema must stay permissive')
 const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '认知', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，财富+1，魅力-1' },
-  { 类别: '认知', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
+  { 类别: '专精', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，财富+1，魅力-1' },
+  { 类别: '专精', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
 ] }), 'cognition')
 assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
 const partialResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '行动', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
-  { 类别: '行动', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
+  { 类别: '根基', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
+  { 类别: '根基', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
 ] }), 'action')
 assertOk(partialResponse.length === 1 && partialResponse[0].name === '铁壁磐石', 'destiny parser must keep valid siblings when one item is unusable')
 const numberedResponse = parseDestinyPatternAIResponse(JSON.stringify({
@@ -980,15 +984,21 @@ assertOk(
   'destiny generation must not retain retired system modifiers',
 )
 assertOk(
-  destinyPromptSrc.includes('作用方式和现实边界')
+  destinyPromptSrc.includes('技能作用方式和边界')
     && destinyPromptSrc.includes('只有确实存在时才补充条件、代价或限制')
-    && destinyPromptSrc.includes('每条必须明确适用范围与可观察上限')
-    && destinyPromptSrc.includes('不能保证成功、无限持续、无条件生效、跨领域通用'),
+    && destinyPromptSrc.includes('每条说明实际效果与边界')
+    && destinyPromptSrc.includes('效果局部、有限且可观察')
+    && destinyPromptSrc.includes('普通候选不直接提供无条件的全局结果、绝对控制、必然命运、无限持续'),
   'conceptual rules and ordinary-tier semantics must match the current prompt contract',
 )
-assertOk(/叙事与模拟长期遵守的作用方式/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
+assertOk(/叙事与模拟长期遵守的技能作用方式/.test(destinyPromptSrc), 'destiny effect must remain a narrative skill rule instead of only numeric modifiers')
 assertOk(
-  /version:\s*9/.test(characterStoreSrc)
+  ['稳息行军', '察隙', '承诺印记', '流程归位', '拼接灵感'].every((name) => constantsSrc.includes(`name: '${name}'`))
+    && !['负重耐行', '观微知著', '守诺如山', '洁身有序', '零碎灵感'].some((name) => constantsSrc.includes(`name: '${name}'`)),
+  'explicit preset candidates must use skill-like entries while keeping the existing preset path',
+)
+assertOk(
+  /version:\s*10/.test(characterStoreSrc)
     && ['characterBase', 'destinyPatterns', 'lifespanDraft'].every((field) => characterStoreSrc.includes(field))
     && !['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].some((field) => characterStoreSrc.includes(field)),
   'character persistence must retain identity and unified status while excluding retired runtime projections',
@@ -1202,8 +1212,13 @@ assertOk(
     && !promptBuilderSrc.includes('context.eventInjectionText'),
   'time guidance must stay factual and the data layer must not carry injected events',
 )
-assertOk(timeScaleSrc.includes('事件节点推进'), 'event step must retain event timing')
-assertOk(timeScaleSrc.includes('覆盖一年'), 'year step must retain annual timing')
+assertOk(
+  timeScaleSrc.includes("day: '日'")
+    && timeScaleSrc.includes("month: '月'")
+    && timeScaleSrc.includes("season: '季'")
+    && timeScaleSrc.includes("year: '年'"),
+  'calendar step labels must retain day/month/season/year timing',
+)
 assertOk(/case 'year'[\s\S]{0,120}return eraLabel/.test(narrativeCalendarSrc), 'year label must contain only the year/era')
 assertOk(
   /seasonName/.test(narrativeCalendarSrc)
@@ -1211,12 +1226,10 @@ assertOk(
     && /getSeasonForMonth/.test(timeScaleSrc),
   'season label must derive the season from the solar month',
 )
-assertOk(/case 'event'[\s\S]{0,260}故事节点/.test(narrativeCalendarSrc), 'event label must include the annual story-node position')
+assertOk(/case 'month'[\s\S]{0,180}round\.month/.test(narrativeCalendarSrc), 'month label must include the calendar month')
 assertOk(orchestratorSrc.includes('currentTime: narrativeTime.timeLabel'), 'AI currentTime must use the authoritative formatted time label')
 
-// 年度事件节点不再通过旧日/月/季边界对齐；年度预算由基础点时钟统一分配。
-assertOk(timeScaleSrc.includes('本自然年配置'), 'event clock must describe the annual event budget')
-assertOk(!timeScaleSrc.includes('节点数量只用于确定叙事节奏和年界'), 'event count must not become a prose quota')
+assertOk(!timeScaleSrc.includes('事件节点'), 'time-scale guidance must not retain the event-node clock')
 assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
 assertOk(
   narrativeSignalsSrc.includes('命运分支的重要程度必须为高')
@@ -1224,14 +1237,17 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'9\.15\.0'/.test(narrativePromptSrc), 'narrative contract must use version 9.15.0')
+assertOk(/version:\s*'9\.26\.0'/.test(narrativePromptSrc), 'narrative contract must use version 9.26.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文涉及玩家时只用“你/你的”')
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文使用第二人称“你/你的”')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文选择最能证明玩家经历、位置或关系改变且最有故事张力的结果作为重心')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('不预设尚未发生的成功')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('细节必须服务玩家的行动、位置、关系、结果或代价')
     && promptBuilderSrc.includes('本次信息')
     && promptBuilderSrc.includes('命运分支'),
   'fixed Prompt must own addressing while dynamic assembly owns current information',
@@ -1260,12 +1276,14 @@ assertOk(
 assertOk(
   promptBuilderSrc.includes('{ 世界: world }')
     && promptBuilderSrc.includes("名称: nonEmpty(rawWorld.名称) ?? ''")
-    && promptBuilderSrc.includes("描述: nonEmpty(rawWorld.描述) ?? ''")
+    && promptBuilderSrc.includes('描述: buildWorldDescription(context, rawWorld.描述)')
+    && promptBuilderSrc.includes('subsystemSummaries')
     && promptBuilderSrc.includes('{ 玩家信息: character }')
     && promptBuilderSrc.includes('{ 历史输出: { 事件: historicalEvents } }')
     && promptBuilderSrc.includes('玩家本次点属性: buildNarrativeAttributes')
     && promptBuilderSrc.includes('本次信息: {')
-    && promptBuilderSrc.includes('时间节点: `${currentAgeValue}岁·${currentTime}`')
+     && promptBuilderSrc.includes('时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`')
+    && promptBuilderSrc.includes('时间窗口: buildNarrativeWindowProjection(context)')
     && promptBuilderSrc.includes('篇幅偏好: nonEmpty(context.wordCountInstruction)')
     && promptBuilderSrc.includes("财富: '0'")
     && !promptBuilderSrc.includes('当前到期事件')
@@ -1273,7 +1291,6 @@ assertOk(
     && promptBuilderSrc.includes('recentStories')
     && promptBuilderSrc.includes('timelineMemory')
     && !promptBuilderSrc.includes('当前人生状态')
-    && !promptBuilderSrc.includes('推进跨度')
     && !/(空间形态|世界观本质|力量体系|成立规则|文明阶段|当前区域|当前可叙述状态)/u.test(promptBuilderSrc),
   '01 dynamic assembly must keep the approved five-field whitelist before server composition',
 )

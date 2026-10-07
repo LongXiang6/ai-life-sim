@@ -122,17 +122,17 @@ export default function MailboxPage() {
                 ) : null}
               </section>
             </div>
-            <BottomActionBar
-              onBack={() => router.back()}
-              backTitle="返回上一页"
-              backDescription="退回上一界面"
-              onConfirm={() => router.push('/welcome')}
-              confirmNumber="00"
-              confirmText="返回欢迎界面"
-              confirmDescription="回到欢迎界面"
-              confirmTitle="返回欢迎界面"
-            />
           </main>
+          <BottomActionBar
+            onBack={() => router.back()}
+            backTitle="返回上一页"
+            backDescription="退回上一界面"
+            onConfirm={() => router.push('/welcome')}
+            confirmNumber="00"
+            confirmText="返回欢迎界面"
+            confirmDescription="回到欢迎界面"
+            confirmTitle="返回欢迎界面"
+          />
         </div>
       </div>
     </div>

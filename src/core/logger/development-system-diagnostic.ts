@@ -1,9 +1,14 @@
 /**
+ * Purpose: Aggregate browser-side development-system events before round finalization.
+ * Owner: core:logger
+ * Responsibility: Define the event contract and in-memory queue; durable persistence belongs to server-log-store.
+ *
  * @module development-system-diagnostic.ts
  * @description 本地开发系统边界诊断契约与浏览器回合内聚合器。
  *
  * 这里只记录系统阶段结果，不记录点击、按键、导航、输入或完整 Prompt/响应。
- * 完整 AI 原文仍由代理和逐轮 TXT 归档负责；本模块只把关键系统是否工作串起来。
+ * 完整 AI 原文与系统事件都进入统一的 SQLite server-log-store；
+ * 本模块只负责浏览器端事件聚合，不拥有持久化。
  */
 
 import type {
@@ -96,7 +101,7 @@ function errorSnapshot(error: unknown): DevelopmentSystemError | undefined {
 
 /**
  * 在浏览器端把系统事件暂存到当前进程；不会单独发起日志请求。
- * 回合结束时由 narrative-round-diagnostic 一次性随 outcome 发送。
+ * 回合结束时由 narrative-round-diagnostic 一次性随 outcome 发送到统一日志入口。
  */
 export function recordDevelopmentSystemEvent(input: {
   system: string

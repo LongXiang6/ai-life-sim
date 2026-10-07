@@ -1,13 +1,10 @@
 /**
- * Purpose: Read development diagnostic JSONL and aggregate execution hierarchy metrics.
+ * Purpose: Read development execution events from the canonical SQLite log store.
  * Owner: operations
- * Responsibility: Execution-diagnostic projection only; diagnostic writers and business state remain elsewhere.
+ * Responsibility: Execution-diagnostic projection only; writers and business state remain elsewhere.
  */
 
-import fs from 'node:fs'
-import path from 'node:path'
-
-import { DEFAULT_PAGE_SIZE, listFiles, MAX_PAGE_SIZE, positiveInteger } from './shared.mjs'
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, parsePlaintextJson, positiveInteger, tableExists, withReadonlyLogs } from './shared.mjs'
 
 const EXECUTION_PHASE_ORDER = ['prepare', 'ready', 'execute', 'transition', 'finalize']
 
@@ -104,80 +101,95 @@ function aggregateExecutionDiagnostics(entries) {
   }
 }
 
+function mapDevelopmentEvent(row) {
+  const payload = parsePlaintextJson(row.payload_json)
+  const meta = parsePlaintextJson(row.meta_json)
+  return {
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    timestamp: Number(row.created_at),
+    system: row.module,
+    event: row.event ?? row.message,
+    status: meta?.status ?? row.level,
+    durationMs: meta?.durationMs ?? payload?.durationMs,
+    sourceId: row.source_id,
+    sourceIp: row.source_ip,
+    sourceFile: 'logs.sqlite',
+    sourceLine: row.id,
+  }
+}
+
 export function queryDevelopmentSystemDiagnostics(options, input = {}) {
   const page = positiveInteger(input.page, 1)
   const pageSize = positiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
   const query = String(input.query ?? '').trim().toLowerCase()
   const system = String(input.system ?? '').trim().toLowerCase()
   const status = String(input.status ?? '').trim().toLowerCase()
-  const entries = []
-  const files = listFiles(
-    options.diagnosticRoot,
-    (entry) => entry.isFile() && /^\d{4}-\d{2}-\d{2}\.jsonl$/u.test(entry.name),
-  ).reverse()
-
-  for (const fileName of files) {
-    const filePath = path.join(options.diagnosticRoot, fileName)
-    const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/u)
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index]
-      if (!line) continue
-      try {
-        const event = JSON.parse(line)
-        entries.push({ ...event, sourceFile: fileName, sourceLine: index + 1 })
-      } catch (error) {
-        entries.push({
-          schemaVersion: 1,
-          timestamp: 0,
-          system: 'diagnostic-reader',
-          event: 'invalid-jsonl-line',
-          status: 'error',
-          sourceFile: fileName,
-          sourceLine: index + 1,
-          details: { rawLine: line },
-          error: { message: error instanceof Error ? error.message : String(error) },
-        })
-      }
-    }
-  }
-
-  const filtered = entries.filter((entry) => {
-    if (system && String(entry.system ?? '').toLowerCase() !== system) return false
-    if (status && String(entry.status ?? '').toLowerCase() !== status) return false
-    if (!query) return true
-    return JSON.stringify(entry).toLowerCase().includes(query)
-  }).sort((left, right) => (
-    Number(right.timestamp ?? 0) - Number(left.timestamp ?? 0)
-      || String(right.sourceFile).localeCompare(String(left.sourceFile))
-      || Number(right.sourceLine ?? 0) - Number(left.sourceLine ?? 0)
-  ))
-  const bySystem = {}
-  const byStatus = {}
-  const byIncidentCategory = {}
-  for (const entry of filtered) {
-    const systemName = String(entry.system ?? 'unknown')
-    const statusName = String(entry.status ?? 'unknown')
-    bySystem[systemName] = (bySystem[systemName] ?? 0) + 1
-    byStatus[statusName] = (byStatus[statusName] ?? 0) + 1
-    if (entry.category) {
-      const category = String(entry.category)
-      byIncidentCategory[category] = (byIncidentCategory[category] ?? 0) + 1
-    }
-  }
-  const offset = (page - 1) * pageSize
-  return {
-    available: fs.existsSync(options.diagnosticRoot),
-    root: options.diagnosticRoot,
-    total: filtered.length,
+  return withReadonlyLogs(options.logDatabase, {
+    available: false,
+    root: options.logDatabase,
+    total: 0,
     page,
     pageSize,
-    bySystem,
-    byStatus,
-    incidents: {
-      total: Object.values(byIncidentCategory).reduce((sum, count) => sum + count, 0),
-      byCategory: byIncidentCategory,
-    },
-    execution: aggregateExecutionDiagnostics(filtered),
-    entries: filtered.slice(offset, offset + pageSize),
-  }
+    bySystem: {},
+    byStatus: {},
+    incidents: { total: 0, byCategory: {} },
+    execution: aggregateExecutionDiagnostics([]),
+    entries: [],
+  }, (database) => {
+    if (!tableExists(database, 'log_entries')) {
+      return {
+        available: false,
+        root: options.logDatabase,
+        total: 0,
+        page,
+        pageSize,
+        bySystem: {},
+        byStatus: {},
+        incidents: { total: 0, byCategory: {} },
+        execution: aggregateExecutionDiagnostics([]),
+        entries: [],
+      }
+    }
+
+    const entries = database.prepare(`
+      SELECT * FROM log_entries
+      WHERE entry_type = 'development-event'
+      ORDER BY created_at DESC, rowid DESC, id ASC
+    `).all().map(mapDevelopmentEvent)
+    const filtered = entries.filter((entry) => {
+      if (system && String(entry.system ?? '').toLowerCase() !== system) return false
+      if (status && String(entry.status ?? '').toLowerCase() !== status) return false
+      if (!query) return true
+      return JSON.stringify(entry).toLowerCase().includes(query)
+    })
+    const bySystem = {}
+    const byStatus = {}
+    const byIncidentCategory = {}
+    for (const entry of filtered) {
+      const systemName = String(entry.system ?? 'unknown')
+      const statusName = String(entry.status ?? 'unknown')
+      bySystem[systemName] = (bySystem[systemName] ?? 0) + 1
+      byStatus[statusName] = (byStatus[statusName] ?? 0) + 1
+      if (entry.category) {
+        const category = String(entry.category)
+        byIncidentCategory[category] = (byIncidentCategory[category] ?? 0) + 1
+      }
+    }
+    const offset = (page - 1) * pageSize
+    return {
+      available: true,
+      root: options.logDatabase,
+      total: filtered.length,
+      page,
+      pageSize,
+      bySystem,
+      byStatus,
+      incidents: {
+        total: Object.values(byIncidentCategory).reduce((sum, count) => sum + count, 0),
+        byCategory: byIncidentCategory,
+      },
+      execution: aggregateExecutionDiagnostics(filtered),
+      entries: filtered.slice(offset, offset + pageSize),
+    }
+  })
 }

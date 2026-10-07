@@ -17,15 +17,12 @@ import {
   createDataViewerServer,
   inspectDatabaseSchema,
   listMemoryDatabases,
-  listRoundArchives,
   parseDataViewerArgs,
   queryAiCalls,
   queryDevelopmentSystemDiagnostics,
   queryMemoryRows,
-  queryNarrativeRoundChains,
   queryReadonlyDatabase,
   queryUserLinks,
-  readRoundArchive,
 } from '../../../ops/data-viewer.mjs'
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-data-viewer-'))
@@ -33,37 +30,11 @@ const logDatabase = path.join(root, 'logs.sqlite')
 const accountDatabase = path.join(root, 'accounts.sqlite')
 const playerContentDatabase = path.join(root, 'player-content.sqlite')
 const memoryRoot = path.join(root, 'narrative-memory')
-const roundRoot = path.join(root, 'narrative-rounds')
-const diagnosticRoot = path.join(root, 'development-diagnostics')
 const lifeRunId = 'life-viewer-smoke'
 const prompt = '第一行完整 Prompt\r\n第二行：字段={"值":1}\n末尾空格  '
 const responseText = '第一行完整返回\n第二行保持原样\r\n<DATA>完整数据</DATA>'
-const roundText = [
-  'AI LIFE SIM CORE NARRATIVE UPSTREAM ARCHIVE\n',
-  'format_version: 1\n',
-  `life_run_id: ${lifeRunId}\n`,
-  'round: 9\n',
-  '\n===== EXCHANGE BEGIN =====\n',
-  'request_id: request-viewer-1\n',
-  'call_kind: narrative-main\n',
-  'execution_kind: real\n',
-  'provider: deepseek\n',
-  'model: deepseek-v4-pro\n',
-  'attempt: 1\n',
-  'status: 200\n',
-  `request_utf8_bytes: ${Buffer.byteLength(prompt, 'utf8')}\n`,
-  `response_utf8_bytes: ${Buffer.byteLength(responseText, 'utf8')}\n`,
-  '----- REQUEST BEGIN -----\n',
-  prompt,
-  '\n----- REQUEST END -----\n----- RESPONSE BEGIN -----\n',
-  responseText,
-  '\n----- RESPONSE END -----\n===== EXCHANGE END =====\n',
-].join('')
 
-await fs.mkdir(path.join(roundRoot, lifeRunId), { recursive: true })
 await fs.mkdir(memoryRoot, { recursive: true })
-await fs.mkdir(diagnosticRoot, { recursive: true })
-await fs.writeFile(path.join(roundRoot, lifeRunId, 'round-000009.txt'), roundText, 'utf8')
 const diagnosticTimestamp = Date.now()
 const executionEvent = (input) => ({
   schemaVersion: 1,
@@ -125,11 +96,6 @@ const diagnosticEvents = [
     message: '已定位实体未在实体引用目录中登记当前上下文',
   }),
 ]
-await fs.writeFile(
-  path.join(diagnosticRoot, '2026-07-26.jsonl'),
-  `${diagnosticEvents.map((event) => JSON.stringify(event)).join('\n')}\n`,
-  'utf8',
-)
 
 const logs = new Database(logDatabase)
 logs.exec(`
@@ -201,6 +167,36 @@ logs.prepare(`
   JSON.stringify({ lifeRunId, callKind: 'narrative-main' }),
   JSON.stringify({ trace: { lifeRunId, round: 9, callKind: 'narrative-main' } }),
 )
+const insertDevelopmentEvent = logs.prepare(`
+  INSERT INTO log_entries(
+    id, created_at, entry_type, category, level, module, message, event, request_id,
+    source_ip, source_id, diagnostic_code, device_provenance_id, is_registered,
+    account_id, username, round, error, meta_json, payload_json
+  ) VALUES(?, ?, 'development-event', ?, ?, ?, ?, ?, NULL,
+    '198.51.100.14', 'ip-198.51.100.14', 'DEV-DEV-EVENT', NULL, 1,
+    'account-viewer', '查看器测试用户', ?, ?, ?, ?)
+`)
+for (const [index, event] of diagnosticEvents.entries()) {
+  insertDevelopmentEvent.run(
+    `development-event-${index + 1}`,
+    event.timestamp,
+    event.category || 'development',
+    event.status === 'error' ? 'error' : event.status === 'warning' ? 'warn' : 'info',
+    event.system,
+    event.event,
+    event.event,
+    event.round ?? null,
+    event.error?.message ?? null,
+    JSON.stringify({
+      status: event.status,
+      ...(event.category ? { category: event.category } : {}),
+      ...(event.lifeRunId ? { lifeRunId: event.lifeRunId } : {}),
+      ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
+      ...(event.details ?? {}),
+    }),
+    JSON.stringify(event),
+  )
+}
 const logArchiveDatabase = path.join(root, 'logs-archive.sqlite')
 logs.prepare('ATTACH DATABASE ? AS archive_logs').run(logArchiveDatabase)
 logs.exec(`
@@ -253,7 +249,7 @@ memory.prepare('INSERT INTO memory_events VALUES (?, ?, 1, ?, ?, ?, ?, ?, 8, 7, 
   .run('event-1', 'L1:1-4', '2026-01 到 2026-04', '完整记忆事件', '2026-04', '[]', '[1,2,3,4]', Date.now())
 memory.close()
 
-const options = { logDatabase, accountDatabase, playerContentDatabase, memoryRoot, roundRoot, diagnosticRoot }
+const options = { logDatabase, accountDatabase, playerContentDatabase, memoryRoot }
 let server
 try {
   assert.throws(() => parseDataViewerArgs(['--host', '0.0.0.0']), /只允许监听本机回环地址/u)
@@ -271,8 +267,6 @@ try {
   assert.equal(linkedUser?.accountId, 'account-viewer')
   assert.equal(linkedUser?.deviceProvenanceId, 'DEV-0123456789ABCDEF0123456789ABCDEF')
 
-  assert.equal(listRoundArchives(options).saves[0].rounds[0].round, 9)
-  assert.equal(readRoundArchive(options, lifeRunId, 9).content, roundText)
   assert.equal(listMemoryDatabases(options).saves[0].lifeRunId, lifeRunId)
   assert.equal(queryMemoryRows(options, { lifeRunId, view: 'summaries', page: 1, pageSize: 50 }).entries[0].raw_ai_response, '原始压缩 AI 返回')
   assert.equal(queryMemoryRows(options, { lifeRunId, view: 'events', page: 1, pageSize: 50 }).entries[0].event_text, '完整记忆事件')
@@ -295,7 +289,10 @@ try {
   const archivedLogs = new Database(logArchiveDatabase, { readonly: true, fileMustExist: true })
   try {
     assert.equal(hotLogs.prepare('SELECT COUNT(*) AS count FROM log_entries').get().count, 0)
-    assert.equal(archivedLogs.prepare('SELECT COUNT(*) AS count FROM log_entries').get().count, 3)
+    assert.equal(
+      archivedLogs.prepare('SELECT COUNT(*) AS count FROM log_entries').get().count,
+      3 + diagnosticEvents.length,
+    )
   } finally {
     archivedLogs.close()
     hotLogs.close()
@@ -306,19 +303,7 @@ try {
   assert.equal(overview.logs.today.cacheHitRate, 83.33)
   assert.equal(overview.logs.today.registeredCalls, 1)
   assert.equal(overview.logs.today.byPool['narrative-main'].hitTokens, 100)
-  assert.equal(overview.diagnosticFiles, 1)
-
-  const chains = queryNarrativeRoundChains(options, {
-    lifeRunId,
-    page: 1,
-    pageSize: 50,
-  })
-  assert.equal(chains.total, 1)
-  assert.equal(chains.entries[0].round, 9)
-  assert.equal(chains.entries[0].exchanges[0].request, prompt)
-  assert.equal(chains.entries[0].exchanges[0].response, responseText)
-  assert.equal(chains.entries[0].archiveAvailable, true)
-  assert.equal(chains.entries[0].memory.available, true)
+  assert.equal(overview.developmentEvents, diagnosticEvents.length)
 
   const readonly = queryReadonlyDatabase(options, {
     source: 'logs',
@@ -359,10 +344,6 @@ try {
   const apiCall = await fetch(`${baseUrl}/api/ai-calls?q=request-viewer-1`).then((response) => response.json())
   assert.equal(apiCall.entries[0].prompt, prompt)
   assert.equal(apiCall.entries[0].response, responseText)
-  const round = await fetch(`${baseUrl}/api/round?lifeRunId=${lifeRunId}&round=9`).then((response) => response.json())
-  assert.equal(round.content, roundText)
-  const chain = await fetch(`${baseUrl}/api/narrative-rounds?lifeRunId=${lifeRunId}`).then((response) => response.json())
-  assert.equal(chain.entries[0].exchanges[0].request, prompt)
   const diagnosticApi = await fetch(`${baseUrl}/api/system-diagnostics?system=summary-compressor&status=error`).then((response) => response.json())
   assert.equal(diagnosticApi.entries[0].event, 'compression-failed')
   const executionApi = await fetch(`${baseUrl}/api/system-diagnostics?q=narrative-round`).then((response) => response.json())

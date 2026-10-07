@@ -23,6 +23,8 @@ export {
   captureDestinyPatternGrowthTransaction,
   commitPreparedDestinyPatternGrowthChoice,
   prepareDestinyPatternGrowthChoice,
+  recordDestinyPatternGrowthAssessments,
+  recordDestinyPatternGrowthEvidence,
   registerDestinyPatternGrowthChoice,
   restoreDestinyPatternGrowthTransaction,
   resolveDestinyPatternGrowthChoice,
@@ -33,4 +35,9 @@ export type {
   PreparedDestinyPatternGrowthChoice,
   ResolveDestinyPatternGrowthChoiceResult,
 } from './destiny-pattern-growth-command'
-export type { DestinyPattern, DestinyPatternGrowthDirection } from './types'
+export type {
+  DestinyPattern,
+  DestinyPatternGrowthAssessment,
+  DestinyPatternGrowthEvidence,
+  DestinyPatternGrowthDirection,
+} from './types'

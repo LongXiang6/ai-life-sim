@@ -22,8 +22,6 @@ function defaultPaths() {
     accountDatabase: process.env.ACCOUNT_DB_PATH || path.join(dataRoot, 'accounts.sqlite'),
     playerContentDatabase: process.env.PLAYER_CONTENT_DB_PATH || path.join(dataRoot, 'player-content.sqlite'),
     memoryRoot: process.env.NARRATIVE_MEMORY_DIR || path.join(dataRoot, 'narrative-memory'),
-    roundRoot: process.env.NARRATIVE_ROUND_LOG_DIR || path.join(dataRoot, 'narrative-rounds'),
-    diagnosticRoot: process.env.DEVELOPMENT_SYSTEM_DIAGNOSTIC_DIR || path.join(dataRoot, 'development-diagnostics'),
   }
 }
 
@@ -41,10 +39,8 @@ export function parseDataViewerArgs(argv) {
     else if (argv[index] === '--account-database') options.accountDatabase = next()
     else if (argv[index] === '--player-content-database') options.playerContentDatabase = next()
     else if (argv[index] === '--memory-root') options.memoryRoot = next()
-    else if (argv[index] === '--round-root') options.roundRoot = next()
-    else if (argv[index] === '--diagnostic-root') options.diagnosticRoot = next()
     else if (argv[index] === '--help' || argv[index] === '-h') {
-      console.log('Usage: data-viewer.mjs [--host 127.0.0.1] [--port 4318] [--log-database <path>] [--account-database <path>] [--player-content-database <path>] [--memory-root <path>] [--round-root <path>] [--diagnostic-root <path>]')
+      console.log('Usage: data-viewer.mjs [--host 127.0.0.1] [--port 4318] [--log-database <path>] [--account-database <path>] [--player-content-database <path>] [--memory-root <path>]')
       process.exit(0)
     } else {
       throw new Error(`未知参数：${argv[index]}`)
@@ -60,8 +56,6 @@ export function parseDataViewerArgs(argv) {
     accountDatabase: path.resolve(options.accountDatabase),
     playerContentDatabase: path.resolve(options.playerContentDatabase),
     memoryRoot: path.resolve(options.memoryRoot),
-    roundRoot: path.resolve(options.roundRoot),
-    diagnosticRoot: path.resolve(options.diagnosticRoot),
   }
 }
 
@@ -71,11 +65,8 @@ export { queryDevelopmentSystemDiagnostics } from './data-viewer/execution-diagn
 export { buildDataOverview, queryAiCalls, queryUserLinks } from './data-viewer/log-queries.mjs'
 export {
   listMemoryDatabases,
-  listRoundArchives,
   queryMemoryRows,
-  queryNarrativeRoundChains,
-  readRoundArchive,
-} from './data-viewer/narrative-archives.mjs'
+} from './data-viewer/memory-archives.mjs'
 
 export function isDirectExecution(argvEntry, moduleUrl = import.meta.url) {
   if (!argvEntry) return false
@@ -88,8 +79,6 @@ if (isDirectExecution(process.argv[1])) {
   server.listen(options.port, options.host, () => {
     console.log(`[data-viewer] http://${options.host}:${options.port}`)
     console.log(`[data-viewer] logs=${options.logDatabase}`)
-    console.log(`[data-viewer] rounds=${options.roundRoot}`)
     console.log(`[data-viewer] memory=${options.memoryRoot}`)
-    console.log(`[data-viewer] diagnostics=${options.diagnosticRoot}`)
   })
 }

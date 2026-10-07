@@ -1,19 +1,24 @@
 /**
  * Purpose: Resolve canonical calendar labels for narrative prompts.
  * Owner: mod-engine
- * Responsibility: Translate round time state into stable era, season, and event-node context.
+ * Responsibility: Translate round time state into stable era, season, and calendar context.
  *
  * @module narrative-calendar.ts
- * @description 叙事纪年解析 —— 对齐废弃项目 calcEraYear / formatEraYear
+ * @description 叙事纪年解析
  * @mod mod-engine
  */
 
-import { normalizeCanonicalTimeStep, type RoundContext, type TimeStep, type WorldSetting } from '@/foundation'
+import {
+  normalizeCanonicalTimeStep,
+  type RoundContext,
+  type TimeStep,
+  type WorldSetting,
+} from '@/foundation'
 import { formatEraYear } from '@/foundation/utils/format-time'
 
-import { SEASON_NAMES } from '../constants'
+import { CALENDAR, SEASON_NAMES } from '../constants'
 import { getSeasonForMonth } from './calendar-season.js'
-import { timeSystem } from '../subsystems/time-system'
+import { buildCanonicalCalendarNarrativeHint } from './time-scale-narrative'
 
 export function readEraStartYearFromConfig(config: Record<string, unknown> | undefined): number {
   if (!config) return 0
@@ -43,12 +48,10 @@ export function resolveCharacterAgeFromContext(context: RoundContext): number {
   const startingAge = typeof characterBase?.startingAge === 'number' && Number.isFinite(characterBase.startingAge)
     ? characterBase.startingAge
     : 0
-  return startingAge + Math.max(0, context.round.year - 1)
+  return startingAge + Math.max(0, context.round.year)
 }
 
-/**
- * 日历纪年：birthEraYear + 已过年数（round.year 从 1 起计，首年 age=0）
- */
+/** 日历纪年：birthEraYear + 已过自然年数（round.year 从 0 起计）。 */
 export function resolveCalendarEraYear(
   roundYear: number,
   eraStartYear: number,
@@ -56,7 +59,7 @@ export function resolveCalendarEraYear(
 ): number {
   const birth = birthEraYear ?? eraStartYear
   if (eraStartYear !== 0 || birth !== 0) {
-    return birth + Math.max(0, roundYear - 1)
+    return birth + Math.max(0, roundYear)
   }
   return roundYear
 }
@@ -71,11 +74,10 @@ export interface NarrativeTimeContext {
   localTotalDays: number
   age: number
   timeLabel: string
-  eventNodeIndex?: number
-  eventNodeCount?: number
+  narrativeWindow?: string
 }
 
-/** 按年/事件推进步长格式化叙事时间。 */
+/** 按日/月/季/年推进步长格式化叙事时间。 */
 export function formatNarrativeTimeLabel(
   timeStep: TimeStep,
   eraLabel: string,
@@ -83,15 +85,17 @@ export function formatNarrativeTimeLabel(
     season: number
     month: number
     day?: number
-    eventNodeIndex?: number
-    eventNodeCount?: number
   },
 ): string {
   const canonical = normalizeCanonicalTimeStep(timeStep)
   const seasonName = SEASON_NAMES[getSeasonForMonth(round.month)] ?? ''
   switch (canonical.unit) {
-    case 'event':
-      return `${eraLabel} · 年内故事节点${Math.max(0, round.eventNodeIndex ?? 0)}/${Math.max(1, round.eventNodeCount ?? canonical.value)}`
+    case 'day':
+      return `${eraLabel} · ${round.month + 1}月${(round.day ?? 0) + 1}日`
+    case 'month':
+      return `${eraLabel} · ${round.month + 1}月`
+    case 'season':
+      return `${eraLabel} · ${seasonName}季`
     case 'year':
       return eraLabel
   }
@@ -100,13 +104,61 @@ export function formatNarrativeTimeLabel(
 function formatNarrativePromptTimeLabel(
   timeStep: TimeStep,
   eraLabel: string,
-  round: { eventNodeIndex?: number },
+  round: { season: number; month: number; day?: number },
 ): string {
-  const canonical = normalizeCanonicalTimeStep(timeStep)
-  if (canonical.unit === 'event') {
-    return `${eraLabel} · 事件${Math.max(0, round.eventNodeIndex ?? 0)}`
+  return formatNarrativeTimeLabel(timeStep, eraLabel, round)
+}
+
+function calendarNodeFromTotalDays(
+  totalDays: number,
+  calendarYearOffset: number,
+): {
+  calendarYear: number
+  month: number
+  day: number
+} {
+  const normalizedDays = Math.max(0, Math.floor(totalDays))
+  const elapsedYears = Math.floor(normalizedDays / CALENDAR.DAYS_PER_YEAR)
+  let remainingDays = normalizedDays % CALENDAR.DAYS_PER_YEAR
+  let month = 0
+  for (let index = 0; index < CALENDAR.MONTHS_PER_YEAR; index += 1) {
+    const daysInMonth = CALENDAR.DAYS_IN_MONTH[index]
+    if (remainingDays < daysInMonth) {
+      month = index
+      break
+    }
+    remainingDays -= daysInMonth
   }
-  return eraLabel
+  return {
+    calendarYear: elapsedYears + calendarYearOffset,
+    month: month + 1,
+    day: remainingDays + 1,
+  }
+}
+
+function buildNarrativeWindow(
+  context: RoundContext,
+  timeStep: TimeStep,
+  calendarYear: number,
+): string | undefined {
+  const elapsedDays = context.daysPassed
+  if (!Number.isFinite(elapsedDays) || elapsedDays <= 0) return undefined
+  const currentTotalDays = Math.max(0, Math.floor(context.totalDays))
+  const currentElapsedYears = Math.floor(currentTotalDays / CALENDAR.DAYS_PER_YEAR)
+  const calendarYearOffset = calendarYear - currentElapsedYears
+  const previousNode = calendarNodeFromTotalDays(
+    currentTotalDays - elapsedDays,
+    calendarYearOffset,
+  )
+  return buildCanonicalCalendarNarrativeHint({
+    timeStep,
+    calendarYear,
+    seasonName: SEASON_NAMES[getSeasonForMonth(context.round.month)] ?? '',
+    month: context.round.month + 1,
+    day: ((context.round as { day?: number }).day ?? 0) + 1,
+    previousNode,
+    daysPassed: elapsedDays,
+  })
 }
 
 export interface CurrentNarrativeTimeLabelInput {
@@ -128,7 +180,7 @@ export function formatCurrentNarrativeTimeLabel(input: CurrentNarrativeTimeLabel
   const { round, eraStartYear, worldEraName } = input
   const timeStep = normalizeCanonicalTimeStep(input.timeStep)
   const headerEraYear = eraStartYear !== 0
-    ? eraStartYear + Math.max(0, round.year - 1)
+    ? eraStartYear + Math.max(0, round.year)
     : round.eraYear
   const eraLabel = worldEraName
     ? formatEraYear(headerEraYear, worldEraName)
@@ -138,7 +190,7 @@ export function formatCurrentNarrativeTimeLabel(input: CurrentNarrativeTimeLabel
   return formatNarrativeTimeLabel(timeStep, eraLabel, round)
 }
 
-/** 构建传给 AI 的「时间」字段（对齐废弃项目 时间: timeDesc） */
+/** 构建传给 AI 的时间字段。 */
 export function buildNarrativeTimeContext(
   context: RoundContext,
   worldSetting: WorldSetting | null,
@@ -148,13 +200,12 @@ export function buildNarrativeTimeContext(
   const birthEraYear = context.birthEraYear ?? readBirthEraYearFromConfig(config)
   const age = resolveCharacterAgeFromContext(context)
   const calendarYear = resolveCalendarEraYear(context.round.year, eraStartYear, birthEraYear)
-  // 纪元名称：优先来自世界配置 _eraName，缺省时回退引擎默认值
   const defaultEraName = (typeof config._eraName === 'string' && config._eraName)
     ? config._eraName
     : (eraStartYear !== 0 ? '' : '创世纪元')
   const eraLabel = formatEraYear(calendarYear, defaultEraName)
-  const seasonName = timeSystem.getSeasonName()
-  const timeStep = normalizeCanonicalTimeStep(context.timeStep ?? { unit: 'event', value: 12 })
+  const seasonName = SEASON_NAMES[getSeasonForMonth(context.round.month)] ?? ''
+  const timeStep = normalizeCanonicalTimeStep(context.timeStep ?? { unit: 'month', value: 1 })
   const timeLabel = formatNarrativePromptTimeLabel(timeStep, eraLabel, context.round)
 
   return {
@@ -167,11 +218,6 @@ export function buildNarrativeTimeContext(
     localTotalDays: context.totalDays,
     age,
     timeLabel,
-    ...(timeStep.unit === 'event'
-      ? {
-          eventNodeIndex: context.round.eventNodeIndex ?? 0,
-          eventNodeCount: context.round.eventNodeCount ?? timeStep.value,
-        }
-      : {}),
+    narrativeWindow: buildNarrativeWindow(context, timeStep, calendarYear),
   }
 }

@@ -1,15 +1,14 @@
 /**
- * Purpose: Define the shared calendar and event-node time-step options.
+ * Purpose: Define the shared calendar time-step options.
  * Owner: foundation:constants
- * Responsibility: Expose stable time-step labels and codecs for UI and engine consumers.
+ * Responsibility: Expose stable calendar labels and codecs for UI and engine consumers.
  *
  * @module time-steps.ts
- * @description 全局时间步进档位（UI + 引擎共用）
+ * @description 全局日历时间步进档位（UI + 引擎共用）
  * @mod foundation
  */
 
 import type { TimeStep } from '../types'
-import { DEFAULT_ANNUAL_EVENT_COUNT } from '../utils/annual-clock'
 
 export type TimeStepOption = TimeStep & {
   label: string
@@ -18,19 +17,19 @@ export type TimeStepOption = TimeStep & {
 }
 
 const STEP_ICONS: Record<string, string> = {
+  'day:1': '🌅',
+  'month:1': '🌙',
+  'season:1': '🍂',
   'year:1': '📅',
   'year:3': '⚡',
   'year:5': '🚀',
   'year:10': '⏩',
-  [`event:${DEFAULT_ANNUAL_EVENT_COUNT}`]: '🧭',
-  'event:24': '🧭',
 }
 
 const RAW_STEPS: Array<TimeStep & { label: string; experimental?: boolean }> = [
-  { unit: 'event', value: 24, label: '24节点/年' },
-  { unit: 'event', value: DEFAULT_ANNUAL_EVENT_COUNT, label: '12节点/年' },
-  { unit: 'event', value: 4, label: '4节点/年' },
-  { unit: 'event', value: 2, label: '2节点/年' },
+  { unit: 'day', value: 1, label: '日' },
+  { unit: 'month', value: 1, label: '月' },
+  { unit: 'season', value: 1, label: '季' },
   { unit: 'year', value: 1, label: '年' },
   { unit: 'year', value: 3, label: '3年' },
   { unit: 'year', value: 5, label: '5年' },
@@ -43,16 +42,13 @@ export const AVAILABLE_TIME_STEPS: TimeStepOption[] = RAW_STEPS.map((s) => ({
   icon: STEP_ICONS[`${s.unit}:${s.value}`] ?? '📅',
 }))
 
-/** UI 默认展示（事件轮次 + 年度宏观快进） */
-export const PRIMARY_TIME_STEPS: TimeStepOption[] = AVAILABLE_TIME_STEPS.filter(
-  () => true,
-)
+/** UI 默认展示（日历粒度推进 + 年度宏观快进） */
+export const PRIMARY_TIME_STEPS: TimeStepOption[] = AVAILABLE_TIME_STEPS
 
 export const CANONICAL_TIME_STEP_KEYS = AVAILABLE_TIME_STEPS.map(encodeTimeStepKey)
-
 const CANONICAL_TIME_STEP_KEY_SET = new Set(CANONICAL_TIME_STEP_KEYS)
 
-/** Normalize persisted or external values to one of the eight public steps. */
+/** Normalize persisted or external values to one of the seven public steps. */
 export function normalizeCanonicalTimeStep(step: unknown): TimeStep {
   if (step && typeof step === 'object' && !Array.isArray(step)) {
     const value = step as Partial<TimeStep>
@@ -63,13 +59,7 @@ export function normalizeCanonicalTimeStep(step: unknown): TimeStep {
       return { unit: unit as TimeStep['unit'], value: Number(rawValue) }
     }
   }
-  return { unit: 'year', value: 1 }
-}
-
-/** Normalize the frozen annual event budget used by event-node rounds. */
-export function normalizeCanonicalEventNodeCount(value: unknown): number {
-  const normalized = normalizeCanonicalTimeStep({ unit: 'event', value })
-  return normalized.unit === 'event' ? normalized.value : DEFAULT_ANNUAL_EVENT_COUNT
+  return { unit: 'month', value: 1 }
 }
 
 /** 编码为 UI 选择键 `unit:value` */

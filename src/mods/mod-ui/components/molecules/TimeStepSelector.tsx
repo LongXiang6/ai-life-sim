@@ -1,10 +1,10 @@
 /**
- * Purpose: Render the selectable calendar and event-node pacing controls.
+ * Purpose: Render the selectable calendar pacing controls.
  * Owner: mod-ui
  * Responsibility: Present and emit a normalized TimeStep without owning time state.
  *
  * @module TimeStepSelector.tsx
- * @description 时间步进选择器分子组件 —— 8 档时间步进选择（24/12/4/2节点/年、年/3/5/10年）
+ * @description 时间步进选择器分子组件 —— 日、月、季、年及多年快进
  * @mod mod-ui
  *
  * Apple HIG 设计原则：

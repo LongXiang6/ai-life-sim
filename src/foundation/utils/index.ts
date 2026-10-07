@@ -27,20 +27,13 @@ export type { DecimalInteger } from './decimal-integer'
 export { getRoundSequence } from './round-advance'
 export {
   BASE_POINTS_PER_YEAR,
-  DEFAULT_ANNUAL_EVENT_COUNT,
   CALENDAR_DAYS_PER_YEAR,
-  normalizeAnnualEventCount,
-  annualEventCumulativeBasePoints,
-  annualEventBasePointDelta,
-  eventRoundDeltaPoints,
   calendarDaysFromBasePoints,
   basePointsFromCalendarDays,
   basePointsToCalendarDays,
   calendarDaysToBasePoints,
   basePointsToYears,
-  advanceAnnualEvent,
 } from './annual-clock'
-export type { AnnualEventCursor, AnnualEventAdvance } from './annual-clock'
 export { parseChineseNumber } from './cn-number'
 export { extractDynamicAttrsFromNarrative } from './extract-dynamic-attrs'
 export type { AttrTagMap, ExtractedAttrs } from './extract-dynamic-attrs'

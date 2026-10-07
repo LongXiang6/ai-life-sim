@@ -11,6 +11,8 @@ export type {
   DestinyPattern,
   DestinyPatternCategory,
   DestinyPatternGrowthDirection,
+  DestinyPatternGrowthAssessment,
+  DestinyPatternGrowthEvidence,
   DestinyPatternGrowthHistoryEntry,
   DestinyPatternGrowthOption,
   DestinyPatternRarity,

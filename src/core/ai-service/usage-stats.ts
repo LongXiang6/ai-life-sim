@@ -5,7 +5,7 @@
  */
 
 import type { ReasoningEffort } from '@/foundation'
-import type { AICallUsageSnapshot } from '@/core/logger/ai-call-log'
+import type { AICallUsageSnapshot } from './ai-client/types'
 
 import type {
   AiUsageAggregate,

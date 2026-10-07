@@ -6,6 +6,7 @@
       "account-cloud-api"
     ],
     "mod-character": [
+      "character-base-access",
       "destiny-pattern-access",
       "reincarnation-talent-access"
     ],

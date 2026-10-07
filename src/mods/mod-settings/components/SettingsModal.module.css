@@ -37,7 +37,7 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: calc(18.333 * var(--final-flow-density-px)) calc(23.333 * var(--final-flow-density-px)) calc(70 * var(--final-flow-density-px));
+  padding: calc(18.333 * var(--final-flow-density-px)) calc(23.333 * var(--final-flow-density-px)) 0;
   overflow: hidden;
 }
 

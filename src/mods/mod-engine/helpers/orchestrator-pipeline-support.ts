@@ -27,6 +27,8 @@ export {
   dedupeSummariesAgainstMemory,
   isPromptNoiseSummary,
   isSubsystemOpenForPrompt,
+  isSubsystemDataEnabled,
+  resolvePromptStateLayer,
 } from './subsystem-prompt-gate'
 export {
   isMvpPromptSubsystem,

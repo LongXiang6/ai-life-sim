@@ -33,7 +33,6 @@ import {
   sanitizeSubSystemState,
   isMvpRuntimeSubsystem,
   resolveTimeStep,
-  shouldAlignTimeStepTransition,
   RoundCommitBus,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
@@ -63,7 +62,6 @@ import {
   type NarrativeAIStoryContinuityData,
   type PreparedNarrativeStoryContinuity,
   type NarrativeStoryContinuityTransactionSnapshot,
-  type TimeStep,
   type ParsedNarrative,
   createNarrativeLifeRunId,
   isNarrativeRepetitionMetric,
@@ -170,12 +168,6 @@ export interface OrchestratorPersistenceState {
   state: EngineState
   lastSubsystemStates: Record<string, SubSystemState>
   timeRound: RoundInfo
-  lastNarratedTimeStep?: TimeStep
-  /** 当前叙事是否处于粗→细切换后的首轮边界对齐桥接。 */
-  lastTimeStepAlignment?: {
-    fromUnit: TimeStep['unit']
-    fromValue: number
-  }
   lastExecutedFullContent?: string | null
   lastPlayerChoice?: string
   lastNarrativeLuckGuidance?: LuckNarrativeGuidance | null
@@ -323,7 +315,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   private state: EngineState = {
     lifeRunId: createNarrativeLifeRunId(),
     status: 'idle',
-    round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, totalBasePoints: 0, basePointsPassed: 0, eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined, eventNodeIndex: 0, ...TimeSystem.resolveDisplayEra(0) },
+    round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, totalBasePoints: 0, basePointsPassed: 0, ...TimeSystem.resolveDisplayEra(0) },
     timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
     totalRounds: 0,
     narrativeHistory: [],
@@ -351,19 +343,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   private modManifests: ModManifest[] = []
 
   /** 上一轮叙事全文（兼容旧 RoundContext；不得用于本地语义判定） */
-
-  /** 上一条已完成叙事采用的时间步长，用于粗→细切换后定位下一时间节点 */
-  private lastNarratedTimeStep: TimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
-
-  /** 当前回合若由粗→细切换触发，仅用于 Prompt 说明，不改变时间结果。 */
-  private lastTimeStepAlignment?: {
-    fromUnit: TimeStep['unit']
-    fromValue: number
-  }
-
-  /** 玩家粗→细切换后等待下一轮消费的原粒度；仅运行态使用，不进入存档契约。 */
-  private pendingTimeStepAlignmentFromUnit?: TimeStep['unit']
-  private pendingTimeStepAlignmentFromValue?: number
 
   /** 玩家分支选择（注入下一轮 Prompt，一次性消费） */
   private lastPlayerChoice?: string
@@ -650,32 +629,10 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 推进时间（供 stage 闭包使用） */
   private advanceTimeForCurrentStep(): RoundInfo {
-    // Orchestrator round 是存档恢复后的权威游标。粗粒度叙事已经
-    // 覆盖了当前周期；切到更细粒度时，必须先消费一次“周期对齐”，再让
-    // 后续回合从新的合法节点继续推进，不能把已讲过的年份/季度/月重放。
+    // Orchestrator round 是存档恢复后的权威游标；切换粒度只影响下一次
+    // 推进使用的日历单位，不改变当前游标，也不引入额外对齐状态。
     this.runtime.time.importRound(this.state.round)
     this.runtime.time.setTimeStep(this.state.timeStep)
-    this.lastTimeStepAlignment = undefined
-
-    const alignmentFromUnit = this.pendingTimeStepAlignmentFromUnit ?? this.lastNarratedTimeStep.unit
-    const alignmentFromValue = this.pendingTimeStepAlignmentFromValue ?? this.lastNarratedTimeStep.value
-    if (
-      this.state.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(alignmentFromUnit, this.state.timeStep.unit)
-    ) {
-      this.pendingTimeStepAlignmentFromUnit = undefined
-      this.pendingTimeStepAlignmentFromValue = undefined
-      this.lastTimeStepAlignment = {
-        fromUnit: alignmentFromUnit,
-        fromValue: alignmentFromValue,
-      }
-      return this.runtime.time.alignToNextPeriod(
-        alignmentFromUnit,
-        this.state.timeStep.unit,
-        alignmentFromValue,
-      )
-    }
-
     return this.runtime.time.advance()
   }
 
@@ -706,18 +663,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       !this.projectionMode
       && (this.state.timeStep.unit !== normalizedStep.unit || this.state.timeStep.value !== normalizedStep.value)
     ) invalidateNarrativePreGeneration()
-    if (this.pendingTimeStepAlignmentFromUnit) {
-      if (!shouldAlignTimeStepTransition(this.pendingTimeStepAlignmentFromUnit, normalizedStep.unit)) {
-        this.pendingTimeStepAlignmentFromUnit = undefined
-        this.pendingTimeStepAlignmentFromValue = undefined
-      }
-    } else if (
-      this.state.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(this.lastNarratedTimeStep.unit, normalizedStep.unit)
-    ) {
-      this.pendingTimeStepAlignmentFromUnit = this.lastNarratedTimeStep.unit
-      this.pendingTimeStepAlignmentFromValue = this.lastNarratedTimeStep.value
-    }
     this.state.timeStep = normalizedStep
     this.runtime.time.setTimeStep(normalizedStep)
     if (!this.projectionMode) useEngineStore.getState().setTimeStep(normalizedStep)
@@ -966,8 +911,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       state: this.state,
       lastSubsystemStates: this.lastSubsystemStates,
       timeRound: this.runtime.time.exportRound(),
-      lastNarratedTimeStep: this.lastNarratedTimeStep,
-      lastTimeStepAlignment: this.lastTimeStepAlignment,
       lastExecutedFullContent: this.lastExecutedFullContent,
       lastPlayerChoice: this.lastPlayerChoice,
       lastNarrativeLuckGuidance: this.lastNarrativeLuckGuidance,
@@ -991,10 +934,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       )
       this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
     }
-    this.lastNarratedTimeStep = normalizeCanonicalTimeStep(state.lastNarratedTimeStep ?? this.state.timeStep)
-    this.lastTimeStepAlignment = state.lastTimeStepAlignment
-      ? { ...state.lastTimeStepAlignment }
-      : undefined
     this.lastExecutedFullContent = state.lastExecutedFullContent ?? null
     this.lastPlayerChoice = state.lastPlayerChoice
     this.pendingNarrativeRoundPreparation = undefined
@@ -1029,10 +968,12 @@ export class OrchestratorSystem extends BaseSubsystem {
     const lifeRunId = typeof rawState.lifeRunId === 'string' && rawState.lifeRunId.trim()
       ? rawState.lifeRunId
       : currentLifeRunId ?? createNarrativeLifeRunId()
+    const timeStep = normalizeCanonicalTimeStep(rawState.timeStep ?? currentState.timeStep)
     const restored: EngineState = {
       ...currentState,
       ...rawState,
       lifeRunId,
+      timeStep,
       narrativeHistory,
       storyRepetitionStats: summarizeNarrativeHistoryRepetition(narrativeHistory),
     }
@@ -1527,7 +1468,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.state = {
       lifeRunId: createNarrativeLifeRunId(),
       status: 'idle',
-      round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, totalBasePoints: 0, basePointsPassed: 0, eventNodeCount: DEFAULT_ENGINE_CONFIG.timeStep.unit === 'event' ? DEFAULT_ENGINE_CONFIG.timeStep.value : undefined, eventNodeIndex: 0, ...TimeSystem.resolveDisplayEra(0) },
+      round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, totalBasePoints: 0, basePointsPassed: 0, ...TimeSystem.resolveDisplayEra(0) },
       timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
       totalRounds: 0,
       narrativeHistory: [],
@@ -1538,10 +1479,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
     }
     this.lastSubsystemStates = {}
-    this.lastNarratedTimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
-    this.lastTimeStepAlignment = undefined
-    this.pendingTimeStepAlignmentFromUnit = undefined
-    this.pendingTimeStepAlignmentFromValue = undefined
     this.lastExecutedFullContent = null
     this.acceptedNarrativeRecords.clear()
     this.lastPlayerChoice = undefined
@@ -1559,7 +1496,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
-  hydrateFromEngineStore(previousTimeStep?: TimeStep): void {
+  hydrateFromEngineStore(): void {
     this.acceptedNarrativeRecords.clear()
     this.pendingNarrativeRoundPreparation = undefined
     const store = useEngineStore.getState()
@@ -1604,20 +1541,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 读取旧存档时不要继续信任旧 season 序号，当前节点始终按阳历月份重算。
     this.state.round = this.runtime.time.getRound()
     this.runtime.time.setTimeStep(restoredTimeStep)
-    // EngineStore 的 round 是最近一条已完成叙事的结束节点；
-    // 读档后下一轮从这里开始，不能按当前步长重新推断或回放旧周期。
-    const shouldRestorePendingAlignment = previousTimeStep
-      && store.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(previousTimeStep.unit, restoredTimeStep.unit)
-    this.lastNarratedTimeStep = shouldRestorePendingAlignment
-      ? { ...previousTimeStep }
-      : { ...restoredTimeStep }
-    this.pendingTimeStepAlignmentFromUnit = shouldRestorePendingAlignment
-      ? previousTimeStep.unit
-      : undefined
-    this.pendingTimeStepAlignmentFromValue = shouldRestorePendingAlignment
-      ? previousTimeStep.value
-      : undefined
     this.hydrateSubsystemsFromStores()
     this.runtime.summaryCompressor.restoreFromEngineState(store.compressedSummaries, store.compressionStats)
     if (this.state.status !== 'complete') this.start()

@@ -6,9 +6,34 @@
 
 import type { AIModelConfig, ReasoningEffort } from '@/foundation'
 import type { ZodSchema } from 'zod'
-import type { AICallLogContext, AICallUsageSnapshot } from '../../logger/ai-call-log'
-import type { DebugLogCategory } from '../../logger/debug-logger'
 import type { CachePoolType } from '../cache-pool'
+
+export interface AICallLogContext {
+  lifeRunId?: string
+  round?: number
+  age?: number
+  era?: string
+  strategy?: string
+  callKind?: string
+  trigger?: string
+  pool?: string
+  model?: string
+  sessionId?: string
+  executionKind?: string
+  promptVersion?: string
+  targetWordCount?: number
+  styleSource?: 'default' | 'custom'
+  styleText?: string
+  styleVersion?: number
+}
+
+export interface AICallUsageSnapshot {
+  hitTokens?: number
+  missTokens?: number
+  completionTokens?: number
+  reasoningTokens?: number
+  totalTokens?: number
+}
 
 export interface AiMessage {
   role: string
@@ -53,7 +78,6 @@ export interface AICallOptions {
   userSegments?: string[]
   extraUserMessages?: string[]
   reasoningEffort?: ReasoningEffort
-  logCategory?: DebugLogCategory
   logContext?: AICallLogContext
   logMeta?: Record<string, unknown>
   logMetaResolver?: (response: string) => Record<string, unknown>
@@ -95,5 +119,3 @@ export interface CacheHitInfo {
   missTokens: number
   totalInputTokens: number
 }
-
-export type { AICallLogContext, AICallUsageSnapshot }

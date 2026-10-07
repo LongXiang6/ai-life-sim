@@ -103,11 +103,14 @@ export interface DestinyPatternGrowthDirection {
   attrBonus: Partial<AttributeModifiers>
 }
 
+/** 局内成长可作用于普通命格或已携带的轮回天赋；两者共用同一条血脉。 */
+export type DestinyPatternGrowthSource = DestinyPattern | ReincarnationTalent
+
 /** 已由本地补齐等级、身份与版本的单个下一阶方向。 */
 export interface DestinyPatternGrowthOption {
   optionId: string
   route: DestinyPatternGrowthRoute
-  pattern: DestinyPattern
+  pattern: DestinyPatternGrowthSource
 }
 
 /** 玩家必须处理的单次命格成长三选一。 */
@@ -116,7 +119,7 @@ export interface PendingDestinyPatternGrowth {
   narrativeId: string
   roundSequence: number
   lineageId: string
-  source: DestinyPattern
+  source: DestinyPatternGrowthSource
   options: [DestinyPatternGrowthOption, DestinyPatternGrowthOption, DestinyPatternGrowthOption]
 }
 
@@ -127,13 +130,29 @@ export interface DestinyPatternGrowthHistoryEntry {
   roundSequence: number
   lineageId: string
   selectedOptionId: string
-  source: DestinyPattern
-  result: DestinyPattern
+  source: DestinyPatternGrowthSource
+  result: DestinyPatternGrowthSource
   committedAt: number
   /** 本次成长确认时的年度基础点，用于程序冷却判定。 */
   totalBasePoints?: number
   /** 派生日历快照；仅用于显示和旧存档迁移。 */
   totalDays: number
+}
+
+/** 主故事同次响应记录的单个命格表现窗口。 */
+export interface DestinyPatternGrowthEvidence {
+  lineageId: string
+  sourceRound: number
+  usage: string
+  result: string
+  breakthrough?: string
+}
+
+/** 单条命格最近一次已经交给成长 AI 复评到的证据水位。 */
+export interface DestinyPatternGrowthAssessment {
+  lineageId: string
+  evaluatedThroughRound: number
+  evaluatedBreakthroughRound?: number
 }
 
 /** AI 命格输入（供外部 AI 数据传入 generateFromAI 方法） */
@@ -189,6 +208,10 @@ export interface DestinyPatternState {
   pendingGrowth: PendingDestinyPatternGrowth | null
   /** 本局完整命格成长路线。 */
   growthHistory: DestinyPatternGrowthHistoryEntry[]
+  /** 由主故事表现线索形成的、按血脉与来源回合去重的证据窗口。 */
+  growthEvidence: DestinyPatternGrowthEvidence[]
+  /** 每条血脉最近一次成长 AI 已复评到的证据水位。 */
+  growthAssessments: DestinyPatternGrowthAssessment[]
 }
 
 // ============================================================

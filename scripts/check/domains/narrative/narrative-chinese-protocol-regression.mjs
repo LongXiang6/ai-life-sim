@@ -10,7 +10,7 @@ import { parseAIJSON } from '../../../../src/core/ai-service/parse-ai-json.ts'
 import { NarrativeAIStoryResultSchema, NarrativeAIStoryContinuityDataSchema, NarrativeAITalentGrowthDataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { inspectNarrativeResponseQuality, inspectNarrativeStoryContinuityQuality, inspectNarrativeTalentGrowthQuality } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { buildNarrativeTalentGrowthPromptInput } from '../../../../src/mods/mod-engine/helpers/narrative-talent-growth-context.ts'
-import { createPendingDestinyPatternGrowth, registerPendingDestinyPatternGrowthInState, validateDestinyPatternAttrBonusForRarity } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
+import { createPendingDestinyPatternGrowth, recordDestinyPatternGrowthAssessmentsInState, recordDestinyPatternGrowthEvidenceInState, registerPendingDestinyPatternGrowthInState, resolvePendingDestinyPatternGrowthInState, validateDestinyPatternAttrBonusForRarity } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
 import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { formatNarrativeTimelineForPrompt, projectNarrativeResultForPrompt } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
@@ -21,6 +21,7 @@ import { COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, composeNarrativeUserMessage } 
 import { COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-story-continuity-system-prompt.ts'
 import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts'
 import { projectNarrativeHistoryEntryRuntime } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts'
+import { formatDestinyPatternsForPrompt } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/prompt-talent-projection.ts'
 
 let failed = 0
 function assertOk(condition, message) {
@@ -86,11 +87,12 @@ assertOk(
 )
 assertOk(
   JSON.stringify(Object.keys(storyMessages[3].玩家本次点属性)) === JSON.stringify(['心智', '体魄', '魅力', '财富'])
-    && JSON.stringify(Object.keys(storyMessages[4].本次信息)) === JSON.stringify(['时间节点', '命运分支', '篇幅偏好']),
+    && JSON.stringify(Object.keys(storyMessages[4].本次信息)) === JSON.stringify(['时间节点', '时间窗口', '命运分支', '篇幅偏好']),
   '01 属性与本次信息必须严格保留数据层字段',
 )
 assertOk(
-  storyMessages[1].玩家信息.天赋技能[0].includes('听潮辨隙')
+  storyMessages[1].玩家信息.天赋技能[0].名称 === '听潮辨隙'
+    && storyMessages[1].玩家信息.天赋技能[0].效果.includes('近处水声')
     && storyMessages[4].本次信息.命运分支.includes('利用低潮窗口')
     && storyMessages[4].本次信息.篇幅偏好 === '正文约200字。'
     && JSON.stringify(storyMessages[3].玩家本次点属性) === JSON.stringify({ 心智: '2', 体魄: '1', 魅力: '-1', 财富: '0' }),
@@ -98,14 +100,14 @@ assertOk(
 )
 const composedStoryMessage = composeNarrativeUserMessage(segments.userSegments[0])
 assertOk(
-  ["【代码区块1：AI身份与核心职责】","【代码区块2：执行顺序与判断】","【代码区块3：只读输入数据】","【代码区块4：恢复本轮起点】","【代码区块5：先形成世界局面，再选择离散新事】","【代码区块6：形成已成立事件结果】","【代码区块7：把结果压缩为广角人生记录】","【代码区块8：依据结果结算】","【代码区块9：完成返回】"]
-    .every((heading, index, headings) => composedStoryMessage.indexOf(heading) >= 0 && (index === 0 || composedStoryMessage.indexOf(heading) > composedStoryMessage.indexOf(headings[index - 1])))
+  !composedStoryMessage.includes('代码区块')
+    && composedStoryMessage.includes('一次调用内的生成流程')
     && composedStoryMessage.includes('议事会同意先做低潮勘查。')
     && composedStoryMessage.includes('"财富": "0"'),
   '01 服务端必须按 prompt.txt 最终顺序合成唯一 user 消息',
 )
 assertOk(
-  ["本轮交付一份新的、完整的、已经发生并留下结果的人生记录","现实事实可以连续，但本轮不能自动续写上一轮的主题","先从世界规则、相关者行动和开放人生可能性形成新的事件局面","新轮从仍开放的世界可能性中重新选题，再比较核心问题、主要行动者、因果机制、作用范围、玩家位置和结果意义","把代码区块5选出的每件新事推演到现实已经改变","正文不是事件字段逐字复述","时间节点、年龄、纪元和事件序号只用于内部定位本轮条件","事件、成因、结果、影响四个字符串字段"].every(phrase => composedStoryMessage.includes(phrase)),
+  ["生成一段新的、已经发生并留下结果的人生记录","历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风","先形成会作用于玩家的新外部局面","事件结果是正文唯一的事实底稿","玩家是事件身份、因果主线和正文重心的归属者","空间、环境、光线、声音、触感、气味、物件位置或人物反应","每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串"].every(phrase => composedStoryMessage.includes(phrase)),
   '01 核心契约必须生成多项独立结果的人生记录，历史只提供既定事实而不锁定主题或写法',
 )
 assertOk(
@@ -206,8 +208,9 @@ const infantSegments = buildSegmentedPrompt(narrativePrompt, {
   characterStatusView: { ...promptContext.characterStatusView, 年龄: 1 },
 })
 assertOk(
-  JSON.parse(infantSegments.userSegments[0])[4].本次信息.时间节点.startsWith('1岁·'),
-  '01 本次信息必须保留当前年龄',
+  JSON.parse(infantSegments.userSegments[0])[4].本次信息.时间节点
+    === '当前年龄=1；内部阶段索引=1；只用于合龄裁决，不得转写为正文或事件结果',
+  '01 本次信息必须保留不可见的当前阶段索引',
 )
 assertOk(
   !segments.full.includes('subsystemStates')
@@ -253,6 +256,21 @@ const talentGrowthInput = buildNarrativeTalentGrowthPromptInput({
     result: recentGrowthResult,
     committedAt: 100,
   }],
+  growthEvidence: growthPatterns.slice(1).flatMap((pattern, index) => ([
+    {
+      lineageId: pattern.lineageId,
+      sourceRound: 15,
+      usage: `${pattern.name}在检修中被实际使用。`,
+      result: `${pattern.name}形成了可复核结果。`,
+    },
+    {
+      lineageId: pattern.lineageId,
+      sourceRound: 16,
+      usage: `${pattern.name}再次在现场被实际使用。`,
+      result: `${pattern.name}再次形成了可复核结果。`,
+      ...(index === 0 ? { breakthrough: '一次突发险情促成了能力突破。' } : { breakthrough: '一次关键复测促成了能力突破。' }),
+    },
+  ])),
 })
 const growthPromptPatterns = JSON.parse(talentGrowthInput.userSegments[2]).玩家已选天赋
 assertOk(
@@ -296,6 +314,154 @@ assertOk(underagePendingSnapshot.destinyPatterns.pendingGrowth === null && adult
 const underageSelectedOption = underagePendingGrowth.options[0]
 const underageCommittedSnapshot = characterGrowthSnapshot(1, growthState([underageSelectedOption.pattern], null, [{ choiceId: underagePendingGrowth.choiceId, narrativeId: underagePendingGrowth.narrativeId, roundSequence: underagePendingGrowth.roundSequence, lineageId: underagePendingGrowth.lineageId, selectedOptionId: underageSelectedOption.optionId, source: underageGrowthSource, result: underageSelectedOption.pattern, committedAt: 100, totalDays: 365 }]))
 assertOk(underageCommittedSnapshot.destinyPatterns.growthHistory.length === 0 && underageCommittedSnapshot.destinyPatterns.patterns[0]?.id === underageGrowthSource.id, '03 未成年旧存档若已提交成长，恢复时必须回到首次成长前的命格版本')
+const evidenceState = {
+  ...growthState([growthPatterns[1]]),
+  growthEvidence: [],
+  growthAssessments: [{
+    lineageId: growthPatterns[1].lineageId,
+    evaluatedThroughRound: 10,
+    evaluatedBreakthroughRound: 9,
+  }],
+}
+const recordedEvidenceState = recordDestinyPatternGrowthEvidenceInState(evidenceState, [
+  { lineageId: growthPatterns[1].lineageId, sourceRound: 12, usage: '在险情中实际使用。', result: '成功稳定局面。' },
+  { lineageId: growthPatterns[1].lineageId, sourceRound: 12, usage: '同回合再次验证。', result: '结果可复核。', breakthrough: '突发险情促成突破。' },
+])
+const recordedAssessmentState = recordDestinyPatternGrowthAssessmentsInState(
+  recordedEvidenceState,
+  [{ lineageId: growthPatterns[1].lineageId, evaluatedThroughRound: 12 }],
+)
+assertOk(
+  recordedEvidenceState.growthEvidence.length === 1
+    && recordedEvidenceState.growthEvidence[0].usage.includes('再次验证')
+    && recordedEvidenceState.growthEvidence[0].breakthrough === '突发险情促成突破。',
+  '03 同一回合多条天赋线索必须合并为一个证据窗口并保留突破契机',
+)
+assertOk(
+  recordedAssessmentState.growthAssessments[0].evaluatedThroughRound === 12
+    && recordedAssessmentState.growthAssessments[0].evaluatedBreakthroughRound === 9,
+  '03 复评水位更新时不能因新结果缺少突破字段而覆盖既有突破水位',
+)
+const reincarnationSource = {
+  lineageId: 'reincarnation-lineage',
+  version: 1,
+  id: 'reincarnation-v1',
+  name: '回声天赋',
+  description: '能把曾经经历过的声音重新带回当前判断。',
+  category: 'cognition',
+  rarity: 'common',
+  effect: '在相关事件中恢复关键声音线索。',
+  attrBonus: {},
+  strengthenLevel: 0,
+  acquiredAt: 100,
+  source: { worldName: '旧世界', characterName: '旧角色' },
+}
+const reincarnationPendingGrowth = createPendingDestinyPatternGrowth({
+  narrativeId: 'reincarnation-narrative',
+  roundSequence: 20,
+  source: reincarnationSource,
+  directions: [
+    { route: '深度强化', name: '回声入微', description: '让已有声音线索更清晰。', effect: '恢复更细的声音差异。', attrBonus: { mind: 1 } },
+    { route: '广度强化', name: '百声通识', description: '让声音线索覆盖更多场景。', effect: '在更多环境中恢复声音线索。', attrBonus: { mind: 1 } },
+    { route: '转变强化', name: '借声成象', description: '把声音线索转为可供判断的画面。', effect: '通过声音形成新的判断媒介。', attrBonus: { luck: 1 } },
+  ],
+})
+const reincarnationState = growthState([growthPatterns[2]])
+const reincarnationPendingState = registerPendingDestinyPatternGrowthInState(
+  reincarnationState,
+  reincarnationPendingGrowth,
+  16,
+  [reincarnationSource],
+)
+const reincarnationResolved = resolvePendingDestinyPatternGrowthInState(
+  reincarnationPendingState,
+  reincarnationPendingGrowth.options[0].optionId,
+  100,
+  20000,
+  [reincarnationSource],
+)
+assertOk(
+  reincarnationPendingState.pendingGrowth?.source.strengthenLevel === 0
+    && reincarnationResolved.reincarnationTalents?.[0].version === 2
+    && reincarnationResolved.state.patterns[0].lineageId === growthPatterns[2].lineageId,
+  '03 轮回天赋必须复用同一成长状态，并在玩家确认后更新原携带槽而不伪造普通命格',
+)
+const transformationSource = {
+  ...structuredClone(growthPatterns[1]),
+  id: 'transformation-v1', lineageId: 'transformation-lineage', version: 1,
+  category: 'action', name: '体能强化',
+  description: '你可以主动强化身体的爆发力。', effect: '发动后身体力量得到局部增强。',
+  attrBonus: { physique: 1 },
+}
+const firstTransformation = createPendingDestinyPatternGrowth({
+  narrativeId: 'transformation-round-3', roundSequence: 3, source: transformationSource,
+  directions: [
+    { route: '深度强化', name: '体能爆发', description: '你能增强同类身体爆发。', effect: '身体爆发更强。', attrBonus: { physique: 2 } },
+    { route: '广度强化', name: '持久强化', description: '你能在持续行动中强化身体。', effect: '身体强化适用更多行动。', attrBonus: { physique: 1 } },
+    { route: '转变强化', name: '机械共鸣', description: '你在长期机械救援与改装后，能感应并协调机械运动。', effect: '触碰机械时以共鸣协调其运转。', attrBonus: { mind: 2 } },
+  ],
+})
+const firstTransformationResult = resolvePendingDestinyPatternGrowthInState(
+  registerPendingDestinyPatternGrowthInState(growthState([transformationSource]), firstTransformation, 19),
+  firstTransformation.options[2].optionId, 100, 3000,
+)
+const transformedEvidenceState = recordDestinyPatternGrowthEvidenceInState(
+  { ...firstTransformationResult.state, growthEvidence: [], growthAssessments: [] },
+  [28, 29, 30].map((sourceRound) => ({
+    lineageId: transformationSource.lineageId, sourceRound,
+    usage: '你以机械共鸣协调元素供能机械。', result: '机械运动被实际调整，救援通道恢复。',
+    ...(sourceRound === 30 ? { breakthrough: '元素核心失控时，你通过共鸣触及供能元素并完成救援，能力发生质变。' } : {}),
+  })),
+)
+const transformedGrowthInput = buildNarrativeTalentGrowthPromptInput({
+  patterns: transformedEvidenceState.patterns, compressedSummaries: { summaries: [] }, recentStories: [],
+  currentRound: 30, totalBasePoints: 26001, currentAge: 42,
+  growthHistory: transformedEvidenceState.growthHistory,
+  growthEvidence: transformedEvidenceState.growthEvidence, growthAssessments: [],
+  worldContext: { 描述: '机械与元素能力都可以觉醒，元素核心用于驱动机械。' },
+})
+const currentTransformedCandidate = JSON.parse(transformedGrowthInput.userSegments[2]).玩家已选天赋[0]
+assertOk(
+  transformedGrowthInput.eligiblePatterns.length === 1
+    && currentTransformedCandidate.名称 === '机械共鸣'
+    && currentTransformedCandidate.当前版本 === 2
+    && currentTransformedCandidate.效果描述 === firstTransformationResult.historyEntry.result.effect
+    && currentTransformedCandidate.目标等级 === '稀有',
+  '03 下一次进阶必须使用已确认的新能力与新证据，不回到最初能力',
+)
+const secondTransformation = createPendingDestinyPatternGrowth({
+  narrativeId: 'transformation-round-30', roundSequence: 30, source: transformedGrowthInput.eligiblePatterns[0],
+  directions: [
+    { route: '深度强化', name: '机械协调', description: '你能更准确地协调机械。', effect: '机械共鸣控制更加精细。', attrBonus: { mind: 3 } },
+    { route: '广度强化', name: '百械共鸣', description: '你能与更多种类的机械共鸣。', effect: '机械共鸣适用更多器械。', attrBonus: { mind: 2 } },
+    { route: '转变强化', name: '元素掌控', description: '你在元素核心救援后，能直接引导供能元素的流动。', effect: '你能引导近处元素，不再依赖机械共鸣或身体强化。', attrBonus: { luck: 1 } },
+  ],
+})
+const secondTransformationResult = resolvePendingDestinyPatternGrowthInState(
+  registerPendingDestinyPatternGrowthInState(transformedEvidenceState, secondTransformation, 42),
+  secondTransformation.options[2].optionId, 200, 26001,
+)
+const transformedPattern = secondTransformationResult.state.patterns[0]
+const restoredTransformation = characterGrowthSnapshot(42, secondTransformationResult.state)
+const transformedStoryTalents = formatDestinyPatternsForPrompt(secondTransformationResult.state.patterns, true)
+assertOk(
+  secondTransformationResult.state.patterns.length === 1
+    && transformedPattern.name === '元素掌控' && transformedPattern.rarity === 'rare'
+    && transformedPattern.lineageId === transformationSource.lineageId && transformedPattern.version === 3
+    && transformedPattern.attrBonus.physique === undefined && transformedPattern.attrBonus.mind === undefined
+    && transformedPattern.attrBonus.luck === 1
+    && secondTransformationResult.state.growthHistory.length === 2
+    && secondTransformationResult.state.growthHistory[1].source.name === '机械共鸣'
+    && secondTransformationResult.state.pendingGrowth === null,
+  '03 连续选择转变强化必须允许跨能力类型，保留成长身份但替换旧能力与完整属性',
+)
+assertOk(
+  restoredTransformation.destinyPatterns.patterns[0].name === '元素掌控'
+    && restoredTransformation.destinyPatterns.growthHistory.length === 2
+    && transformedStoryTalents.length === 1 && transformedStoryTalents[0].名称 === '元素掌控'
+    && transformedStoryTalents[0].效果 === transformedPattern.effect,
+  '03 存档恢复与主故事天赋投影必须使用最终确认版本，历史能力不另行叠加',
+)
 const validWithBranch = JSON.stringify({
   正文: '你在旧桥边听见城中钟声，随后把决定交给了仍在等候的人。',
   命运分支: ['留下', '离开'],
@@ -541,7 +707,7 @@ const growthResult = {
     下一阶方向: [
       { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能分辨更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 4, 体魄: -1 } },
       { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 2, 财富: 1 } },
-      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不额外扩大影响总量。', 属性加成: { 心智: -1, 财富: 4 } },
+      { 路线: '转变强化', 名称: '机械共鸣', 详细介绍: '你在修复潮门机械后，能够感应并协调近处机械的运转。', 效果描述: '通过共鸣调整机械运动，不再以听潮辨隙为能力机制。', 属性加成: { 心智: 2, 财富: 1 } },
     ],
   },
 }
@@ -549,8 +715,8 @@ const growthQuality = inspectNarrativeTalentGrowthQuality(JSON.stringify(growthR
 assertOk(growthQuality.valid, '03 必须接受固定顺序的三条同级路线')
 assertOk(
   growthQuality.result?.成长判定.需要成长
-    && growthQuality.result.成长判定.下一阶方向[2].效果描述.includes('改变近处少量水流'),
-  '03 必须允许感知判断能力质变为直接操控类，只约束不扩大影响总量',
+    && growthQuality.result.成长判定.下一阶方向[2].名称 === '机械共鸣',
+  '03 解析器必须接受机制不同的转变路线，不以原能力相似度过滤',
 )
 const noLocalBudget = structuredClone(growthResult)
 noLocalBudget.成长判定.下一阶方向[0].属性加成 = { 财富: 100, 体魄: -50 }
@@ -590,17 +756,37 @@ assertOk(
 )
 
 assertOk(
-  narrativePrompt.version === '9.15.0'
+  narrativePrompt.version === '9.26.0'
     && narrativeStoryContinuityPrompt.version === '3.1.0'
-    && narrativeTalentGrowthPrompt.version === '3.6.0'
+    && narrativeTalentGrowthPrompt.version === '3.7.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
+const growthRules = JSON.parse(COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT)
 assertOk(
-  fs.readFileSync(new URL('../../../../../docs/prompt.txt', import.meta.url), 'utf8')
-    === COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE,
-  '外部主叙事 Prompt 必须与服务端样例动态编译文本逐字一致',
+  growthRules.目标.includes('能力类型决定能做什么，稀有度决定做到什么程度')
+    && growthRules.输入映射.玩家已选天赋.includes('血脉编号只串联成长记录')
+    && growthRules.等级能力边界.普通.includes('保留真实机制')
+    && growthRules.路线规则.some((rule) => rule.includes('新天赋可以与最初天赋毫不相干'))
+    && growthRules.路线规则.some((rule) => rule.includes('不要求转变后的新能力在成长前已经被使用'))
+    && growthRules.路线规则.some((rule) => rule.includes('深度、广度也以当前已确认版本为起点'))
+    && !COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('每条路线保留同一命格的核心来源')
+    && !COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('不额外扩大影响总量'),
+  '03 正式固定规则必须区分强度与类型，并按玩家经历重构而不锁定原能力',
+)
+assertOk(
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文选择最能证明玩家经历、位置或关系改变且最有故事张力的结果作为重心')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('不提供已经形成的状态差事实')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('把每件新事推演到现实已经改变并留下可理解的结果')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('选择、获得、失去、关系变化、位置变化和代价必须来自因果')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('即使玩家处于幼年或依赖阶段，也要通过合龄的感知、移动、学习、游戏、依恋、恐惧、社交、观察或选择进入因果'),
+  '固定主故事 Prompt 必须组织人生局面与故事因果而不设事件配额或强制玩家主动成功',
+)
+assertOk(
+  fs.readFileSync(new URL('../../../../../docs/prompt.txt', import.meta.url), 'utf8').replace(/\r\n/gu, '\n').trimEnd()
+    === COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.replace(/\r\n/gu, '\n').trimEnd(),
+  '外部主叙事 Prompt 必须与服务端样例动态编译文本内容一致',
 )
 assertOk(
   ['"时间定位"', '"事件结果"', '"正文"', '"命运分支"', '"属性"', '"结局"'].every((field) => COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))

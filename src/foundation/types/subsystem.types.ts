@@ -38,13 +38,13 @@ export interface SubSystemChanges {
   changes: Record<string, unknown>,
 }
 
-/** Canonical player-facing time-step units. */
-export type TimeStepUnit = 'year' | 'event'
+/** Canonical player-facing calendar time-step units. */
+export type TimeStepUnit = 'day' | 'month' | 'season' | 'year'
 
-/** Legacy persisted units accepted only by migration/decoding boundaries. */
-export type LegacyTimeStepUnit = TimeStepUnit | 'day' | 'month' | 'season'
+/** Legacy persisted units accepted at migration boundaries. */
+export type LegacyTimeStepUnit = TimeStepUnit
 
-/** 时间步长（年或年内事件轮次） */
+/** 时间步长（日、月、季或年） */
 export interface TimeStep {
   /** 步长单位 */
   unit: TimeStepUnit
@@ -67,10 +67,6 @@ export interface RoundContext {
     year: number,
     season: number,
     month: number,
-    /** 事件节点模式下本年已消费的节点数（跨年后从0开始）。 */
-    eventNodeIndex?: number,
-    /** 事件节点模式下本年的节点预算。 */
-    eventNodeCount?: number,
   },
   /** 时间步长 */
   timeStep: TimeStep,
@@ -80,13 +76,13 @@ export interface RoundContext {
   subsystemStates: Record<string, SubSystemState>,
   /** 引擎累计推进次数（每轮 +1，用于子系统幂等 guard） */
   roundSequence?: number,
-  /** 本轮推进的年度基础点（唯一业务时间增量源）。 */
+  /** 本轮推进的基础点派生增量，供现有业务子系统消费。 */
   basePointsPassed: number,
-  /** 游戏累计年度基础点（每年固定 1000 点）。 */
+  /** 游戏累计基础点派生投影（每年固定 1000 点）。 */
   totalBasePoints: number,
-  /** 派生日历增量，仅供旧显示/历史适配；业务速率不得读取。 */
+  /** 精确日历增量。 */
   daysPassed: number,
-  /** 派生日历总天数，仅供日期/旧存档兼容。 */
+  /** 精确日历总天数，时间系统的恢复与推进依据。 */
   totalDays: number,
   /** 世界叙事锚定年（如 1991），0 = 未设定 */
   eraStartYear?: number,
@@ -232,8 +228,6 @@ export interface ReadonlyRoundContext {
     readonly year: number
     readonly season: number
     readonly month: number
-    readonly eventNodeIndex?: number
-    readonly eventNodeCount?: number
   }
   readonly timeStep: TimeStep
   readonly difficulty: 'normal' | 'hard' | 'nightmare' | 'hell'

@@ -3,6 +3,591 @@
   "notice": "auto-generated baseline; changed files must add Purpose, Owner, and Responsibility headers",
   "entries": [
     {
+      "path": "../.agents/skills/archify/bin/archify.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "3415019a2c9edc6b083a2bef0350f2e2ca7ca01869d3e22947d2b0b9115b0390"
+    },
+    {
+      "path": "../.agents/skills/archify/bin/open-artifact.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "add1722186683c12770c575585bbb8774919c15b87361e10d2fe834623223159"
+    },
+    {
+      "path": "../.agents/skills/archify/bin/preview.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "c1f470655f3d09cf1a2f6745ab3cec407e5246926237b92a67d673c74e339e02"
+    },
+    {
+      "path": "../.agents/skills/archify/bin/visual-check.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "4333f13ca46349affedb957925c809d7ef149b07cdf3988fc9df7a92289e8381"
+    },
+    {
+      "path": "../.agents/skills/archify/delta/architecture-delta.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "55c1d721fc09686bd3462fec3fe0c32d627fd887cd0d27025bf8ae3b24b5f2fe"
+    },
+    {
+      "path": "../.agents/skills/archify/recipes/scenarios.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "8220aeaae507dcecedd4e544940b4db46accb0502b2bb512e87ca2ed6670e07f"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/architecture/grid.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "f6de99c32436feed3378b0ddef516bb4732ff27a89c543b50635d4d14a15a55a"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/architecture/render-architecture.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "efd618c832f6ac02f0b2dc51e1cae89d4cda45ba24b475cd233adb2db3421f2a"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/dataflow/render-dataflow.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "8a1b831b0dabfd7117f95ea578959b4c9ece73e70c09ee6a3d3250a39e9c861b"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/lifecycle/render-lifecycle.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "6e1fa98a28527f9c47b00e6f13b9036058d597ac56e601072497fdc3ac6153ff"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/sequence/render-sequence.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "bd568e3b246f37477adb046c520be10504b65bf30f8eaed3c43cd0dbbcee98ce"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/brand-marks.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "4557b7f3eec25a3dba66a0f5da1c5dca6ec607e2a68e9be51cd697cefe9e6425"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/cli.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "a36a3e028b976454272c2aadcef777aa9343d07f118994005d850689213ac6a8"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/desktop-readability.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b36203a11df348706e541f309266a0f9b914dac6a7eb8ba804e3abe8f8d6c710"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/diagnostics.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "27ac252f47abbda260643f7400c126bab840aca5c050005d721ae32b87744136"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/engineering-profiles.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "7e99f9d5423f66cc9ab6224da56dc2d5aa6c6faec29178034794e9db6b5b2889"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/generated-brand-marks.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "0f157d229c12df6f53763a3b88684baa5803a52484c49c4d34ec40b8743beea2"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/generated-validators.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b7db8e42033c8357d4be47b3cd536e43a6e53d4572502a22537b5da0c8e9133f"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/geometry.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "959974e13d2ff735b5fedc59f5aa053907fdbf33f59e2ed6ba89dfd3e5b889b6"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/i18n.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "da0320ac6c002f421c516cb4921e9b806a4ba5b3e9a4f6cbcdef0b16e2917d47"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/layout-report.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "44c2f74a20e483dd37dae6791ede39284ce3bac1a2a13872d2912999e8504df5"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/legend.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "4c8b37f10fb5c783a28bff6aa35bc3966155213ee32f64a8252eab5b9e64a747"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/output-path.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "9c61692cf9debc99f5cb86e0df8c474d0665921345fecdfc13ded3828c94f0a8"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/repository-evidence.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "e36c109c84b338ea77d2ae74e9fa9ffe4317e7780a2be8d4d78e588ddb387677"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/text-fit.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "35b6ef2c64d88c1ea4e5aab2af7c4e8a2c2e1be62db71263787d39a9797e7dea"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/utils.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "20124265300eb286db184a053561005cc32b6128dc1bc1b3f9520ffa8d43a241"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/shared/validator.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "7460d7fcbcdf710649256c5e96142ae26d807a655d3296ee8caf7f5e158622cc"
+    },
+    {
+      "path": "../.agents/skills/archify/renderers/workflow/render-workflow.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "fbee868d29fb769b174eab61d7b2f2a88e11d64fee2101f306f8dd3f4d5a772a"
+    },
+    {
+      "path": "../.agents/skills/archify/scripts/check-render-output.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "5b86f60bd6607c580e1d2daaf181a129d81c3293310b3c7f38eda6435b8520b5"
+    },
+    {
+      "path": "../.agents/skills/archify/scripts/generate-brand-marks.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "0434c31903b831382a91e85a329bcbcb39b32f29c656273a273f896b3b0a42e7"
+    },
+    {
+      "path": "../.agents/skills/archify/scripts/generate-validators.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "a5f5f67d3cd4675b16fa620043a5463f3c15aad89afb1b0c7cf42cf35e883f9a"
+    },
+    {
+      "path": "../.agents/skills/archify/scripts/render-examples.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "a173a053fb26c0ac3cd72eb9b4e50411e67ca8c50bec57f05d4ca8ba79db2c0b"
+    },
+    {
+      "path": "../.agents/skills/archify/test/adaptive-reader-layout.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "80ba934f6c8398b321387e55b0aa858a928ea66c0a4125e7ad72b6f58a1669c5"
+    },
+    {
+      "path": "../.agents/skills/archify/test/animation.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "f53265be97ca6e59a6902c68a4cd2690a7ed931ab89cb83ad071030d80e17398"
+    },
+    {
+      "path": "../.agents/skills/archify/test/architecture-delta.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "dcd79e854a3fc81bc4fd200ae6d3214cdd68ef4d74a5dc92464e38b8d0f87937"
+    },
+    {
+      "path": "../.agents/skills/archify/test/authored-reachability.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b243c1568c8470a28cfbebc6b9db4dfe0302e7f37f5c451ccffec53de23fd01b"
+    },
+    {
+      "path": "../.agents/skills/archify/test/authoring-safety-contract.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "3d10473045b4e253e90ec8dd862133634dce971d0f09408b4debd08604f8012a"
+    },
+    {
+      "path": "../.agents/skills/archify/test/automatic-port-spread.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "138508bc4ca7b28b003400897caba5484fb6e2c28ff4a7be9d0bcbdef7391aab"
+    },
+    {
+      "path": "../.agents/skills/archify/test/base-input-compatibility.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "0cc0ec480aa23620adfb493b0c102a744c72c8799e3e837ef4c31f26980551d5"
+    },
+    {
+      "path": "../.agents/skills/archify/test/brand-marks.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "ab4afa7ee7ef0c8a788befa93340425ef6464e96431d85881b0dbcbfe5ddbbc8"
+    },
+    {
+      "path": "../.agents/skills/archify/test/chapter-delta-preview.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "834fab9360c66e333e028879d12c751e540e26618ee39cdcb6def1699376dbe3"
+    },
+    {
+      "path": "../.agents/skills/archify/test/chapter-handoff.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "384683b85c8181b9be6a54f24dc00e739d5347b86b1a878d2d9a865a650b4f3e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/chapter-rail.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "a95d33c9d19e400954aa93e8585788828dba40698b7a9ada9648430872da8f9c"
+    },
+    {
+      "path": "../.agents/skills/archify/test/cli.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "6e06e52a5dda327a184974ac6b68f71128a73bc1c834e9551cdade161e5e032e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/community-proof-intake.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "bdaa30822f11fd0337d4b88fd333d5e5dc73799ec004ccb8a923d4a51357025f"
+    },
+    {
+      "path": "../.agents/skills/archify/test/cursor-onboarding.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "eda54bcffd77ffc238f1c45cf8094a203697a44a7bb4587196ee2c8cb59124b6"
+    },
+    {
+      "path": "../.agents/skills/archify/test/degraded.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b7cdbd22d594c627a4d8b0b6403e403a0599df9229c561c9bb435ce200ce1344"
+    },
+    {
+      "path": "../.agents/skills/archify/test/delivery-contract.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "1da27d15e987bc74a8a3db98e5db5ad8da3356aceffc9f094fb16ce3b864a042"
+    },
+    {
+      "path": "../.agents/skills/archify/test/desktop-reader-browser.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "c140411835720abb5ffeb14e10f07d7d55733d8ac3b25e984c09c1e9f5953fcb"
+    },
+    {
+      "path": "../.agents/skills/archify/test/diagram-guide.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "52c057417736299482f3ca270992d87a4eae4807062b78c760d85cce5ef8aa3e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/engineering-profile.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "d5419dc45da1927a2cac1b998fdd5d1bbdbc68369ccb17cffaf4d98a90e0e242"
+    },
+    {
+      "path": "../.agents/skills/archify/test/finder.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "10683c42d6d9e3d20e2c7b48006e0f4c0bb16094f8aa5c76ebaa105be531585c"
+    },
+    {
+      "path": "../.agents/skills/archify/test/gallery.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "fd4980059c8e51f6a73c16f4d0e08cc5937893f0137d917d0dea9177d0cc3b0c"
+    },
+    {
+      "path": "../.agents/skills/archify/test/generate-validators.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "d7c09443154ae5a7a030ab91857fcee1e6a302c4e6a8dd95e9669585d82f87b9"
+    },
+    {
+      "path": "../.agents/skills/archify/test/generated-artifact-xml.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "218ff8082bccc8eda3a7501c4129ce046a73555d1793cca30cb5f818b0874b73"
+    },
+    {
+      "path": "../.agents/skills/archify/test/geometry.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "23694f95da861f45b7868a52146dc1cccb778c5cbeada7e120b07f894eadb8d6"
+    },
+    {
+      "path": "../.agents/skills/archify/test/golden.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "ad0a1e34a43d4ab07a97fbca5c2d2358162a240fabda3a69d419bce6631ea6b7"
+    },
+    {
+      "path": "../.agents/skills/archify/test/grid.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "ebf1cd47535148c43b578eb10df0260f0f55cb6811d06c01375fbb408bf2cf6b"
+    },
+    {
+      "path": "../.agents/skills/archify/test/guide-page.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "cb7b40ffbca2a901b59e9bb0a2318e53d654d5caf7e9010b88580b1e26002043"
+    },
+    {
+      "path": "../.agents/skills/archify/test/guide.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "8c0d8db6ba3a79d902fdb89d77c75518b232a52153794ec70e28056d3d2e2b68"
+    },
+    {
+      "path": "../.agents/skills/archify/test/guided-views.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "fbed156af01082f3bbde7b0c0b6675664613c47644e14a33fad3fbd1b8dc062e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/helpers/xml.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "21c8c86df4feaf0f3e9411ccf4f53574714d27c85fa9750fe794aadaccdba813"
+    },
+    {
+      "path": "../.agents/skills/archify/test/i18n.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "12a6b17fcde1fddbf496f46e15bfd76db931e4f0c9c832e772a12a0ee0d02b17"
+    },
+    {
+      "path": "../.agents/skills/archify/test/intent-trace.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "055a23bed7698ba3273dddc602bc76d8b0bc01298ed2ac9c91600991334bf7f6"
+    },
+    {
+      "path": "../.agents/skills/archify/test/landing.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b8bdaf3f2494394c1ae4d300567ecef03a834ea1186ab6b93419d15c8b14979e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/layout-rules.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "94e624378563415a389ac985bac79314c4cb14137b73435a98f1f35b98266bda"
+    },
+    {
+      "path": "../.agents/skills/archify/test/legend-contract.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "99abc8fb61a3b8fa1971378ba0107205554b16ca5bbe3f068a6a8900f9e26197"
+    },
+    {
+      "path": "../.agents/skills/archify/test/motion-governor.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "02609189ef79e6b44f9b5b6c1a5c1716886201714fb16212eeb038ab12785b8c"
+    },
+    {
+      "path": "../.agents/skills/archify/test/open-artifact.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "fab9d65f5ed0844182b0ee62ced9412e364179960ef65fee020b0d23d977eb55"
+    },
+    {
+      "path": "../.agents/skills/archify/test/ordinary-model-floor.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "4927b007f21a926b638ce33704450c0b3515f649c137bddfa6fdbd938fe158e6"
+    },
+    {
+      "path": "../.agents/skills/archify/test/output-path.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "ad4bf9b4256d2c4cf10721a75ae61372ae6d13a6e1bea2dd46fd2074c0cafb9f"
+    },
+    {
+      "path": "../.agents/skills/archify/test/presentation.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "9c0fd988a3123762218093ddb8b8189998272318695347ed6fb924cec490280a"
+    },
+    {
+      "path": "../.agents/skills/archify/test/preset-tryon.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "92c45df6deac7ccefcb8c1c38ad0f0ba7f42ddd737e5ef0baa9d15aa57ef1719"
+    },
+    {
+      "path": "../.agents/skills/archify/test/preview-contract.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "170e7576bb8bb18fa90538759b07111e03d840d76a46c419489c26d58250b95e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/preview.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "26fcd349cd3f97d6bc79831b0c803886c196363a7f9ca9ad1ebcac54b8cbceb2"
+    },
+    {
+      "path": "../.agents/skills/archify/test/proof-aperture.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "f393b9935bb9d915e301a1bf974b67faa72161a2717d6b65077e1060280e9af2"
+    },
+    {
+      "path": "../.agents/skills/archify/test/reach-share-card.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b94cc337cacc3e412ff08d00e88078d975e1fa2c32ad7d72a37fcffe151a8832"
+    },
+    {
+      "path": "../.agents/skills/archify/test/readme-showcase.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "faf854ab82f99b83f964c0e077efe5a9574d5ba2484cb3414d3bf3a5d918ff80"
+    },
+    {
+      "path": "../.agents/skills/archify/test/real-repository-proof.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "6ce5dc9a9ad0e1109ec40480e959e077a0a21ff931758ab072bfa5cbee7c24ed"
+    },
+    {
+      "path": "../.agents/skills/archify/test/relationship-direct-explorer.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "1411a6540f608a99f328c0bdbdc542795fb6f296e80be3af1bf0740d55dae7b2"
+    },
+    {
+      "path": "../.agents/skills/archify/test/relationship-lens.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "65e6bbff1cc7fd1d129f0ad8469d56a07d5314d52010fc77c5fa3ac0ea22f47f"
+    },
+    {
+      "path": "../.agents/skills/archify/test/relationship-permalink.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "fb57b4300e472484b9f31523cfdfdbba9a5ac8703e451c684e694ce39d35e656"
+    },
+    {
+      "path": "../.agents/skills/archify/test/relationship-pulse.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "c15ac8f463ca7978dd48c18698b8700ae408ae05a9eebfd334425d74fad96c18"
+    },
+    {
+      "path": "../.agents/skills/archify/test/release-identity.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "261333e256394ada3beecda8df429f3c5137f858e06cb00807840dcb4283e808"
+    },
+    {
+      "path": "../.agents/skills/archify/test/release-package-gates.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "0a5c658748d4a91e4aded7bccbf98811f14cec926b93e33543a7ea28480ef88d"
+    },
+    {
+      "path": "../.agents/skills/archify/test/render-output-checks.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "637757de7c46ddf00739db371cb84ff9236691ae31fd308cb034ea7053b8744d"
+    },
+    {
+      "path": "../.agents/skills/archify/test/repair-receipt.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "f0618c73c372d11dc68e9706e6995cc0d5cfde2a13614a12c8f5ff4e9ae0a522"
+    },
+    {
+      "path": "../.agents/skills/archify/test/repository-evidence.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b91e96f5c7282b66026b38df20aff308f76a2e85c2910b9147eba7f2a071a4e5"
+    },
+    {
+      "path": "../.agents/skills/archify/test/repository-language-metadata.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "91e3e8c298031a1e117ee8974d41681402701c16a872acd57ae9fa341e8ead7c"
+    },
+    {
+      "path": "../.agents/skills/archify/test/route-journey.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b00d943fc8762dc062b5bc0981b0fb612233b948ca590eee50070c898bfac264"
+    },
+    {
+      "path": "../.agents/skills/archify/test/route-probe.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "3bc76e9426254f5589466e1fa3d10c826b4e5e883f6b7f67bc371061c3405f25"
+    },
+    {
+      "path": "../.agents/skills/archify/test/route-share-card.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "da8a73f42167d6fa47041f818aa6e8bde4fe6b614ad3441a9a7ac30c15db1709"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-camera.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "2f547c8eee6519371ebe72343428ee1bf0f94f7a072b8c1eae02a7c73fde327e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-flow.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "305dad25e06dc01825f01cb6889411cc7a6db36ceaac624f7bc6c6136ce53a76"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-legend-gateway.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "723f2299bac0e99bec50f3411b51d7e53f881c7578c502a08239e5c19869f207"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-lens.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "d7a5532c3df8fa2e95d5b5d7b3648a8e95b6974ab379846a6e15e12b89c8795b"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-passport.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "30a13095ee7681d9fe5e4304f6a83f7b018857a3f3c38851a428f1d97c204e16"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-radar.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "0b5e17d85af6fbc5e84c95b0187ec635191b1909020e537e1d1beb6c839963ba"
+    },
+    {
+      "path": "../.agents/skills/archify/test/semantic-zoom.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "c92a4e0e480ceac71bccad78fafe2fac9a4f74b72213ea3824ff53e8646e216a"
+    },
+    {
+      "path": "../.agents/skills/archify/test/sequence-column-fit.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "e3de2b0837390d31481c2d0533aed467de0263439b494843eff992060e5b0dd6"
+    },
+    {
+      "path": "../.agents/skills/archify/test/settled-flow.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "e079d492252d77612439fc055a6d79ef545829b12539aefac496f796ac90165e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/share-card-export.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "635ebf918753136fd8dad6f40e01676fd993b64a5869d7a40620253959c8ec2e"
+    },
+    {
+      "path": "../.agents/skills/archify/test/skill-metadata.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "fa179f00330ac6d0f93ec54baac340b4a7e1236250accd44ff46efac1f851540"
+    },
+    {
+      "path": "../.agents/skills/archify/test/start-page.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "2b30cb4d67924c3413bea387672a4fdcf8a8e2e98fffc207763ab6619c7246b1"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-beat-navigator.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "6b6c0ab5b396e8a608d337cd8e351d4118a75678a5d90620943249b1bc53d7b0"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-carrier.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "05143cd9c5f28ac5041fcb46daddf830ac171c0bf72335a8f9623a14916bf8bc"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-director-strip.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "8ab2e1ff83cb63384ef9d2b459f7d86b2e7de767a30173b845009a02d26a7cce"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-follow-camera.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "edc511d606a6eb18e41d8110a6fb9c9c0958c5638dce109ffb7968151cc709d7"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-horizon.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "4136e9b4e296048e422f44d64e3d10f9d81884d1a6f099d5eb0c33c4c1e5d8dd"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-moment-link.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "acd13d838b3af58058a68dca90b7f4aad81a4d2fea7e6a89afd3a21345aa2207"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-shelf.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "b734d038ca09136f46b5b514d1f19b8ca8bfa3377839d27cbcc338179c7da210"
+    },
+    {
+      "path": "../.agents/skills/archify/test/story-trail.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "9ec4a06fcd365cc7a4ecc31927a004d98a62bab0eb6f3dd9feefa4e9f7ae009b"
+    },
+    {
+      "path": "../.agents/skills/archify/test/toolbar-polish.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "09903e134954fa7dccfafc164e25cd2f3680b7323d5b92c6e06abf8f6b572bb2"
+    },
+    {
+      "path": "../.agents/skills/archify/test/v1-compatibility.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "5c8e25a164419fb1b959b29dbc6870be37872baad99a6cbdc2f5beb0b7c45bf7"
+    },
+    {
+      "path": "../.agents/skills/archify/test/viewer-chrome-layout.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "5ad88141fb74fea23c8a960be5502f42b08dd63ccd9b40dbdc9bc163d9d77ed0"
+    },
+    {
+      "path": "../.agents/skills/archify/test/visual-check.test.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "2c315abe34ecb22bd099804710c606e55aa9d170e9a17dd11d9a0d6d15724b79"
+    },
+    {
+      "path": "../.agents/skills/archify/test/webm-artifact.smoke.mjs",
+      "owner": "global-skill:archify",
+      "sha256": "325c0cccb88cfee471afe869cb1045960b6b9a904613cec341456e622eee58f2"
+    },
+    {
       "path": "scripts/check/dev/generate-dependency-graph.mjs",
       "owner": "quality:infrastructure",
       "sha256": "5d7db30138c79358a57cea59bb46972eb44bed8b26bcd5a98af33d0f23ded484"
@@ -68,11 +653,6 @@
       "sha256": "1f2fe32c6ddda7dbd28397e692c00ff5e15bc2f4da3485aeecbae816ad29a20d"
     },
     {
-      "path": "scripts/check/domains/narrative/development-system-diagnostic-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "7cd46377dbf78e4556156deba6bf10a08ffd20b0dba5147da2cd27e13087872b"
-    },
-    {
       "path": "scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs",
       "owner": "quality:narrative",
       "sha256": "0c524e04396d1803d2b3f47d2f816f7d0749ae6b83c1848d01dfa3873f42aced"
@@ -81,16 +661,6 @@
       "path": "scripts/check/domains/narrative/feedback-status-smoke.mjs",
       "owner": "quality:narrative",
       "sha256": "016a6334085b4a5cfa8f6eafb6c0d3af9689546913ded3a80ff0ed7c575bfb69"
-    },
-    {
-      "path": "scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "3f12ae7c89a583eb0f05191182725cba41f88825563078a93b1eb483b19b81d8"
-    },
-    {
-      "path": "scripts/check/domains/narrative/narrative-pressure-balance-live-eval.mjs",
-      "owner": "quality:narrative",
-      "sha256": "839d5801d51d141bff844e494f82f1b6324f597244d2d9c94b4e8fe0d44ccfbf"
     },
     {
       "path": "scripts/check/domains/narrative/narrative-regression-seed.mjs",
@@ -103,19 +673,9 @@
       "sha256": "ad0a6865d8acec4ce8041c647ea44f7abfcb4ffbc140281fe5a7b7ce8b9e6de8"
     },
     {
-      "path": "scripts/check/domains/narrative/narrative-round-archive-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "abdad929d730e94c311c249a3885732d58882b798896a94fe6ffb28b0fbd8bc0"
-    },
-    {
       "path": "scripts/check/domains/narrative/player-feedback-smoke.mjs",
       "owner": "quality:narrative",
       "sha256": "8f172ec73d68b8fb94913b1ad6dfbb4d841fa7307f875deab402c8594431e810"
-    },
-    {
-      "path": "scripts/check/domains/narrative/protected-prompt-client-bundle-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "4ef2b15bd92ed815c91b75c201728517fa9982afd0392529c3b012ad5c9729e4"
     },
     {
       "path": "scripts/check/domains/narrative/stream-response-smoke.mjs",
@@ -226,11 +786,6 @@
       "path": "scripts/ops/lib/log-databases.mjs",
       "owner": "operations",
       "sha256": "c2672e89cce1d9a6ff7d7ebea3d65d77b4cdcdfce8b2fd17887d9ba4d8dba196"
-    },
-    {
-      "path": "scripts/ops/migrate-log-archive-v1.ts",
-      "owner": "operations",
-      "sha256": "6fc10b422e84a3bc3484a2fb131a79b45c12247aef545219230715019455b5a2"
     },
     {
       "path": "scripts/ops/validate-production-env.mjs",
@@ -381,11 +936,6 @@
       "path": "src/app/api/log/route.ts",
       "owner": "app:api",
       "sha256": "29d314990a2540534470a4b41de02e83ec3a542ad47370b700af58aea822671c"
-    },
-    {
-      "path": "src/app/api/narrative/round-outcome/route.ts",
-      "owner": "app:api",
-      "sha256": "642792e96eb82df194139b29910c56f31575a1c014d007bdcc0d038f5076bc43"
     },
     {
       "path": "src/app/error.tsx",
@@ -548,26 +1098,6 @@
       "sha256": "554403839b100d3e71e1dece11ee9d58e5e6a92310bd121079a7248032273707"
     },
     {
-      "path": "src/core/logger/ai-call-log.ts",
-      "owner": "core:logger",
-      "sha256": "02c1664e46af6f98c1243b2bcb9164ab3b5125b722854bc127d225a09b39cdc0"
-    },
-    {
-      "path": "src/core/logger/debug-logger.ts",
-      "owner": "core:logger",
-      "sha256": "f827f174f2bd44b81bc3e774a44af5860973d9e4e81415fc38e147f10f8e52b3"
-    },
-    {
-      "path": "src/core/logger/development-system-diagnostic.server.ts",
-      "owner": "core:logger",
-      "sha256": "5c0217127e60f6fa2f2d5a1bb780fd0b0c7a642bbefe86eefca467d4970e0455"
-    },
-    {
-      "path": "src/core/logger/development-system-diagnostic.ts",
-      "owner": "core:logger",
-      "sha256": "320e96a7fdf74c9509e71a6415d9955a4b332d1daabfabf9ff14ff2474c8fefe"
-    },
-    {
       "path": "src/core/logger/device-provenance-identity.ts",
       "owner": "core:logger",
       "sha256": "b96b3b1e3dfc16942ad9a3d3f0a440f65ef2492dc0215db9bbee712ade59e08b"
@@ -596,16 +1126,6 @@
       "path": "src/core/logger/feedback-contract.ts",
       "owner": "core:logger",
       "sha256": "c5a2f6d3a903b03608b720107830e46933ea040db9eac0a23216871df2c50469"
-    },
-    {
-      "path": "src/core/logger/index.ts",
-      "owner": "core:logger",
-      "sha256": "ef87cc6c4df4011a82aad699cdc91eb11eff25f63588958f3a06d762014a9b56"
-    },
-    {
-      "path": "src/core/logger/narrative-round-archive.ts",
-      "owner": "core:logger",
-      "sha256": "1d69c72200b11cc3f6a741b2d8b5e9d40db9f94e4867ac355216ca404cfe6767"
     },
     {
       "path": "src/core/logger/narrative-round-diagnostic.ts",
@@ -773,11 +1293,6 @@
       "sha256": "3602746c002c9d9f755792addf6034fafdf0935d378fc09f809e45bb60881843"
     },
     {
-      "path": "src/foundation/constants/narrative-word-count.ts",
-      "owner": "foundation:constants",
-      "sha256": "0326eadb5357c61574705d5d923ed330e23f4599679176e9131f5b40947e558f"
-    },
-    {
       "path": "src/foundation/defines/index.ts",
       "owner": "foundation:defines",
       "sha256": "5dc3545daac24c99d7bcb49c50b09bea1568c7a0af617cd3a557afcd78fd8db9"
@@ -831,11 +1346,6 @@
       "path": "src/foundation/types/api.types.ts",
       "owner": "foundation:types",
       "sha256": "88cb598a9a95142b136f3b265de8a071fa598f38c545f1e052c54962b895be7b"
-    },
-    {
-      "path": "src/foundation/types/attribute.types.ts",
-      "owner": "foundation:types",
-      "sha256": "5b15f08d08ee39ef482fe6c2f579047c5a019a04851faaf67ee7a7a502cf396c"
     },
     {
       "path": "src/foundation/types/execution-sequence.types.ts",
@@ -926,16 +1436,6 @@
       "path": "src/mods/mod-character/life-record-store.ts",
       "owner": "mod-character",
       "sha256": "ab12faae9fe88a98d1c035a35e30cb6f78e6bd57a2cab957abd43b73bbe029db"
-    },
-    {
-      "path": "src/mods/mod-character/manifest.ts",
-      "owner": "mod-character",
-      "sha256": "ceaee99b9cd3e0673439343433711a585e4e84eaa746916c89879613acc9abb3"
-    },
-    {
-      "path": "src/mods/mod-character/prompts/talent-presets.ts",
-      "owner": "mod-character",
-      "sha256": "c481817c9fa4f0f77d304eea22bd711d33015e97dfa7f11f5a76481e222e2e04"
     },
     {
       "path": "src/mods/mod-character/prompts/use-race-origin.ts",
@@ -1051,11 +1551,6 @@
       "path": "src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts",
       "owner": "mod-engine",
       "sha256": "57cbe09fccb49ccaaa7f8ae6c8316fcf0f470111125e992061acd4e0f29f2225"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/simulation-time-api.ts",
-      "owner": "mod-engine",
-      "sha256": "a7ab33670babb0b39fcbbbea667adaace0b4bbb4055d8c16e2e789615ed662e9"
     },
     {
       "path": "src/mods/mod-engine/helpers/subsystem-execution-flow.ts",
@@ -1353,11 +1848,6 @@
       "sha256": "7e2c36a88de415181666c8f096365a21fa97932cd71d49e7617d34cba54b64ab"
     },
     {
-      "path": "src/mods/mod-settings/components/SettingsTabStats.tsx",
-      "owner": "mod-settings",
-      "sha256": "2e9bb0dd0a8730a317b48eb26be978479fba7c64f820cac79aebc2ba60d52f33"
-    },
-    {
       "path": "src/mods/mod-settings/manifest.ts",
       "owner": "mod-settings",
       "sha256": "3e5f715ffe0043277171a4b963d752cec170d2a8866a041fc9a6c5b3d3883e96"
@@ -1528,11 +2018,6 @@
       "sha256": "bb5a542c9c690e6046bb2a878bbba068815b686c75ed202f17879d26f64734b0"
     },
     {
-      "path": "src/mods/mod-ui/components/molecules/RadarChart.tsx",
-      "owner": "mod-ui",
-      "sha256": "97cfb9430ac6cfbf786b2a9b07fd0f004948155bceb2206950fe4c476b7ced28"
-    },
-    {
       "path": "src/mods/mod-ui/components/molecules/RadarChart.types.ts",
       "owner": "mod-ui",
       "sha256": "5b485db0bc9e91b1959e7963dc578bc710aced04dcb94219701edf5142c6017f"
@@ -1595,7 +2080,7 @@
     {
       "path": "src/mods/mod-ui/components/organisms/GameBottomBar.tsx",
       "owner": "mod-ui",
-      "sha256": "6c54bb1a831929ef61ce455d4bb881ed5740d0d73778a9118321a7af8c4175b0"
+      "sha256": "2e2374996906f2ab389942a175870a575eb6627ce130183c6ebce75fdb55383c"
     },
     {
       "path": "src/mods/mod-ui/components/organisms/help-content.ts",

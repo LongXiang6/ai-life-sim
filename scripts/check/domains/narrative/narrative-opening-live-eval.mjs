@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Purpose: Live regression for world-first narrative openings and event variation.
+ * Purpose: Live regression for random complete-story generation and round variation.
  * Owner: quality:narrative
  * Responsibility: Validate prompt behavior without owning runtime state.
  */
@@ -13,7 +13,9 @@ import process from 'node:process'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
-import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
+import { composeNarrativeUserMessage } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
+import { buildWordCountInstruction, DEFAULT_WORD_COUNT_TARGET } from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
+import { projectNarrativeResultForPrompt } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
 
 const PROVIDER = 'deepseek'
 const MODEL = 'deepseek-v4-flash'
@@ -31,9 +33,9 @@ function readLocalEnv(name) {
   return undefined
 }
 
-function extractBody(content) {
+function extractEnvelope(content) {
   try {
-    return parseNarrativeResponseEnvelope(content).narrative
+    return parseNarrativeResponseEnvelope(content)
   } catch {
     return undefined
   }
@@ -43,12 +45,20 @@ function firstNarrativeLine(body) {
   return body.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? ''
 }
 
+function detectedTimeMarkers(body) {
+  return [...new Set(body.match(
+    /(?:第?[零〇一二两三四五六七八九十百千\d]+个?(?:岁|年|月|日|天|夜|周|旬|季|季度|时辰|小时|分钟)(?:前|后|间|内|中|来)?|(?:今年|去年|明年|这年|那年|当年|次年|翌年|今夜|昨夜|明夜|那夜|今晚|明晚|翌日|次日|第二天|不久后|数日后|多年后|天亮后|入夜后|开春|入春|入夏|入秋|入冬|春末|夏末|秋末|冬末|年初|年末|年底|一整季))/gu,
+  ) ?? [])]
+}
+
 function buildMessages(round, history) {
-  const year = 1998 + round
+  const currentAge = 17 + round
+  const recentHistory = history.slice(-3)
+  const firstRecentRound = round - recentHistory.length
   const context = {
     worldNarrativeView: {
       名称: '潮汐群岛',
-      描述: '由航海城邦与旧灯塔共同维系的群岛世界；海雾、贸易和潮汐术都服从已建立的资源与社会规则。',
+      描述: '群岛社会由多个自治城邦与海岸聚落组成，海贸和有限潮汐术影响生产与政治秩序，世界遵循既有资源与力量边界。',
     },
     characterProfileView: {
       姓名: '林汐',
@@ -58,31 +68,19 @@ function buildMessages(round, history) {
       基础属性: {},
     },
     characterStatusView: {
-      年龄: 17 + round,
-      当前处境: '目前在北港灯塔做学徒，正在追查父亲失踪前留下的航线缺口。',
+      年龄: currentAge,
     },
-    currentTime: `${year}年 · 春 · 4月`,
-    timelineMemory: history.length > 0
-      ? history.map((text, index) => (
-          `【时间阶段：第${index + 1}轮】\n- [第${index + 1}轮] ${text}`
-        ))
-      : undefined,
+    currentTime: `大曜历${currentAge}年 · 事件${round}`,
     narrativeAddressing: 'second-person',
+    wordCountInstruction: buildWordCountInstruction(DEFAULT_WORD_COUNT_TARGET),
     talents: [],
-    wordCountInstruction: '篇幅约200字，只作节奏参考；剧情需要时可以自然超出。',
+    recentStories: recentHistory.map((text, index) => projectNarrativeResultForPrompt({
+      text,
+      displayAge: 17 + firstRecentRound + index,
+    })),
   }
   const segments = buildSegmentedPrompt(narrativePrompt, context)
-  if (segments.messages) {
-    return [
-      { role: 'system', content: COMPILED_NARRATIVE_SYSTEM_PROMPT },
-      ...segments.messages.filter((message) => message.role !== 'system'),
-    ]
-  }
-  const userSegments = segments.userSegments ?? [segments.full]
-  return [
-    { role: 'system', content: COMPILED_NARRATIVE_SYSTEM_PROMPT },
-    ...userSegments.map((content) => ({ role: 'user', content })),
-  ]
+  return [{ role: 'user', content: composeNarrativeUserMessage(segments.userSegments[0]) }]
 }
 
 async function callRound(apiKey, round, history) {
@@ -101,7 +99,7 @@ async function callRound(apiKey, round, history) {
         messages: buildMessages(round, history),
         temperature: 0.8,
         stream: false,
-        thinking: { type: 'enabled' },
+        thinking: { type: 'disabled' },
       }),
       signal: controller.signal,
     })
@@ -110,8 +108,9 @@ async function callRound(apiKey, round, history) {
     const payload = JSON.parse(responseText)
     const content = payload.choices?.[0]?.message?.content
     if (typeof content !== 'string' || !content.trim()) throw new Error('DeepSeek returned no final text')
-    const body = extractBody(content)
-    if (!body) throw new Error('Narrative response does not match the strict first-call protocol')
+    const envelope = extractEnvelope(content)
+    const body = envelope?.narrative
+    if (!body) throw new Error('Narrative response does not contain a usable story body')
     const firstLine = firstNarrativeLine(body)
     return {
       body,
@@ -135,11 +134,13 @@ async function main() {
     const result = await callRound(apiKey, round, history)
     history.push(result.body)
     const genericTimeOpening = /^(?:这一年|这一月|这一天)(?:[，。！？、\s]|$)/.test(result.firstLine)
+    const timeMarkers = detectedTimeMarkers(result.body)
     results.push({
       round,
       body: result.body,
       firstLine: result.firstLine,
       genericTimeOpening,
+      timeMarkers,
       latencyMs: result.latencyMs,
       finishReason: result.finishReason,
       promptVersion: narrativePrompt.version,
@@ -153,17 +154,19 @@ async function main() {
   const normalizedOpenings = results.map((result) => result.firstLine.replace(/[，。！？].*$/, '').slice(0, 16))
   const repeatedOpeningCount = normalizedOpenings.length - new Set(normalizedOpenings).size
   const genericOpeningCount = results.filter((result) => result.genericTimeOpening).length
+  const timeMarkerRoundCount = results.filter((result) => result.timeMarkers.length > 0).length
   console.log(JSON.stringify({
-    requirement: 'four sequential annual narratives allow independent world events without generic repeated openings',
+    requirement: 'four sequential random stories use the formal five-segment history input',
     promptVersion: narrativePrompt.version,
     provider: PROVIDER,
     model: MODEL,
     genericOpeningCount,
     repeatedOpeningCount,
+    timeMarkerRoundCount,
     results,
   }, null, 2))
 
-  if (genericOpeningCount > 0 || repeatedOpeningCount > 0) process.exit(1)
+  if (genericOpeningCount > 0 || repeatedOpeningCount > 0 || timeMarkerRoundCount > 0) process.exit(1)
 }
 
 main().catch((error) => {

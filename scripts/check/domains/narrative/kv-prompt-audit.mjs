@@ -8,7 +8,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
-import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
+import { COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, composeNarrativeUserMessage } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import {
@@ -24,11 +24,10 @@ const root = getProjectRoot(import.meta.url)
 let failed = 0
 const fail = (message) => { console.error(`FAIL: ${message}`); failed += 1 }
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8')
-
 const promptSources = [
   ['destiny', buildDestinyPatternSystemPrompt('action')],
   ['reincarnation', reincarnationPromotionPrompt.systemPrompt],
-  ['narrative', COMPILED_NARRATIVE_SYSTEM_PROMPT],
+  ['narrative', COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE],
   ['ending-review', ENDING_REVIEW_SYSTEM_PROMPT],
   ['life-score', LIFE_SCORING_SYSTEM_PROMPT],
 ]
@@ -64,53 +63,58 @@ const segments = buildSegmentedPrompt(narrativePrompt, {
   },
   subsystemSummaries: [],
   timelineMemory: ['已成立记忆'],
-  narrativeGuidanceText: '本轮事实与方向',
+  recentStories: ['最近正文'],
+  currentTime: '世界历20年',
+  wordCountInstruction: '正文约200字。',
+  playerBranchIntent: { 命运分支: '另一条路' },
 })
 if (segments.userSegments.length !== 1) fail('dynamic narrative assembly must produce one data-layer message')
 const parsedSegments = JSON.parse(segments.userSegments[0])
 if (
-  Array.isArray(parsedSegments)
-  || JSON.stringify(Object.keys(parsedSegments)) !== JSON.stringify([
-    '世界',
-    '玩家信息',
-    '历史事件上下文',
-    '玩家本节点属性',
-    '本节点信息',
+  !Array.isArray(parsedSegments)
+  || parsedSegments.length !== 5
+  || JSON.stringify(parsedSegments.map((segment) => Object.keys(segment))) !== JSON.stringify([
+    ['世界'],
+    ['玩家信息'],
+    ['历史输出'],
+    ['玩家本次点属性'],
+    ['本次信息'],
   ])
-  || JSON.stringify(Object.keys(parsedSegments.世界 ?? {})) !== JSON.stringify(['名称', '描述'])
-  || JSON.stringify(Object.keys(parsedSegments.玩家信息 ?? {})) !== JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能'])
-  || JSON.stringify(Object.keys(parsedSegments.历史事件上下文 ?? {})) !== JSON.stringify(['节点事件'])
-  || !Array.isArray(parsedSegments.历史事件上下文?.节点事件)
-  || JSON.stringify(Object.keys(parsedSegments.玩家本节点属性 ?? {})) !== JSON.stringify(['心智', '体魄', '魅力', '家境'])
-  || Object.values(parsedSegments.玩家本节点属性 ?? {}).some((value) => typeof value !== 'string' || !/^-?\d+$/u.test(value))
-  || JSON.stringify(Object.keys(parsedSegments.本节点信息 ?? {})) !== JSON.stringify(['时间节点', '当前状态'])
+  || JSON.stringify(Object.keys(parsedSegments[0]?.世界 ?? {})) !== JSON.stringify(['名称', '描述'])
+  || JSON.stringify(Object.keys(parsedSegments[1]?.玩家信息 ?? {})) !== JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能'])
+  || JSON.stringify(parsedSegments[2]?.历史输出?.事件) !== JSON.stringify(['已成立记忆', '最近正文'])
+  || JSON.stringify(Object.keys(parsedSegments[3]?.玩家本次点属性 ?? {})) !== JSON.stringify(['心智', '体魄', '魅力', '财富'])
+  || Object.values(parsedSegments[3]?.玩家本次点属性 ?? {}).some((value) => typeof value !== 'string' || !/^-?\d+$/u.test(value))
+  || JSON.stringify(Object.keys(parsedSegments[4]?.本次信息 ?? {})) !== JSON.stringify(['时间节点', '时间窗口', '命运分支', '篇幅偏好'])
+  || parsedSegments[4]?.本次信息?.时间节点 !== '当前年龄=20；内部阶段索引=20；只用于合龄裁决，不得转写为正文或事件结果'
+  || !parsedSegments[4]?.本次信息?.时间窗口
+  || parsedSegments[4]?.本次信息?.命运分支 !== '另一条路'
+  || parsedSegments[4]?.本次信息?.篇幅偏好 !== '正文约200字。'
 ) {
-  fail('main narrative data layer must match the five-field world, player, history, attributes, and current-node contract')
+  fail('main narrative data layer must preserve the approved five-element field contract')
 }
 if (/⟦(?:全局信息|记忆|本轮素材)⟧/u.test(segments.userSegments[0])) {
   fail('main narrative data layer must not carry object-external labels')
 }
+for (const heading of ['【身份与任务】', '【核心规则】', '【正文要求】', '【一次调用内的生成流程】', '【本轮输入】', '【返回协议】']) {
+  if (!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(heading)) fail(`main narrative Prompt is missing ${heading}`)
+}
+if (COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('代码区块')) {
+  fail('main narrative Prompt must not require code-block execution order')
+}
 if (
-  !COMPILED_NARRATIVE_SYSTEM_PROMPT.startsWith('身份：')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你是一个离散化人生模拟器')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('你的输出是一条已经结算的人生事件，而不是对生活过程的连续记录。')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('每个时间节点都重新观察世界与玩家，从当前可能发生的变化中独立选择一件事件。')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('离散化的目的，是让不同时间节点成为彼此独立的人生切片')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('世界与玩家同时运行')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出的是这一节点最值得记录的事实')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('采用结果式叙述')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('历史主要承担一致性与去重作用')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('心智、体魄、魅力、家境表示玩家当前状态')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有本次事件自然形成重大人生转折时才生成三个命运走向，否则为null')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('使用第二人称。')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('正文100-200字。')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('输出格式：')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支": null或者["选项一", "选项二", "选项三"],')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局": null或者["四字评语", "一句最终总结"]')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"命运分支"')
-  || !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('"结局"')
+  !['"时间定位"', '"事件结果"', '"正文"', '"命运分支"', '"属性"', '"结局"'].every((field) => COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
+  || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"历史事件"')
+  || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"当前状态"')
+) fail('main narrative fixed Prompt must preserve the approved six-field output contract')
+const composed = composeNarrativeUserMessage(segments.userSegments[0])
+if (composed.includes('代码区块')) fail('server composition must not require code-block execution order')
+if (
+  !composed.includes('"名称": "世界事实"')
+  || !composed.includes('"命运分支": "另一条路"')
+  || !composed.includes('"篇幅偏好": "正文约200字。"')
 ) {
-  fail('main narrative fixed Prompt must contain the current single-node narrative rules and output format')
+  fail('server composition must place the dynamic data inside the approved Prompt positions')
 }
 
 const gameOverReview = read('src/mods/mod-pages/pages/game-over/game-over-review.ts')

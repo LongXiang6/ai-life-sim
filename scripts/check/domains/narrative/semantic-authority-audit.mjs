@@ -37,58 +37,33 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '9\.15\.0'/u)
+assert.match(sources.mainPrompt, /version: '9\.26\.0'/u)
 // Asset-contract checks do not establish actual generation quality.
 for (const phrase of [
-  "本轮交付一份新的、完整的、已经发生并留下结果的人生记录",
-  "本轮由若干件各自落地的新事共同组成",
-  "现实事实可以连续，但本轮不能自动续写上一轮的主题",
-  "你是文字游戏式人生重开模拟器的世界演化与事件裁决系统",
-  "恢复已成立事实后，先从世界规则、相关者行动和开放人生可能性形成新的事件局面，再判断玩家在其中的合龄因果位置并裁决事件结果，最后将结果编译为人生记录",
-  "已确认的角色设定、自创成果及其来源归属是裁决依据",
-  "玩家决定行动意图，你依条件裁决世界响应与未决结果，不预设成败",
-  "其中尚未发生的成功、所得或数值变化仍由条件裁决，不能直接登记为事实",
-  "叙事只编译结果，不反向安排事件去满足预设情节",
-  "返回尚未发生的行动或发展方向选项，不预先承诺成败或所得",
-  "先从世界规则、相关者行动和开放人生可能性形成新的事件局面",
-  "新轮从仍开放的世界可能性中重新选题，再比较核心问题、主要行动者、因果机制、作用范围、玩家位置和结果意义",
-  "把代码区块5选出的每件新事推演到现实已经改变",
-  "事件结果是正文唯一的前置事实",
-  "事件结果在正文提交后由叙事历史记录保存",
-  "正文涉及玩家时只用“你/你的”",
-  "用“事实已经发生、状态已经改变、结果已经留下”的记录口吻表达跨度",
-  "玩家姓名不进入正文",
-  "不要为了短把完整人生记录缩成一件小事",
-  "代价来自投入、放弃和反作用",
-  "惊喜和荒诞来自世界特性、偶然相遇和各方行动的交汇",
-  "事件、成因、结果、影响四个字符串字段"
+  "生成一段新的、已经发生并留下结果的人生记录",
+  "正文是广角人生记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放",
+  "历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风",
+  "你是以玩家人生与世界交互为主体的文字游戏式人生重开模拟器",
+  "世界按自己的规则、资源边界、相关者行动和开放可能性变化",
+  "家庭只能作为玩家的背景、资源、关系或处境，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线",
+  "玩家是事件身份、因果主线和正文重心的归属者",
+  "即使玩家处于幼年或依赖阶段，也要通过合龄的感知、移动、学习、游戏、依恋、恐惧、社交、观察或选择进入因果",
+  "面对非标准世界观",
+  "先形成会作用于玩家的新外部局面",
+  "事件结果是正文唯一的事实底稿",
+  "正文使用第二人称“你/你的”",
+  "细节必须服务玩家的行动、位置、关系、结果或代价",
+  "可通过相关的空间、环境、光线、声音、触感、气味、物件位置或人物反应让结果可感知",
+  "只返回一个合法 JSON 对象",
+  "事件、成因、结果、影响"
 ]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(phrase), phrase)
-const stageHeadings = [
-  "【代码区块1：AI身份与核心职责】",
-  "【代码区块2：执行顺序与判断】",
-  "【代码区块3：只读输入数据】",
-  "【代码区块4：恢复本轮起点】",
-  "【代码区块5：先形成世界局面，再选择离散新事】",
-  "【代码区块6：形成已成立事件结果】",
-  "【代码区块7：把结果压缩为广角人生记录】",
-  "【代码区块8：依据结果结算】",
-  "【代码区块9：完成返回】"
-]
-const stages = COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.split(/(?=【代码区块\d+：)/u)
-assert.equal(stages.length, stageHeadings.length)
-for (const [index, stage] of stages.entries()) {
-  assert(stage.startsWith(stageHeadings[index]))
-  const numbers = [...stage.matchAll(/^(\d+)\. /gmu)].map(match => Number(match[1]))
-  if (index === 2) {
-    assert.match(stage, /【输入1：世界】/u)
-    assert.match(stage, /【输入5：本次条件】/u)
-  } else {
-    assert(numbers.length > 0)
-    assert.deepEqual(numbers, numbers.map((_, index) => index + 1))
-  }
-}
-assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /编号只表示处理顺序，不表示重要程度、事件数量或正文段数/u)
+assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /【输入1：世界】/u)
+assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /【输入5：本次条件】/u)
+assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /本次调用内依次完成：恢复世界边界和已成立事实；形成新的外部局面；裁决玩家与世界的交互、结果和代价；编译正文；结算并返回 JSON/u)
+assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /代码区块/u)
 assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /只返回一个合法 JSON 对象/u)
+assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /玩家处于依赖阶段时，以外部局面和照料者的目标为事件主体/u)
+assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /家庭日常只能作为玩家位置的证据或后果/u)
 assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /作为文字游戏式人生重开模拟器的叙事引擎|五项数据是只读事实|已确认的命运方向必须落实/u)
 assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /本轮唯一的叙事对象|形成一条完整的叙事弧线|围绕一个主要状态变化|事件抽取器|世界演变/u)
 for (const field of ["\"时间定位\"","\"事件结果\"","\"正文\"","\"命运分支\"","\"属性\"","\"结局\""]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
@@ -104,7 +79,11 @@ assert.match(sources.continuityPrompt, /时间.*剧情.*权重/u)
 assert.match(sources.talentPrompt, /天赋成长的推演者/u)
 assert.match(sources.talentPrompt, /下一等级/u)
 assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
-assert.match(sources.talentPrompt, /转变强化改变作用方式，不额外扩大影响总量/u)
+assert.match(sources.talentPrompt, /转变强化依据玩家本局已成立经历和突破契机重新塑造能力/u)
+assert.match(sources.talentPrompt, /不要求保留最初天赋或上一版本的能力特征/u)
+assert.match(sources.talentPrompt, /新天赋可以与最初天赋毫不相干/u)
+assert.match(sources.talentPrompt, /深度、广度也以当前已确认版本为起点/u)
+assert.doesNotMatch(sources.talentPrompt, /每条路线保留同一命格的核心来源|不额外扩大影响总量|凡俗可及/u)
 assert.match(sources.talentPrompt, /长期积累/u)
 assert.match(sources.talentPrompt, /时间沉淀/u)
 assert.match(sources.talentPrompt, /明确契机/u)
@@ -153,10 +132,10 @@ assert(NarrativeAITalentGrowthDataSchema.safeParse({
     下一阶方向: [
       { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 2 } },
       { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 财富: 1 } },
-      { 路线: '转变强化', 名称: '引流成势', 详细介绍: '把对近处水压的判断化为直接引导细小水流。', 效果描述: '可改变近处少量水流的去向，但不能增大可影响的水量。', 属性加成: { 心智: -1, 财富: 3 } },
+      { 路线: '转变强化', 名称: '机械共鸣', 详细介绍: '你在修复潮门机械后，能够感应并协调近处机械的运转。', 效果描述: '通过共鸣调整机械运动，不再以听潮辨隙为能力机制。', 属性加成: { 心智: 2, 财富: 1 } },
     ],
   },
-}).success, 'Schema 必须允许转变路线从感知判断质变为直接操控类')
+}).success, 'Schema 必须允许转变路线跨越能力类型，不以原能力相似度过滤')
 const continuityOrder = ['历史剧情:', '待压缩五轮正文:', '压缩范围:']
 let continuityCursor = -1
 for (const fragment of continuityOrder) {

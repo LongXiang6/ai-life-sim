@@ -34,7 +34,7 @@ export interface GameBottomBarProps {
   className?: string
 }
 
-/** 默认步进：年正式档位（月/日/季为 experimental，不在此列表） */
+/** 默认步进：完整日历档位与年度快进。 */
 export const DEFAULT_TIME_STEPS: TimeStepOption[] = PRIMARY_TIME_STEPS.map((s) => ({
   label: s.label,
   value: encodeTimeStepKey(s),
@@ -43,7 +43,7 @@ export const DEFAULT_TIME_STEPS: TimeStepOption[] = PRIMARY_TIME_STEPS.map((s) =
 
 export function GameBottomBar({
   timeStepOptions = DEFAULT_TIME_STEPS,
-  activeTimeStep = encodeTimeStepKey({ unit: 'year', value: 1 }),
+  activeTimeStep = encodeTimeStepKey({ unit: 'month', value: 1 }),
   onTimeStepChange,
   controls = [],
   autoSaveIndicator,

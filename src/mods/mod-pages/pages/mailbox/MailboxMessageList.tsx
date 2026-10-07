@@ -11,6 +11,7 @@ import type {
   PlayerMailMessageView,
   PlayerMailRewardView,
 } from '@/core/player-content/player-content-contract'
+import { DESTINY_PATTERN_CATEGORY_CONFIG } from '@/mods/mod-character'
 
 import styles from './Mailbox.module.css'
 
@@ -41,14 +42,6 @@ const rewardStatusLabels: Record<PlayerMailRewardView['claimStatus'], string> = 
 const rewardModeLabels: Record<PlayerMailRewardView['eligibilityMode'], string> = {
   'login-window': '有效期内登录过',
   'registered-account': '注册账号',
-}
-
-const categoryLabels: Record<string, string> = {
-  action: '行动',
-  cognition: '认知',
-  expression: '表达',
-  stewardship: '经营',
-  misc: '杂类',
 }
 
 const rarityLabels: Record<string, string> = {
@@ -139,7 +132,10 @@ export function MailboxMessageList({
                       </span>
                     </div>
                     <div className={styles.rewardTags}>
-                      <span>{categoryLabels[message.reward.talent.category] ?? message.reward.talent.category}</span>
+                      <span>
+                        {DESTINY_PATTERN_CATEGORY_CONFIG[message.reward.talent.category as keyof typeof DESTINY_PATTERN_CATEGORY_CONFIG]?.label
+                          ?? message.reward.talent.category}
+                      </span>
                       <span>{rarityLabels[message.reward.talent.rarity] ?? message.reward.talent.rarity}</span>
                     </div>
                     <p>{message.reward.talent.description}</p>

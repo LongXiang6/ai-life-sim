@@ -122,7 +122,7 @@ async function assertCreationUiContract(page, expected) {
         candidateCardsSeparated,
       }),
       ...(contract.loadoutSlots === undefined ? {} : { loadoutSlots: document.querySelectorAll('[aria-label^="移除普通命格："], [aria-label^="移除轮回天赋："]').length === contract.loadoutSlots }),
-      ...(contract.attributeRows === undefined ? {} : { attributeRows: ['心智', '体魄', '魅力', '家境'].every((name) => document.querySelector(`button[aria-label="提高${name}"]`)) }),
+      ...(contract.attributeRows === undefined ? {} : { attributeRows: ['心智', '体魄', '魅力', '财富'].every((name) => document.querySelector(`button[aria-label="提高${name}"]`)) }),
       ...(contract.includes === undefined ? {} : { includes: contract.includes.every((value) => (document.body.innerText || '').includes(value)) }),
     }
     return {

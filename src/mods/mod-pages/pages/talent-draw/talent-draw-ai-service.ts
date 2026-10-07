@@ -12,7 +12,7 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import type { AIModelConfig } from '@/foundation'
-import type { AICallLogContext } from '@/core/logger/ai-call-log'
+import type { AICallLogContext } from '@/core/ai-service'
 
 export function buildDestinyPatternContext() {
   return {
@@ -71,7 +71,6 @@ export function configureDestinyPatternAIService(): void {
       reasoningEffort: talentThinkingIntensity,
       storySeed: opts?.storySeed,
       outputSchema: opts?.outputSchema,
-      logCategory: 'talent-generate' as const,
       logContext: {
         ...opts?.logContext,
         callKind: opts?.logContext?.callKind

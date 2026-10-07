@@ -4,7 +4,7 @@
  * Responsibility: Stateless response calculations shared by logging, retry, and transport components.
  */
 
-import type { AICallUsageSnapshot } from '../../logger/ai-call-log'
+import type { AICallUsageSnapshot } from './types'
 import { normalizeAiUsage } from '../normalize-ai-usage'
 import type { AIResponse } from './types'
 

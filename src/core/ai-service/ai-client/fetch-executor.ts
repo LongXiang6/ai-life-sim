@@ -4,11 +4,10 @@
  * Responsibility: A single transport attempt only; callers explicitly decide whether to start another request.
  */
 
-import type { AICallUsageSnapshot } from '../../logger/ai-call-log'
+import type { AICallUsageSnapshot } from './types'
 import type { CachePoolType } from '../cache-pool'
 import { isValidAiContent } from '../stream-text-extractor'
 import { recordAiUsage } from '../usage-stats'
-import { logFailedAICall, logSuccessfulAICall } from './call-logging'
 import {
   AIHttpError,
   AIResponseTruncatedError,
@@ -55,16 +54,6 @@ export async function executeAiFetch(
       throw new Error(content.trim() ? 'AI 返回无效内容' : 'AI 返回空响应')
     }
 
-    await logSuccessfulAICall(
-      messages,
-      content,
-      options,
-      pool,
-      usage,
-      finishReason,
-      requestId,
-      { attempt: 1, maxAttempts: 1 },
-    )
     return content
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error
@@ -76,29 +65,7 @@ export async function executeAiFetch(
       requestId = error.requestId ?? requestId
     }
 
-    const reason = error instanceof Error ? error.message : String(error)
     notifyAiError(`AI 调用失败：${formatAiError(error)}`)
-    await logFailedAICall(
-      messages,
-      options,
-      pool,
-      reason,
-      usage,
-      finishReason,
-      content,
-      requestId,
-      {
-        attempt: 1,
-        maxAttempts: 1,
-        willRetry: false,
-        ...(isAiResponseTruncatedError(error)
-          ? {
-              failureKind: 'response-truncated',
-              responseLength: error.responseLength,
-            }
-          : {}),
-      },
-    )
     throw error
   }
 }

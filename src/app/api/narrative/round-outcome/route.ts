@@ -1,7 +1,12 @@
+/**
+ * Purpose: Accept one narrative-round outcome and persist its diagnostics.
+ * Owner: app:api
+ * Responsibility: Validate the public outcome payload and forward it to the canonical SQLite log store.
+ */
+
 import { z } from 'zod'
 
 import { assertSameOrigin, jsonNoStore } from '@/core/account/account-http'
-import { appendNarrativeRoundOutcome } from '@/core/logger/narrative-round-archive'
 import { DEVELOPMENT_INCIDENT_CATEGORIES } from '@/core/logger/development-system-diagnostic'
 import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-diagnostic.server'
 import {
@@ -125,7 +130,6 @@ export async function POST(request: Request): Promise<Response> {
       if (!written) return jsonNoStore({ error: '回合诊断写入失败' }, { status: 500 })
     }
     const recordedAt = Date.now()
-    await appendNarrativeRoundOutcome({ report, recordedAt })
     if (!existing) {
       await appendDevelopmentSystemEvents([
         ...(report.systemEvents ?? []),
@@ -145,7 +149,7 @@ export async function POST(request: Request): Promise<Response> {
           },
           ...(report.error ? { error: report.error } : {}),
         },
-      ]).catch((diagnosticError) => {
+      ], source).catch((diagnosticError) => {
         console.error('[round-outcome] 开发系统诊断写入失败', diagnosticError)
       })
     }

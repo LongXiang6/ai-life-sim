@@ -4,7 +4,7 @@
  * Responsibility: Prompt projection only; time state and story selection remain with their owners.
  */
 
-import { basePointsFromCalendarDays, normalizeCanonicalTimeStep, type TimeStep } from '@/foundation'
+import { normalizeCanonicalTimeStep, type TimeStep } from '@/foundation'
 import { buildCanonicalCalendarNarrativeHint } from './time-scale-narrative'
 
 export interface CalendarNarrativeContextInput {
@@ -20,31 +20,31 @@ export interface CalendarNarrativeContextInput {
   }
   basePointsPassed?: number
   daysPassed?: number
-  eventNodeIndex?: number
-  eventNodeCount?: number
-  timeStepAlignment?: {
-    fromUnit: TimeStep['unit']
-    fromValue: number
-  }
 }
 
 export function buildCalendarNarrativeContext(input: CalendarNarrativeContextInput): string {
   const timeStep = normalizeCanonicalTimeStep(input.timeStep)
   const normalizedInput = { ...input, timeStep }
   const canonicalSpanRule = buildCanonicalCalendarNarrativeHint(normalizedInput)
-  // `daysPassed` is retained only as a legacy boundary value; never use it as
-  // if it were the canonical annual base-point delta.
-  const elapsedBasePoints = normalizedInput.basePointsPassed
-    ?? (normalizedInput.daysPassed === undefined ? undefined : basePointsFromCalendarDays(normalizedInput.daysPassed))
   const hasActualWindow = normalizedInput.previousNode !== undefined
-    && typeof elapsedBasePoints === 'number'
-    && elapsedBasePoints > 0
+    && typeof normalizedInput.daysPassed === 'number'
+    && normalizedInput.daysPassed > 0
   let granularityRule: string
   switch (timeStep.unit) {
-    case 'event':
+    case 'day':
       granularityRule = hasActualWindow
-        ? '本轮按事件节点推进；时间范围提供本轮的时间事实。'
-        : '本轮按事件节点推进；日期作为可用时间事实。'
+        ? '本轮按日历日推进；时间范围提供本轮的时间事实。'
+        : '本轮按日历日推进；日期作为可用时间事实。'
+      break
+    case 'month':
+      granularityRule = hasActualWindow
+        ? '本轮按自然月推进；日期和季节作为本轮可用时间事实。'
+        : '本轮按自然月推进；日期和季节作为可用时间事实。'
+      break
+    case 'season':
+      granularityRule = hasActualWindow
+        ? '本轮按自然季推进；日期和季节作为本轮可用时间事实。'
+        : '本轮按自然季推进；日期和季节作为可用时间事实。'
       break
     case 'year':
       granularityRule = hasActualWindow

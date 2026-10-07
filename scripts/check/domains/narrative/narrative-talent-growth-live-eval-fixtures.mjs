@@ -56,7 +56,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
     种族: '潮裔',
     背景: '北港修船匠家庭出身的检漏学徒，长期参与堤岸维护。',
     年龄: 23,
-    基础属性语义: { 心智: '善于处理复杂信息', 体魄: '稳定耐力', 魅力: '普通', 家境: '普通', 气运: '普通' },
+    基础属性语义: { 心智: '善于处理复杂信息', 体魄: '稳定耐力', 魅力: '普通', 财富: '普通', 气运: '普通' },
   }
   const baseWorld = {
     名称: '雾潮群岛',
@@ -70,8 +70,15 @@ export function buildTalentGrowthLiveEvalSample(id) {
     description: '能根据近处水声与回声差异，判断明显堵塞、渗漏或断裂的大致位置。',
     effect: '在近处水域或管道旁，通过水声直接定位异常并形成可验证的维修判断。',
   })
+  const directEvidence = directStories.map((entry, index) => ({
+    lineageId: directPattern.lineageId,
+    sourceRound: entry.回合,
+    usage: `你在现场实际使用${directPattern.name}定位异常。`,
+    result: entry.故事全文,
+    ...(index === directStories.length - 1 ? { breakthrough: '风暴前的连续险情促成了对细微回声差异的突破。' } : {}),
+  }))
   if (id === 'sufficient') {
-    return { id, expected: 'growth', currentRound: 4, totalDays: 8_760, patterns: [directPattern], recentStories: directStories, characterContext: baseCharacter, worldContext: baseWorld }
+    return { id, expected: 'growth', currentRound: 4, totalDays: 8_760, patterns: [directPattern], growthEvidence: directEvidence, recentStories: directStories, characterContext: baseCharacter, worldContext: baseWorld }
   }
   if (id === 'insufficient') {
     return { id, expected: 'no-growth', currentRound: 4, totalDays: 8_760, patterns: [directPattern], recentStories: vagueStories, characterContext: baseCharacter, worldContext: baseWorld }
@@ -83,6 +90,12 @@ export function buildTalentGrowthLiveEvalSample(id) {
       currentRound: 30,
       totalDays: 10_950,
       patterns: [directPattern],
+      growthEvidence: [{
+        lineageId: directPattern.lineageId,
+        sourceRound: 30,
+        usage: '你在风暴夜里实际使用听潮辨隙定位主闸裂缝。',
+        result: '拆检后确认裂缝位置与判断一致，避免了闸门失效。',
+      }],
       historicalEvents: [{ occurrenceTime: '第28年', text: '角色长期参与北港检修，但此前没有直接依靠听潮辨隙定位异常的记录。' }],
       recentStories: [
         story(29, '你跟随工匠巡视堤岸，没有亲自判断或定位异常。'),
@@ -109,6 +122,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
           attrBonus: { luck: 1 },
         }),
       ],
+      growthEvidence: directEvidence,
       recentStories: directStories,
       characterContext: { ...baseCharacter, 背景: '检漏学徒，同时兼职码头物资清点。' },
       worldContext: baseWorld,
@@ -121,6 +135,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
       currentRound: 4,
       totalDays: 8_760,
       patterns: [directPattern],
+      growthEvidence: directEvidence,
       recentStories: directStories,
       characterContext: { ...baseCharacter, 背景: '只受过工程检修训练的普通人，没有法术或超自然血统。' },
       worldContext: {
@@ -148,6 +163,13 @@ export function buildTalentGrowthLiveEvalSample(id) {
       currentRound: 25,
       totalDays: 16_061,
       patterns: [evolved],
+      growthEvidence: [21, 22, 24, 25, 26].map((round, index) => ({
+        lineageId: source.lineageId,
+        sourceRound: round,
+        usage: '你主动制造声源并使用回声定域定位结构异常。',
+        result: `第${round}轮复核确认了空洞或裂纹位置。`,
+        ...(index === 4 ? { breakthrough: '形制陌生的蓄水塔迫使能力形成稳定的多点声学探查。' } : {}),
+      })),
       growthHistory: [{
         choiceId: 'growth-choice-1', narrativeId: 'narrative-4', roundSequence: 4, lineageId: source.lineageId,
         selectedOptionId: 'growth-option-transform', source, result: evolved, committedAt: 100, totalDays: 8_760,
@@ -186,6 +208,8 @@ export function buildTalentGrowthLiveEvalPrompt(sample) {
     totalDays: sample.totalDays,
     currentAge: Number(sample.characterContext?.年龄 ?? 16),
     growthHistory: sample.growthHistory ?? [],
+    growthEvidence: sample.growthEvidence ?? [],
+    growthAssessments: sample.growthAssessments ?? [],
     characterContext: sample.characterContext,
     worldContext: sample.worldContext,
   })

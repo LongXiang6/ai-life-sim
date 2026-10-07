@@ -24,17 +24,17 @@ export default function HelpPage() {
         <div className="flow-responsive-layout">
           <main className="final-flow-page-surface" style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
             <HelpModal visible={true} onClose={handleClose} isPage={true} />
-            <BottomActionBar
-              onBack={() => router.back()}
-              backTitle="返回上一页"
-              backDescription="退出说明页"
-              onConfirm={() => router.push('/welcome')}
-              confirmNumber="00"
-              confirmText="完成"
-              confirmDescription="返回欢迎界面"
-              confirmTitle="完成阅读"
-            />
           </main>
+          <BottomActionBar
+            onBack={() => router.back()}
+            backTitle="返回上一页"
+            backDescription="退出说明页"
+            onConfirm={() => router.push('/welcome')}
+            confirmNumber="00"
+            confirmText="完成"
+            confirmDescription="返回欢迎界面"
+            confirmTitle="完成阅读"
+          />
         </div>
       </div>
     </div>

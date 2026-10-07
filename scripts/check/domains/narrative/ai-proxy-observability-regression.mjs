@@ -33,13 +33,12 @@ const accountService = readModuleSource('src/core/account/account-service.ts', r
 const clientLogRoute = read('src/app/api/log/route.ts')
 const clientLogger = readModuleSource('src/core/logger/client-logger.ts', root)
 const debugLogRoute = read('src/app/api/debug-log/route.ts')
-const debugLogger = read('src/core/logger/debug-logger.ts')
 const debugLogPage = read('src/mods/mod-pages/pages/debug-log/page.tsx')
 const debugLogExchangeView = read('src/mods/mod-pages/pages/debug-log/ai-exchange-view.tsx')
 const debugLogTechnicalView = read('src/mods/mod-pages/pages/debug-log/technical-diagnostics-view.tsx')
 const debugLogTypes = read('src/mods/mod-pages/pages/debug-log/debug-log-types.ts')
 const proxyLogging = read('src/app/api/proxy/route/proxy-logging.ts')
-const developmentLogMirror = read('src/core/logger/development-log-mirror.server.ts')
+const developmentDiagnosticServer = read('src/core/logger/development-system-diagnostic.server.ts')
 const diagnosticIdentityStore = read('src/core/logger/diagnostic-player-identity.ts')
 const diagnosticIdentityRoute = read('src/app/api/diagnostic-identity/route.ts')
 const diagnosticCodeContract = read('src/core/logger/diagnostic-player-code.ts')
@@ -173,12 +172,11 @@ assert(
   'debug/info diagnostics must stay local while explicit quality metrics remain server-reported',
 )
 assert(
-  /appendServerLogEntry/.test(debugLogRoute)
+  !/export async function POST/.test(debugLogRoute)
     && /queryServerLogEntries/.test(debugLogRoute)
     && !/deleteServerLogEntries|export async function DELETE/.test(debugLogRoute + logStore)
-    && /entryType:\s*'ai-call'/.test(debugLogRoute)
-    && /NEXT_PUBLIC_DISABLE_DEBUG_LOG_COLLECTION/.test(debugLogger),
-  'AI debug logs must write and query direct database rows without a destructive clear path',
+    && /queryServerLogEntries/.test(debugLogRoute),
+  'debug-log must remain a read-only projection over the canonical database',
 )
 assert(
   /entryType: 'proxy-trace'/.test(debugLogPage)
@@ -194,11 +192,10 @@ assert(
 assert(
   !proxyLogging.includes('apiKey: body.apiKey')
     && proxyLogging.includes('JSON.stringify(requestMessages)')
-    && /process\.env\.NODE_ENV !== 'development'/.test(developmentLogMirror)
-    && developmentLogMirror.includes("timeZone: 'Asia/Shanghai'")
-    && developmentLogMirror.includes('MIRROR_RETENTION_MS = 3 * 24 * 60 * 60 * 1000')
-    && /scheduleDevelopmentLogMirror/.test(proxy),
-  'proxy traces and local mirrors must exclude credentials while preserving development-only raw exchange text',
+    && !/appendNarrativeRoundExchange|scheduleDevelopmentLogMirror/.test(proxy + proxyLogging)
+    && /appendServerLogEntry/.test(developmentDiagnosticServer)
+    && /entryType:\s*'development-event'/.test(developmentDiagnosticServer),
+  'proxy traces and execution diagnostics must use one canonical SQLite logging path',
 )
 assert(
   !/consent|附带诊断|玩家编号/.test(feedbackPage + feedbackContract)

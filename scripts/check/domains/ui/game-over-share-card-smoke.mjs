@@ -44,7 +44,7 @@ const shareData = {
   dimensions: [
     { label: '体魄', value: 72, comment: '出众' },
     { label: '心智', value: 86, comment: '卓越' },
-    { label: '家境', value: 86, comment: '卓越' },
+    { label: '财富', value: 86, comment: '卓越' },
     { label: '魅力', value: 64, comment: '出众' },
     { label: '回响', value: 82, comment: '清晰' },
   ],

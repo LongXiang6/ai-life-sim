@@ -11,17 +11,17 @@ export function formatEquippedReincarnationTalentsForPrompt(talents: readonly {
   description: string
   effect: string
 }[] | null | undefined): NarrativeTalentPromptView[] {
-  const rules = (talents ?? []).flatMap((talent) => {
+  const rules = (talents ?? []).flatMap((talent, index) => {
     const effect = talent.effect.trim()
     if (!effect) return []
     const name = talent.name.trim() || '未命名轮回天赋'
-    return [{ 名称: name, 效果: effect }]
+    return [{ 引用: `轮回-${index + 1}`, 名称: name, 效果: effect }]
   })
   return rules
 }
 
 export function formatDestinyPatternsForPrompt(
-  patterns: readonly { name: string; description: string; effect: string }[],
+  patterns: readonly { name: string; description: string; effect: string; reference?: string }[],
   _includeDescription: boolean,
 ): NarrativeTalentPromptView[] {
   const rows = patterns.flatMap((pattern) => {
@@ -30,7 +30,7 @@ export function formatDestinyPatternsForPrompt(
     const description = pattern.description.trim()
     const rule = effect || description
     if (!name || !rule) return []
-    return [{ 名称: name, 效果: rule }]
+    return [{ ...(pattern.reference ? { 引用: pattern.reference } : {}), 名称: name, 效果: rule }]
   })
   return rows
 }

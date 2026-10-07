@@ -121,7 +121,7 @@
 | S-15 | 反馈体 **16 MiB**；每来源 **6 次/10 分钟** | `src/app/api/feedback/route.ts` | 完整诊断包整包上传 | 超大/超频反馈全部拒绝，不保存部分内容 | 反馈包按诊断保留策略存储 | **产品明确授权（PD-023）** | 反馈包可能含近期完整故事；必须整包失败而非截断 |
 | S-16 | 诊断 Cookie **10 年**；分配 **60 次/10 分钟**；候选碰撞最多 **128** 次 | `src/app/api/diagnostic-identity/route.ts`、`src/core/logger/diagnostic-player-identity.ts` | 稳定玩家诊断编号和碰撞重试 | 正常情况下编号长期稳定；分配限流时日志可能暂缺编号 | Cookie 长期；占用记录不随 30 天诊断日志清理 | **产品明确授权（PD-024）** | 编号是诊断别名，不是账号或剧情身份 |
 | S-17 | 客户端近期诊断最多 **80**；开发事件队列最多 **512**，超出丢弃最旧项 | `src/core/logger/client-logger/diagnostic-transport.ts`、`development-system-diagnostic.ts` | 防浏览器内存和待发送队列无限增长 | 旧诊断事件可能不可上报/不可见 | 进程/页面临时状态；不进入玩家存档 | **工程/安全护栏** | 明确的数据完整性风险；不能用来解释剧情历史缺失 |
-| S-18 | `sendBeacon` 载荷超过 **48,000 字节**改用 `fetch`；服务器日志查询默认 **100**、最多 **500**；清理约 **15 分钟**一次 | `src/core/logger/debug-logger.ts`、`server-log-query.ts`、`server-log-store/retention-cleanup.ts` | 可靠发送和运维分页/清理 | 大日志改走 fetch；查询分页有限 | 热日志保留今天与昨天，旧记录移入归档；归档容量无明确业务上限 | **产品明确授权（PD-019）；部分传输/分页值为工程默认** | 归档无容量上限与大段内容增长可能形成运维成本 |
+| S-18 | `sendBeacon` 失败改用 `fetch`；服务器日志查询默认 **100**、最多 **500**；清理约 **15 分钟**一次 | `src/core/logger/client-logger/diagnostic-transport.ts`、`src/core/logger/server-log-store/server-log-query.ts`、`src/core/logger/server-log-store/retention-cleanup.ts` | 可靠发送和运维分页/清理 | 客户端诊断统一写入 SQLite；查询分页有限 | 热日志保留今天与昨天，旧记录迁移到同 Schema 归档；不再生成 JSONL/gzip 日志副本 | **产品明确授权（PD-019）；部分传输/分页值为工程默认** | 归档容量无明确业务上限与大段内容增长可能形成运维成本 |
 | S-19 | DeepSeek 余额请求体 **4 KiB**；缓存 TTL **60s** | `src/app/api/ai-usage/deepseek-balance/route.ts` | 设置页余额查询去重和短缓存 | 60 秒内重复查询复用结果，过大 Key/请求被拒绝 | 服务进程缓存；错误会删除缓存项 | **工程/安全护栏** | 余额查询缓存不影响叙事调用语义 |
 
 ## 六、62 个活动模拟系统：关键数值、膨胀判断与剧情效果

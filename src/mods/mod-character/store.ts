@@ -26,6 +26,7 @@ import {
 } from './constants'
 import {
   createGlobalCharacterId,
+  restoreReincarnationTalentsBeforeUnderageGrowth,
   sanitizeCharacterStateSnapshot,
   sanitizeDestinyPatternState,
 } from './utils/character-state-migration'
@@ -74,6 +75,8 @@ const initialDestinyPatterns = (): DestinyPatternState => ({
   rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
   pendingGrowth: null,
   growthHistory: [],
+  growthEvidence: [],
+  growthAssessments: [],
 })
 
 const initialLifespanDraft = (): LifespanDraftState => ({
@@ -171,21 +174,40 @@ export const useCharacterStore = create<CharacterStore>()(
         characterId: state.characterId || createGlobalCharacterId(),
       })),
       setGender: (gender) => set({ gender }),
-      setAge: (age) => set((state) => ({
-        age,
-        destinyPatterns: sanitizeDestinyPatternState(state.destinyPatterns, age),
-      })),
+      setAge: (age) => set((state) => {
+        const equippedReincarnationTalents = restoreReincarnationTalentsBeforeUnderageGrowth(
+          state.destinyPatterns,
+          age,
+          state.equippedReincarnationTalents,
+        )
+        return {
+          age,
+          destinyPatterns: sanitizeDestinyPatternState(
+            state.destinyPatterns,
+            age,
+            equippedReincarnationTalents,
+          ),
+          equippedReincarnationTalents,
+        }
+      }),
       setRace: (race) => set({ race }),
       setBackground: (background) => set({ background }),
       setRaceOrigin: (raceOrigin) => set({ raceOrigin }),
       setCharacterBase: (partial) => set((state) => ({ characterBase: { ...state.characterBase, ...partial } })),
       setDestinyPatterns: (partial) => set((state) => {
-        const destinyPatterns = sanitizeDestinyPatternState(
-          { ...state.destinyPatterns, ...partial },
+        const nextDestinyPatternState = { ...state.destinyPatterns, ...partial }
+        const equippedReincarnationTalents = restoreReincarnationTalentsBeforeUnderageGrowth(
+          nextDestinyPatternState,
           state.age,
+          state.equippedReincarnationTalents,
         )
-        assertPatternLoadout(destinyPatterns.patterns, state.equippedReincarnationTalents)
-        return { destinyPatterns }
+        const destinyPatterns = sanitizeDestinyPatternState(
+          nextDestinyPatternState,
+          state.age,
+          equippedReincarnationTalents,
+        )
+        assertPatternLoadout(destinyPatterns.patterns, equippedReincarnationTalents)
+        return { destinyPatterns, equippedReincarnationTalents }
       }),
       setLifespanDraft: (lifespanDraft) => set({ lifespanDraft: structuredClone(lifespanDraft) }),
       setTalents: (talents) => set({ talents }),
@@ -211,6 +233,8 @@ export const useCharacterStore = create<CharacterStore>()(
             rarityCount,
             pendingGrowth: null,
             growthHistory: [],
+            growthEvidence: [],
+            growthAssessments: [],
           },
           equippedReincarnationTalents,
         }
@@ -220,6 +244,7 @@ export const useCharacterStore = create<CharacterStore>()(
           state.destinyPatterns,
           pending,
           state.age,
+          state.equippedReincarnationTalents,
         ),
       })),
       resolvePendingDestinyPatternGrowth: (optionId) => {
@@ -229,8 +254,16 @@ export const useCharacterStore = create<CharacterStore>()(
         const resolved = resolvePendingDestinyPatternGrowthInState(
           get().destinyPatterns,
           optionId,
+          Date.now(),
+          0,
+          get().equippedReincarnationTalents,
         )
-        set({ destinyPatterns: resolved.state })
+        set({
+          destinyPatterns: resolved.state,
+          ...(resolved.reincarnationTalents
+            ? { equippedReincarnationTalents: resolved.reincarnationTalents }
+            : {}),
+        })
         return resolved.historyEntry
       },
       setWorldCode: (code) => set({
@@ -256,7 +289,7 @@ export const useCharacterStore = create<CharacterStore>()(
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 9,
+      version: 10,
       migrate: (persistedState: unknown) => {
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')

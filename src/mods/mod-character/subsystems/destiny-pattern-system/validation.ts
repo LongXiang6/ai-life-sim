@@ -110,11 +110,11 @@ function textValue(value: unknown): string {
 function normalizeCategory(value: unknown, fallback?: DestinyPatternCategory): DestinyPatternCategory | null {
   const text = textValue(value)
   const english: Record<string, DestinyPatternCategory> = {
-    action: 'action', movement: 'action', battle: 'action', combat: 'action',
-    cognition: 'cognition', knowledge: 'cognition', exploration: 'cognition', explore: 'cognition',
-    expression: 'expression', communication: 'expression', social: 'expression',
-    stewardship: 'stewardship', management: 'stewardship', production: 'stewardship', manufacture: 'stewardship',
-    misc: 'misc', miscellaneous: 'misc',
+    action: 'action', movement: 'action', battle: 'action', combat: 'action', foundation: 'action',
+    cognition: 'cognition', knowledge: 'cognition', exploration: 'cognition', explore: 'cognition', specialization: 'cognition',
+    expression: 'expression', communication: 'expression', social: 'expression', trait: 'expression',
+    stewardship: 'stewardship', management: 'stewardship', production: 'stewardship', manufacture: 'stewardship', rule: 'stewardship',
+    misc: 'misc', miscellaneous: 'misc', opportunity: 'misc',
   }
   return CATEGORY_BY_LABEL[text] ?? english[text.toLocaleLowerCase()] ?? fallback ?? null
 }

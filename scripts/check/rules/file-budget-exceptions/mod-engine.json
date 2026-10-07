@@ -8,6 +8,12 @@
       "reason": "默认 Campaign 的完整阶段执行图，所有阶段共享一套显式 order、依赖和上下文契约。"
     },
     {
+      "path": "src/mods/mod-engine/helpers/tagged-meta-envelope.ts",
+      "owner": "mod-engine",
+      "reviewedLines": 407,
+      "reason": "叙事响应信封的字段归一化与容错解析共享同一响应消费契约和降级边界。"
+    },
+    {
       "path": "src/mods/mod-engine/hooks.ts",
       "owner": "mod-engine",
       "reviewedLines": 472,
@@ -30,12 +36,6 @@
       "owner": "mod-engine",
       "reviewedLines": 2254,
       "reason": "核心回合唯一总指挥；Prompt、压缩、历史、后台分析、诊断和阶段机已拆为下级组件，主类保留状态与原子回合协调。"
-    },
-    {
-      "path": "src/mods/mod-engine/subsystems/time-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 524,
-      "reason": "模拟时间的唯一权威状态机，推进、历法换算、快照和恢复必须维护同一时间轴。"
     }
   ]
 }

@@ -8,6 +8,12 @@
       "reason": "角色 MOD 的中央静态常量与标识表，数值和机器键必须保留为一个命名源。"
     },
     {
+      "path": "src/mods/mod-character/destiny-pattern-growth.ts",
+      "owner": "mod-character",
+      "reviewedLines": 406,
+      "reason": "天赋成长资格、路线生成和替换提交共享同一版本连续性与属性边界不变式。"
+    },
+    {
       "path": "src/mods/mod-character/prompts/talent-presets.ts",
       "owner": "mod-character",
       "reviewedLines": 407,
@@ -34,7 +40,7 @@
     {
       "path": "src/mods/mod-character/utils/character-state-migration.ts",
       "owner": "mod-character",
-      "reviewedLines": 351,
+      "reviewedLines": 573,
       "reason": "角色状态版本迁移的单一状态所有者，旧格式判定、迁移和幂等回写共享同一版本升级不变式。"
     }
   ]

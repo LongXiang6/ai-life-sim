@@ -237,8 +237,8 @@ export async function takeNarrativePreGeneration(
     return undefined
   }
 
-  await active.promise
-  return takeReadyNarrative(request)
+  invalidateNarrativePreGeneration()
+  return undefined
 }
 
 export function getNarrativePreGenerationStatus(): {

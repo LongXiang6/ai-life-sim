@@ -402,7 +402,7 @@
 
 /* Attached workspace treatment for account, cloud-save, and personal data. */
 .screen {
-  padding: 0 28px 112px;
+  padding: 0 28px;
 }
 
 .meta {
@@ -459,7 +459,7 @@
 
 @media (max-width: 760px) {
   .screen {
-    padding: 0 16px 96px;
+    padding: 0 16px;
   }
 
   .header {

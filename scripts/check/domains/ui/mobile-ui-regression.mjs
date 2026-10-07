@@ -738,8 +738,8 @@ assertOk(
     leaderboardCssSrc,
     helpModalCssSrc,
   ].every((source) => source.includes('var(--final-flow-content-gutter)'))
-    && hasCssDeclaration(attributeAllocCssSrc, 'page', 'padding', '0 28px 112px')
-    && hasCssDeclaration(attributeAllocCssSrc, 'page', 'padding', '0 16px 96px')
+    && hasCssDeclaration(attributeAllocCssSrc, 'page', 'padding', '0 28px')
+    && hasCssDeclaration(attributeAllocCssSrc, 'page', 'padding', '0 16px')
     && hasCssDeclaration(gameStoryCssSrc, 'barTop', 'padding', '0 var(--final-flow-content-gutter)')
     && hasCssDeclaration(gameStoryCssSrc, 'barVitals', 'padding', '6px var(--final-flow-content-gutter) 8px')
     && hasCssDeclaration(gameStoryCssSrc, 'reading', 'padding', '0 var(--final-flow-content-gutter)'),
@@ -762,11 +762,14 @@ assertOk(
   'all fixed-unit non-core surfaces must consume the 1.2x density unit and game-story must remain explicitly excluded',
 )
 assertOk(
-  globalCssSrc.includes('position: absolute !important')
+  globalCssSrc.includes('.flow-responsive-layout:has(> [data-flow-bottom-bar])')
+    && hasCssDeclaration(globalCssSrc, 'flow-responsive-layout:has(> [data-flow-bottom-bar])', 'grid-template-rows', 'minmax(0, 1fr) auto')
+    && hasCssDeclaration(bottomActionBarCssSrc, 'bar', 'position', 'static')
+    && !globalCssSrc.includes('position: absolute !important')
     && globalCssSrc.includes('env(safe-area-inset-bottom')
     && !globalCssSrc.includes('data-final-flow-mobile-height-fit')
     && !globalCssSrc.includes('data-final-flow-height-owner'),
-  'mobile bottom actions must anchor to the safe viewport without runtime height back-calculation',
+  'shared bottom actions must occupy their own safe-area layout row without runtime height back-calculation',
 )
 assertOk(
   welcomePageSrc.includes('final-flow-frame')
@@ -1248,7 +1251,7 @@ assertOk(
   'each narrative entry must display its round age',
 )
 assertOk(
-  hasCssDeclaration(gameOverCssSrc, 'bottomBar', 'position', 'absolute')
+  hasCssDeclaration(gameOverCssSrc, 'bottomBar', 'position', 'static')
     && hasCssDeclaration(gameOverCssSrc, 'backButton', 'min-height', scaledPx(38.333))
     && hasCssDeclaration(gameOverCssSrc, 'confirmButton', 'min-height', scaledPx(38.333))
     && gameOverPageSrc.includes('className={styles.backButton}')

@@ -11,6 +11,8 @@ import {
   DESTINY_PATTERN_RARITY_CONFIG,
   type AttributeModifiers,
   type DestinyPattern,
+  type DestinyPatternGrowthAssessment,
+  type DestinyPatternGrowthEvidence,
   type DestinyPatternGrowthHistoryEntry,
 } from '@/mods/mod-character'
 import { BASE_POINTS_PER_YEAR, basePointsFromCalendarDays, basePointsToCalendarDays } from '@/foundation'
@@ -46,6 +48,7 @@ export interface NarrativeTalentGrowthPromptInput {
   userSegments: [string, string, string]
   eligiblePatterns: DestinyPattern[]
   evidenceWindowsByLineage: Readonly<Record<string, NarrativeTalentGrowthEvidenceWindow[]>>
+  assessmentUpdates: DestinyPatternGrowthAssessment[]
 }
 
 export interface NarrativeTalentGrowthEvidenceWindow {
@@ -53,6 +56,7 @@ export interface NarrativeTalentGrowthEvidenceWindow {
   round: number
   time: string
   facts: string[]
+  breakthrough?: string
 }
 
 function projectAttributeBonus(bonus: Partial<AttributeModifiers>): Record<string, number> {
@@ -74,15 +78,25 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
   compressedSummaries: CompressedSummaries
   recentStories: readonly RecentStoryProjection[]
   currentRound: number
-  totalBasePoints: number
+  totalBasePoints?: number
+  totalDays?: number
   currentAge: number
   growthHistory: readonly DestinyPatternGrowthHistoryEntry[]
+  growthEvidence?: readonly DestinyPatternGrowthEvidence[]
+  growthAssessments?: readonly DestinyPatternGrowthAssessment[]
   characterContext?: Record<string, unknown>
   worldContext?: Record<string, unknown>
 }): NarrativeTalentGrowthPromptInput {
   const currentAge = Number.isFinite(input.currentAge)
     ? Math.max(0, Math.floor(input.currentAge))
     : 0
+  const totalBasePoints = Number.isFinite(input.totalBasePoints)
+    ? Math.max(0, Math.floor(input.totalBasePoints!))
+    : basePointsFromCalendarDays(
+        Number.isFinite(input.totalDays) ? Math.max(0, Math.floor(input.totalDays!)) : 0,
+      )
+  const growthEvidence = input.growthEvidence ?? []
+  const growthAssessments = input.growthAssessments ?? []
   const promptPatterns = currentAge >= TALENT_GROWTH_MINIMUM_AGE
     ? input.patterns
       .filter((pattern) => pattern.rarity !== 'legendary' && pattern.rarity !== 'mythic')
@@ -95,11 +109,18 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
     growthByLineage.set(entry.lineageId, entries)
   }
   const evidenceWindows = new Map<number, NarrativeTalentGrowthEvidenceWindow>()
-  const addEvidenceWindow = (round: number, time: string, fact: string): void => {
+  const evidenceWindowsByLineageSource = new Map<string, Map<number, NarrativeTalentGrowthEvidenceWindow>>()
+  const addEvidenceWindow = (
+    round: number,
+    time: string,
+    fact: string,
+    breakthrough?: string,
+  ): void => {
     if (!Number.isSafeInteger(round) || round < 1 || !fact.trim()) return
     const existing = evidenceWindows.get(round)
     if (existing) {
       if (!existing.facts.includes(fact)) existing.facts.push(fact)
+      if (!existing.breakthrough && breakthrough?.trim()) existing.breakthrough = breakthrough.trim()
       return
     }
     evidenceWindows.set(round, {
@@ -107,22 +128,33 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
       round,
       time: time.trim() || `第${round}轮`,
       facts: [fact],
+      ...(breakthrough?.trim() ? { breakthrough: breakthrough.trim() } : {}),
     })
   }
-  for (const summary of input.compressedSummaries.summaries) {
-    if (!Number.isSafeInteger(summary.sourceRound) || summary.sourceRound < 1) continue
-    for (const event of summary.memoryEvents) {
-      addEvidenceWindow(
-        summary.sourceRound,
-        event.timeSpan || event.occurrenceTime,
-        `${event.occurrenceTime}：${event.text}`,
-      )
+  for (const evidence of growthEvidence) {
+    const fact = `实际使用：${evidence.usage}；可观察结果：${evidence.result}`
+    addEvidenceWindow(evidence.sourceRound, `第${evidence.sourceRound}轮`, fact, evidence.breakthrough)
+    const lineageWindows = evidenceWindowsByLineageSource.get(evidence.lineageId) ?? new Map()
+    const existing = lineageWindows.get(evidence.sourceRound)
+    if (existing) {
+      if (!existing.facts.includes(fact)) existing.facts.push(fact)
+      if (!existing.breakthrough && evidence.breakthrough?.trim()) {
+        existing.breakthrough = evidence.breakthrough.trim()
+      }
+    } else {
+      lineageWindows.set(evidence.sourceRound, {
+        id: `round:${evidence.sourceRound}`,
+        round: evidence.sourceRound,
+        time: `第${evidence.sourceRound}轮`,
+        facts: [fact],
+        ...(evidence.breakthrough?.trim() ? { breakthrough: evidence.breakthrough.trim() } : {}),
+      })
     }
+    evidenceWindowsByLineageSource.set(evidence.lineageId, lineageWindows)
   }
-  for (const story of input.recentStories) {
-    addEvidenceWindow(story.回合, storyTime(story), story.故事全文)
-  }
-  const sortedEvidenceWindows = [...evidenceWindows.values()].sort((left, right) => left.round - right.round)
+  const assessmentByLineage = new Map(
+    growthAssessments.map((assessment) => [assessment.lineageId, assessment]),
+  )
   const evidenceWindowsByLineage: Record<string, NarrativeTalentGrowthEvidenceWindow[]> = {}
   const eligiblePatterns = promptPatterns.filter((pattern) => {
     const lineageHistory = growthByLineage.get(pattern.lineageId) ?? []
@@ -135,24 +167,42 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
       (latest, entry) => (!latest || entry.roundSequence > latest.roundSequence ? entry : latest),
       undefined,
     )
-    const availableEvidenceWindows = sortedEvidenceWindows.filter((window) => (
+    const availableEvidenceWindows = [...(evidenceWindowsByLineageSource.get(pattern.lineageId)?.values() ?? [])]
+      .sort((left, right) => left.round - right.round)
+      .filter((window) => (
       !lastGrowth || window.round > lastGrowth.roundSequence
-    ))
+      ))
     if (availableEvidenceWindows.length < minimumWindows) return false
     const roundReady = !lastGrowth
       || input.currentRound - lastGrowth.roundSequence >= TALENT_GROWTH_COOLDOWN_ROUNDS
     const lastGrowthBasePoints = lastGrowth?.totalBasePoints
       ?? basePointsFromCalendarDays(lastGrowth?.totalDays ?? 0)
     const timeReady = !lastGrowth
-      || input.totalBasePoints - lastGrowthBasePoints > TALENT_GROWTH_COOLDOWN_BASE_POINTS
+      || totalBasePoints - lastGrowthBasePoints > TALENT_GROWTH_COOLDOWN_BASE_POINTS
+    const assessment = assessmentByLineage.get(pattern.lineageId)
+    const latestBreakthroughRound = availableEvidenceWindows.reduce<number | undefined>(
+      (latest, window) => window.breakthrough
+        ? Math.max(latest ?? 0, window.round)
+        : latest,
+      undefined,
+    )
+    const breakthroughReady = latestBreakthroughRound !== undefined
+      && (!assessment?.evaluatedBreakthroughRound
+        || latestBreakthroughRound > assessment.evaluatedBreakthroughRound)
     const eligible = roundReady
       && timeReady
+      && breakthroughReady
     if (eligible) evidenceWindowsByLineage[pattern.lineageId] = availableEvidenceWindows
     return eligible
   })
   const history = input.compressedSummaries.summaries.flatMap((summary) => (
     summary.memoryEvents.map((event) => `${event.occurrenceTime}：${event.text}`)
   ))
+  const sharedEvidenceWindows = [...new Map(
+    Object.values(evidenceWindowsByLineage)
+      .flat()
+      .map((window) => [window.id, window] as const),
+  ).values()].sort((left, right) => left.round - right.round)
   const patterns = eligiblePatterns.map((pattern) => ({
     命格血脉编号: pattern.lineageId,
     当前版本: pattern.version,
@@ -164,11 +214,7 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
       当前完整属性加成: projectAttributeBonus(pattern.attrBonus),
     目标等级: NEXT_RARITY_LABEL[pattern.rarity as Exclude<DestinyPattern['rarity'], 'legendary' | 'mythic'>],
     允许属性: ['心智', '体魄', '魅力', '财富', '气运'],
-    可用证据窗口: (evidenceWindowsByLineage[pattern.lineageId] ?? []).map((window) => ({
-      编号: window.id,
-      时间: window.time,
-      已成立事实: window.facts,
-    })),
+    可用证据窗口编号: (evidenceWindowsByLineage[pattern.lineageId] ?? []).map((window) => window.id),
   }))
   const growthHistorySummary = input.growthHistory.map((entry) => ({
     天赋血脉编号: entry.lineageId,
@@ -189,9 +235,15 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
       }),
       JSON.stringify({
         当前回合: input.currentRound,
-        当前基础点: input.totalBasePoints,
-        当前派生日历天数: basePointsToCalendarDays(input.totalBasePoints),
+         当前基础点: totalBasePoints,
+         当前派生日历天数: basePointsToCalendarDays(totalBasePoints),
         当前年龄: currentAge,
+        证据窗口: sharedEvidenceWindows.map((window) => ({
+          编号: window.id,
+          时间: window.time,
+          已成立事实: window.facts,
+          ...(window.breakthrough ? { 突破契机: window.breakthrough } : {}),
+        })),
         玩家已选天赋: patterns,
         天赋成长历史: growthHistorySummary,
         角色上下文: input.characterContext ?? {},
@@ -200,5 +252,19 @@ export function buildNarrativeTalentGrowthPromptInput(input: {
     ],
     eligiblePatterns,
     evidenceWindowsByLineage,
+    assessmentUpdates: eligiblePatterns.map((pattern) => {
+      const windows = evidenceWindowsByLineage[pattern.lineageId] ?? []
+      const breakthroughRound = windows.reduce<number | undefined>(
+        (latest, window) => window.breakthrough
+          ? Math.max(latest ?? 0, window.round)
+          : latest,
+        undefined,
+      )
+      return {
+        lineageId: pattern.lineageId,
+        evaluatedThroughRound: windows.at(-1)?.round ?? input.currentRound,
+        ...(breakthroughRound === undefined ? {} : { evaluatedBreakthroughRound: breakthroughRound }),
+      }
+    }),
   }
 }

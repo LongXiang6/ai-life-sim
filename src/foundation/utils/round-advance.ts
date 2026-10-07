@@ -8,10 +8,9 @@
  * @mod foundation
  *
  * 历史：本文件曾提供 getAgeYearsDelta / consumeSimulationYears / getSimulationTicks /
- * getCalendarDaysDelta / shouldAdvanceSubsystem 等旧时间辅助。模拟系统切换为每年
- * 1000 个年度基础点、年内事件轮次后，业务时间统一走 TimeSystem 产出的
- * RoundContext.basePointsPassed / totalBasePoints；daysPassed / totalDays 仅是派生日历
- * 与旧存档适配字段。本文件只保留与时间推进无关的 roundSequence 读取。
+ * getCalendarDaysDelta / shouldAdvanceSubsystem 等旧时间辅助。模拟系统切换为真实
+ * 日历推进后，业务子系统继续消费 TimeSystem 产出的基础点投影，精确日历事实
+ * 由 daysPassed / totalDays 保存。本文件只保留与时间推进无关的 roundSequence 读取。
  */
 
 import type { RoundContext } from '../types'

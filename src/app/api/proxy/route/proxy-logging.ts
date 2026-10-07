@@ -5,15 +5,23 @@
  */
 
 import {
-  appendNarrativeRoundExchange,
-  type NarrativeRoundTraceContext,
-} from '@/core/logger/narrative-round-archive'
-import {
   appendServerLogEntry,
   type ServerRequestSource,
 } from '@/core/logger/server-log-store'
 
 import type { ProxyRequest } from './contracts'
+
+export interface NarrativeRoundTraceContext {
+  lifeRunId: string
+  round: number
+  callKind: string
+  executionKind?: string
+  promptVersion?: string
+  targetWordCount?: number
+  styleSource?: 'default' | 'custom'
+  styleText?: string
+  styleVersion?: number
+}
 
 interface SmartAccessEntry {
   timestamp: string
@@ -245,5 +253,3 @@ export async function writeProxyTrace(
     payload: record,
   })
 }
-
-export { appendNarrativeRoundExchange }

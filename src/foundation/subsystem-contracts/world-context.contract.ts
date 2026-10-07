@@ -44,7 +44,7 @@ export interface LocalCalendarProfile {
 }
 
 export interface LocalClockState {
-  /** 当地模拟游标；每年固定 1000 基础点，作为唯一业务推进真源。 */
+  /** 当地模拟游标；基础点是由日历游标派生的统一业务投影。 */
   totalBasePoints: number
   /** 上次同步时对应的全局基础点游标。 */
   lastGlobalTotalBasePoints: number
@@ -62,7 +62,7 @@ export interface WorldContextRecord {
   description: string
   lifecycle: WorldContextLifecycle
   rootSpatialNodeId: SpatialNodeId
-  /** 上下文创建时的全局基础点；全局时间的业务审计真源。 */
+  /** 上下文创建时的全局基础点投影。 */
   createdAtGlobalBasePoints: number
   /** 由 createdAtGlobalBasePoints 派生的日期快照。 */
   createdAtGlobalDay: number

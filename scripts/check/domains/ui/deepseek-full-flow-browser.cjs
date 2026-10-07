@@ -98,7 +98,6 @@ async function main() {
   const proxyRequests = []
   const proxyRequestIds = []
   const clientActions = []
-  const debugLogRequests = []
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
   page.on('pageerror', (error) => consoleErrors.push(error.message))
   page.on('response', (response) => {
@@ -117,18 +116,6 @@ async function main() {
         if (body.eventType === 'user_action') {
           clientActions.push({ module: body.module, action: body.action, path: body.context?.path })
         }
-      } catch { /* ignore malformed diagnostic probes */ }
-      return request.continue()
-    }
-    if (request.url().includes('/api/debug-log') && request.method() === 'POST') {
-      try {
-        const body = JSON.parse(request.postData() || '{}')
-        debugLogRequests.push({
-          category: body.category,
-          round: body.round,
-          requestId: body.requestId || body.meta?.requestId,
-          failed: body.meta?.failed === true,
-        })
       } catch { /* ignore malformed diagnostic probes */ }
       return request.continue()
     }
@@ -273,7 +260,15 @@ async function main() {
   }))
   const normalizedOpenings = narrativeRounds.map((entry) => entry.firstLine.replace(/[，。！？].*$/u, '').slice(0, 18))
   const repeatedOpeningCount = normalizedOpenings.length - new Set(normalizedOpenings).size
-  const mainDebugLogs = debugLogRequests.filter((entry) => entry.category === 'narrative-rounds')
+  const debugLogProjection = await page.evaluate(async () => {
+    const response = await fetch('/api/debug-log?category=narrative-rounds&limit=500', { cache: 'no-store' })
+    if (!response.ok) return { entries: [] }
+    return response.json()
+  })
+  const mainDebugLogs = (debugLogProjection.entries || []).filter((entry) => (
+    entry.callKind === 'narrative-main'
+    && (entry.entryType === 'proxy-access' || entry.entryType === 'proxy-trace')
+  ))
   fs.mkdirSync(path.dirname(reportPath), { recursive: true })
   fs.writeFileSync(reportPath, JSON.stringify({
     generatedAt: new Date().toISOString(),

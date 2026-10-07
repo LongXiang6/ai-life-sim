@@ -1,4 +1,8 @@
 /**
+ * Purpose: Define the shared character-attribute type contract.
+ * Owner: foundation
+ * Responsibility: Provide attribute identifiers, labels, tiers, and static shapes without runtime calculation.
+ *
  * @module attribute.types.ts
  * @description 角色属性类型契约 —— 仅声明类型、常量、映射表，不含计算逻辑
  * @mod foundation

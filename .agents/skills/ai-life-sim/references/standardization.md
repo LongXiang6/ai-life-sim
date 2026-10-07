@@ -41,8 +41,8 @@ Prompt 专项语义、缓存排列和样品规则由 [Prompt 标准](../../ai-li
 ## 文件与目录标准
 
 - 目录和机器文件名默认使用 ASCII 小写 kebab-case；子系统文件使用 `{subsystem-id}-system.ts`，MOD 目录使用 `mod-{name}`。
-- `SKILL.md`、`README.md` 和活动权威使用 Markdown；机器配置使用 JSON；Skill 入口使用 YAML；运行代码使用 TypeScript/JavaScript；脚本扩展名必须与解释器一致；任务溯源只保存到 SQLite。
-- Skill reference 文件名使用 ASCII 小写 kebab-case；任务溯源记录使用任务溯源规范规定的稳定 ID 和字段。
+- `SKILL.md`、`README.md` 和活动权威使用 Markdown；机器配置使用 JSON；Skill 入口使用 YAML；运行代码使用 TypeScript/JavaScript；脚本扩展名必须与解释器一致。
+- Skill reference 文件名使用 ASCII 小写 kebab-case。
 - 生成文件使用 `.generated` 文件名标识，并在文件头写明自动生成、生成源和禁止手工编辑；临时文件只能进入项目既有临时目录。
 - 文件必须归入所属项目、体系、系统和所有者；根目录不放散落副本，不以页面或聚合器持有业务真源。
 - 手写活动源码、样式、测试、扫描器和运维脚本优先保持在 300 行以内；超过目标时先判断是否职责混杂或持续膨胀，确属单一职责的静态数据、生成物、第三方内容和只读历史证据可以具名保留。
@@ -60,7 +60,7 @@ Prompt 专项语义、缓存排列和样品规则由 [Prompt 标准](../../ai-li
 
 - 稳定机器标识、文件名、导出名、注册键和生成常量从同一声明源派生；显示名称不能作为机器主键。
 - 新建或本次修改的标识按系统树命名表执行；已经进入公共契约或持久数据且没有实际冲突的旧名称不做无意义批量重命名。
-- 文档先写目标，再写当前机制、权责边界、实时源和验收；Skill 只写可复用规则，活动权威只写当前事实，任务溯源只写本次证据。
+- 文档先写目标，再写当前机制、权责边界、实时源和验收；Skill 只写可复用规则，活动权威只写当前事实。
 - 同层同类文件、规则、Skill 路由和配置字段使用确定顺序；可排序集合按 ASCII 升序，执行阶段、依赖和活动成员按显式 `order`，不得以字典序覆盖业务顺序。
 - 自动化只完成加载、注册、接线、排队、格式校验、状态流转和诊断；业务判断、业务状态和业务结果仍归所属系统。
 - `scripts/check/rules/project-structure.json` 是目录、预算和所有者规则唯一机器契约；`scripts/check/generated/project-structure-index.generated.json` 从实时目录自动生成定位索引，不生成全量 barrel 或第二业务真源。

@@ -1,6 +1,10 @@
 'use client'
 
 /**
+ * Purpose: Render a multi-axis score radar chart.
+ * Owner: mod-ui
+ * Responsibility: Project supplied dimensions into a responsive SVG chart without owning score calculation.
+ *
  * @module RadarChart.tsx
  * @description 多维评分雷达图分子组件 —— 根据输入维度绘制等边雷达图
  * @mod mod-ui

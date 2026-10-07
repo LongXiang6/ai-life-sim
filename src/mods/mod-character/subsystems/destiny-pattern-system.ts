@@ -29,6 +29,8 @@ import { useCharacterStore } from '../store'
 import { sanitizeDestinyPatternState } from '../utils/character-state-migration'
 import {
   registerPendingDestinyPatternGrowthInState,
+  recordDestinyPatternGrowthAssessmentsInState,
+  recordDestinyPatternGrowthEvidenceInState,
   resolvePendingDestinyPatternGrowthInState,
   withInitialDestinyPatternGrowthIdentity,
 } from '../destiny-pattern-growth'
@@ -61,6 +63,8 @@ export class DestinyPatternSystem extends BaseSubsystem {
     rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
     pendingGrowth: null,
     growthHistory: [],
+    growthEvidence: [],
+    growthAssessments: [],
   }
 
   private readonly aiPool = new DestinyPatternAiPoolService((patterns) => {
@@ -82,8 +86,10 @@ export class DestinyPatternSystem extends BaseSubsystem {
         candidates: s.candidates,
         patterns: s.patterns,
         rarityCount: s.rarityCount,
-        pendingGrowth: s.pendingGrowth,
-        growthHistory: s.growthHistory,
+      pendingGrowth: s.pendingGrowth,
+      growthHistory: s.growthHistory,
+      growthEvidence: s.growthEvidence,
+      growthAssessments: s.growthAssessments,
       }),
     }
   }
@@ -120,13 +126,19 @@ export class DestinyPatternSystem extends BaseSubsystem {
       rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
       pendingGrowth: null,
       growthHistory: [],
+      growthEvidence: [],
+      growthAssessments: [],
     }
   }
 
   /** 将创建流程已确认的候选与命格写入运行时单例。 */
   hydrateFromStore(): void {
     const store = useCharacterStore.getState()
-    this.state = sanitizeDestinyPatternState(store.destinyPatterns, store.age)
+    this.state = sanitizeDestinyPatternState(
+      store.destinyPatterns,
+      store.age,
+      store.equippedReincarnationTalents,
+    )
     this.idCounter = Math.max(this.idCounter, this.state.candidates.length + this.state.patterns.length)
     useCharacterStore.setState({ destinyPatterns: structuredClone(this.state) })
   }
@@ -134,7 +146,12 @@ export class DestinyPatternSystem extends BaseSubsystem {
   /** 从 orchestrator collectState().data 恢复命格运行态。 */
   restoreCollectedState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    this.state = sanitizeDestinyPatternState(snapshot, useCharacterStore.getState().age)
+    const characterState = useCharacterStore.getState()
+    this.state = sanitizeDestinyPatternState(
+      snapshot,
+      characterState.age,
+      characterState.equippedReincarnationTalents,
+    )
     this.idCounter = Math.max(this.idCounter, this.state.candidates.length + this.state.patterns.length)
   }
 
@@ -301,13 +318,39 @@ export class DestinyPatternSystem extends BaseSubsystem {
       this.state,
       pending,
       useCharacterStore.getState().age,
+      useCharacterStore.getState().equippedReincarnationTalents,
     )
   }
 
-  resolvePendingGrowth(optionId: string, committedAt = Date.now(), totalBasePoints = 0): DestinyPatternGrowthHistoryEntry {
-    const resolved = resolvePendingDestinyPatternGrowthInState(this.state, optionId, committedAt, totalBasePoints)
+  resolvePendingGrowth(
+    optionId: string,
+    committedAt = Date.now(),
+    totalBasePoints = 0,
+    reincarnationTalents = useCharacterStore.getState().equippedReincarnationTalents,
+  ): DestinyPatternGrowthHistoryEntry {
+    const resolved = resolvePendingDestinyPatternGrowthInState(
+      this.state,
+      optionId,
+      committedAt,
+      totalBasePoints,
+      reincarnationTalents,
+    )
     this.state = resolved.state
     return resolved.historyEntry
+  }
+
+  recordGrowthEvidence(evidence: readonly import('../types').DestinyPatternGrowthEvidence[]): void {
+    this.state = recordDestinyPatternGrowthEvidenceInState(
+      this.state,
+      evidence,
+      useCharacterStore.getState().equippedReincarnationTalents,
+    )
+  }
+
+  recordGrowthAssessments(
+    assessments: readonly import('../types').DestinyPatternGrowthAssessment[],
+  ): void {
+    this.state = recordDestinyPatternGrowthAssessmentsInState(this.state, assessments)
   }
 
   getStateSnapshot(): DestinyPatternState {
@@ -319,7 +362,12 @@ export class DestinyPatternSystem extends BaseSubsystem {
   }
 
   restoreTransactionState(snapshot: unknown): void {
-    this.state = sanitizeDestinyPatternState(snapshot, useCharacterStore.getState().age)
+    const characterState = useCharacterStore.getState()
+    this.state = sanitizeDestinyPatternState(
+      snapshot,
+      characterState.age,
+      characterState.equippedReincarnationTalents,
+    )
     useCharacterStore.setState({ destinyPatterns: structuredClone(this.state) })
   }
 

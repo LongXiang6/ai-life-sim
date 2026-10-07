@@ -22,15 +22,22 @@ import {
 import { logger } from '@/core/logger/client-logger'
 import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
 import { useCharacterStore } from '@/mods/mod-character'
-import { getCharacterBaseSystem } from '@/mods/mod-character/subsystems/character-base-system'
+import {
+  captureCharacterBaseTransactionState,
+  restoreCharacterBaseTransactionState,
+} from '@/mods/mod-character/character-base-access'
 import {
   captureDestinyPatternGrowthTransaction,
   commitPreparedDestinyPatternGrowthChoice,
   createPendingDestinyPatternGrowth,
   getDestinyPatternSystem,
   prepareDestinyPatternGrowthChoice,
+  recordDestinyPatternGrowthAssessments,
+  recordDestinyPatternGrowthEvidence,
   restoreDestinyPatternGrowthTransaction,
   type DestinyPatternGrowthDirection,
+  type DestinyPatternGrowthAssessment,
+  type DestinyPatternGrowthEvidence,
   type PreparedDestinyPatternGrowthChoice,
 } from '@/mods/mod-character/destiny-pattern-access'
 import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
@@ -90,6 +97,8 @@ export interface StageRuntimeContext extends RoundContext {
   _frozenRoundContext?: RoundContext
   _frozenNarrativeHistory?: NarrativeChunk[]
   _talentInput?: NarrativeTalentGrowthPromptInput
+  _talentAssessmentUpdates?: DestinyPatternGrowthAssessment[]
+  _talentEvidence?: DestinyPatternGrowthEvidence[]
   _continuityInput?: NarrativeStoryContinuityPromptInput
   _preparedTalentGrowth?: PreparedDestinyPatternGrowthChoice | null
   _preparedStoryContinuity?: PreparedStoryContinuity
@@ -238,17 +247,49 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     eventResults: ctx._narrativeParsed.eventResults,
   }
 
+  const selectedPatterns = getDestinyPatternSystem().getPatterns()
+  const equippedReincarnationTalents = useCharacterStore.getState().equippedReincarnationTalents
+  const lineageByPromptReference = new Map(
+    selectedPatterns.map((pattern, index) => [`命格-${index + 1}`, pattern.lineageId]),
+  )
+  equippedReincarnationTalents.forEach((talent, index) => {
+    lineageByPromptReference.set(`轮回-${index + 1}`, talent.lineageId)
+  })
+  const evidenceHints = (ctx._narrativeParsed.talentEvidenceHints ?? []).flatMap((hint) => {
+    if (hint.来源回合 !== ctx._preparedNarrative?.roundSequence) return []
+    const lineageId = lineageByPromptReference.get(hint.引用)
+    if (!lineageId) return []
+    return [{
+      lineageId,
+      sourceRound: hint.来源回合,
+      usage: hint.实际使用,
+      result: hint.可观察结果,
+      ...(hint.突破契机 ? { breakthrough: hint.突破契机 } : {}),
+    }]
+  })
+  if (evidenceHints.length > 0) {
+    ctx._talentEvidence = evidenceHints
+  }
+
   ctx._frozenRoundContext = structuredClone(roundContext)
   ctx._frozenNarrativeHistory = narrativeHistory
   ctx._recentStories = recentStories
   ctx._talentInput = buildNarrativeTalentGrowthPromptInput({
-    patterns: getDestinyPatternSystem().getPatterns(),
+    patterns: [
+      ...getDestinyPatternSystem().getPatterns(),
+      ...equippedReincarnationTalents,
+    ],
     compressedSummaries: structuredClone(engineState.compressedSummaries),
     recentStories,
     currentRound: ctx._preparedNarrative.roundSequence,
     totalBasePoints: roundContext.totalBasePoints,
     currentAge: Number(ctx._promptContext.characterStatusView.年龄),
     growthHistory: structuredClone(useCharacterStore.getState().destinyPatterns.growthHistory),
+    growthEvidence: [
+      ...structuredClone(useCharacterStore.getState().destinyPatterns.growthEvidence),
+      ...structuredClone(ctx._talentEvidence ?? []),
+    ],
+    growthAssessments: structuredClone(useCharacterStore.getState().destinyPatterns.growthAssessments),
     characterContext: {
       ...structuredClone(ctx._promptContext.characterProfileView),
       当前年龄: ctx._promptContext.characterStatusView.年龄,
@@ -612,7 +653,7 @@ export function loadStages(
           aiConfig,
           sessionId,
         })
-        const quality = inspectNarrativeTalentGrowthQuality(response)
+          const quality = inspectNarrativeTalentGrowthQuality(response)
         if (!quality.valid || !quality.result) {
           throw specialistRejection(
             'TalentGrowth',
@@ -620,8 +661,9 @@ export function loadStages(
             `响应未通过天赋成长契约：${quality.reason}`,
           )
         }
-        const decision = quality.result.成长判定
-        if (!decision.需要成长) {
+          const decision = quality.result.成长判定
+          ctx._talentAssessmentUpdates = structuredClone(ctx._talentInput.assessmentUpdates)
+          if (!decision.需要成长) {
           ctx._preparedTalentGrowth = null
           return
         }
@@ -712,9 +754,8 @@ export function loadStages(
         let committedChangeCount = 0
         try {
           if (prepared.changes.length > 0) {
-            const characterBase = getCharacterBaseSystem()
-            const characterSnapshot = characterBase.captureTransactionState()
-            restoreSteps.push(() => characterBase.restoreTransactionState(characterSnapshot))
+            const characterSnapshot = captureCharacterBaseTransactionState()
+            restoreSteps.push(() => restoreCharacterBaseTransactionState(characterSnapshot))
             const attributeCommit = orchestrator.applyRoundChanges(prepared.changes, 'manual')
             requestedChangeCount = prepared.changes.length
             committedChangeCount = attributeCommit.committed.length
@@ -765,9 +806,21 @@ export function loadStages(
             })
           }
 
-          if (ctx._preparedTalentGrowth) {
+          if (
+            ctx._preparedTalentGrowth
+            || ctx._talentAssessmentUpdates
+            || ctx._talentEvidence?.length
+          ) {
             const talentSnapshot = captureDestinyPatternGrowthTransaction(prepared.narrativeId)
             restoreSteps.push(() => restoreDestinyPatternGrowthTransaction(talentSnapshot))
+          }
+          if (ctx._talentEvidence?.length) {
+            recordDestinyPatternGrowthEvidence(ctx._talentEvidence)
+          }
+          if (ctx._talentAssessmentUpdates) {
+            recordDestinyPatternGrowthAssessments(ctx._talentAssessmentUpdates)
+          }
+          if (ctx._preparedTalentGrowth) {
             commitPreparedDestinyPatternGrowthChoice(ctx._preparedTalentGrowth)
           }
 

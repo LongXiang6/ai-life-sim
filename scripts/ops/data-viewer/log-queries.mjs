@@ -52,9 +52,12 @@ export function buildDataOverview(options, now = Date.now()) {
     logs,
     accounts,
     content,
-    roundSaves: listFiles(options.roundRoot, (entry) => entry.isDirectory()).length,
     memorySaves: listFiles(options.memoryRoot, (entry) => entry.isFile() && entry.name.endsWith('.sqlite')).length,
-    diagnosticFiles: listFiles(options.diagnosticRoot, (entry) => entry.isFile() && /^\d{4}-\d{2}-\d{2}\.jsonl$/u.test(entry.name)).length,
+    developmentEvents: withReadonlyLogs(options.logDatabase, 0, (database) => (
+      tableExists(database, 'log_entries')
+        ? Number(database.prepare("SELECT COUNT(*) AS count FROM log_entries WHERE entry_type = 'development-event'").get()?.count ?? 0)
+        : 0
+    )),
   }
 }
 
@@ -99,7 +102,8 @@ export function queryAiCalls(options, input = {}) {
     if (!tableExists(database, 'log_entries')) return { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }
     const page = positiveInteger(input.page, 1)
     const pageSize = positiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
-    const clauses = ["entry_type IN ('ai-call', 'proxy-trace', 'proxy-access', 'raw-response', 'narrative-round-archive-error', 'narrative-round-commit', 'narrative-round-diagnostic')"]
+    // Keep historical row types readable while all new writes use server-log-store.
+    const clauses = ["entry_type IN ('ai-call', 'proxy-trace', 'proxy-access', 'raw-response', 'narrative-round-commit', 'narrative-round-diagnostic')"]
     const values = []
     const hasDeviceColumn = columnExists(database, 'log_entries', 'device_provenance_id')
     const query = String(input.query ?? '').trim()

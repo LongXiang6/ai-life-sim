@@ -194,7 +194,6 @@ export function commitNarrativeResponseRuntime(
   const stateSnapshot = structuredClone(orchestrator['state'])
   const causalSnapshot = causalDelay.capturePersistenceState()
   const memorySnapshot = memoryLifecycle.capturePersistenceState()
-  const previousLastNarratedTimeStep = { ...orchestrator['lastNarratedTimeStep'] }
   const previousPlayerChoice = orchestrator['lastPlayerChoice']
   const previousRoundPreparation = orchestrator.getPendingNarrativeRoundPreparation()
   const previousSubsystemStates = structuredClone(orchestrator['lastSubsystemStates'])
@@ -208,7 +207,6 @@ export function commitNarrativeResponseRuntime(
     orchestrator['state'].currentNarrative = narrative
     orchestrator['state'].narrativeHistory.push(narrativeEntry)
     orchestrator['state'].storyRepetitionStats = prepared.storyRepetitionStats
-    orchestrator['lastNarratedTimeStep'] = { ...orchestrator['state'].timeStep }
     orchestrator['lastPlayerChoice'] = playerAction.nextChoice
     if (branchMeta.isBranchPoint) {
       useEngineStore.getState().setForceBranchNext(false)
@@ -237,7 +235,6 @@ export function commitNarrativeResponseRuntime(
     orchestrator['state'] = stateSnapshot
     causalDelay.restorePersistenceState(causalSnapshot)
     memoryLifecycle.restorePersistenceState(memorySnapshot)
-    orchestrator['lastNarratedTimeStep'] = previousLastNarratedTimeStep
     orchestrator['lastPlayerChoice'] = previousPlayerChoice
     orchestrator['pendingNarrativeRoundPreparation'] = previousRoundPreparation
       ? structuredClone(previousRoundPreparation)

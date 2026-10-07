@@ -9,6 +9,7 @@ import { isNarrativeRecordVisible } from '../../helpers/narrative-context-scope'
 import {
   formatNarrativeTimelineEntries,
   formatNarrativeTimelineForPrompt,
+  projectNarrativeResultForPrompt,
   type NarrativeTimelineEntry,
 } from '../../helpers/timeline-memory'
 import type { OrchestratorSystem } from '../orchestrator-system'
@@ -99,7 +100,10 @@ export function projectNarrativeHistoryEntryRuntime(
   round: number,
 ): NarrativeTimelineEntry {
   const contextLabel = entry.contextName || entry.contextId
-  const narrative = entry.text.replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
+  const narrative = projectNarrativeResultForPrompt({
+    text: entry.text,
+    eventResults: entry.eventResults,
+  })
   const roundLabel = `第${round}轮`
   const timeLabel = entry.displayTimeLabel?.trim() || roundLabel
   const ageLabel = entry.displayAge === undefined ? undefined : `角色${entry.displayAge}岁`

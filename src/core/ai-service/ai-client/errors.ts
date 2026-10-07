@@ -4,7 +4,7 @@
  * Responsibility: Error representation and user-facing formatting; it does not perform retries or network calls.
  */
 
-import type { AICallUsageSnapshot } from '../../logger/ai-call-log'
+import type { AICallUsageSnapshot } from './types'
 import { formatApiErrorForUser } from '../api-error'
 
 let onAiError: ((message: string) => void) | null = null

@@ -26,6 +26,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "calibrationSummary",
   "causalChainHint",
   "currentTime",
+  "narrativeTimeWindow",
   "talents"
 ] as const
 

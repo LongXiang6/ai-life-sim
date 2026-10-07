@@ -106,15 +106,15 @@ export default function AccountPage() {
                 {accountPage.syncError ? <p className={styles.error} role="alert">{accountPage.syncError}</p> : null}
               </div>
             </div>
-            <BottomActionBar
-              onBack={() => accountPage.router.back()}
-              backTitle="返回上一页"
-              backDescription="退出账号页"
-              onConfirm={() => accountPage.router.push('/welcome')}
-              confirmText="完成"
-              confirmDescription="返回欢迎界面"
-            />
           </main>
+          <BottomActionBar
+            onBack={() => accountPage.router.back()}
+            backTitle="返回上一页"
+            backDescription="退出账号页"
+            onConfirm={() => accountPage.router.push('/welcome')}
+            confirmText="完成"
+            confirmDescription="返回欢迎界面"
+          />
         </div>
       </div>
     </div>

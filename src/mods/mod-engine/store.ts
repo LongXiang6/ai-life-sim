@@ -15,11 +15,10 @@ import { persist, } from 'zustand/middleware'
 
 import { DEFAULT_ENGINE_CONFIG, getSeasonForMonth, } from './constants'
 import {
-  DEFAULT_ANNUAL_EVENT_COUNT,
-  calendarDaysToBasePoints,
-  normalizeCanonicalEventNodeCount,
+  calendarDaysFromBasePoints,
   normalizeCanonicalTimeStep,
 } from '@/foundation'
+import { projectRoundFromTotalDays } from './subsystems/time-system'
 
 import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, } from './types'
 import {
@@ -93,8 +92,6 @@ const initialRound = {
   totalDays: 0,
   totalBasePoints: 0,
   basePointsPassed: 0,
-  eventNodeCount: DEFAULT_ANNUAL_EVENT_COUNT,
-  eventNodeIndex: 0,
   eraName: '创世纪元',
   eraYear: 1,
   reignTitle: '建武',
@@ -121,7 +118,7 @@ const initialState = {
   legendaryEncounterCheckedForLifeRunId: undefined,
 }
 
-export const ENGINE_STORE_SCHEMA_VERSION = 9
+export const ENGINE_STORE_SCHEMA_VERSION = 10
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -135,7 +132,7 @@ export function migrateEnginePersistedState(
     // 旧 chunk 没有稳定 id，数字键 resolvedBranches 无法可靠映射。
     old.resolvedBranches = {}
   }
-  if (version < ENGINE_STORE_SCHEMA_VERSION) {
+  if (version < 9) {
     const history = Array.isArray(old.narrativeHistory)
       ? old.narrativeHistory as Array<{ repetitionMetric?: unknown }>
       : []
@@ -157,20 +154,16 @@ export function migrateEnginePersistedState(
     const round = { ...(persistedRound as Record<string, unknown>) }
     const totalDays = typeof round.totalDays === 'number' && Number.isFinite(round.totalDays)
       ? Math.max(0, Math.floor(round.totalDays))
-      : 0
-    round.totalBasePoints = typeof round.totalBasePoints === 'number' && Number.isFinite(round.totalBasePoints)
-      ? Math.max(0, Math.floor(round.totalBasePoints))
-      : calendarDaysToBasePoints(totalDays)
+      : typeof round.totalBasePoints === 'number' && Number.isFinite(round.totalBasePoints)
+        ? calendarDaysFromBasePoints(round.totalBasePoints)
+        : 0
+    Object.assign(round, projectRoundFromTotalDays(totalDays))
     round.basePointsPassed = 0
-    round.eventNodeCount = normalizeCanonicalEventNodeCount(round.eventNodeCount)
-    if (typeof round.eventNodeIndex !== 'number' || round.eventNodeIndex < 0) {
-      round.eventNodeIndex = 0
-    }
+    delete round.eventNodeCount
+    delete round.eventNodeIndex
     old.round = round
   }
-  if (old.timeStep && typeof old.timeStep === 'object' && !Array.isArray(old.timeStep)) {
-    old.timeStep = normalizeCanonicalTimeStep(old.timeStep)
-  }
+  old.timeStep = normalizeCanonicalTimeStep(old.timeStep)
 
   delete old.coreMemoryNpcMap
   return old

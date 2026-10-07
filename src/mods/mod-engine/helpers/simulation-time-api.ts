@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose the public time-step command contract for the simulation UI.
+ * Owner: mod-engine
+ * Responsibility: Decode and normalize time-step selections before the engine applies them.
+ *
  * @module simulation-time-api.ts
  * @description 时间推进公开命令 —— UI 只提交选择键，由引擎统一处理步长
  * @mod mod-engine

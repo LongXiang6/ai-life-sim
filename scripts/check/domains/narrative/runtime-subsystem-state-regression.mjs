@@ -12,7 +12,7 @@ import { getProjectRoot } from '../../lib/project-root.mjs'
 import { BaseSubsystem } from '../../../../src/core/subsystem-base.ts'
 import { useSettingsStore } from '../../../../src/mods/mod-settings/store.ts'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
-import { prepareMainNarrativeRequest } from '../../../../src/mods/mod-engine/helpers/main-narrative-call.ts'
+import { executeMainNarrativeRequest, prepareMainNarrativeRequest } from '../../../../src/mods/mod-engine/helpers/main-narrative-call.ts'
 import {
   getNarrativePreGenerationStatus,
   invalidateNarrativePreGeneration,
@@ -77,6 +77,7 @@ assertOk(
   preGeneration.includes('createNarrativeProjection()')
     && preGeneration.includes("executeMainNarrativeRequest(request, 'preview'")
     && preGeneration.includes('candidate.fingerprint !== request.fingerprint')
+    && !preGeneration.includes('await active.promise')
     && campaign.includes('takeNarrativePreGeneration(request)')
     && campaign.includes('startNarrativePreGeneration({')
     && !preGeneration.includes('executeRoundV2(')
@@ -153,7 +154,7 @@ class ReadOnlyProjectionView extends BaseSubsystem {
 }
 
 const preGenerationAiConfig = {
-  model: 'fixture-model', temperature: 0.4, stream: false, reasoningEffort: 'disabled',
+  model: 'fixture-model', temperature: 0.4, stream: false, reasoningEffort: 'high',
 }
 
 async function createPreGenerationFixture(preGenerateRounds = 1) {
@@ -166,6 +167,7 @@ async function createPreGenerationFixture(preGenerateRounds = 1) {
     preGenerateRounds,
   })
   const fixtureOwner = new OrchestratorSystem()
+  fixtureOwner.getRuntimeDependencies().time.reset()
   const character = new ProjectionCharacter()
   fixtureOwner.registerSubsystem(character)
   fixtureOwner.registerSubsystem(new ReadOnlyProjectionView())
@@ -224,7 +226,7 @@ function readRoundPromptPayload(owner) {
 }
 
 function readRoundChoice(owner) {
-  return readRoundPromptPayload(owner).本节点信息.当前状态
+  return readRoundPromptPayload(owner)[4].本次信息.命运分支
 }
 
 async function assertPreGenerationInvalidated(label, mutate) {
@@ -238,11 +240,24 @@ async function assertPreGenerationInvalidated(label, mutate) {
 const originalFetch = globalThis.fetch
 const proxyRequests = []
 let previewSequence = 0
+let holdPreviewResponse = false
+let releaseHeldPreview
 globalThis.fetch = async (input, init) => {
   assert.equal(String(input), '/api/proxy')
-  proxyRequests.push(JSON.parse(String(init?.body ?? '{}')))
+  const requestBody = JSON.parse(String(init?.body ?? '{}'))
+  proxyRequests.push(requestBody)
+  if (holdPreviewResponse && requestBody.trace_context?.executionKind === 'preview') {
+    await new Promise((resolve) => {
+      releaseHeldPreview = resolve
+    })
+  }
   previewSequence += 1
-  const content = `【年龄:18岁|心智:0|体魄:0|魅力:0|家境:0】\n"正文": "这是第${previewSequence}段预生成测试正文。雨声停歇后，测试者继续前行。"。\n"命运分支": "false"。\n"结局": "false"。`
+  const content = JSON.stringify({
+    正文: `第${previewSequence}段预生成测试正文抵达新的生活落点。`,
+    属性: { 心智: 0, 体魄: 0, 魅力: 0, 财富: 0 },
+    命运分支: false,
+    结局: false,
+  })
   return new Response(JSON.stringify({ choices: [{
     message: { content }, finish_reason: 'stop',
   }] }), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -254,6 +269,34 @@ try {
   startFixturePreGeneration(disabled.owner)
   await new Promise((resolve) => setTimeout(resolve, 0))
   assert.equal(proxyRequests.length, beforeDisabled, 'disabled pre-generation must issue zero requests')
+
+  const uncompressed = await createPreGenerationFixture(0)
+  const fullStories = Array.from({ length: 11 }, (_, index) => (
+    `你完成历史完整性测试事项[${index + 1}]，取得对应资格。\n共同账本确认了你的权益。欠款已经清偿。`
+  ))
+  fullStories[8] = '父亲从搬运岗调回车间，腰伤却已落下病根。母亲在纺织厂食堂找了份择菜的零工。食堂灶台边多了一条规矩：小孩不许靠近。'
+  fullStories[9] = '电工刘叔收你做学徒，父亲同意你参与接线练习。你完成旧灯座修复，领到修理报酬。家里用这笔钱清偿了诊所欠款。'
+  fullStories[10] = '厂里取消搬运外包，父亲所在车间转为生产线检修。母亲加入食堂固定班组，家庭有了稳定收入。刘叔将独立修理灯具的活交给了你。'
+  for (const narrative of fullStories) {
+    uncompressed.owner.advanceTime()
+    const entry = uncompressed.owner.prepareNarrativeResponse({ narrative })
+    uncompressed.owner.commitNarrativeResponse(entry.narrativeId)
+    uncompressed.owner.finalizeNarrativeResponse(entry.narrativeId)
+  }
+  const uncompressedPayload = readRoundPromptPayload(uncompressed.owner)
+  const historicalEvents = uncompressedPayload[2].历史输出.事件
+  assert.equal(historicalEvents.length, fullStories.length,
+    'all committed story history must reach 历史输出 exactly once')
+  assert.ok(fullStories.every((story, index) => historicalEvents[index].includes(story)),
+    '历史输出 must preserve complete multi-result stories and their committed order')
+  assert.ok(
+    historicalEvents[8].includes('父亲从搬运岗调回车间')
+      && historicalEvents[8].includes('腰伤却已落下病根')
+      && historicalEvents[8].includes('母亲在纺织厂食堂找了份择菜的零工'),
+    'recent history must retain the established transfer, injury, and employment instead of only the closing rule',
+  )
+  assert.deepEqual(uncompressed.owner.getState().narrativeHistory.map((entry) => entry.text), fullStories,
+    'main-story projection must not rewrite or replace the complete committed source stories')
 
   const defaultStyle = await createPreGenerationFixture(0); const defaultStyleChoice = readRoundChoice(defaultStyle.owner)
   assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'empty saved style must resolve to the default source')
@@ -270,7 +313,7 @@ try {
   assert.ok(
     !customStyleChoice.includes(rawCustomStyle)
       && !JSON.stringify(customStylePayload).includes(rawCustomStyle)
-      && customStylePayload.本节点信息.时间节点.length > 0,
+      && customStylePayload[4].本次信息.时间节点.length > 0,
     'custom style must not override the fixed Prompt while current-time guidance remains available',
   )
 
@@ -279,18 +322,60 @@ try {
   assert.ok(!readRoundChoice(whitespaceStyle.owner).includes('叙述风格：'), 'whitespace-only saved style must not alter 当前信息')
 
   const exact = await createPreGenerationFixture()
+  useSettingsStore.getState().setWordCountTarget(200)
   const beforeExact = proxyRequests.length
   startFixturePreGeneration(exact.owner)
   const ready = await waitForPreGeneration('ready')
   assert.equal(proxyRequests.length, beforeExact + 1, 'one start must issue one preview request')
   assert.equal(proxyRequests.at(-1)?.cache_pool, 'narrative-main')
   assert.equal(proxyRequests.at(-1)?.trace_context?.executionKind, 'preview')
+  assert.equal(proxyRequests.at(-1)?.deadline_context?.reasoningEffort, 'high',
+    'main-story preview must preserve the configured reasoning effort')
+  const previewMessages = proxyRequests.at(-1).messages
+  assert.equal(previewMessages.length, 1)
+  assert.equal(previewMessages[0].role, 'user')
+  const previewPayload = JSON.parse(previewMessages[0].content)
+  assert.deepEqual(previewPayload.map((segment) => Object.keys(segment)), [
+    ['世界'], ['玩家信息'], ['历史输出'], ['玩家本次点属性'], ['本次信息'],
+  ], 'preview must send the approved five-element data layer')
+  assert.match(previewPayload[3].玩家本次点属性.财富, /^-?\d+$/u)
+  assert.equal(previewPayload[4].本次信息.命运分支, '')
+  assert.equal(previewPayload[4].本次信息.篇幅偏好, '正文约200字。')
   assert.equal(exact.owner.getState().totalRounds, 0)
   assert.equal(exact.character.value, 0, 'preview must not advance the formal subsystem')
   const exactRequest = await prepareNextNarrativeRequest(exact.owner)
   assert.equal(exactRequest.fingerprint, ready.fingerprint)
   assert.ok((await takeNarrativePreGeneration(exactRequest))?.response.includes('预生成测试正文'))
   assert.equal(await takeNarrativePreGeneration(exactRequest), undefined, 'preview is consumed once')
+  await executeMainNarrativeRequest(exactRequest, 'real')
+  assert.equal(proxyRequests.at(-1).trace_context.executionKind, 'real')
+  assert.equal(proxyRequests.at(-1)?.deadline_context?.reasoningEffort, 'high',
+    'main-story real request must preserve the configured reasoning effort')
+  assert.deepEqual(proxyRequests.at(-1).messages, previewMessages,
+    'real transport must send the same selected length and round data as preview')
+
+  const changedLength = await createPreGenerationFixture()
+  useSettingsStore.getState().setWordCountTarget(200)
+  startFixturePreGeneration(changedLength.owner)
+  const originalLengthReady = await waitForPreGeneration('ready')
+  useSettingsStore.getState().setWordCountTarget(400)
+  assert.equal(getNarrativePreGenerationStatus().state, 'idle',
+    'changing word count must invalidate a ready preview')
+  startFixturePreGeneration(changedLength.owner)
+  const changedLengthReady = await waitForPreGeneration('ready')
+  assert.notEqual(changedLengthReady.fingerprint, originalLengthReady.fingerprint,
+    'changing the model-visible length preference must produce a new request fingerprint')
+  const changedLengthMessages = proxyRequests.at(-1).messages
+  assert.notDeepEqual(changedLengthMessages, proxyRequests.at(-2).messages,
+    'changing the length preference must update the main-story message')
+  assert.equal(JSON.parse(proxyRequests.at(-2).messages[0].content)[4].本次信息.篇幅偏好, '正文约200字。')
+  assert.equal(JSON.parse(changedLengthMessages[0].content)[4].本次信息.篇幅偏好, '正文约400字。')
+  const changedLengthRequest = await prepareNextNarrativeRequest(changedLength.owner)
+  assert.equal(changedLengthRequest.fingerprint, changedLengthReady.fingerprint)
+  await executeMainNarrativeRequest(changedLengthRequest, 'real')
+  assert.equal(proxyRequests.at(-1).trace_context.executionKind, 'real')
+  assert.deepEqual(proxyRequests.at(-1).messages, changedLengthMessages,
+    'real transport must use the changed length without retaining the old preference')
 
   const mismatch = await createPreGenerationFixture()
   startFixturePreGeneration(mismatch.owner)
@@ -300,6 +385,22 @@ try {
     ...matchingRequest, fingerprint: `${matchingRequest.fingerprint}:changed`,
   }), undefined)
   assert.equal(await takeNarrativePreGeneration(matchingRequest), undefined, 'mismatch discards preview')
+
+  const nonBlocking = await createPreGenerationFixture()
+  const nonBlockingRequestPromise = prepareNextNarrativeRequest(nonBlocking.owner)
+  holdPreviewResponse = true
+  startFixturePreGeneration(nonBlocking.owner)
+  await waitForPreGeneration('running')
+  const nonBlockingRequest = await nonBlockingRequestPromise
+  const nonBlockingResult = await Promise.race([
+    takeNarrativePreGeneration(nonBlockingRequest),
+    new Promise((resolve) => setTimeout(() => resolve('timed-out'), 100)),
+  ])
+  assert.equal(nonBlockingResult, undefined,
+    'an in-flight preview must be cancelled immediately instead of blocking the formal round')
+  holdPreviewResponse = false
+  releaseHeldPreview?.()
+  releaseHeldPreview = undefined
 
   await assertPreGenerationInvalidated('branch change', (fixtureOwner) => fixtureOwner.setLastPlayerChoice('另一条路'))
   await assertPreGenerationInvalidated('growth commit', (fixtureOwner) => fixtureOwner.refreshCommittedSubsystemStateSnapshot())
@@ -323,6 +424,8 @@ const prepared = owner.prepareNarrativeResponse({
 assert.equal(owner.getState().narrativeHistory.length, historyBefore, 'preparation must keep the candidate private while specialist inputs freeze')
 owner.commitNarrativeResponse(prepared.narrativeId)
 assert.equal(owner.getState().narrativeHistory.length, historyBefore + 1, 'protocol acceptance must publish the main story immediately')
+assert.equal('historyEvent' in owner.getState().narrativeHistory.at(-1), false, 'narrative records must not persist a removed history-event field')
+assert.equal('currentState' in owner.getState().narrativeHistory.at(-1), false, 'narrative records must not persist a removed current-state field')
 assert.equal(owner.getState().narrativeHistory.at(-1)?.transitionAudit?.trusted, false, 'published story must show that post-story analysis is still settling')
 owner.updateNarrativeTransitionAudit(prepared.narrativeId, {
   requestedChangeCount: 0,
@@ -350,7 +453,7 @@ assertOk(
 )
 assertOk(
   /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign),
-  'commit must depend on exactly the 02, 03, and 04 post-story calls',
+  'commit must depend on exactly the 02 and 03 post-story calls',
 )
 assertOk(
   /name: 'finalize-round'[\s\S]{0,260}dependsOn: \['commit-round'\][\s\S]{0,500}startNarrativePreGeneration\(/u.test(campaign),

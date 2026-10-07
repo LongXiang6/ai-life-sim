@@ -6,8 +6,10 @@
 
 import type {
   AttributeModifiers, BaseAttributes, CharacterBaseState, DestinyPattern,
-  DestinyPatternGrowthHistoryEntry, DestinyPatternGrowthOption, DestinyPatternState,
+  DestinyPatternGrowthAssessment, DestinyPatternGrowthEvidence, DestinyPatternGrowthHistoryEntry,
+  DestinyPatternGrowthOption, DestinyPatternState,
   LifespanDraftState, PendingDestinyPatternGrowth, ReincarnationTalent,
+  DestinyPatternGrowthSource,
 } from '../types'
 import {
   PATTERN_LOADOUT_SLOT_COUNT,
@@ -120,19 +122,30 @@ export function sanitizeDestinyPattern(value: unknown): DestinyPattern | null {
   }
 }
 
-function samePatternVersion(left: DestinyPattern, right: DestinyPattern): boolean {
+function sanitizeGrowthSource(value: unknown): DestinyPatternGrowthSource | null {
+  if (!isRecord(value)) return null
+  return 'strengthenLevel' in value
+    ? sanitizeReincarnationTalent(value)
+    : sanitizeDestinyPattern(value)
+}
+
+function samePatternVersion(
+  left: DestinyPatternGrowthSource,
+  right: DestinyPatternGrowthSource,
+): boolean {
   return left.id === right.id
     && left.lineageId === right.lineageId
     && left.version === right.version
     && left.rarity === right.rarity
+    && ('strengthenLevel' in left) === ('strengthenLevel' in right)
 }
 
 function sanitizeGrowthOption(
   value: unknown,
-  pendingSource: DestinyPattern,
+  pendingSource: DestinyPatternGrowthSource,
 ): DestinyPatternGrowthOption | null {
   if (!isRecord(value) || typeof value.optionId !== 'string' || !value.optionId.trim()) return null
-  const pattern = sanitizeDestinyPattern(value.pattern)
+  const pattern = sanitizeGrowthSource(value.pattern)
   if (!pattern) return null
   if (pattern.lineageId !== pendingSource.lineageId) return null
   if (pattern.version !== pendingSource.version + 1) return null
@@ -149,15 +162,17 @@ function sanitizeGrowthOption(
 function sanitizePendingGrowth(
   value: unknown,
   patterns: readonly DestinyPattern[],
+  reincarnationTalents: readonly ReincarnationTalent[],
 ): PendingDestinyPatternGrowth | null {
   if (!isRecord(value)) return null
   if (typeof value.choiceId !== 'string' || !value.choiceId.trim()) return null
   if (typeof value.narrativeId !== 'string' || !value.narrativeId.trim()) return null
   if (!Number.isSafeInteger(value.roundSequence) || Number(value.roundSequence) < 1) return null
   if (typeof value.lineageId !== 'string' || !value.lineageId.trim()) return null
-  const source = sanitizeDestinyPattern(value.source)
+  const source = sanitizeGrowthSource(value.source)
   if (!source || source.lineageId !== value.lineageId.trim()) return null
   const current = patterns.find((pattern) => pattern.lineageId === source.lineageId)
+    ?? reincarnationTalents.find((talent) => talent.lineageId === source.lineageId)
   if (!current || !samePatternVersion(current, source)) return null
   if (!Array.isArray(value.options) || value.options.length !== 3) return null
   const options = value.options.map((option) => sanitizeGrowthOption(option, source))
@@ -187,9 +202,10 @@ function sanitizeGrowthHistoryEntry(value: unknown): DestinyPatternGrowthHistory
   if (typeof value.lineageId !== 'string' || !value.lineageId.trim()) return null
   if (typeof value.selectedOptionId !== 'string' || !value.selectedOptionId.trim()) return null
   if (typeof value.committedAt !== 'number' || !Number.isFinite(value.committedAt)) return null
-  const source = sanitizeDestinyPattern(value.source)
-  const result = sanitizeDestinyPattern(value.result)
+  const source = sanitizeGrowthSource(value.source)
+  const result = sanitizeGrowthSource(value.result)
   if (!source || !result) return null
+  if (('strengthenLevel' in source) !== ('strengthenLevel' in result)) return null
   if (source.lineageId !== value.lineageId.trim() || result.lineageId !== source.lineageId) return null
   if (result.version !== source.version + 1) return null
   if (result.rarity !== getNextDestinyPatternRarity(source.rarity)) return null
@@ -219,7 +235,7 @@ function sanitizeGrowthHistory(value: unknown): DestinyPatternGrowthHistoryEntry
   if (entries.some((entry) => entry === null)) return []
   const history = entries as DestinyPatternGrowthHistoryEntry[]
   const seenChoices = new Set<string>()
-  const latestByLineage = new Map<string, DestinyPattern>()
+  const latestByLineage = new Map<string, DestinyPatternGrowthSource>()
   for (const entry of history) {
     if (seenChoices.has(entry.choiceId)) return []
     seenChoices.add(entry.choiceId)
@@ -228,6 +244,88 @@ function sanitizeGrowthHistory(value: unknown): DestinyPatternGrowthHistoryEntry
     latestByLineage.set(entry.lineageId, entry.result)
   }
   return history
+}
+
+export function restoreReincarnationTalentsBeforeUnderageGrowth(
+  destinyPatternState: unknown,
+  currentAge: number | undefined,
+  equippedReincarnationTalents: readonly ReincarnationTalent[],
+): ReincarnationTalent[] {
+  if (
+    currentAge === undefined
+    || (Number.isFinite(currentAge) && Math.max(0, Math.floor(currentAge)) >= DESTINY_PATTERN_GROWTH_MINIMUM_AGE)
+  ) return [...equippedReincarnationTalents]
+  const originalByLineage = new Map<string, DestinyPatternGrowthSource>()
+  const record = isRecord(destinyPatternState) ? destinyPatternState : {}
+  for (const entry of sanitizeGrowthHistory(record.growthHistory)) {
+    if (!originalByLineage.has(entry.lineageId)) {
+      originalByLineage.set(entry.lineageId, structuredClone(entry.source))
+    }
+  }
+  return equippedReincarnationTalents.map((talent) => {
+    const original = originalByLineage.get(talent.lineageId)
+    return original && 'strengthenLevel' in original
+      ? structuredClone(original)
+      : talent
+  })
+}
+
+function sanitizeGrowthEvidence(value: unknown): DestinyPatternGrowthEvidence[] {
+  if (!Array.isArray(value)) return []
+  const byKey = new Map<string, DestinyPatternGrowthEvidence>()
+  for (const item of value) {
+    if (!isRecord(item)) continue
+    if (typeof item.lineageId !== 'string' || !item.lineageId.trim()) continue
+    if (!Number.isSafeInteger(item.sourceRound) || Number(item.sourceRound) < 1) continue
+    if (typeof item.usage !== 'string' || !item.usage.trim()) continue
+    if (typeof item.result !== 'string' || !item.result.trim()) continue
+    const evidence: DestinyPatternGrowthEvidence = {
+      lineageId: item.lineageId.trim(),
+      sourceRound: Number(item.sourceRound),
+      usage: item.usage.trim(),
+      result: item.result.trim(),
+      ...(typeof item.breakthrough === 'string' && item.breakthrough.trim()
+        ? { breakthrough: item.breakthrough.trim() }
+        : {}),
+    }
+    const key = `${evidence.lineageId}:${evidence.sourceRound}`
+    const previous = byKey.get(key)
+    byKey.set(key, previous
+      ? {
+          ...previous,
+          usage: previous.usage.includes(evidence.usage) ? previous.usage : `${previous.usage}；${evidence.usage}`,
+          result: previous.result.includes(evidence.result) ? previous.result : `${previous.result}；${evidence.result}`,
+          ...(previous.breakthrough || !evidence.breakthrough
+            ? {}
+            : { breakthrough: evidence.breakthrough }),
+        }
+      : evidence)
+  }
+  return [...byKey.values()].sort((left, right) => (
+    left.sourceRound - right.sourceRound || left.lineageId.localeCompare(right.lineageId)
+  ))
+}
+
+function sanitizeGrowthAssessments(value: unknown): DestinyPatternGrowthAssessment[] {
+  if (!Array.isArray(value)) return []
+  const latest = new Map<string, DestinyPatternGrowthAssessment>()
+  for (const item of value) {
+    if (!isRecord(item)) continue
+    if (typeof item.lineageId !== 'string' || !item.lineageId.trim()) continue
+    if (!Number.isSafeInteger(item.evaluatedThroughRound) || Number(item.evaluatedThroughRound) < 1) continue
+    const assessment: DestinyPatternGrowthAssessment = {
+      lineageId: item.lineageId.trim(),
+      evaluatedThroughRound: Number(item.evaluatedThroughRound),
+      ...(Number.isSafeInteger(item.evaluatedBreakthroughRound) && Number(item.evaluatedBreakthroughRound) >= 1
+        ? { evaluatedBreakthroughRound: Number(item.evaluatedBreakthroughRound) }
+        : {}),
+    }
+    const previous = latest.get(assessment.lineageId)
+    if (!previous || assessment.evaluatedThroughRound > previous.evaluatedThroughRound) {
+      latest.set(assessment.lineageId, assessment)
+    }
+  }
+  return [...latest.values()]
 }
 
 function recountDestinyPatternRarity(
@@ -248,34 +346,52 @@ function recountDestinyPatternRarity(
 function removeUnderageDestinyPatternGrowth(
   state: DestinyPatternState,
   currentAge: number | undefined,
-): DestinyPatternState {
+  equippedReincarnationTalents: readonly ReincarnationTalent[],
+): { state: DestinyPatternState; equippedReincarnationTalents: ReincarnationTalent[] } {
   if (
     currentAge === undefined
     || (Number.isFinite(currentAge) && Math.max(0, Math.floor(currentAge)) >= DESTINY_PATTERN_GROWTH_MINIMUM_AGE)
-  ) return state
-  if (!state.pendingGrowth && state.growthHistory.length === 0) return state
+  ) return { state, equippedReincarnationTalents: [...equippedReincarnationTalents] }
+  if (
+    !state.pendingGrowth
+    && state.growthHistory.length === 0
+    && state.growthEvidence.length === 0
+    && state.growthAssessments.length === 0
+  ) return { state, equippedReincarnationTalents: [...equippedReincarnationTalents] }
 
-  const originalByLineage = new Map<string, DestinyPattern>()
+  const originalByLineage = new Map<string, DestinyPatternGrowthSource>()
   for (const entry of state.growthHistory) {
     if (!originalByLineage.has(entry.lineageId)) {
       originalByLineage.set(entry.lineageId, structuredClone(entry.source))
     }
   }
   const patterns = state.patterns.map((pattern) => (
-    originalByLineage.get(pattern.lineageId) ?? pattern
+    originalByLineage.get(pattern.lineageId) &&
+      !('strengthenLevel' in originalByLineage.get(pattern.lineageId)!)
+      ? originalByLineage.get(pattern.lineageId) as DestinyPattern
+      : pattern
   ))
-  return {
+  const nextReincarnationTalents = equippedReincarnationTalents.map((talent) => (
+    originalByLineage.get(talent.lineageId) &&
+      'strengthenLevel' in originalByLineage.get(talent.lineageId)!
+      ? originalByLineage.get(talent.lineageId) as ReincarnationTalent
+      : talent
+  ))
+  return { state: {
     ...state,
     patterns,
     rarityCount: recountDestinyPatternRarity(patterns),
     pendingGrowth: null,
     growthHistory: [],
-  }
+    growthEvidence: [],
+    growthAssessments: [],
+  }, equippedReincarnationTalents: nextReincarnationTalents }
 }
 
 export function sanitizeDestinyPatternState(
   value: unknown,
   currentAge?: number,
+  equippedReincarnationTalents: readonly ReincarnationTalent[] = [],
 ): DestinyPatternState {
   const record = isRecord(value) ? value : {}
   const candidates = Array.isArray(record.candidates)
@@ -290,11 +406,34 @@ export function sanitizeDestinyPatternState(
     : []
   const rarityCount = recountDestinyPatternRarity(patterns)
   const growthHistory = sanitizeGrowthHistory(record.growthHistory)
-  const pendingGrowth = sanitizePendingGrowth(record.pendingGrowth, patterns)
-  return removeUnderageDestinyPatternGrowth(
-    { candidates, patterns, rarityCount, pendingGrowth, growthHistory },
-    currentAge,
+  const pendingGrowth = sanitizePendingGrowth(
+    record.pendingGrowth,
+    patterns,
+    equippedReincarnationTalents,
   )
+  const growthEvidence = sanitizeGrowthEvidence(record.growthEvidence)
+    .filter((entry) => (
+      patterns.some((pattern) => pattern.lineageId === entry.lineageId)
+      || equippedReincarnationTalents.some((talent) => talent.lineageId === entry.lineageId)
+    ))
+  const growthAssessments = sanitizeGrowthAssessments(record.growthAssessments)
+    .filter((entry) => (
+      patterns.some((pattern) => pattern.lineageId === entry.lineageId)
+      || equippedReincarnationTalents.some((talent) => talent.lineageId === entry.lineageId)
+    ))
+  return removeUnderageDestinyPatternGrowth(
+    {
+      candidates,
+      patterns,
+      rarityCount,
+      pendingGrowth,
+      growthHistory,
+      growthEvidence,
+      growthAssessments,
+    },
+    currentAge,
+    equippedReincarnationTalents,
+  ).state
 }
 
 export function sanitizeReincarnationTalent(value: unknown): ReincarnationTalent | null {
@@ -380,13 +519,25 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
         return { ...talent, attrBonus: sanitizeAttrBonus(talent.attrBonus) }
       })
     : []
-  const destinyPatterns = sanitizeDestinyPatternState(record.destinyPatterns, age)
   const equippedReincarnationTalents = Array.isArray(record.equippedReincarnationTalents)
     ? record.equippedReincarnationTalents
         .map(sanitizeReincarnationTalent)
         .filter((item): item is ReincarnationTalent => item !== null)
     : []
-  const loadoutValid = getPatternLoadoutCount(destinyPatterns.patterns, equippedReincarnationTalents) <= PATTERN_LOADOUT_SLOT_COUNT
+  const normalizedEquippedReincarnationTalents = restoreReincarnationTalentsBeforeUnderageGrowth(
+    record.destinyPatterns,
+    age,
+    equippedReincarnationTalents,
+  )
+  const destinyPatterns = sanitizeDestinyPatternState(
+    record.destinyPatterns,
+    age,
+    normalizedEquippedReincarnationTalents,
+  )
+  const loadoutValid = getPatternLoadoutCount(
+    destinyPatterns.patterns,
+    normalizedEquippedReincarnationTalents,
+  ) <= PATTERN_LOADOUT_SLOT_COUNT
 
   const worldCode = Math.max(0, Math.round(finiteNumber(record.worldCode)))
 
@@ -409,10 +560,12 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
           rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
           pendingGrowth: null,
           growthHistory: [],
+          growthEvidence: [],
+          growthAssessments: [],
         },
     lifespanDraft: sanitizeLifespanDraft(record.lifespanDraft, record.race),
     talents,
-    equippedReincarnationTalents: loadoutValid ? equippedReincarnationTalents : [],
+    equippedReincarnationTalents: loadoutValid ? normalizedEquippedReincarnationTalents : [],
     worldCode,
     destinyPoolCacheKey: `mod-character:destiny-pool:${worldCode}`,
     talentPoolCacheKey: `mod-character:talent-pool:${worldCode}`,

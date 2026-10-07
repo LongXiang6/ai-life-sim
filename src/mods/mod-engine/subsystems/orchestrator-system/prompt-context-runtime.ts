@@ -17,6 +17,9 @@ import {
   buildNarrativeTimeContext,
   buildWordCountInstruction,
   DEFAULT_WORD_COUNT_TARGET,
+  isPromptNoiseSummary,
+  isSubsystemDataEnabled,
+  resolvePromptStateLayer,
   RECENT_NARRATIVE_WINDOW,
 } from '../../orchestrator-shared'
 import { projectNarrativeResultForPrompt } from '../../helpers/timeline-memory'
@@ -43,6 +46,24 @@ function buildRecentStoriesProjection(orchestrator: OrchestratorSystem): string[
   return stories.length > 0 ? stories : undefined
 }
 
+/** 将已有世界子系统的只读状态摘要纳入世界输入；不创建新的世界状态。 */
+function buildWorldStateSummaries(
+  orchestrator: OrchestratorSystem,
+  context: ReturnType<OrchestratorSystem['getRoundContextSnapshot']>,
+): string[] {
+  const relevance = orchestrator.getRuntimeDependencies().subsystemRelevance
+  return Object.entries(orchestrator['lastSubsystemStates'])
+    .filter(([id]) => resolvePromptStateLayer(id) === 'world')
+    .filter(([id]) => relevance.isRelevant(id, context))
+    .map(([, state]) => state)
+    .filter((state) => (
+      !isPromptNoiseSummary(state.summary)
+      && isSubsystemDataEnabled(state.data)
+    ))
+    .map((state) => state.summary.trim())
+    .filter(Boolean)
+}
+
 export function assemblePromptContextRuntime(
   orchestrator: OrchestratorSystem,
 ): PromptContext {
@@ -60,10 +81,11 @@ export function assemblePromptContextRuntime(
   if (!baseData) throw new Error('主叙事缺少完整的基础属性状态')
 
   const isOpeningRound = orchestrator['state'].narrativeHistory.length === 0
-  const destinyPatterns = (syncedCharacter.destinyPatterns ?? []).map((pattern) => ({
+  const destinyPatterns = (syncedCharacter.destinyPatterns ?? []).map((pattern, index) => ({
     name: pattern.name,
     description: pattern.description,
     effect: pattern.effect ?? '',
+    reference: `命格-${index + 1}`,
   }))
   const characterStore = useCharacterStore.getState()
   const talents = [
@@ -77,7 +99,11 @@ export function assemblePromptContextRuntime(
   const growthHistory = characterStore.destinyPatterns.growthHistory
   const openingPatternModifiers: Record<string, number> = {}
   const currentPatternModifiers: Record<string, number> = {}
-  for (const pattern of characterStore.destinyPatterns.patterns) {
+  const equippedPatterns = [
+    ...characterStore.destinyPatterns.patterns,
+    ...characterStore.equippedReincarnationTalents,
+  ]
+  for (const pattern of equippedPatterns) {
     const lineageHistory = growthHistory
       .filter((entry) => entry.lineageId === pattern.lineageId)
       .sort((left, right) => left.source.version - right.source.version)
@@ -98,15 +124,13 @@ export function assemblePromptContextRuntime(
         charisma: baseData.modifiers.charisma - (currentPatternModifiers.charisma ?? 0) + (openingPatternModifiers.charisma ?? 0),
       },
       openingLuckBonus: characterStore.destinyPatterns.patterns
+        .concat(characterStore.equippedReincarnationTalents)
         .reduce((sum, pattern) => {
           const lineageHistory = growthHistory
             .filter((entry) => entry.lineageId === pattern.lineageId)
             .sort((left, right) => left.source.version - right.source.version)
           return sum + (lineageHistory[0]?.source.attrBonus.luck ?? pattern.attrBonus.luck ?? 0)
-        }, characterStore.equippedReincarnationTalents.reduce(
-          (sum, talent) => sum + (talent.attrBonus.luck ?? 0),
-          0,
-        )),
+        }, 0),
       currentLuckBonus: fortuneBonus,
       hasInLifeTalentGrowth: growthHistory.length > 0,
     },
@@ -118,13 +142,14 @@ export function assemblePromptContextRuntime(
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting),
     characterProfileView: characterNarrativeView.profile,
     characterStatusView: characterNarrativeView.status,
-    subsystemSummaries: [],
+    subsystemSummaries: buildWorldStateSummaries(orchestrator, context),
     currentTime: narrativeTime.timeLabel,
     narrativeStyle: orchestrator['getNarrativeStyle'](),
     narrativeAddressing: useSettingsStore.getState().narrativeAddressing,
     talents,
     timelineMemory: orchestrator['buildPromptTimelineMemory'](),
     recentStories: buildRecentStoriesProjection(orchestrator),
+    narrativeTimeWindow: narrativeTime.narrativeWindow,
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),

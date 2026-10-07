@@ -1,4 +1,8 @@
 /**
+ * Purpose: Declare the character MOD identity, dependencies, and public entries.
+ * Owner: mod-character
+ * Responsibility: Manifest metadata only; character behavior remains in the MOD implementation.
+ *
  * @module manifest.ts
  * @description MOD 身份声明 —— 角色系统
  * @mod mod-character
@@ -14,7 +18,11 @@ export default defineMod({
   dependencies: ['mod-engine', 'mod-power-system', 'mod-world'],
   provides: ['character', 'character-base', 'destiny-pattern'],
   consumes: ['engine'],
-  secondaryPublicEntries: ['destiny-pattern-access.ts', 'reincarnation-talent-access.ts'],
+  secondaryPublicEntries: [
+    'character-base-access.ts',
+    'destiny-pattern-access.ts',
+    'reincarnation-talent-access.ts',
+  ],
   subsystems: [
     'CharacterBaseSystem',
     'DestinyPatternSystem',

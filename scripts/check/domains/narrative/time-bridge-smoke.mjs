@@ -1,7 +1,7 @@
 /**
- * Purpose: Verify the main narrative data layer carries no time-bridge or time-guide text.
+ * Purpose: Verify the main narrative data layer carries the canonical narrative time window.
  * Owner: quality:narrative
- * Responsibility: Keep 本节点信息.时间节点 the only time coordinate in the story Prompt.
+ * Responsibility: Project time facts without adding a second time source or creative event text.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -18,12 +18,18 @@ const promptContextRuntime = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts'),
   'utf8',
 )
+const narrativeCalendar = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-calendar.ts'),
+  'utf8',
+)
 
 if (
-  !builder.includes("const currentTime = nonEmpty(context.currentTime) ?? '当前时间'")
-  || !builder.includes('时间节点: `${currentAgeValue}岁·${currentTime}`')
+  !builder.includes('function buildNarrativeWindowProjection(context: PromptContext): string')
+  || !builder.includes('时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`')
+  || !builder.includes('时间窗口: buildNarrativeWindowProjection(context)')
+  || promptContextRuntime.includes('elapsedYears:')
 ) {
-  console.error('FAIL: prompt-builder must project current time into 本节点信息')
+  console.error('FAIL: prompt-builder must project the canonical time window into 本次信息')
   failed++
 }
 if (
@@ -41,7 +47,17 @@ if (
   || promptContextRuntime.includes('timeGuideText')
   || promptContextRuntime.includes('buildNarrativeTimeGuide')
 ) {
-  console.error('FAIL: the main narrative prompt context must not assemble time-bridge or time-guide text')
+  console.error('FAIL: the main narrative prompt context must not assemble a second time bridge or creative time guide')
+  failed++
+}
+if (
+  !narrativeCalendar.includes('formatNarrativePromptTimeLabel')
+  || !narrativeCalendar.includes('case \'month\'')
+  || !narrativeCalendar.includes('const timeLabel = formatNarrativePromptTimeLabel(timeStep, eraLabel, context.round)')
+  || !narrativeCalendar.includes('buildNarrativeWindow')
+  || !narrativeCalendar.includes('context.daysPassed')
+) {
+  console.error('FAIL: the main narrative time context must use the calendar label and canonical window')
   failed++
 }
 

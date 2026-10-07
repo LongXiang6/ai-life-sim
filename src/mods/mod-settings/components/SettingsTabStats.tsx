@@ -1,5 +1,11 @@
 'use client'
 
+/**
+ * Purpose: Render AI usage and cache statistics in the settings surface.
+ * Owner: mod-settings
+ * Responsibility: Project read-only usage data and reset actions without owning logging persistence.
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { DEFAULT_AI_MODEL, getCacheStats, resetCacheStats } from '@/core/ai-service'

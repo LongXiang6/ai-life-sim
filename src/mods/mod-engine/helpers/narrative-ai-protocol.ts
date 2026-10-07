@@ -31,6 +31,14 @@ export const NarrativeAIEventResultSchema = z.object({
   影响: NarrativeAINonBlankStringSchema,
 })
 
+export const NarrativeAITalentEvidenceHintSchema = z.object({
+  引用: z.string().trim().min(1),
+  来源回合: z.number().int().positive(),
+  实际使用: NarrativeAINonBlankStringSchema,
+  可观察结果: NarrativeAINonBlankStringSchema,
+  突破契机: NarrativeAINonBlankStringSchema.optional(),
+})
+
 const NarrativeAIAttributeDeltaSchema = z.number().int().min(-3).max(3).refine(
   (value) => value !== 0,
   '属性变化不能为0',
@@ -55,12 +63,8 @@ const NarrativeAIReportedAttributesSchema = z.object({
 
 export const NarrativeAIStoryResultSchema = z.object({
   时间定位: z.string(),
-  事件结果: z.array(z.object({
-    事件: z.string(),
-    成因: z.string(),
-    结果: z.string(),
-    影响: z.string(),
-  })),
+  事件结果: z.array(NarrativeAIEventResultSchema),
+  天赋表现线索: z.array(NarrativeAITalentEvidenceHintSchema).optional(),
   正文: NarrativeAINonBlankStringSchema,
   属性: NarrativeAIReportedAttributesSchema,
   命运分支: z.union([
@@ -131,6 +135,7 @@ export const NarrativeAIStoryContinuityDataSchema = z.object({
 export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
 export type NarrativeAIEnding = z.infer<typeof NarrativeAIEndingSchema>
 export type NarrativeAIEventResult = z.infer<typeof NarrativeAIEventResultSchema>
+export type NarrativeAITalentEvidenceHint = z.infer<typeof NarrativeAITalentEvidenceHintSchema>
 export type NarrativeAIAttributeChanges = z.infer<typeof NarrativeAIAttributeChangesSchema>
 export type NarrativeAIStoryResult = z.infer<typeof NarrativeAIStoryResultSchema>
 export type NarrativeAITalentGrowthData = z.infer<typeof NarrativeAITalentGrowthDataSchema>

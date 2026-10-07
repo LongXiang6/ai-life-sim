@@ -97,7 +97,7 @@ check(
     ])
     return requireModuleFragments('src/mods/mod-pages/pages/talent-draw/talent-draw-storage.ts', [
       'export function prepareCachedTalentDrawSelection',
-      "if (initial.phase !== 'ready') return",
+      "if (initial.phase !== 'selecting') return",
       "persistTalentDrawState('selecting', initial.slots, initial.loadoutSlots)",
     ])
   },
@@ -233,7 +233,7 @@ check(
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
       ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 15'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 9'],
-      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 9'],
+      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 10'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])
     return `${stores.length} persisted store contracts present`

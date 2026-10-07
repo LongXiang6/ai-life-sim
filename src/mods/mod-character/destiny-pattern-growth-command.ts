@@ -11,16 +11,20 @@ import type {
 import { ensureOrchestratorContextFromStores, orchestrator } from '@/mods/mod-engine/engine-api'
 
 import type {
-  DestinyPattern,
+  DestinyPatternGrowthSource,
   DestinyPatternGrowthHistoryEntry,
   PendingDestinyPatternGrowth,
+  ReincarnationTalent,
 } from './types'
 import {
   registerPendingDestinyPatternGrowthInState,
+  recordDestinyPatternGrowthAssessmentsInState,
+  recordDestinyPatternGrowthEvidenceInState,
   resolvePendingDestinyPatternGrowthInState,
 } from './destiny-pattern-growth'
 import { useCharacterStore } from './store'
 import { getDestinyPatternSystem } from './subsystems/destiny-pattern-system'
+import type { DestinyPatternGrowthEvidence } from './types'
 
 function samePendingGrowth(
   left: PendingDestinyPatternGrowth | null,
@@ -49,7 +53,7 @@ function sameGrowthResult(
     && left.result.rarity === right.result.rarity
 }
 
-function projectPattern(pattern: DestinyPattern): NarrativeDestinyPatternGrowthPattern {
+function projectPattern(pattern: DestinyPatternGrowthSource): NarrativeDestinyPatternGrowthPattern {
   return {
     name: pattern.name,
     rarity: pattern.rarity,
@@ -77,7 +81,11 @@ function projectPendingGrowth(
 function restoreCharacterGrowthState(
   runtimeState: ReturnType<ReturnType<typeof getDestinyPatternSystem>['getStateSnapshot']>,
   storeState: ReturnType<typeof useCharacterStore.getState>['destinyPatterns'],
+  equippedReincarnationTalents: readonly ReincarnationTalent[],
 ): void {
+  useCharacterStore.setState({
+    equippedReincarnationTalents: structuredClone([...equippedReincarnationTalents]),
+  })
   getDestinyPatternSystem().restoreCollectedState(runtimeState)
   useCharacterStore.setState({ destinyPatterns: structuredClone(storeState) })
   orchestrator.refreshCommittedSubsystemStateSnapshot()
@@ -91,7 +99,46 @@ export interface DestinyPatternGrowthTransactionSnapshot {
   readonly narrativeId: string
   readonly runtimeState: ReturnType<ReturnType<typeof getDestinyPatternSystem>['getStateSnapshot']>
   readonly storeState: ReturnType<typeof useCharacterStore.getState>['destinyPatterns']
+  readonly equippedReincarnationTalents: ReincarnationTalent[]
   readonly narrativeProjection?: NarrativeDestinyPatternGrowthProjection
+}
+
+/** 记录主故事已经明确给出的命格使用证据，不触发 AI，也不登记成长路线。 */
+export function recordDestinyPatternGrowthEvidence(
+  evidence: readonly DestinyPatternGrowthEvidence[],
+): void {
+  if (evidence.length === 0) return
+  const system = getDestinyPatternSystem()
+  const equippedReincarnationTalents = useCharacterStore.getState().equippedReincarnationTalents
+  const runtimeState = recordDestinyPatternGrowthEvidenceInState(
+    system.getStateSnapshot(),
+    evidence,
+    equippedReincarnationTalents,
+  )
+  const storeState = recordDestinyPatternGrowthEvidenceInState(
+    useCharacterStore.getState().destinyPatterns,
+    evidence,
+    equippedReincarnationTalents,
+  )
+  system.restoreCollectedState(runtimeState)
+  useCharacterStore.setState({ destinyPatterns: structuredClone(storeState) })
+  orchestrator.refreshCommittedSubsystemStateSnapshot()
+}
+
+/** 记录一次已经完成的成长复评水位；不改变当前命格或玩家选择。 */
+export function recordDestinyPatternGrowthAssessments(
+  assessments: readonly import('./types').DestinyPatternGrowthAssessment[],
+): void {
+  if (assessments.length === 0) return
+  const system = getDestinyPatternSystem()
+  const runtimeState = recordDestinyPatternGrowthAssessmentsInState(system.getStateSnapshot(), assessments)
+  const storeState = recordDestinyPatternGrowthAssessmentsInState(
+    useCharacterStore.getState().destinyPatterns,
+    assessments,
+  )
+  system.restoreCollectedState(runtimeState)
+  useCharacterStore.setState({ destinyPatterns: structuredClone(storeState) })
+  orchestrator.refreshCommittedSubsystemStateSnapshot()
 }
 
 /** Validate the complete growth package without mutating character or narrative state. */
@@ -109,11 +156,13 @@ export function prepareDestinyPatternGrowthChoice(
     runtimeBefore,
     pending,
     characterState.age,
+    characterState.equippedReincarnationTalents,
   )
   const storePreview = registerPendingDestinyPatternGrowthInState(
     storeBefore,
     pending,
     characterState.age,
+    characterState.equippedReincarnationTalents,
   )
   if (!samePendingGrowth(runtimePreview.pendingGrowth, storePreview.pendingGrowth)) {
     throw new Error('天赋成长登记无法形成唯一结果')
@@ -132,6 +181,7 @@ export function captureDestinyPatternGrowthTransaction(
     narrativeId,
     runtimeState: getDestinyPatternSystem().getStateSnapshot(),
     storeState: structuredClone(useCharacterStore.getState().destinyPatterns),
+    equippedReincarnationTalents: structuredClone(useCharacterStore.getState().equippedReincarnationTalents),
     narrativeProjection: orchestrator.captureDestinyPatternGrowthProjection(narrativeId),
   }
 }
@@ -154,7 +204,11 @@ export function commitPreparedDestinyPatternGrowthChoice(
 export function restoreDestinyPatternGrowthTransaction(
   snapshot: DestinyPatternGrowthTransactionSnapshot,
 ): void {
-  restoreCharacterGrowthState(snapshot.runtimeState, snapshot.storeState)
+  restoreCharacterGrowthState(
+    snapshot.runtimeState,
+    snapshot.storeState,
+    snapshot.equippedReincarnationTalents,
+  )
   orchestrator.restoreDestinyPatternGrowthProjection(
     snapshot.narrativeId,
     snapshot.narrativeProjection,
@@ -197,12 +251,31 @@ export function resolveDestinyPatternGrowthChoice(
   if (!pending) return { ok: false, error: '当前没有等待选择的天赋成长' }
   const committedAt = Date.now()
   const totalBasePoints = orchestrator.getRoundContextSnapshot().totalBasePoints
+  const equippedReincarnationTalents = useCharacterStore.getState().equippedReincarnationTalents
 
   try {
-    const runtimePreview = resolvePendingDestinyPatternGrowthInState(runtimeBefore, optionId, committedAt, totalBasePoints)
-    const storePreview = resolvePendingDestinyPatternGrowthInState(storeBefore, optionId, committedAt, totalBasePoints)
+    const runtimePreview = resolvePendingDestinyPatternGrowthInState(
+      runtimeBefore,
+      optionId,
+      committedAt,
+      totalBasePoints,
+      equippedReincarnationTalents,
+    )
+    const storePreview = resolvePendingDestinyPatternGrowthInState(
+      storeBefore,
+      optionId,
+      committedAt,
+      totalBasePoints,
+      equippedReincarnationTalents,
+    )
     if (!sameGrowthResult(runtimePreview.historyEntry, storePreview.historyEntry)) {
       throw new Error('天赋成长选择无法形成唯一结果')
+    }
+    if (
+      JSON.stringify(runtimePreview.reincarnationTalents ?? equippedReincarnationTalents)
+      !== JSON.stringify(storePreview.reincarnationTalents ?? equippedReincarnationTalents)
+    ) {
+      throw new Error('轮回天赋成长无法形成唯一结果')
     }
     orchestrator.assertDestinyPatternGrowthChoice(
       pending.narrativeId,
@@ -210,8 +283,18 @@ export function resolveDestinyPatternGrowthChoice(
       optionId,
     )
 
-    const historyEntry = system.resolvePendingGrowth(optionId, committedAt, totalBasePoints)
+    const historyEntry = system.resolvePendingGrowth(
+      optionId,
+      committedAt,
+      totalBasePoints,
+      equippedReincarnationTalents,
+    )
     useCharacterStore.setState({ destinyPatterns: storePreview.state })
+    if (storePreview.reincarnationTalents) {
+      useCharacterStore.setState({
+        equippedReincarnationTalents: storePreview.reincarnationTalents,
+      })
+    }
     orchestrator.refreshCommittedSubsystemStateSnapshot()
     orchestrator.resolveDestinyPatternGrowthProjection(
       pending.narrativeId,
@@ -221,7 +304,7 @@ export function resolveDestinyPatternGrowthChoice(
     return { ok: true, historyEntry }
   } catch (error) {
     try {
-      restoreCharacterGrowthState(runtimeBefore, storeBefore)
+      restoreCharacterGrowthState(runtimeBefore, storeBefore, equippedReincarnationTalents)
     } catch {
       // The original transaction error remains the actionable failure.
     }

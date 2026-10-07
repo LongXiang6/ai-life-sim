@@ -10,6 +10,7 @@ import type {
   NarrativeAIAttributeChanges,
   NarrativeAIBranch,
   NarrativeAIEventResult,
+  NarrativeAITalentEvidenceHint,
   NarrativeAIEnding,
 } from './narrative-ai-protocol'
 import { parseAIJSON, parseAIJSONCandidates } from '@/core/ai-service/parse-ai-json'
@@ -18,6 +19,7 @@ import { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export interface NarrativeResponseEnvelope {
   narrative: string
   eventResults?: NarrativeAIEventResult[]
+  talentEvidenceHints?: NarrativeAITalentEvidenceHint[]
   branch?: NarrativeAIBranch
   ending?: NarrativeAIEnding
   attributeChanges?: NarrativeAIAttributeChanges
@@ -172,6 +174,32 @@ function normalizeEventResults(value: unknown): NarrativeAIEventResult[] | undef
     const impact = normalizedText(record.影响 ?? record.impact)
     if (!event || !cause || !result || !impact) continue
     results.push({ 事件: event, 成因: cause, 结果: result, 影响: impact })
+  }
+  return results.length > 0 ? results : undefined
+}
+
+function normalizeTalentEvidenceHints(value: unknown): NarrativeAITalentEvidenceHint[] | undefined {
+  const normalized = normalizeOptionalJsonValue(value)
+  if (!Array.isArray(normalized)) return undefined
+  const results: NarrativeAITalentEvidenceHint[] = []
+  for (const item of normalized) {
+    const record = asRecord(item)
+    if (!record) continue
+    const reference = normalizedText(record.引用 ?? record.reference ?? record.天赋引用)
+    const sourceRound = typeof record.来源回合 === 'number'
+      ? Math.trunc(record.来源回合)
+      : Number(record.来源回合 ?? record.round)
+    const usage = normalizedText(record.实际使用 ?? record.使用事实 ?? record.usage)
+    const result = normalizedText(record.可观察结果 ?? record.观察结果 ?? record.result)
+    const breakthrough = normalizedText(record.突破契机 ?? record.breakthrough)
+    if (!reference || !Number.isSafeInteger(sourceRound) || sourceRound < 1 || !usage || !result) continue
+    results.push({
+      引用: reference,
+      来源回合: sourceRound,
+      实际使用: usage,
+      可观察结果: result,
+      ...(breakthrough ? { 突破契机: breakthrough } : {}),
+    })
   }
   return results.length > 0 ? results : undefined
 }
@@ -364,10 +392,14 @@ export function parseNarrativeResponseEnvelope(
   const eventResults = normalizeEventResults(
     pickEnvelopeField(json, ['事件结果', 'eventResults', 'events']),
   )
+  const talentEvidenceHints = normalizeTalentEvidenceHints(
+    pickEnvelopeField(json, ['天赋表现线索', '天赋线索', 'talentEvidenceHints', 'talentEvidence']),
+  )
 
   return {
     narrative,
     ...(eventResults ? { eventResults } : {}),
+    ...(talentEvidenceHints ? { talentEvidenceHints } : {}),
     ...(branch ? { branch } : {}),
     ...(ending ? { ending } : {}),
     ...(attributeChanges ? { attributeChanges } : {}),

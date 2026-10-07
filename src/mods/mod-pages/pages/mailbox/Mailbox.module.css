@@ -17,7 +17,7 @@
       min-height: 0;
       flex: 1;
       flex-direction: column;
-      padding: 0 28px 112px;
+      padding: 0 28px;
       overflow: hidden;
     }
 
@@ -520,7 +520,7 @@
 
 @media (max-width: 760px) {
   .screen {
-    padding: 0 16px 96px;
+    padding: 0 16px;
   }
 
   .header {

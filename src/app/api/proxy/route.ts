@@ -18,14 +18,9 @@ import {
   readStreamWithIdleTimeout,
 } from '@/core/ai-service/stream-timeout'
 import {
-  appendServerLogEntry,
   getServerRequestSource,
 } from '@/core/logger/server-log-store'
-import {
-  type NarrativeRoundTraceContext,
-} from '@/core/logger/narrative-round-archive'
 import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-diagnostic.server'
-import { scheduleDevelopmentLogMirror } from '@/core/logger/development-log-mirror.server'
 import { resolveModEngineServerPromptAsset } from '@/mods/mod-engine/server-prompt-assets'
 import {
   ProxyRequestSchema,
@@ -33,9 +28,9 @@ import {
   type UpstreamAttempt,
 } from './route/contracts'
 import {
-  appendNarrativeRoundExchange,
   buildTraceRequest,
   saveRawResponse,
+  type NarrativeRoundTraceContext,
   writeAccessLogAsync,
   writeProxyTrace,
 } from './route/proxy-logging'
@@ -142,54 +137,10 @@ export async function POST(request: Request): Promise<Response> {
           error: error ?? '',
         },
         ...(error ? { error: { message: error } } : {}),
-      }]).catch((diagnosticError) => {
+      }], source).catch((diagnosticError) => {
         console.error('[api-proxy] 开发系统诊断写入失败', diagnosticError)
       }),
     ])
-  }
-
-  const archiveCurrentExchange = async (input: {
-    model: string
-    attempt: number
-    status?: number
-    requestBody: string
-    responseBody: string | Uint8Array
-    transportError?: string
-  }): Promise<void> => {
-    if (!narrativeTrace) return
-    try {
-      await appendNarrativeRoundExchange({
-        trace: narrativeTrace,
-        requestId,
-        providerId,
-        deviceProvenanceId: source.deviceProvenanceId,
-        accountId: source.accountId,
-        username: source.username,
-        styleFingerprint: narrativeTrace.styleText !== undefined
-          ? createHash('sha256')
-            .update(`narrative-style-v1\0${narrativeTrace.styleText}`, 'utf8')
-            .digest('hex')
-          : undefined,
-        ...input,
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      await appendServerLogEntry({
-        entryType: 'narrative-round-archive-error',
-        category: 'ai-proxy',
-        level: 'error',
-        module: 'api-proxy',
-        message,
-        requestId,
-        source,
-        provider: providerId,
-        model: input.model,
-        round: narrativeTrace.round,
-        callKind: narrativeTrace.callKind,
-        error: message,
-        meta: { lifeRunId: narrativeTrace.lifeRunId, attempt: input.attempt },
-      })
-    }
   }
 
   try {
@@ -406,7 +357,6 @@ export async function POST(request: Request): Promise<Response> {
     let upstreamResp: Response | null = null
     let upstreamErrorText = ''
     let upstreamRequestBody = ''
-    let selectedAttempt = 0
     const upstreamAttempts: UpstreamAttempt[] = []
     const modelCandidates = [body.model]
 
@@ -434,14 +384,6 @@ export async function POST(request: Request): Promise<Response> {
       forwardBody.model = candidate
       model = candidate
       upstreamRequestBody = JSON.stringify(forwardBody)
-      selectedAttempt = index + 1
-      const callKind = body.trace_context?.callKind ?? body.deadline_context.callKind
-      scheduleDevelopmentLogMirror({
-        callKind,
-        direction: '发送',
-        text: JSON.stringify(upstreamMessages),
-      })
-
       const candidateResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -456,13 +398,6 @@ export async function POST(request: Request): Promise<Response> {
       })
 
       if (!candidateResponse) {
-        await archiveCurrentExchange({
-          model: candidate,
-          attempt: index + 1,
-          requestBody: upstreamRequestBody,
-          responseBody: '',
-          transportError: connectionError || 'Connection failed or timeout',
-        })
         upstreamAttempts.push({
           model: candidate,
           durationMs: Date.now() - attemptStartedAt,
@@ -474,18 +409,6 @@ export async function POST(request: Request): Promise<Response> {
 
       if (!candidateResponse.ok) {
         upstreamErrorText = await candidateResponse.text().catch(() => '未知错误')
-        scheduleDevelopmentLogMirror({
-          callKind,
-          direction: '接收',
-          text: upstreamErrorText,
-        })
-        await archiveCurrentExchange({
-          model: candidate,
-          attempt: index + 1,
-          status: candidateResponse.status,
-          requestBody: upstreamRequestBody,
-          responseBody: upstreamErrorText,
-        })
         upstreamAttempts.push({
           model: candidate,
           status: candidateResponse.status,
@@ -581,21 +504,7 @@ export async function POST(request: Request): Promise<Response> {
         if (logged) return
         logged = true
         const responseBody = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk))).toString('utf8')
-        const responseBytes = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk)))
-        scheduleDevelopmentLogMirror({
-          callKind: body.trace_context?.callKind ?? body.deadline_context.callKind,
-          direction: '接收',
-          text: responseBody,
-        })
-        await Promise.all([
-          archiveCurrentExchange({
-            model,
-            attempt: selectedAttempt,
-            status,
-            requestBody: upstreamRequestBody,
-            responseBody: responseBytes,
-            transportError: error,
-          }),
+      await Promise.all([
           writeCurrentTrace('response', {
             status,
             upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
@@ -669,19 +578,7 @@ export async function POST(request: Request): Promise<Response> {
     // 8. 非流式直接返回
     const responseBody = await upstreamResp.text()
     clearUpstreamGuards()
-    scheduleDevelopmentLogMirror({
-      callKind: body.trace_context?.callKind ?? body.deadline_context.callKind,
-      direction: '接收',
-      text: responseBody,
-    })
     await Promise.all([
-      archiveCurrentExchange({
-        model,
-        attempt: selectedAttempt,
-        status: upstreamResp.status,
-        requestBody: upstreamRequestBody,
-        responseBody,
-      }),
       writeCurrentTrace('response', {
         status: 200,
         upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),

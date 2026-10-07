@@ -21,9 +21,9 @@
  *   项目内零采用（仅类型声明，无任何子系统或引擎代码引用），暂不引入，避免无人使用的
  *   额外复杂度——待实际有子系统需要编译期阶段隔离时再评估升级。
  *
- * 时间字段说明：RoundContext 的 `basePointsPassed`/`totalBasePoints` 是业务时间真源；
- * `daysPassed`/`totalDays` 仅是派生日历和旧存档适配。TimeSystem 是它们的唯一写入者，
- * 子系统只读。旧的 getDaysPassed() 保留给显示/迁移边界，业务推进应使用 getBasePointsPassed()。
+ * 时间字段说明：RoundContext 的 `daysPassed`/`totalDays` 是精确日历事实；
+ * `basePointsPassed`/`totalBasePoints` 是供现有业务子系统消费的统一数值投影。
+ * TimeSystem 是它们的唯一写入者，子系统只读。
  */
 
 import type { ISubSystemV2, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'

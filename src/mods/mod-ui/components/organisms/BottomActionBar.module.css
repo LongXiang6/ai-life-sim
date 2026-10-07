@@ -1,11 +1,9 @@
 /* Purpose: Render the finalized bottom action band shared by non-story flows. Owner: mod-ui. Responsibility: Bottom actions and optional overflow menu presentation. */
 
 .bar {
-  position: absolute;
+  position: static;
+  width: 100%;
   z-index: 4;
-  right: 0;
-  bottom: 0;
-  left: 0;
   padding: 10px 0 max(12px, env(safe-area-inset-bottom, 0px));
   border-top: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line);
   background: color-mix(in srgb, var(--flow-paper) 94%, transparent);

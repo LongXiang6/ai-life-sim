@@ -1,10 +1,10 @@
 /**
- * Purpose: Own the canonical annual base-point clock and derived calendar.
+ * Purpose: Own the canonical calendar cursor and derived business-time projection.
  * Owner: mod-engine/time
- * Responsibility: Advance year/event steps and expose one consistent round projection.
+ * Responsibility: Advance day/month/season/year steps and expose one consistent round projection.
  *
  * @module time-system.ts
- * @description 年度基础点时间子系统
+ * @description 日历时间子系统
  * @mod mod-engine
  */
 
@@ -12,11 +12,8 @@ import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from 
 import {
   BASE_POINTS_PER_YEAR,
   CALENDAR_DAYS_PER_YEAR,
-  DEFAULT_ANNUAL_EVENT_COUNT,
-  advanceAnnualEvent,
   basePointsFromCalendarDays,
   calendarDaysFromBasePoints,
-  normalizeCanonicalEventNodeCount,
   normalizeCanonicalTimeStep,
 } from '@/foundation'
 import type { TimeStep, RoundInfo } from '../types'
@@ -44,20 +41,45 @@ function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' 
   return { eraName, eraYear, reignTitle, reignYear }
 }
 
-function createInitialRound(): RoundInfo {
-  return {
-    year: 0,
-    season: getSeasonForMonth(0),
-    month: 0,
-    day: 0,
-    dayOfYear: 1,
-    totalDays: 0,
-    totalBasePoints: 0,
-    basePointsPassed: 0,
-    eventNodeCount: DEFAULT_ANNUAL_EVENT_COUNT,
-    eventNodeIndex: 0,
-    ...resolveDisplayEra(0),
+function normalizeNonNegativeInteger(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : fallback
+}
+
+function monthAndDayFromDayOfYear(dayOfYear: number): { month: number; day: number } {
+  let remaining = Math.max(0, Math.floor(dayOfYear) - 1)
+  for (let month = 0; month < CALENDAR.MONTHS_PER_YEAR; month += 1) {
+    const daysInMonth = CALENDAR.DAYS_IN_MONTH[month]
+    if (remaining < daysInMonth) return { month, day: remaining }
+    remaining -= daysInMonth
   }
+  return { month: CALENDAR.MONTHS_PER_YEAR - 1, day: CALENDAR.DAYS_IN_MONTH.at(-1)! - 1 }
+}
+
+export function projectRoundFromTotalDays(totalDays: number, previousTotalDays = 0): RoundInfo {
+  const normalizedDays = normalizeNonNegativeInteger(totalDays)
+  const normalizedPreviousDays = normalizeNonNegativeInteger(previousTotalDays)
+  const year = Math.floor(normalizedDays / CALENDAR_DAYS_PER_YEAR)
+  const dayOfYear = (normalizedDays % CALENDAR_DAYS_PER_YEAR) + 1
+  const { month, day } = monthAndDayFromDayOfYear(dayOfYear)
+  const totalBasePoints = basePointsFromCalendarDays(normalizedDays)
+  const previousBasePoints = basePointsFromCalendarDays(normalizedPreviousDays)
+  return {
+    year,
+    season: getSeasonForMonth(month),
+    month,
+    day,
+    dayOfYear,
+    totalDays: normalizedDays,
+    totalBasePoints,
+    basePointsPassed: Math.max(0, totalBasePoints - previousBasePoints),
+    ...resolveDisplayEra(year),
+  }
+}
+
+function createInitialRound(): RoundInfo {
+  return projectRoundFromTotalDays(0)
 }
 
 function createDefaultTimeStep(): TimeStep {
@@ -68,87 +90,33 @@ function normalizeTimeStep(step: Partial<TimeStep> | undefined): TimeStep {
   return normalizeCanonicalTimeStep(step)
 }
 
-function normalizeBasePoints(value: unknown, fallback = 0): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.floor(value)
-    : fallback
-}
-
-function inferEventIndex(totalBasePoints: number, eventCount: number): number {
-  const count = normalizeCanonicalEventNodeCount(eventCount)
-  const yearOffset = ((Math.floor(totalBasePoints) % BASE_POINTS_PER_YEAR) + BASE_POINTS_PER_YEAR)
-    % BASE_POINTS_PER_YEAR
-  let index = Math.floor((yearOffset * count) / BASE_POINTS_PER_YEAR)
-  while (index < count && Math.floor(((index + 1) * BASE_POINTS_PER_YEAR) / count) <= yearOffset) index++
-  return Math.max(0, Math.min(count - 1, index))
-}
-
-function roundFromBasePoints(
-  totalBasePoints: number,
-  options: {
-    eventNodeCount?: number
-    eventNodeIndex?: number
-    basePointsPassed?: number
-  } = {},
-): RoundInfo {
-  const normalizedBasePoints = normalizeBasePoints(totalBasePoints)
-  const totalDays = calendarDaysFromBasePoints(normalizedBasePoints)
-  const year = Math.floor(totalDays / CALENDAR_DAYS_PER_YEAR)
-  const dayOfYear = (totalDays % CALENDAR_DAYS_PER_YEAR) + 1
-  let remaining = dayOfYear - 1
-  let month = 0
-  let day = 0
-  for (let m = 0; m < CALENDAR.MONTHS_PER_YEAR; m++) {
-    const daysInMonth = CALENDAR.DAYS_IN_MONTH[m]
-    if (remaining < daysInMonth) {
-      month = m
-      day = remaining
-      break
-    }
-    remaining -= daysInMonth
+function daysInCurrentSeason(month: number): number {
+  const firstMonth = Math.max(0, Math.floor(month))
+  let total = 0
+  for (let index = 0; index < CALENDAR.MONTHS_PER_SEASON; index += 1) {
+    total += CALENDAR.DAYS_IN_MONTH[(firstMonth + index) % CALENDAR.MONTHS_PER_YEAR]
   }
-  return {
-    year,
-    season: getSeasonForMonth(month),
-    month,
-    day,
-    dayOfYear,
-    totalDays,
-    totalBasePoints: normalizedBasePoints,
-    basePointsPassed: Math.max(0, Math.floor(options.basePointsPassed ?? 0)),
-    ...(options.eventNodeCount !== undefined
-      ? { eventNodeCount: normalizeCanonicalEventNodeCount(options.eventNodeCount) }
-      : {}),
-    ...(options.eventNodeIndex !== undefined
-      ? { eventNodeIndex: Math.max(0, Math.floor(options.eventNodeIndex)) }
-      : {}),
-    ...resolveDisplayEra(year),
+  return total
+}
+
+function daysForStep(round: RoundInfo, timeStep: TimeStep): number {
+  switch (timeStep.unit) {
+    case 'day':
+      return Math.max(1, Math.floor(timeStep.value))
+    case 'month':
+      return CALENDAR.DAYS_IN_MONTH[round.month] ?? CALENDAR.DAYS_IN_MONTH[0]
+    case 'season':
+      return daysInCurrentSeason(round.month)
+    case 'year':
+      return Math.max(1, Math.floor(timeStep.value)) * CALENDAR_DAYS_PER_YEAR
   }
-}
-
-/** Event/year transitions never align to an obsolete day/month/season boundary. */
-export function shouldAlignTimeStepTransition(
-  _prevUnit: TimeStep['unit'],
-  _newUnit: TimeStep['unit'],
-): boolean {
-  return false
-}
-
-/** Kept as a no-op API for restored callers; canonical event/year time has no period alignment. */
-export function alignRoundToNextPeriod(
-  _prevUnit: TimeStep['unit'],
-  _newUnit: TimeStep['unit'],
-  round: RoundInfo,
-  _prevValue = 1,
-): RoundInfo {
-  return { ...round, basePointsPassed: 0 }
 }
 
 export class TimeSystem implements ISubSystem {
   readonly id = 'time' as const
   readonly mod = 'mod-engine' as const
   readonly label = '时间系统' as const
-  readonly description = '每年1000基础点、年内按事件轮次推进；日期仅为派生显示' as const
+  readonly description = '按真实日历的日、月、季或年推进；基础点仅作业务投影' as const
 
   private round: RoundInfo = createInitialRound()
   private timeStep: TimeStep = createDefaultTimeStep()
@@ -163,21 +131,12 @@ export class TimeSystem implements ISubSystem {
     return this.lastBasePointsPassed
   }
 
-  /** Legacy display adapter; business systems should consume getBasePointsPassed(). */
   getDaysPassed(): number {
     return this.lastDaysPassed
   }
 
   setTimeStep(step: TimeStep): void {
     this.timeStep = normalizeTimeStep(step)
-  }
-
-  alignToNextPeriod(prevUnit: TimeStep['unit'], newUnit: TimeStep['unit'], prevValue = 1): RoundInfo {
-    const aligned = alignRoundToNextPeriod(prevUnit, newUnit, this.round, prevValue)
-    this.round = structuredClone(aligned)
-    this.lastBasePointsPassed = 0
-    this.lastDaysPassed = 0
-    return this.getRound()
   }
 
   getSeasonName(): string {
@@ -196,81 +155,36 @@ export class TimeSystem implements ISubSystem {
     this.round.reignYear = era.reignYear
   }
 
-  /** Advance a macro year span by exactly Y*1000 base points. */
   skipYears(n: number): RoundInfo {
     const count = Number.isFinite(n) && n > 0 ? Math.floor(n) : 1
-    const before = this.round.totalBasePoints
-    const next = before + count * BASE_POINTS_PER_YEAR
-    const eventCount = this.round.eventNodeCount
-    const eventIndex = eventCount !== undefined ? inferEventIndex(next, eventCount) : undefined
-    this.round = roundFromBasePoints(next, {
-      eventNodeCount: eventCount,
-      eventNodeIndex: eventIndex,
-      basePointsPassed: next - before,
-    })
-    this.lastBasePointsPassed = next - before
-    this.lastDaysPassed = this.round.totalDays - calendarDaysFromBasePoints(before)
+    return this.commitAdvance(count * CALENDAR_DAYS_PER_YEAR)
+  }
+
+  private commitAdvance(days: number): RoundInfo {
+    const previousDays = this.round.totalDays
+    const nextDays = previousDays + Math.max(0, Math.floor(days))
+    this.round = projectRoundFromTotalDays(nextDays, previousDays)
+    this.lastDaysPassed = this.round.totalDays - previousDays
+    this.lastBasePointsPassed = this.round.basePointsPassed ?? 0
+    this.syncEraFields()
     return this.getRound()
   }
 
   advance(): RoundInfo {
-    const beforeBasePoints = this.round.totalBasePoints
-    const beforeDays = this.round.totalDays
-    let result: RoundInfo
-    if (this.timeStep.unit === 'year') {
-      const count = Math.max(1, Math.floor(this.timeStep.value))
-      const nextBasePoints = beforeBasePoints + count * BASE_POINTS_PER_YEAR
-      const eventCount = this.round.eventNodeCount
-      result = roundFromBasePoints(nextBasePoints, {
-        eventNodeCount: eventCount,
-        eventNodeIndex: eventCount !== undefined ? inferEventIndex(nextBasePoints, eventCount) : undefined,
-        basePointsPassed: nextBasePoints - beforeBasePoints,
-      })
-    } else {
-      const desiredCount = normalizeCanonicalEventNodeCount(this.timeStep.value)
-      // Freeze a budget once the current year has consumed an event. A new N
-      // takes effect at the next natural-year boundary.
-      const activeCount = this.round.eventNodeIndex && this.round.eventNodeCount
-        ? this.round.eventNodeCount
-        : desiredCount
-      const currentYear = Math.floor(beforeBasePoints / BASE_POINTS_PER_YEAR)
-      const atYearBoundary = beforeBasePoints % BASE_POINTS_PER_YEAR === 0
-      const currentIndex = (this.round.eventNodeCount === activeCount || atYearBoundary)
-        && Number.isSafeInteger(this.round.eventNodeIndex)
-        ? Math.max(0, Math.min(activeCount - 1, this.round.eventNodeIndex ?? 0))
-        : inferEventIndex(beforeBasePoints, activeCount)
-      const advanced = advanceAnnualEvent({
-        year: currentYear,
-        eventIndex: currentIndex,
-        eventCount: activeCount,
-        totalBasePoints: beforeBasePoints,
-      })
-      result = roundFromBasePoints(advanced.cursor.totalBasePoints, {
-        eventNodeCount: advanced.cursor.eventCount,
-        eventNodeIndex: advanced.cursor.eventIndex,
-        basePointsPassed: advanced.basePointsPassed,
-      })
-    }
-    this.round = result
-    this.lastBasePointsPassed = Math.max(0, result.totalBasePoints - beforeBasePoints)
-    this.lastDaysPassed = Math.max(0, result.totalDays - beforeDays)
-    this.syncEraFields()
-    return this.getRound()
+    return this.commitAdvance(daysForStep(this.round, this.timeStep))
   }
 
   collectState(_context: RoundContext): SubSystemState {
     const r = this.round
     const monthName = MONTH_ZH[r.month]
-    const eventHint = r.eventNodeCount !== undefined
-      ? `；本年事件${r.eventNodeIndex ?? 0}/${r.eventNodeCount}`
-      : ''
-    const summary = `【${this.label}】${r.eraName}${r.eraYear}年（${r.reignTitle}${r.reignYear}年）${monthName}第${r.day + 1}日${eventHint}`
+    const summary = `【${this.label}】${r.eraName}${r.eraYear}年（${r.reignTitle}${r.reignYear}年）${monthName}第${r.day + 1}日`
     return {
       id: this.id,
       summary,
       data: structuredClone({
         round: this.round,
         timeStep: this.timeStep,
+        calendarDaysPerYear: CALENDAR_DAYS_PER_YEAR,
         basePointsPerYear: BASE_POINTS_PER_YEAR,
       }),
     }
@@ -286,14 +200,10 @@ export class TimeSystem implements ISubSystem {
     const c = changes.changes
     if (c.round && typeof c.round === 'object' && !Array.isArray(c.round)) {
       const incoming = c.round as Partial<RoundInfo>
-      const migratedBasePoints = incoming.totalBasePoints !== undefined
-        ? normalizeBasePoints(incoming.totalBasePoints)
-        : basePointsFromCalendarDays(normalizeBasePoints(incoming.totalDays))
-      this.round = roundFromBasePoints(migratedBasePoints, {
-        eventNodeCount: incoming.eventNodeCount,
-        eventNodeIndex: incoming.eventNodeIndex,
-        basePointsPassed: incoming.basePointsPassed,
-      })
+      const totalDays = incoming.totalDays !== undefined
+        ? normalizeNonNegativeInteger(incoming.totalDays)
+        : calendarDaysFromBasePoints(normalizeNonNegativeInteger(incoming.totalBasePoints))
+      this.round = projectRoundFromTotalDays(totalDays)
       this.syncEraFields()
     }
     if (c.timeStep) this.setTimeStep(c.timeStep as unknown as TimeStep)
@@ -312,22 +222,10 @@ export class TimeSystem implements ISubSystem {
 
   importRound(round: RoundInfo): void {
     const legacy = round as RoundInfo & { totalBasePoints?: number }
-    const totalBasePoints = legacy.totalBasePoints !== undefined
-      ? normalizeBasePoints(legacy.totalBasePoints)
-      : basePointsFromCalendarDays(normalizeBasePoints(legacy.totalDays))
-    const eventCount = legacy.eventNodeCount !== undefined
-      ? normalizeCanonicalEventNodeCount(legacy.eventNodeCount)
-      : undefined
-    const eventIndex = eventCount !== undefined && Number.isSafeInteger(legacy.eventNodeIndex)
-      ? Math.max(0, Math.min(eventCount - 1, legacy.eventNodeIndex ?? 0))
-      : eventCount !== undefined
-        ? inferEventIndex(totalBasePoints, eventCount)
-        : undefined
-    this.round = roundFromBasePoints(totalBasePoints, {
-      eventNodeCount: eventCount,
-      eventNodeIndex: eventIndex,
-      basePointsPassed: 0,
-    })
+    const totalDays = legacy.totalDays !== undefined
+      ? normalizeNonNegativeInteger(legacy.totalDays)
+      : calendarDaysFromBasePoints(normalizeNonNegativeInteger(legacy.totalBasePoints))
+    this.round = projectRoundFromTotalDays(totalDays)
     this.lastBasePointsPassed = 0
     this.lastDaysPassed = 0
     this.syncEraFields()

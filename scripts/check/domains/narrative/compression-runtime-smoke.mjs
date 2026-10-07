@@ -84,6 +84,10 @@ const round11Input = buildNarrativeStoryContinuityPromptInput({
 })
 assert(round11Input)
 assert.deepEqual(round11Input.sourceRounds, [1, 2, 3, 4, 5])
+assert.deepEqual(JSON.parse(round11Input.userSegments[2]), {
+  压缩范围: { 起始回合: 1, 结束回合: 5, 时间窗口: '甲历1年至甲历5年' },
+  当前调用时间: '甲历11年',
+})
 assert.deepEqual(
   JSON.parse(round11Input.userSegments[1]).待压缩五轮正文.map((item) => item.轮次),
   [1, 2, 3, 4, 5],
@@ -114,6 +118,10 @@ const round16Input = buildNarrativeStoryContinuityPromptInput({
 })
 assert(round16Input)
 assert.deepEqual(round16Input.sourceRounds, [6, 7, 8, 9, 10])
+assert.deepEqual(JSON.parse(round16Input.userSegments[2]), {
+  压缩范围: { 起始回合: 6, 结束回合: 10, 时间窗口: '甲历6年至甲历10年' },
+  当前调用时间: '甲历16年',
+})
 
 const failedPrepared = summaryCompressor.prepareRoundContinuity({
   currentRound: 16,

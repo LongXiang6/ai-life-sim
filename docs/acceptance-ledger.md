@@ -84,7 +84,7 @@
 |---|---|
 | 对应权威 | `PD-019`、`PD-020`、`PD-021`、`PD-022`、`PD-023`、`PD-024` |
 | 运行真源 | AI proxy、server log store、player feedback store、diagnostic identity、operator inspector |
-| 当前结果 | 固定字段 JSONL 保存可筛选元数据；完整脱敏长文本写入 SHA-256 命名的 gzip 内容库并去重；全局、IP、六位玩家编号、请求 ID 与反馈 ID 可关联同一批记录；反馈处理状态通过独立追加事件记录并由检查器派生 |
+| 当前结果 | AI 请求、响应、客户端诊断、回合结果与开发系统事件统一写入明文 SQLite `server-log-store`，热库与 `logs-archive.sqlite` 由只读查询层合并；全局、IP、六位玩家编号、请求 ID 与反馈 ID 可关联同一批记录；反馈处理状态通过独立追加事件记录并由检查器派生 |
 | 隐私边界 | API Key、Authorization、Cookie、密码、Token、设备序列号和硬件 ID 不保存；玩家编号是服务器签发的诊断别名，不是账号、鉴权或设备指纹 |
 | 反馈边界 | 明确同意后上传完整脱敏诊断包、非秘密配置、近期完整故事、游戏状态与环境快照；任一校验或持久化失败整包拒绝 |
 | 查询边界 | 默认查询不展开 Prompt、响应、故事或反馈正文；授权运维明确加 `--include-content` 才还原脱敏内容 |

@@ -8,7 +8,6 @@
 | 分支行动 | [分支行动机制](mechanisms/branch-action.md) |
 | 时间步长 | [时间步长机制](mechanisms/time-step.md) |
 | Prompt 与缓存 | [Prompt 与缓存机制](mechanisms/prompt-and-cache.md) |
-| 开发日志镜像 | [开发日志镜像机制](mechanisms/development-log-mirror.md) |
 | 故事压缩 | [故事压缩机制](mechanisms/story-compression.md) |
 | 存档与恢复 | [存档与恢复机制](mechanisms/save-and-restore.md) |
 | 人生结算 | [人生结算机制](mechanisms/settlement.md) |

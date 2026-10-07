@@ -7,12 +7,16 @@
 import type {
   DestinyPattern,
   DestinyPatternGrowthDirection,
+  DestinyPatternGrowthAssessment,
+  DestinyPatternGrowthEvidence,
   DestinyPatternGrowthHistoryEntry,
   DestinyPatternGrowthOption,
   DestinyPatternGrowthRoute,
   DestinyPatternRarity,
   DestinyPatternState,
   PendingDestinyPatternGrowth,
+  ReincarnationTalent,
+  DestinyPatternGrowthSource,
 } from './types'
 import { basePointsToCalendarDays } from '@/foundation'
 import { DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP } from './constants'
@@ -67,8 +71,31 @@ const RARITY_ORDER: readonly DestinyPatternRarity[] = [
   'mythic',
 ]
 
+function sourceMatches(
+  source: DestinyPatternGrowthSource,
+  pending: PendingDestinyPatternGrowth,
+): boolean {
+  return source.lineageId === pending.lineageId
+    && source.id === pending.source.id
+    && source.version === pending.source.version
+    && source.rarity === pending.source.rarity
+}
+
+function isReincarnationGrowthSource(
+  source: DestinyPatternGrowthSource,
+): source is ReincarnationTalent {
+  return 'strengthenLevel' in source
+}
+
 function normalizeText(value: string): string {
   return value.normalize('NFKC').trim().replace(/\s+/gu, ' ')
+}
+
+function mergeEvidenceText(previous: string | undefined, next: string): string {
+  const normalized = normalizeText(next)
+  if (!previous) return normalized
+  if (!normalized || previous.includes(normalized)) return previous
+  return `${previous}；${normalized}`
 }
 
 function hashIdentity(value: string): string {
@@ -133,7 +160,7 @@ function normalizeDirection(
 export function createPendingDestinyPatternGrowth(input: {
   narrativeId: string
   roundSequence: number
-  source: DestinyPattern
+  source: DestinyPatternGrowthSource
   directions: readonly DestinyPatternGrowthDirection[]
 }): PendingDestinyPatternGrowth {
   const narrativeId = input.narrativeId.trim()
@@ -175,7 +202,7 @@ export function createPendingDestinyPatternGrowth(input: {
       description: direction.description,
       effect: direction.effect,
       attrBonus: { ...direction.attrBonus },
-    },
+    } as DestinyPatternGrowthSource,
   })) as [DestinyPatternGrowthOption, DestinyPatternGrowthOption, DestinyPatternGrowthOption]
 
   return {
@@ -238,13 +265,16 @@ export function registerPendingDestinyPatternGrowthInState(
   state: DestinyPatternState,
   pending: PendingDestinyPatternGrowth,
   currentAge: number,
+  reincarnationTalents: readonly ReincarnationTalent[] = [],
 ): DestinyPatternState {
   if (!isDestinyPatternGrowthAgeEligible(currentAge)) {
     throw new Error(`角色未满 ${DESTINY_PATTERN_GROWTH_MINIMUM_AGE} 岁，不能登记天赋成长`)
   }
   if (state.pendingGrowth) throw new Error('已有天赋成长等待选择')
-  const source = state.patterns.find((pattern) => pattern.lineageId === pending.lineageId)
-  if (!source || source.id !== pending.source.id || source.version !== pending.source.version) {
+  const source = isReincarnationGrowthSource(pending.source)
+    ? reincarnationTalents.find((talent) => sourceMatches(talent, pending))
+    : state.patterns.find((pattern) => sourceMatches(pattern, pending))
+  if (!source) {
     throw new Error('天赋成长来源已不属于当前角色或版本已经变化')
   }
   return {
@@ -258,19 +288,37 @@ export function resolvePendingDestinyPatternGrowthInState(
   optionId: string,
   committedAt = Date.now(),
   totalBasePoints = 0,
-): { state: DestinyPatternState; historyEntry: DestinyPatternGrowthHistoryEntry } {
+  reincarnationTalents: readonly ReincarnationTalent[] = [],
+): {
+  state: DestinyPatternState
+  historyEntry: DestinyPatternGrowthHistoryEntry
+  reincarnationTalents?: ReincarnationTalent[]
+} {
   const pending = state.pendingGrowth
   if (!pending) throw new Error('当前没有等待选择的天赋成长')
   const historyEntry = resolvePendingDestinyPatternGrowth(pending, optionId, committedAt, totalBasePoints)
-  const sourceIndex = state.patterns.findIndex((pattern) => (
-    pattern.lineageId === pending.lineageId
-    && pattern.id === pending.source.id
-    && pattern.version === pending.source.version
-  ))
-  if (sourceIndex < 0) throw new Error('天赋成长来源已不属于当前角色或版本已经变化')
-  const patterns = state.patterns.map((pattern, index) => (
-    index === sourceIndex ? structuredClone(historyEntry.result) : pattern
-  ))
+  const sourceIsReincarnation = isReincarnationGrowthSource(pending.source)
+  const sourceIndex = sourceIsReincarnation
+    ? -1
+    : state.patterns.findIndex((pattern) => sourceMatches(pattern, pending))
+  const reincarnationIndex = sourceIsReincarnation
+    ? reincarnationTalents.findIndex((talent) => sourceMatches(talent, pending))
+    : -1
+  if (sourceIndex < 0 && reincarnationIndex < 0) {
+    throw new Error('天赋成长来源已不属于当前角色或版本已经变化')
+  }
+  const patterns = sourceIndex >= 0
+    ? state.patterns.map((pattern, index) => (
+        index === sourceIndex ? structuredClone(historyEntry.result as DestinyPattern) : pattern
+      ))
+    : state.patterns
+  const nextReincarnationTalents = reincarnationIndex >= 0
+    ? reincarnationTalents.map((talent, index) => (
+        index === reincarnationIndex
+          ? structuredClone(historyEntry.result as ReincarnationTalent)
+          : talent
+      ))
+    : undefined
   return {
     state: {
       ...state,
@@ -280,5 +328,79 @@ export function resolvePendingDestinyPatternGrowthInState(
       growthHistory: [...state.growthHistory, historyEntry],
     },
     historyEntry,
+    ...(nextReincarnationTalents ? { reincarnationTalents: nextReincarnationTalents } : {}),
+  }
+}
+
+export function recordDestinyPatternGrowthEvidenceInState(
+  state: DestinyPatternState,
+  evidence: readonly DestinyPatternGrowthEvidence[],
+  reincarnationTalents: readonly ReincarnationTalent[] = [],
+): DestinyPatternState {
+  if (evidence.length === 0) return state
+  const patterns = new Set([
+    ...state.patterns.map((pattern) => pattern.lineageId),
+    ...reincarnationTalents.map((talent) => talent.lineageId),
+  ])
+  const merged = new Map<string, DestinyPatternGrowthEvidence>(
+    state.growthEvidence.map((entry) => [`${entry.lineageId}:${entry.sourceRound}`, structuredClone(entry)] as const),
+  )
+  for (const item of evidence) {
+    if (
+      !patterns.has(item.lineageId)
+      || !Number.isSafeInteger(item.sourceRound)
+      || item.sourceRound < 1
+      || !item.usage.trim()
+      || !item.result.trim()
+    ) continue
+    const key = `${item.lineageId}:${item.sourceRound}`
+    const previous = merged.get(key)
+    merged.set(key, {
+      lineageId: item.lineageId,
+      sourceRound: item.sourceRound,
+      usage: mergeEvidenceText(previous?.usage, item.usage),
+      result: mergeEvidenceText(previous?.result, item.result),
+      ...(previous?.breakthrough || !item.breakthrough?.trim()
+        ? (previous?.breakthrough ? { breakthrough: previous.breakthrough } : {})
+        : { breakthrough: item.breakthrough.trim() }),
+    })
+  }
+  return {
+    ...state,
+    growthEvidence: [...merged.values()].sort((left, right) => (
+      left.sourceRound - right.sourceRound || left.lineageId.localeCompare(right.lineageId)
+    )),
+  }
+}
+
+export function recordDestinyPatternGrowthAssessmentsInState(
+  state: DestinyPatternState,
+  assessments: readonly DestinyPatternGrowthAssessment[],
+): DestinyPatternState {
+  if (assessments.length === 0) return state
+  const latest = new Map(
+    state.growthAssessments.map((entry) => [entry.lineageId, structuredClone(entry)] as const),
+  )
+  for (const item of assessments) {
+    if (
+      !item.lineageId.trim()
+      || !Number.isSafeInteger(item.evaluatedThroughRound)
+      || item.evaluatedThroughRound < 1
+    ) continue
+    const previous = latest.get(item.lineageId)
+    if (previous && previous.evaluatedThroughRound > item.evaluatedThroughRound) continue
+    latest.set(item.lineageId, {
+      lineageId: item.lineageId,
+      evaluatedThroughRound: item.evaluatedThroughRound,
+      ...(item.evaluatedBreakthroughRound !== undefined
+        ? { evaluatedBreakthroughRound: item.evaluatedBreakthroughRound }
+        : previous?.evaluatedBreakthroughRound !== undefined
+          ? { evaluatedBreakthroughRound: previous.evaluatedBreakthroughRound }
+          : {}),
+    })
+  }
+  return {
+    ...state,
+    growthAssessments: [...latest.values()],
   }
 }

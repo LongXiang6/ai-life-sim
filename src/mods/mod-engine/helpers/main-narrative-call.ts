@@ -22,8 +22,6 @@ import type { OrchestratorSystem } from '../subsystems/orchestrator-system'
 
 export type MainNarrativeExecutionKind = 'real' | 'preview'
 
-const MAIN_NARRATIVE_REASONING_EFFORT = 'disabled' as const
-
 export interface MainNarrativeRequest {
   fingerprint: string
   owner: OrchestratorSystem
@@ -86,10 +84,7 @@ export function prepareMainNarrativeRequest(input: {
   const settings = useSettingsStore.getState()
   const state = input.owner.getState()
   const model = settings.customModel || input.aiConfig.model
-  const aiConfig = {
-    ...input.aiConfig,
-    reasoningEffort: MAIN_NARRATIVE_REASONING_EFFORT,
-  }
+  const aiConfig = input.aiConfig
   const segments = buildSegmentedPrompt(input.promptTemplate, input.promptContext)
   const wordCountTarget = settings.wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
   const activeStyle = input.owner.getNarrativeStyleSnapshot()
@@ -136,7 +131,7 @@ export async function executeMainNarrativeRequest(
     response = await callAIWithPromptTemplate(request.promptTemplate, request.segments.full, {
       config: { ...request.aiConfig, model: request.model },
       pool: 'narrative',
-      reasoningEffort: MAIN_NARRATIVE_REASONING_EFFORT,
+      reasoningEffort: request.aiConfig.reasoningEffort,
       sessionId: request.sessionId,
       signal,
       userSegments: request.segments.userSegments,

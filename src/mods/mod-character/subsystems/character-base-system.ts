@@ -286,6 +286,9 @@ export class CharacterBaseSystem extends BaseSubsystem {
     for (const pattern of patterns) {
       for (const key of ATTR_KEYS) modifiers[key] += pattern.attrBonus?.[key] ?? 0
     }
+    for (const talent of useCharacterStore.getState().equippedReincarnationTalents) {
+      for (const key of ATTR_KEYS) modifiers[key] += talent.attrBonus?.[key] ?? 0
+    }
     for (const source of Object.values(this.state.contextModifiers[context.contextId] ?? {})) {
       for (const key of ATTR_KEYS) modifiers[key] += source[key] ?? 0
     }

@@ -22,6 +22,7 @@ import type { NarrativeAIAttributeChanges } from '../helpers/narrative-ai-protoc
 export interface ParsedNarrative {
   narrative: string
   eventResults?: import('../helpers/narrative-ai-protocol').NarrativeAIEventResult[]
+  talentEvidenceHints?: import('../helpers/narrative-ai-protocol').NarrativeAITalentEvidenceHint[]
   endingTitle?: string
   endingSummary?: string
   branch?: boolean
@@ -62,6 +63,9 @@ export class NarrativeParserSystem extends BaseSubsystem {
     const result: ParsedNarrative = {
       narrative: envelope.narrative,
       ...(envelope.eventResults ? { eventResults: structuredClone(envelope.eventResults) } : {}),
+      ...(envelope.talentEvidenceHints
+        ? { talentEvidenceHints: structuredClone(envelope.talentEvidenceHints) }
+        : {}),
       ...(envelope.ending
         ? {
             endingTitle: envelope.ending.评语,

@@ -37,7 +37,7 @@ export function basePointsBetween(a: RoundInfo, b: RoundInfo): number {
  * 获取时间步长的显示名称
  */
 export function timeStepLabel(step: TimeStep): string {
-  return { year: '年', event: '事件节点/年' }[step.unit]
+  return { day: '日', month: '月', season: '季', year: '年' }[step.unit]
 }
 
 /**

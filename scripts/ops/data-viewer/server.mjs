@@ -12,11 +12,8 @@ import { queryDevelopmentSystemDiagnostics } from './execution-diagnostics.mjs'
 import { buildDataOverview, queryAiCalls, queryUserLinks } from './log-queries.mjs'
 import {
   listMemoryDatabases,
-  listRoundArchives,
   queryMemoryRows,
-  queryNarrativeRoundChains,
-  readRoundArchive,
-} from './narrative-archives.mjs'
+} from './memory-archives.mjs'
 import { pageInput } from './shared.mjs'
 
 function jsonResponse(response, value, status = 200) {
@@ -50,17 +47,6 @@ export function createDataViewerServer(options) {
       if (url.pathname === '/api/ai-calls') {
         const page = pageInput(url.searchParams)
         return jsonResponse(response, queryAiCalls(options, { ...page, query: url.searchParams.get('q') ?? '', callKind: url.searchParams.get('callKind') ?? '' }))
-      }
-      if (url.pathname === '/api/rounds') return jsonResponse(response, listRoundArchives(options))
-      if (url.pathname === '/api/round') return jsonResponse(response, readRoundArchive(options, url.searchParams.get('lifeRunId'), url.searchParams.get('round')))
-      if (url.pathname === '/api/narrative-rounds') {
-        const page = pageInput(url.searchParams)
-        return jsonResponse(response, queryNarrativeRoundChains(options, {
-          ...page,
-          query: url.searchParams.get('q') ?? '',
-          lifeRunId: url.searchParams.get('lifeRunId') ?? '',
-          round: url.searchParams.get('round') ?? '',
-        }))
       }
       if (url.pathname === '/api/system-diagnostics') {
         const page = pageInput(url.searchParams)

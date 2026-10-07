@@ -15,7 +15,7 @@ description: 用于 AI 人生模拟器问题、根因诊断、复现、回归或
 
 [次要规则] 问题所属活动权威、实时源和 [开发检查](../ai-life-sim/references/development-checks.md) 提供验证范围。
 
-## 测试模式与路径保真
+### 测试模式与路径保真
 
 <!-- RULE id="ai-life-sim-testing.execution-path-fidelity" source="USER-HARD" owner="ai-life-sim-testing" status="active" -->
 开始测试前先判定用户要求的是“实际运行流程测试”“独立 Prompt 评测”还是“局部组件回归”，并在执行和结果中明确标注。

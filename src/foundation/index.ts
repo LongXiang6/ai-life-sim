@@ -26,18 +26,12 @@ export {
   allocateDecimalInteger,
   formatChineseMagnitude,
   BASE_POINTS_PER_YEAR,
-  DEFAULT_ANNUAL_EVENT_COUNT,
   CALENDAR_DAYS_PER_YEAR,
-  normalizeAnnualEventCount,
-  annualEventCumulativeBasePoints,
-  annualEventBasePointDelta,
-  eventRoundDeltaPoints,
   calendarDaysFromBasePoints,
   basePointsFromCalendarDays,
   basePointsToCalendarDays,
   calendarDaysToBasePoints,
   basePointsToYears,
-  advanceAnnualEvent,
   compareExecutionNodes,
   createExecutionOutcomeCodes,
   resolveExecutionOrder,
@@ -46,7 +40,6 @@ export {
   executionSequenceError,
 } from './utils'
 export type { DecimalInteger } from './utils'
-export type { AnnualEventCursor, AnnualEventAdvance } from './utils'
 export { getRoundSequence } from './utils/round-advance'
 export type {
   AttrTagMap,
@@ -166,7 +159,6 @@ export {
   decodeTimeStepKey,
   findTimeStepOption,
   normalizeCanonicalTimeStep,
-  normalizeCanonicalEventNodeCount,
 } from './constants/time-steps'
 export type { TimeStepOption } from './constants/time-steps'
 export {

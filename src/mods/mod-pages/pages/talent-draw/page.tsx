@@ -219,20 +219,20 @@ function TalentDrawContent() {
                   />
                 )}
               </article>
-              <BottomActionBar
-                onBack={handleBack}
-                backTitle={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}
-                backText="返回"
-                backDescription={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}
-                backDisabled={selection.isConfirming}
-                onConfirm={handleFooterAction}
-                confirmNumber={phase === 'selecting' ? '05' : '04'}
-                confirmText={footerTitle}
-                confirmDescription={footerCopy}
-                confirmDisabled={footerDisabled}
-              />
               <div className={cn(styles.toast, toastMessage && styles.toastVisible)} role="status" aria-live="polite">{toastMessage}</div>
             </main>
+            <BottomActionBar
+              onBack={handleBack}
+              backTitle={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}
+              backText="返回"
+              backDescription={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}
+              backDisabled={selection.isConfirming}
+              onConfirm={handleFooterAction}
+              confirmNumber={phase === 'selecting' ? '05' : '04'}
+              confirmText={footerTitle}
+              confirmDescription={footerCopy}
+              confirmDisabled={footerDisabled}
+            />
           </div>
         </div>
       </div>

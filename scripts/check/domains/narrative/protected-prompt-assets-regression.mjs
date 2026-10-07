@@ -51,7 +51,8 @@ assertOk(
   'server registry must expose exactly the 01/02/03 protected assets',
 )
 assertOk(
-  servers[0].includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')
+  servers[0].includes('composeNarrativeUserMessage')
+    && servers[0].includes('COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE')
     && servers[1].includes('COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT')
     && servers[2].includes('COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT')
     && servers.every((source) => !/详细故事输出示例|示例正文|few-shot|examples\s*:/iu.test(source)),
@@ -59,6 +60,8 @@ assertOk(
 )
 assertOk(
   proxyRoute.includes('resolveModEngineServerPromptAsset(body.prompt_asset)')
+    && proxyRoute.includes("promptAsset.delivery === 'composed-user'")
+    && proxyRoute.includes('promptAsset.composeUserMessage')
     && proxyRoute.includes('promptAsset.systemPrompt')
     && callWrapper.includes('serverPromptAssetId: promptTemplate.serverPromptAssetId')
     && requestBody.includes("messages.filter((message) => message.role !== 'system')"),
