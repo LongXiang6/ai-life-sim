@@ -18,8 +18,6 @@ import { BottomActionBar, FlowRunningHead } from '@/mods/mod-ui'
 import {
   DESTINY_PATTERN_RARITY_CONFIG,
   PATTERN_LOADOUT_SLOT_COUNT,
-  TALENT_RARITY_CONFIG,
-  TALENT_POLARITY_CONFIG,
   ATTRIBUTE_NAMES,
   ATTR_KEYS,
   getPatternLoadoutCount,
@@ -46,7 +44,6 @@ function FatePreviewContent() {
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns)
   const equippedReincarnationTalents = useCharacterStore((s) => s.equippedReincarnationTalents)
   const lifespan = useCharacterStore((s) => s.lifespanDraft)
-  const talents = useCharacterStore((s) => s.talents)
 
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
@@ -96,13 +93,8 @@ function FatePreviewContent() {
         }
       }
     }
-    for (const t of talents) {
-      for (const [key, value] of Object.entries(t.attrBonus)) {
-        if (typeof value === 'number') bonuses[key] = (bonuses[key] ?? 0) + value
-      }
-    }
     return bonuses
-  }, [selectedPatterns, talents])
+  }, [selectedPatterns])
 
   const raceInfo = useMemo(() => resolvePreviewRaceInfo(race, lifespan), [race, lifespan])
 
@@ -190,23 +182,6 @@ function FatePreviewContent() {
                 </div>
               ))}
             </div>
-            {talents.length > 0 && (
-              <div className={styles.talentPills} aria-label="角色天赋">
-                {talents.map((talent) => {
-                  const rarity = TALENT_RARITY_CONFIG[talent.rarity]
-                  const polarity = TALENT_POLARITY_CONFIG[talent.polarity]
-                  return (
-                    <span
-                      key={talent.id}
-                      className={styles.talentPill}
-                      style={{ '--rarity-color': rarity.color } as CSSProperties}
-                    >
-                      {talent.name}<small>{rarity.label}{polarity ? ` · ${polarity.label}` : ''}</small>
-                    </span>
-                  )
-                })}
-              </div>
-            )}
           </section>
 
           <section className={`${styles.section} ${styles.seedSection}`} aria-labelledby="seed-title">

@@ -40,11 +40,8 @@ export const SEASONS = {
   WINTER: 3,
 } as const
 
-/** 季节名称 */
-export const SEASON_NAMES = ['春', '夏', '秋', '冬',] as const
-
-/** 按阳历月份返回季节索引；实现位于无副作用的日历 helper。 */
-export { getSeasonForMonth } from './helpers/calendar-season.js'
+/** 季节名称与月份映射均由同一历法 helper 提供。 */
+export { SEASON_NAMES, getSeasonForMonth } from './helpers/calendar-season.js'
 
 /** 中文月名（来自废案 calendar.ts 的 MONTH_LABELS）
  *  正月/杏月/桃月/槐月/榴月/荷月/兰月/桂月/菊月/露月/冬月/腊月 */

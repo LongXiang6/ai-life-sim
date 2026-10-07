@@ -8,7 +8,7 @@
  */
 
 import { normalizeCanonicalTimeStep, type TimeStep } from '@/foundation'
-import { getSeasonForMonth, SOLAR_SEASON_NAMES as SEASON_NAMES } from './calendar-season.js'
+import { getSeasonForMonth, SEASON_NAMES } from './calendar-season.js'
 
 export interface CanonicalCalendarNarrativeInput {
   timeStep: TimeStep

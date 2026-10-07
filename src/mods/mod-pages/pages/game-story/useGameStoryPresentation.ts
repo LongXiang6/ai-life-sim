@@ -92,7 +92,6 @@ export function useGameStoryPresentation({
   const destinyPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
   const pendingDestinyPatternGrowth = useCharacterStore((state) => state.destinyPatterns.pendingGrowth)
   const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
-  const talents = useCharacterStore((state) => state.talents)
   const worldConfig = useWorldStore((state) => state.worldConfig)
   const worldCode = useWorldStore((state) => state.worldCode)
   const worldTags = useWorldStore((state) => state.worldTags)
@@ -112,13 +111,8 @@ export function useGameStoryPresentation({
         if (typeof value === 'number' && key in bonus) bonus[key] += value
       }
     }
-    for (const talent of talents) {
-      for (const [key, value] of Object.entries(talent.attrBonus)) {
-        if (typeof value === 'number' && key in bonus) bonus[key] += value
-      }
-    }
     return bonus
-  }, [destinyPatterns, talents])
+  }, [destinyPatterns])
 
   const displayBaseAttrs = useMemo(() => {
     const base = characterBase?.current ?? characterBase?.base
@@ -224,7 +218,6 @@ export function useGameStoryPresentation({
     recentRepetitionMetrics: narrativeHistory
       .flatMap((entry) => entry.repetitionMetric ? [entry.repetitionMetric] : [])
       .slice(-5),
-    talents,
     timeStep,
     worldBasicStatus,
     worldCharStatus,

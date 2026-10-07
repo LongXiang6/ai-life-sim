@@ -107,30 +107,3 @@ export {
   HIDDEN_ATTRS,
   VISIBLE_ATTR_KEYS,
 } from './utils/attr-tiers'
-
-// 天赋预设库
-export {
-  ALL_SHARED_TALENTS,
-  TALENTS_BY_POLARITY,
-  TALENTS_BY_RARITY,
-  IDEALIST_TALENT_SET,
-  MATERIALIST_TALENT_SET,
-  ADVENTURE_TALENT_SET,
-  LIFE_TALENT_SET,
-  findTalentById,
-  drawTalents,
-  sumAttrBonus,
-} from './prompts/talent-presets'
-export type {
-  TalentPreset,
-  TalentRarity,
-  TalentPolarity,
-  AttrBonusKey,
-} from './prompts/talent-presets'
-
-// 天赋子系统 UI 配置
-export {
-  TALENT_RARITY_CONFIG,
-  TALENT_POLARITY_CONFIG,
-  TALENT_SELECT_COUNT,
-} from './config/talent-ui-config'

@@ -513,12 +513,6 @@ function sanitizeLifespanDraft(value: unknown, fallbackRaceId: unknown): Lifespa
 export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, unknown> {
   const record = isRecord(value) ? value : {}
   const age = Math.max(0, finiteNumber(record.age))
-  const talents = Array.isArray(record.talents)
-    ? record.talents.map((talent) => {
-        if (!isRecord(talent)) return talent
-        return { ...talent, attrBonus: sanitizeAttrBonus(talent.attrBonus) }
-      })
-    : []
   const equippedReincarnationTalents = Array.isArray(record.equippedReincarnationTalents)
     ? record.equippedReincarnationTalents
         .map(sanitizeReincarnationTalent)
@@ -564,10 +558,8 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
           growthAssessments: [],
         },
     lifespanDraft: sanitizeLifespanDraft(record.lifespanDraft, record.race),
-    talents,
     equippedReincarnationTalents: loadoutValid ? normalizedEquippedReincarnationTalents : [],
     worldCode,
     destinyPoolCacheKey: `mod-character:destiny-pool:${worldCode}`,
-    talentPoolCacheKey: `mod-character:talent-pool:${worldCode}`,
   }
 }

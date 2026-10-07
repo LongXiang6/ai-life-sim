@@ -28,6 +28,7 @@ import {
   REIGN_DURATION,
 } from '../constants'
 import { getSeasonForMonth } from '../helpers/calendar-season.js'
+import { monthAndDayFromDayOfYear } from '../helpers/calendar-math'
 
 function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' | 'reignTitle' | 'reignYear'> {
   const safeYear = Math.max(1, Math.floor(year))
@@ -45,16 +46,6 @@ function normalizeNonNegativeInteger(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? Math.floor(value)
     : fallback
-}
-
-function monthAndDayFromDayOfYear(dayOfYear: number): { month: number; day: number } {
-  let remaining = Math.max(0, Math.floor(dayOfYear) - 1)
-  for (let month = 0; month < CALENDAR.MONTHS_PER_YEAR; month += 1) {
-    const daysInMonth = CALENDAR.DAYS_IN_MONTH[month]
-    if (remaining < daysInMonth) return { month, day: remaining }
-    remaining -= daysInMonth
-  }
-  return { month: CALENDAR.MONTHS_PER_YEAR - 1, day: CALENDAR.DAYS_IN_MONTH.at(-1)! - 1 }
 }
 
 export function projectRoundFromTotalDays(totalDays: number, previousTotalDays = 0): RoundInfo {

@@ -18,8 +18,11 @@ import type {
   PreparedNarrativeStoryContinuityLedger,
   StoryContinuitySourceTime,
 } from './narrative-story-continuity-contracts'
+import {
+  daysInCalendarMonth,
+  totalDaysFromCalendarDate,
+} from '../../helpers/calendar-math'
 
-const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
 const SEASON_START_MONTH: Readonly<Record<string, number>> = {
   春: 3,
   夏: 6,
@@ -71,18 +74,11 @@ function parseCalendarPoint(label: string): { year: number; month: number; day: 
     ? explicitMonth
     : season ? SEASON_START_MONTH[season] : 1
   const explicitDay = Number(label.match(/(\d{1,2})日/u)?.[1])
-  const day = Number.isInteger(explicitDay) && explicitDay >= 1 && explicitDay <= DAYS_IN_MONTH[month - 1]
+  const daysInMonth = daysInCalendarMonth(month)
+  const day = Number.isInteger(explicitDay) && explicitDay >= 1 && explicitDay <= daysInMonth
     ? explicitDay
     : 1
   return { year, month, day }
-}
-
-function dayOfYear(point: { month: number; day: number }): number {
-  return DAYS_IN_MONTH.slice(0, point.month - 1).reduce((sum, days) => sum + days, 0) + point.day
-}
-
-function absoluteCalendarDays(point: { year: number; month: number; day: number }): number {
-  return point.year * 365 + dayOfYear(point) - 1
 }
 
 function buildFutureSchedule(
@@ -95,7 +91,7 @@ function buildFutureSchedule(
     if (!target) throw new Error(`未来事件缺少可识别的绝对时间：${timeLabel}`)
     return { conditionLabel: timeLabel }
   }
-  const delta = (target.year - current.year) * 365 + dayOfYear(target) - dayOfYear(current)
+  const delta = totalDaysFromCalendarDate(target) - totalDaysFromCalendarDate(current)
   if (!Number.isSafeInteger(delta) || delta <= 0) {
     throw new Error(`未来事件时间不晚于来源回合终点：${timeLabel}`)
   }
@@ -103,7 +99,7 @@ function buildFutureSchedule(
     ?? basePointsFromCalendarDays(sourceTime.totalDays ?? 0)
   const targetBasePoints = Math.max(
     currentBasePoints + 1,
-    basePointsFromCalendarDays(absoluteCalendarDays(target)),
+    basePointsFromCalendarDays(totalDaysFromCalendarDate(target)),
   )
   return {
     dueBasePoints: targetBasePoints,

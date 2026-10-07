@@ -267,33 +267,6 @@
   font-size: calc(0.375 * var(--final-flow-density-rem));
 }
 
-.talentPills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(0.3125 * var(--final-flow-density-rem));
-  margin-top: calc(0.5 * var(--final-flow-density-rem));
-  padding-top: calc(0.5 * var(--final-flow-density-rem));
-  border-top: calc(1 * var(--final-flow-density-px)) solid var(--flow-line-strong);
-}
-
-.talentPill {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: baseline;
-  gap: calc(0.25 * var(--final-flow-density-rem));
-  padding: calc(0.25 * var(--final-flow-density-rem)) calc(0.4375 * var(--final-flow-density-rem));
-  border: calc(1 * var(--final-flow-density-px)) solid color-mix(in srgb, var(--rarity-color) 52%, var(--flow-line-strong));
-  border-radius: calc(999 * var(--final-flow-density-px));
-  background: color-mix(in srgb, var(--rarity-color) 8%, var(--flow-paper));
-  color: color-mix(in srgb, var(--rarity-color) 78%, var(--flow-ink));
-  font-size: calc(0.375 * var(--final-flow-density-rem));
-}
-
-.talentPill small {
-  color: color-mix(in srgb, var(--rarity-color) 66%, var(--flow-muted));
-  font-size: calc(0.3125 * var(--final-flow-density-rem));
-}
-
 .seedRow {
       display: grid;
       grid-template-columns: minmax(0, 1fr) calc(45 * var(--final-flow-density-px));

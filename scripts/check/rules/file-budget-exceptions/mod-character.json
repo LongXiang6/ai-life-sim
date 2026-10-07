@@ -14,12 +14,6 @@
       "reason": "天赋成长资格、路线生成和替换提交共享同一版本连续性与属性边界不变式。"
     },
     {
-      "path": "src/mods/mod-character/prompts/talent-presets.ts",
-      "owner": "mod-character",
-      "reviewedLines": 407,
-      "reason": "天赋生成的单一预设与格式目录，条目共同维护同一 Prompt 数据契约。"
-    },
-    {
       "path": "src/mods/mod-character/subsystems/character-base-system.ts",
       "owner": "mod-character",
       "reviewedLines": 316,

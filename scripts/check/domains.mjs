@@ -166,7 +166,6 @@ export const DOMAINS = {
       'scripts/check/domains/narrative/',
       'src/mods/mod-engine/campaigns/',
       'src/mods/mod-engine/helpers/narrative-semantic-signals.ts',
-      'src/mods/mod-engine/helpers/narrative-hints.ts',
       'src/mods/mod-character/subsystems/character-status-runtime.ts',
       'src/foundation/subsystem-contracts/character-state.contract.ts',
       'src/mods/mod-engine/helpers/narrative-story-continuity-context.ts',

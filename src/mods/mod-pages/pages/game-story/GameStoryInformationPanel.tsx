@@ -28,7 +28,6 @@ interface GameStoryInformationPanelProps {
   recentRepetitionMetrics: RepetitionMetricView[]
   repetitionStats: { recentAverageWordRepeatRate: number; maxWordRepeatRate: number; trend: string }
   runtimeBlockedText: string
-  talents: NamedView[]
   worldBasicStatus: StatusView[]
   worldCharStatus: StatusView[]
   worldName: string
@@ -90,8 +89,7 @@ export function GameStoryInformationPanel(props: GameStoryInformationPanelProps)
             <div className={styles.ledgerRow}><span>角色词条</span></div>
             <div className={styles.ledgerPillRow}>
               {props.destinyPatterns.map((pattern) => <span key={pattern.id} className={styles.ledgerPill}>{pattern.name}</span>)}
-              {props.talents.map((talent) => <span key={talent.id} className={styles.ledgerPill}>{talent.name}</span>)}
-              {props.destinyPatterns.length === 0 && props.talents.length === 0 ? <span className={styles.mutedText}>暂无角色词条</span> : null}
+              {props.destinyPatterns.length === 0 ? <span className={styles.mutedText}>暂无角色词条</span> : null}
             </div>
 
             <div className={styles.ledgerSection}>轮回天赋</div>

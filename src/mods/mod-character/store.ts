@@ -9,7 +9,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import type { TalentPreset } from './prompts/talent-presets'
 import type {
   CharacterBaseState,
   CharacterSummary,
@@ -39,10 +38,6 @@ import {
 
 function destinyPoolCacheKey(worldCode: number): string {
   return `mod-character:destiny-pool:${worldCode}`
-}
-
-function talentPoolCacheKey(worldCode: number): string {
-  return `mod-character:talent-pool:${worldCode}`
 }
 
 function normalizeEquippedReincarnationTalents(talents: readonly ReincarnationTalent[]): ReincarnationTalent[] {
@@ -98,12 +93,10 @@ interface CharacterStore {
   destinyPatterns: DestinyPatternState
   lifespanDraft: LifespanDraftState
 
-  talents: TalentPreset[]
   equippedReincarnationTalents: ReincarnationTalent[]
 
   worldCode: number
   destinyPoolCacheKey: string
-  talentPoolCacheKey: string
 
   getSummary: () => CharacterSummary
   ensureCharacterId: () => string
@@ -116,7 +109,6 @@ interface CharacterStore {
   setCharacterBase: (state: Partial<CharacterBaseState>) => void
   setDestinyPatterns: (state: Partial<DestinyPatternState>) => void
   setLifespanDraft: (state: LifespanDraftState) => void
-  setTalents: (talents: TalentPreset[]) => void
   setEquippedReincarnationTalents: (talents: ReincarnationTalent[]) => void
   setPatternLoadout: (
     patterns: DestinyPattern[],
@@ -142,11 +134,9 @@ export const useCharacterStore = create<CharacterStore>()(
       characterBase: initialCharacterBase(),
       destinyPatterns: initialDestinyPatterns(),
       lifespanDraft: initialLifespanDraft(),
-      talents: [],
       equippedReincarnationTalents: [],
       worldCode: 0,
       destinyPoolCacheKey: destinyPoolCacheKey(0),
-      talentPoolCacheKey: talentPoolCacheKey(0),
 
       getSummary: () => {
         const state = get()
@@ -210,7 +200,6 @@ export const useCharacterStore = create<CharacterStore>()(
         return { destinyPatterns, equippedReincarnationTalents }
       }),
       setLifespanDraft: (lifespanDraft) => set({ lifespanDraft: structuredClone(lifespanDraft) }),
-      setTalents: (talents) => set({ talents }),
       setEquippedReincarnationTalents: (talents) => set((state) => {
         const equippedReincarnationTalents = normalizeEquippedReincarnationTalents(talents)
         assertPatternLoadout(state.destinyPatterns.patterns, equippedReincarnationTalents)
@@ -269,7 +258,6 @@ export const useCharacterStore = create<CharacterStore>()(
       setWorldCode: (code) => set({
         worldCode: code,
         destinyPoolCacheKey: destinyPoolCacheKey(code),
-        talentPoolCacheKey: talentPoolCacheKey(code),
       }),
 
       reset: () => set({
@@ -283,13 +271,12 @@ export const useCharacterStore = create<CharacterStore>()(
         characterBase: initialCharacterBase(),
         destinyPatterns: initialDestinyPatterns(),
         lifespanDraft: initialLifespanDraft(),
-        talents: [],
         equippedReincarnationTalents: [],
       }),
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 10,
+      version: 11,
       migrate: (persistedState: unknown) => {
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')
@@ -321,7 +308,6 @@ export const useCharacterStore = create<CharacterStore>()(
           setCharacterBase: _setCharacterBase,
           setDestinyPatterns: _setDestinyPatterns,
           setLifespanDraft: _setLifespanDraft,
-          setTalents: _setTalents,
           setEquippedReincarnationTalents: _setEquippedReincarnationTalents,
           setPatternLoadout: _setPatternLoadout,
           registerPendingDestinyPatternGrowth: _registerPendingDestinyPatternGrowth,

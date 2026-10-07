@@ -48,8 +48,6 @@ export {
   resolvePromptStateLayer,
   resolveTimeStep,
   normalizeNarrativeParagraphs,
-  buildNarrativeHints,
-  type NarrativeHintInput,
 } from './helpers/orchestrator-pipeline-support'
 
 export {

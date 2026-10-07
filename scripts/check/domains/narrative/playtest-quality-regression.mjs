@@ -617,7 +617,6 @@ const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
 const orchestratorSrc = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
 const narrativeResponseQualitySrc = readRel('src/mods/mod-engine/helpers/narrative-response-quality.ts')
-const narrativeHintsSrc = readRel('src/mods/mod-engine/helpers/narrative-hints.ts')
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/server/narrative-system-prompt.ts')
@@ -627,7 +626,6 @@ const promptContextRuntimeSrc = readRel('src/mods/mod-engine/subsystems/orchestr
 const roundCommitBusSrc = readRel('src/mods/mod-engine/helpers/round-commit-bus.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readDirectorySource('src/mods/mod-ui/components/organisms', root, ['.ts', '.tsx'])
-const calendarContextSrc = readRel('src/mods/mod-engine/helpers/calendar-narrative-context.ts')
 const settingsStoreSrc = readRel('src/mods/mod-settings/store.ts')
 const aiClientSrc = readModuleSource('src/core/ai-service/ai-client.ts', root)
 const proxyRouteSrc = readModuleSource('src/app/api/proxy/route.ts', root)
@@ -998,7 +996,7 @@ assertOk(
   'explicit preset candidates must use skill-like entries while keeping the existing preset path',
 )
 assertOk(
-  /version:\s*10/.test(characterStoreSrc)
+  /version:\s*11/.test(characterStoreSrc)
     && ['characterBase', 'destinyPatterns', 'lifespanDraft'].every((field) => characterStoreSrc.includes(field))
     && !['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].some((field) => characterStoreSrc.includes(field)),
   'character persistence must retain identity and unified status while excluding retired runtime projections',
@@ -1305,8 +1303,7 @@ assertOk(
   'AI parsers must recover string attributes and bounded local fields instead of rejecting whole responses',
 )
 assertOk(
-  !narrativeHintsSrc.includes('INFORMATION_PRIORITY_RULE')
-    && !orchestratorSrc.includes('opening-information-priority'),
+  !orchestratorSrc.includes('opening-information-priority'),
   'the retired attribute-over-background opening priority must not be injected',
 )
 assertOk(timeScaleSrc.includes('getSeasonForMonth') && timeScaleSrc.includes('SEASON_NAMES'), 'dynamic time guidance must derive the season from the canonical calendar mapping')
@@ -1325,12 +1322,6 @@ assertOk(
     && !promptContextRuntimeSrc.includes('modWorldRules:'),
   '01 world projection must keep world dimensions and power-framework rules out of the main-story context',
 )
-assertOk(
-  !calendarContextSrc.includes('buildFestivalNarrativeHint')
-    && !calendarContextSrc.includes('festivalScope'),
-  'time-system must expose calendar guidance without a festival adapter',
-)
-
 assertOk(!timelineCssSrc.includes('.entryLatest'), 'latest narrative must not have a special background rule')
 assertOk(!timelineTsxSrc.includes('styles.entryLatest'), 'latest narrative must not receive a special style class')
 

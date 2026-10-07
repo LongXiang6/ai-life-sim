@@ -1423,11 +1423,6 @@
       "sha256": "424c4e55bc43998b475dce994c36780ba21f11ed3a16909ebafebc5afe20f557"
     },
     {
-      "path": "src/mods/mod-character/config/talent-ui-config.ts",
-      "owner": "mod-character",
-      "sha256": "440ddeca3beec248825feb4f2812e0a1062075cfc754196b538ca1b6c907bc26"
-    },
-    {
       "path": "src/mods/mod-character/hooks.ts",
       "owner": "mod-character",
       "sha256": "37b73111c7b8803732e9cae5ac2baeb9bf9be27c9fd07d0965bbfa99e1b66773"
@@ -1516,11 +1511,6 @@
       "path": "src/mods/mod-engine/bootstrap/register-subsystems.ts",
       "owner": "mod-engine",
       "sha256": "06d914bebbced20bc4bea50a9dcd58f9b21c63ed71275e9f2316b1e59459b03b"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/calendar-season.js",
-      "owner": "mod-engine",
-      "sha256": "8bc0cc17fac2bcb403d9b9075e46cb62e8f48ad88cef4f8c63d6d35937dcec18"
     },
     {
       "path": "src/mods/mod-engine/helpers/chinese-text-processor.ts",

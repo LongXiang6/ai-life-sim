@@ -18,6 +18,7 @@ import { formatEraYear } from '@/foundation/utils/format-time'
 
 import { CALENDAR, SEASON_NAMES } from '../constants'
 import { getSeasonForMonth } from './calendar-season.js'
+import { calendarDateFromTotalDays } from './calendar-math'
 import { buildCanonicalCalendarNarrativeHint } from './time-scale-narrative'
 
 export function readEraStartYearFromConfig(config: Record<string, unknown> | undefined): number {
@@ -109,33 +110,6 @@ function formatNarrativePromptTimeLabel(
   return formatNarrativeTimeLabel(timeStep, eraLabel, round)
 }
 
-function calendarNodeFromTotalDays(
-  totalDays: number,
-  calendarYearOffset: number,
-): {
-  calendarYear: number
-  month: number
-  day: number
-} {
-  const normalizedDays = Math.max(0, Math.floor(totalDays))
-  const elapsedYears = Math.floor(normalizedDays / CALENDAR.DAYS_PER_YEAR)
-  let remainingDays = normalizedDays % CALENDAR.DAYS_PER_YEAR
-  let month = 0
-  for (let index = 0; index < CALENDAR.MONTHS_PER_YEAR; index += 1) {
-    const daysInMonth = CALENDAR.DAYS_IN_MONTH[index]
-    if (remainingDays < daysInMonth) {
-      month = index
-      break
-    }
-    remainingDays -= daysInMonth
-  }
-  return {
-    calendarYear: elapsedYears + calendarYearOffset,
-    month: month + 1,
-    day: remainingDays + 1,
-  }
-}
-
 function buildNarrativeWindow(
   context: RoundContext,
   timeStep: TimeStep,
@@ -146,7 +120,7 @@ function buildNarrativeWindow(
   const currentTotalDays = Math.max(0, Math.floor(context.totalDays))
   const currentElapsedYears = Math.floor(currentTotalDays / CALENDAR.DAYS_PER_YEAR)
   const calendarYearOffset = calendarYear - currentElapsedYears
-  const previousNode = calendarNodeFromTotalDays(
+  const previousNode = calendarDateFromTotalDays(
     currentTotalDays - elapsedDays,
     calendarYearOffset,
   )
@@ -156,7 +130,11 @@ function buildNarrativeWindow(
     seasonName: SEASON_NAMES[getSeasonForMonth(context.round.month)] ?? '',
     month: context.round.month + 1,
     day: ((context.round as { day?: number }).day ?? 0) + 1,
-    previousNode,
+    previousNode: {
+      calendarYear: previousNode.year,
+      month: previousNode.month,
+      day: previousNode.day,
+    },
     daysPassed: elapsedDays,
   })
 }

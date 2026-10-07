@@ -36,7 +36,3 @@ export {
 } from './mvp-runtime-policy'
 export { resolveTimeStep } from '../utils/time-step-resolver'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
-export {
-  buildNarrativeHints,
-} from './narrative-hints'
-export type { NarrativeHintInput, NarrativeHints } from './narrative-hints'
