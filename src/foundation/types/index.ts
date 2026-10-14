@@ -105,6 +105,12 @@ export type {
   YearEventKeyEvent,
   YearEvent,
   LongTermMemory,
+  NarrativeBirthProfile,
+  NarrativeLifePlan,
+  NarrativeDirectionHint,
+  NarrativeEventCandidate,
+  NarrativeWorldTimelineCommitment,
+  NarrativeControlPlaneView,
 } from './narrative.types'
 export type {
   NarrativeDirection,

@@ -128,7 +128,7 @@ export function useTalentDrawSelection({
   }, [notify, resolvedLoadoutSlots])
 
   const handleConfirm = useCallback(() => {
-    if (confirmationRef.current || selectedData.length !== PATTERN_LOADOUT_SLOT_COUNT) return
+    if (confirmationRef.current) return
     confirmationRef.current = true
     setIsConfirming(true)
     setErrorMsg('')
@@ -150,7 +150,7 @@ export function useTalentDrawSelection({
         if (!pattern) throw new Error(`轮回天赋已失效：${entry.patternId}`)
         return [pattern]
       })
-      assertPatternLoadout(selectedPatterns, selectedMythicPatterns, true)
+      assertPatternLoadout(selectedPatterns, selectedMythicPatterns)
 
       const destinySystem = getDestinyPatternSystem()
       destinySystem.selectPatterns(selectedPatterns.map((pattern) => pattern.id), committedPool)
@@ -174,7 +174,6 @@ export function useTalentDrawSelection({
     loadoutSlots,
     mythicById,
     navigate,
-    selectedData.length,
     setErrorMsg,
     slots,
   ])

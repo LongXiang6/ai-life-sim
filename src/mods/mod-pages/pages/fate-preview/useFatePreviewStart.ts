@@ -23,6 +23,7 @@ interface UseFatePreviewStartOptions {
   characterBase: CharacterState['characterBase']
   characterConfirmed: boolean
   patternLoadoutConfirmed: boolean
+  birthReady: boolean
   gender: string
   name: string
   startingAge: number
@@ -35,6 +36,7 @@ export function useFatePreviewStart({
   characterBase,
   characterConfirmed,
   patternLoadoutConfirmed,
+  birthReady,
   gender,
   name,
   startingAge,
@@ -49,7 +51,7 @@ export function useFatePreviewStart({
   const [isStarting, setIsStarting] = useState(false)
 
   const handleStartLife = useCallback(async () => {
-    if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return
+    if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !birthReady || !worldReady) return
     setIsStarting(true)
     setStartError(null)
 
@@ -94,6 +96,7 @@ export function useFatePreviewStart({
     characterBase.base,
     characterConfirmed,
     patternLoadoutConfirmed,
+    birthReady,
     gender,
     name,
     router,

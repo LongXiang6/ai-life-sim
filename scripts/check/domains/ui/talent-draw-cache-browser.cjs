@@ -1,293 +1,228 @@
 /**
- * Purpose: Regress cached AI destiny-pattern handoff and background pool filling.
+ * Purpose: Verify cached candidate handoff, background filling, and optional talent selection.
  * Owner: quality:ui
- * Responsibility: One Playwright scenario, its fixtures, and UI/storage assertions only.
+ * Responsibility: Browser interactions and fixture AI responses only, not live generation quality.
  */
 
+const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
-
-const root = path.resolve(__dirname, '../../../..')
+const puppeteer = require('puppeteer')
 const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
-const configuredChromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-const categoryLabels = {
-  action: '行动',
-  cognition: '认知',
-  expression: '表达',
-  stewardship: '经营',
-  misc: '杂类',
-}
+const categories = ['enhancement', 'control', 'perception', 'summoning', 'creation']
+const labels = ['强化与变身', '操控与投射', '感知与信息', '召唤与分身', '创造与转化']
+const suffixes = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸', '子', '丑']
+const candidates = categories.flatMap((category, categoryIndex) => suffixes.map((suffix, index) => ({
+  id: `ai-optional-${category}-${index}`, lineageId: `ai-optional-${category}-${index}`, version: 1,
+  name: `${labels[categoryIndex]}${suffix}印`, category, rarity: 'common',
+  description: '唤出可见的能力面板，记录自身修炼成果。',
+  effect: '完整效果：能力按自身机制真实生效，可在无超常力量体系的现代世界中使用。',
+  attrBonus: {},
+})))
+const promptSource = fs.readFileSync(
+  path.resolve(__dirname, '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'), 'utf8',
+)
+const version = promptSource.match(/DESTINY_PATTERN_PROMPT_VERSION = '([^']+)'/)[1]
 
-function unavailable(message) {
-  console.error(`[talent-draw-cache-browser] UNAVAILABLE: ${message}`)
-  process.exit(2)
-}
-
-let puppeteer
-try {
-  puppeteer = require('puppeteer')
-} catch {
-  unavailable('Puppeteer is not installed.')
-}
-
-function readPromptVersion() {
-  const source = fs.readFileSync(
-    path.join(root, 'src/mods/mod-character/prompts/destiny-pattern-prompt.ts'),
-    'utf8',
-  )
-  const version = source.match(/DESTINY_PATTERN_PROMPT_VERSION\s*=\s*['"]([^'"]+)['"]/u)?.[1]
-  if (!version) unavailable('Unable to read DESTINY_PATTERN_PROMPT_VERSION.')
-  return version
-}
-
-function createPattern(category, index, promptVersion) {
-  const label = categoryLabels[category]
-  const id = `ai-cache-${promptVersion}-${category}-${index}`
-  return {
-    lineageId: id,
-    version: 1,
-    id,
-    name: `${label}初${index + 1}`,
-    description: `${label}分类的缓存候选${index + 1}`,
-    category,
-    rarity: 'common',
-    effect: `${label}分类的正向稳定收益${index + 1}`,
-    attrBonus: {},
-  }
-}
-
-function identifyCategory(body) {
-  const serialized = JSON.stringify(body.messages ?? [])
-  return Object.entries(categoryLabels)
-    .find(([, label]) => serialized.includes(`分类：${label}`))?.[0]
-}
-
-function createResponse(category, batchIndex) {
-  const label = categoryLabels[category]
-  const suffixes = ['甲', '乙', '丙', '丁']
-  return JSON.stringify({
-    天赋: suffixes.map((suffix, index) => ({
-      类别: label,
-      名称: `${label}${batchIndex}${suffix}`,
-      设定描述: `${label}能力在明确条件下提供第${batchIndex}批正向优势。`,
-      效果: `满足对应条件时，提高${label}相关行动的稳定性，并保留现实边界。`,
-      属性加成: {},
-    })),
-  })
-}
-
-async function readCachedPatterns(page, cacheKey) {
-  return page.evaluate((key) => {
-    const raw = localStorage.getItem(key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed?.data) ? parsed.data : []
-  }, cacheKey)
+async function clickText(page, fragment) {
+  await page.waitForFunction(text => [...document.querySelectorAll('button')]
+    .some(button => button.textContent.includes(text) && !button.disabled), {}, fragment)
+  await page.evaluate(text => [...document.querySelectorAll('button')]
+    .find(button => button.textContent.includes(text) && !button.disabled).click(), fragment)
 }
 
 async function main() {
-  const promptVersion = readPromptVersion()
-  const initialPatterns = Object.keys(categoryLabels).flatMap((category) => (
-    Array.from({ length: 4 }, (_, index) => createPattern(category, index, promptVersion))
-  ))
-  let cacheKey = ''
-  const launchOptions = { headless: true }
-  if (fs.existsSync(configuredChromePath)) launchOptions.executablePath = configuredChromePath
-
-  launchOptions.args = ['--no-sandbox']
-  const browser = await puppeteer.launch(launchOptions)
-  const page = await browser.newPage()
-  await page.setViewport({ width: 390, height: 844 })
-  const requestCounts = Object.fromEntries(Object.keys(categoryLabels).map((category) => [category, 0]))
-  const pageErrors = []
-  let proxyPostCount = 0
-
-  page.on('pageerror', (error) => pageErrors.push(error.message))
-  await page.setRequestInterception(true)
-  page.on('request', async (request) => {
-    if (!request.url().includes('/api/proxy')) {
-      await request.continue()
-      return
-    }
-    if (request.method() === 'GET') {
-      await request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ configured: true }) })
-      return
-    }
-
-    proxyPostCount += 1
-    const body = (() => {
-      try {
-        return JSON.parse(request.postData() || '{}')
-      } catch {
-        return {}
-      }
-    })()
-    const category = identifyCategory(body)
-    if (!category) {
-      await request.respond({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'unknown destiny category' }) })
-      return
-    }
-    requestCounts[category] += 1
-    const content = createResponse(category, requestCounts[category])
-    await request.respond({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }),
-    })
+  const browser = await puppeteer.launch({
+    headless: true,
+    executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    args: ['--no-sandbox'],
   })
-
-  await page.evaluateOnNewDocument((currentPromptVersion) => {
-    if (!localStorage.getItem('talent-draw-cache-browser:initialized')) {
-      localStorage.clear()
-      localStorage.setItem('talent-draw-cache-browser:initialized', '1')
-      localStorage.setItem(
-        `ai-life-sim:mod-character:cache:destiny-pool:stale-before-${currentPromptVersion}:1`,
-        JSON.stringify({ data: [{ id: 'stale-candidate' }], ts: Date.now() }),
-      )
-      localStorage.setItem('ai-life-sim:mod-pages:config:talent-draw:1', JSON.stringify({
-        phase: 'selecting',
-        slots: [],
-        loadoutSlots: [],
-        aiTalentGeneration: true,
-      }))
+  const page = await browser.newPage()
+  const pageErrors = [], proxyRequests = [], results = [], layouts = []
+  const categoryRequests = Object.fromEntries(categories.map(category => [category, 0]))
+  page.on('pageerror', error => pageErrors.push(error.message))
+  try {
+    await page.setViewport({ width: 848, height: 1030 })
+    await page.setRequestInterception(true)
+    page.on('request', async request => {
+      if (!request.url().includes('/api/proxy')) return request.continue()
+      if (request.method() === 'GET') return request.respond({
+        status: 200, contentType: 'application/json', body: JSON.stringify({ configured: true }),
+      })
+      const body = JSON.parse(request.postData() || '{}')
+      proxyRequests.push(body)
+      const categoryIndex = labels.findIndex(label => JSON.stringify(body.messages).includes(`主机制族：${label}`))
+      const batch = categoryIndex < 0 ? 0 : ++categoryRequests[categories[categoryIndex]]
+      const response = categoryIndex >= 0 ? {
+        天赋: candidates.filter((pattern, index) => pattern.category === categories[categoryIndex]
+          && index % suffixes.length >= batch * 4 && index % suffixes.length < (batch + 1) * 4)
+          .map(pattern => ({
+            类别: labels[categoryIndex], 名称: pattern.name,
+            设定描述: pattern.description, 效果: pattern.effect, 属性加成: pattern.attrBonus,
+          })),
+      } : {
+        出生地点: '城北医院', 家庭结构: '父母与孩子', 照料者: '父母',
+        家庭资源: '普通工薪家庭', 社会处境: '现代城市普通居民',
+        叙事背景: '你来到一个秩序稳定却变化迅速的城市世界，出生地点是一所普通的公立医院，窗外的街道正被新的交通、通信与生活方式一点点改写。护士将你交到父母怀中时，你还不知道自己已经站在怎样的人生起点上。父亲的工作给这个家庭带来稳定但有限的收入，母亲承担着日常照料；你最早熟悉的是不大的住房、固定的生活节奏，以及父母为维持家庭而反复计算的时间和开支。你能够接触附近的学校、街道和正在普及的新技术，也会受到家庭积蓄、社会位置和照料者精力的限制。往后的路尚未确定，但你已经从这样的资源、关系与边界中开始。',
+        机会: ['邻里与学校', '正在普及的新技术'], 限制: ['家庭资源有限', '照料者精力有限'],
+      }
+      await request.respond({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ choices: [{ message: { content: JSON.stringify(response) }, finish_reason: 'stop' }] }),
+      })
+    })
+    await page.evaluateOnNewDocument(currentVersion => {
+      window.__cachedTalentDraw = { drawSeen: false }
+      const installObserver = () => {
+        if (!document.documentElement) return requestAnimationFrame(installObserver)
+        new MutationObserver(() => {
+          if (location.pathname.endsWith('/talent-draw')
+            && document.querySelector('#talent-page-title')?.textContent.trim() === '命格抽取') {
+            window.__cachedTalentDraw.drawSeen = true
+          }
+        }).observe(document.documentElement, { childList: true, subtree: true, characterData: true })
+      }
+      installObserver()
+      if (localStorage.getItem('optional-loadout-qa')) return
+      localStorage.setItem('optional-loadout-qa', '1')
+      localStorage.setItem(`ai-life-sim:mod-character:cache:destiny-pool:stale-before-${currentVersion}:1`,
+        JSON.stringify({ data: [{ id: 'stale-candidate' }], ts: Date.now() }))
+      localStorage.setItem('ai-life-sim:mod-pages:config:talent-draw:1',
+        JSON.stringify({ phase: 'selecting', slots: [], loadoutSlots: [], aiTalentGeneration: true }))
       localStorage.setItem('mod-settings:store', JSON.stringify({
-        version: 15,
-        state: {
-          provider: 'custom',
-          customKey: 'fixture-key',
-          customUrl: 'https://fixture.invalid/v1',
-          customModel: 'LongCat-2.0',
-          customModelProfiles: [],
-          temperature: 0.8,
-          topP: 0.8,
-          reasoningEffort: 'disabled',
-          talentThinkingIntensity: 'disabled',
-          aiTalentGeneration: true,
-          preGenerateRounds: 0,
-          narrativeStyle: 'default',
-          narrativeStyleText: '',
-          narrativeStyleVersion: 0,
-          narrativeAddressing: 'second-person',
-          wordCountTarget: 200,
-          streamingMode: 'off',
-          comfortableParagraphs: true,
-          reduceMotion: true,
+        version: 15, state: {
+          provider: 'custom', customKey: 'fixture-key', customUrl: 'https://fixture.invalid/v1',
+          customModel: 'fixture-model', aiTalentGeneration: true, preGenerateRounds: 0,
+          streamingMode: 'off', reduceMotion: true,
         },
       }))
-    }
-
-    window.__talentDrawObservation = { drawHeadingSeen: false, selectionHeadingSeen: false }
-    const observe = () => {
-      if (!location.pathname.endsWith('/talent-draw')) return
-      const heading = document.querySelector('#talent-page-title')?.textContent?.trim()
-      if (heading === '命格抽取') window.__talentDrawObservation.drawHeadingSeen = true
-      if (heading === '选择命格') window.__talentDrawObservation.selectionHeadingSeen = true
-    }
-    const installObserver = () => {
-      if (!document.documentElement) {
-        requestAnimationFrame(installObserver)
-        return
-      }
-      new MutationObserver(observe).observe(document.documentElement, { childList: true, subtree: true, characterData: true })
-      observe()
-    }
-    installObserver()
-    window.addEventListener('popstate', observe)
-  }, promptVersion)
-
-  await page.goto(`${baseUrl}/new-game/world-select`, { waitUntil: 'domcontentloaded' })
-  await page.waitForFunction(() => document.body.innerText?.includes('选择世界'))
-  const staleCacheResetLabel = '清除该世界命格缓存：现代地球'
-  await page.waitForFunction((version) => (
-    localStorage.getItem(`ai-life-sim:mod-character:cache:destiny-pool:stale-before-${version}:1`) === null
+      localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({
+        version: 1, state: { talents: [{
+          id: 'optional-mythic', lineageId: 'optional-mythic', version: 1, name: '轮回面板',
+          description: '保留可见的系统面板。', category: 'perception', rarity: 'mythic',
+          effect: '完整轮回效果仍供故事消费。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1,
+          source: { worldName: '旧世界', characterName: '旧角色' },
+        }] },
+      }))
+    }, version)
+    await page.goto(`${baseUrl}/new-game/world-select`, { waitUntil: 'domcontentloaded' })
+    await clickText(page, '预设')
+    await page.waitForFunction(currentVersion => (
+      localStorage.getItem(`ai-life-sim:mod-character:cache:destiny-pool:stale-before-${currentVersion}:1`) === null
       && localStorage.getItem('ai-life-sim:mod-pages:config:talent-draw:1') === null
-  ), {}, promptVersion)
-  const staleCacheButtonSeen = await page.$(`button[aria-label="${staleCacheResetLabel}"]`) !== null
-  const staleCacheRemoved = await page.evaluate((version) => (
-    localStorage.getItem(`ai-life-sim:mod-character:cache:destiny-pool:stale-before-${version}:1`) === null
-  ), promptVersion)
-  const staleDrawStateRemoved = await page.evaluate(() => (
-    localStorage.getItem('ai-life-sim:mod-pages:config:talent-draw:1') === null
-  ))
-  await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')]
-    .find((button) => button.textContent?.includes('预设'))?.click())
-  await page.evaluate(() => [...document.querySelectorAll('button')]
-    .find((button) => button.textContent?.includes('现代地球'))?.click())
-  await page.waitForFunction(() => [...document.querySelectorAll('button')]
-    .some((button) => button.textContent?.includes('确认世界') && !button.disabled))
-  await page.evaluate(() => [...document.querySelectorAll('button')]
-    .find((button) => button.textContent?.includes('确认世界') && !button.disabled)?.click())
-  await page.waitForFunction(() => location.pathname.endsWith('/new-game/character-create'))
-  await page.waitForFunction(() => document.querySelector('#character-name') && document.body.innerText?.includes('角色姓名'))
-  cacheKey = await page.evaluate(({ version, patterns }) => {
-    const worldState = JSON.parse(localStorage.getItem('mod-world:persist:world-state') || '{}').state || {}
-    const key = `ai-life-sim:mod-character:cache:destiny-pool:${version}:${worldState.worldCode}`
-    localStorage.setItem(key, JSON.stringify({ data: patterns, ts: Date.now() }))
-    return key
-  }, { version: promptVersion, patterns: initialPatterns })
-  await page.focus('#character-name')
-  await page.keyboard.type('缓存测试')
-  await page.evaluate(() => [...document.querySelectorAll('button')]
-    .find((button) => button.textContent?.includes('确认角色') && !button.disabled)?.click())
-  await page.waitForFunction(() => location.pathname.endsWith('/talent-draw'))
-  await page.waitForFunction(() => document.querySelector('#talent-page-title')?.textContent?.trim() === '选择命格')
-
-  await page.waitForFunction((key) => {
-    const raw = localStorage.getItem(key)
-    if (!raw) return false
-    const patterns = JSON.parse(raw)?.data
-    if (!Array.isArray(patterns) || patterns.length !== 60) return false
-    const categories = ['action', 'cognition', 'expression', 'stewardship', 'misc']
-    return categories.every((category) => patterns.filter((pattern) => pattern.category === category).length === 12)
-  }, { timeout: 60000 }, cacheKey)
-
-  const observation = await page.evaluate(() => window.__talentDrawObservation)
-  const filledPatterns = await readCachedPatterns(page, cacheKey)
-  const counts = Object.fromEntries(Object.keys(categoryLabels).map((category) => [
-    category,
-    filledPatterns.filter((pattern) => pattern.category === category).length,
-  ]))
-  const postsAfterFill = proxyPostCount
-
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForFunction(() => document.querySelector('#talent-page-title')?.textContent?.trim() === '选择命格')
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-  const reloadedObservation = await page.evaluate(() => window.__talentDrawObservation)
-
-  const failures = []
-  if (staleCacheButtonSeen) failures.push('old prompt-version cache still exposed the world reset control')
-  if (!staleCacheRemoved) failures.push('world reset control did not remove the old prompt-version cache')
-  if (!staleDrawStateRemoved) failures.push('AI draw state without a current prompt-version pool was not removed')
-  if (!observation.selectionHeadingSeen || observation.drawHeadingSeen) failures.push(`cached entry did not render selection directly: ${JSON.stringify(observation)}`)
-  if (filledPatterns.length !== 60) failures.push(`expected 60 cached patterns, observed ${filledPatterns.length}`)
-  if (Object.values(counts).some((count) => count !== 12)) failures.push(`category counts did not reach 12: ${JSON.stringify(counts)}`)
-  if (postsAfterFill !== 10) failures.push(`expected 10 background requests, observed ${postsAfterFill}`)
-  if (Object.values(requestCounts).some((count) => count !== 2)) failures.push(`each category should receive two background requests: ${JSON.stringify(requestCounts)}`)
-  if (proxyPostCount !== postsAfterFill) failures.push(`reload triggered unexpected fill requests: ${proxyPostCount - postsAfterFill}`)
-  if (reloadedObservation.drawHeadingSeen) failures.push(`reload displayed draw heading: ${JSON.stringify(reloadedObservation)}`)
-  if (pageErrors.length > 0) failures.push(`page errors: ${pageErrors.join(' | ')}`)
-
-  console.log(JSON.stringify({
-    status: failures.length === 0 ? 'pass' : 'fail',
-    promptVersion,
-    staleCacheButtonSeen,
-    staleCacheRemoved,
-    staleDrawStateRemoved,
-    observation,
-    reloadedObservation,
-    proxyPostCount,
-    requestCounts,
-    cachedPatternCount: filledPatterns.length,
-    categoryCounts: counts,
-    pageErrors,
-    failures,
-  }, null, 2))
-
-  await browser.close()
-  if (failures.length > 0) process.exit(1)
+    ), {}, version)
+    assert.equal(await page.$('button[aria-label="清除该世界命格缓存：现代地球"]'), null)
+    await clickText(page, '现代地球')
+    await clickText(page, '确认世界')
+    await page.waitForFunction(() => location.pathname.endsWith('/new-game/character-create')
+      && document.querySelector('#character-name'))
+    const cacheKey = await page.evaluate(({ patterns, version }) => {
+      const world = JSON.parse(localStorage.getItem('mod-world:persist:world-state')).state
+      const key = `ai-life-sim:mod-character:cache:destiny-pool:${version}:${world.worldCode}`
+      localStorage.setItem(key, JSON.stringify({ data: patterns, ts: Date.now() }))
+      return key
+    }, { patterns: candidates.filter((_, index) => index % suffixes.length < 4), version })
+    await page.type('#character-name', '天赋验证')
+    await clickText(page, '确认角色')
+    await page.waitForFunction(() => document.querySelector('#talent-page-title')?.textContent.trim() === '选择命格')
+    assert.equal(await page.evaluate(() => window.__cachedTalentDraw.drawSeen), false)
+    await page.waitForFunction(({ key, categories }) => {
+      const patterns = JSON.parse(localStorage.getItem(key) || '{}').data || []
+      return patterns.length === 60
+        && categories.every(category => patterns.filter(pattern => pattern.category === category).length === 12)
+    }, {}, { key: cacheKey, categories })
+    assert(categories.every(category => categoryRequests[category] === 2))
+    const requestsAfterFill = proxyRequests.length
+    assert.equal(requestsAfterFill, 10)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(() => document.querySelector('#talent-page-title')?.textContent.trim() === '选择命格')
+    assert.equal(await page.evaluate(() => window.__cachedTalentDraw.drawSeen), false)
+    assert.equal(proxyRequests.length, requestsAfterFill)
+    assert.equal(await page.$$eval('[class*="candidateCopy"] > i', elements => elements.length), 0)
+    for (const viewport of [{ width: 390, height: 844 }, { width: 848, height: 1030 }, { width: 1440, height: 900 }]) {
+      await page.setViewport(viewport)
+      await page.screenshot({ path: `reports/optional-talents-${viewport.width}.png` })
+      const layout = await page.evaluate(() => {
+        const confirm = [...document.querySelectorAll('button')].find(button => button.textContent.includes('确认命格'))
+        const rect = confirm.getBoundingClientRect()
+        return {
+          width: innerWidth, overflow: document.documentElement.scrollWidth > innerWidth,
+          confirmDisabled: confirm.disabled, confirmInViewport: rect.top >= 0 && rect.bottom <= innerHeight,
+        }
+      })
+      assert.equal(layout.overflow, false)
+      assert.equal(layout.confirmDisabled, false)
+      assert.equal(layout.confirmInViewport, true)
+      layouts.push(layout)
+    }
+    await page.setViewport({ width: 848, height: 1030 })
+    for (let count = 0; count <= 4; count++) {
+      await page.evaluate(() => [...document.querySelectorAll('button[aria-label^="移除"]')].forEach(button => button.click()))
+      const ordinaryCount = count === 2 ? 1 : count
+      for (let index = 0; index < ordinaryCount; index++) {
+        await page.click(`button[aria-label="${candidates[index].name}，选择普通命格"]`)
+      }
+      if (count === 2) {
+        await clickText(page, '轮回天赋')
+        assert.equal(await page.$$eval('[class*="candidateCopy"] > i', elements => elements.length), 0)
+        await page.click('button[aria-label="轮回面板，选择轮回天赋"]')
+      }
+      if (count === 4) {
+        await page.click(`button[aria-label="${candidates[4].name}，选择普通命格"]`)
+        assert.equal(await page.$$eval('button[aria-label^="移除"]', elements => elements.length), 4)
+      }
+      await clickText(page, '确认命格')
+      await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc')
+        && document.body.innerText.includes('属性分配'))
+      const state = await page.evaluate(() => JSON.parse(localStorage.getItem('mod-character:persist:character-state')).state)
+      assert.equal(state.destinyPatterns.patterns.length + state.equippedReincarnationTalents.length, count)
+      assert(state.destinyPatterns.patterns.every(pattern => pattern.effect.includes('完整效果')))
+      if (count === 0) assert.deepEqual(state.destinyPatterns.patterns, [])
+      if (count === 2) assert.equal(state.equippedReincarnationTalents[0].effect, '完整轮回效果仍供故事消费。')
+      await clickText(page, '平均分配')
+      await clickText(page, '确认属性')
+      await page.waitForFunction(() => location.pathname.endsWith('/fate-preview')
+        && document.body.innerText.includes('核对命书'))
+      await page.waitForFunction(() => [...document.querySelectorAll('button')]
+        .some(button => button.textContent.includes('开始人生') && !button.disabled))
+      const fatePreviewText = await page.evaluate(() => document.body.innerText)
+      const birthNarrative = await page.$eval('p[class*="birthNarrative"]', element => element.textContent.trim())
+      assert(fatePreviewText.includes('初临此世'))
+      assert(fatePreviewText.includes('你的来处'))
+      assert(fatePreviewText.includes('城北医院'))
+      assert(birthNarrative.includes('你'))
+      assert(!birthNarrative.includes('天赋验证'))
+      assert(!/^\d{4}年/u.test(birthNarrative))
+      assert(fatePreviewText.includes('秩序稳定却变化迅速的城市世界'))
+      assert(fatePreviewText.includes('父母为维持家庭而反复计算的时间和开支'))
+      assert(fatePreviewText.includes('往后的路尚未确定，但你已经从这样的资源、关系与边界中开始'))
+      results.push({
+        selected: count, ordinary: state.destinyPatterns.patterns.length,
+        reincarnation: state.equippedReincarnationTalents.length, fatePreviewStartEnabled: true,
+      })
+      if (count < 4) {
+        await clickText(page, '返回确认属性')
+        await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
+        await clickText(page, '返回命格选择')
+        await page.waitForFunction(() => document.querySelector('#talent-page-title')?.textContent.trim() === '选择命格')
+      }
+    }
+    assert.deepEqual(pageErrors, [])
+    console.log(JSON.stringify({
+      mode: 'browser UI integration with fixture AI responses, not live generation',
+      status: 'pass', results, layouts, categoryRequests,
+      birthCalls: proxyRequests.length - requestsAfterFill, pageErrors,
+    }, null, 2))
+  } catch (error) {
+    console.error('Browser evidence:', JSON.stringify({
+      url: page.url(), text: await page.evaluate(() => document.body.innerText), pageErrors,
+      proxyCalls: proxyRequests.length,
+    }))
+    await page.screenshot({ path: 'reports/optional-talents-failure.png' })
+    throw error
+  } finally {
+    await browser.close()
+  }
 }
 
-main().catch((error) => {
-  console.error('[talent-draw-cache-browser] FAIL', error)
-  process.exit(1)
-})
+main().catch(error => { console.error(error); process.exitCode = 1 })

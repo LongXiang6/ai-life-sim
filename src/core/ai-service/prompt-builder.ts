@@ -59,7 +59,30 @@ function buildNarrativeWindowProjection(context: PromptContext): string {
   const suppliedWindow = nonEmpty(context.narrativeTimeWindow)
   const abstractWindow = suppliedWindow?.match(/(?:本轮覆盖[^。；]+。|已推进\d+天（[^）]+）。)/u)?.[0]
   const window = abstractWindow ?? '本轮采用日历时间尺度。'
-  return `${window}时间输入只提供本轮覆盖范围、事实顺序和生成范围，不提供已经形成的状态差事实。请依据世界规则、世界状态摘要、历史事实、玩家条件和开放可能性形成新的局面、行动、结果和代价，再编译为人生记录。具体日期、季节、年龄和内部推进数值只供内部判定，不是故事素材。`
+  return `${window}时间输入提供本轮覆盖范围、事实顺序和生成尺度。请在这段范围内依据世界规则、世界状态摘要、历史事实、玩家条件和开放可能性形成新的局面、行动、结果和代价；按年或更长跨度时，呈现积累、转折和已经落地的状态变化，不把整段跨度压成一个孤立现场。具体日期、季节、年龄和内部推进数值只供内部判定，不是故事素材。`
+}
+
+function buildControlPlaneProjection(context: PromptContext): Record<string, unknown> | undefined {
+  const controlPlane = context.controlPlane
+  if (!controlPlane) return undefined
+  const stripInternalMetadata = (value: object): Record<string, unknown> => {
+    const source = value as Record<string, unknown>
+    const { id: _id, sourceFingerprint: _sourceFingerprint, ...publicValue } = source
+    return publicValue
+  }
+  return {
+    ...(controlPlane.birthProfile ? { 出生背景: stripInternalMetadata(controlPlane.birthProfile) } : {}),
+    ...(controlPlane.lifePlan ? { 人生规划: stripInternalMetadata(controlPlane.lifePlan) } : {}),
+    ...(controlPlane.directionHints.length > 0
+      ? { 本轮方向候选: controlPlane.directionHints.map(stripInternalMetadata) }
+      : {}),
+    ...(controlPlane.eventCandidates.length > 0
+      ? { 抽象事件候选: controlPlane.eventCandidates.map(stripInternalMetadata) }
+      : {}),
+    ...(controlPlane.dueWorldEvents.length > 0
+      ? { 到期世界事实: controlPlane.dueWorldEvents.map(stripInternalMetadata) }
+      : {}),
+  }
 }
 
 function buildWorldDescription(context: PromptContext, description: unknown): string {
@@ -99,6 +122,7 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
   const currentAgeNumeric = Number(currentAge)
   const currentAgeValue = Number.isFinite(currentAgeNumeric) ? Math.max(0, Math.floor(currentAgeNumeric)) : 0
   const branch = nonEmpty(context.playerBranchIntent?.命运分支) ?? ''
+  const controlPlane = buildControlPlaneProjection(context)
   return [
     { 世界: world },
     { 玩家信息: character },
@@ -112,8 +136,12 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
       本次信息: {
         时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`,
         时间窗口: buildNarrativeWindowProjection(context),
+        ...(Number.isSafeInteger(context.narrativeBatchSize) && (context.narrativeBatchSize ?? 0) > 1
+          ? { 批量输出: `请在同一次调用中按顺序生成${context.narrativeBatchSize}轮故事；第一项对应本轮，其余项作为后续轮次缓存。` }
+          : {}),
         命运分支: branch,
         篇幅偏好: nonEmpty(context.wordCountInstruction) ?? '',
+        ...(controlPlane ? { 控制平面: controlPlane } : {}),
       },
     },
   ]

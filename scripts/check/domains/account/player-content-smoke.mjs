@@ -312,7 +312,7 @@ try {
     version: 1,
     name: '星河留灯',
     description: '为远行者留下回程的光',
-    category: 'cognition',
+    category: 'perception',
     rarity: 'mythic',
     effect: '在最困难的选择中仍记得当初的承诺',
     attrBonus: {},

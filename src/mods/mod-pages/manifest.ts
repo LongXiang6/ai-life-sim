@@ -17,8 +17,6 @@ export default defineMod({
   secondaryPublicEntries: ['account-cloud-api.ts'],
   remoteApi: [],
   routes: [
-    { path: '/', page: 'welcome' },
-    { path: '/welcome', page: 'welcome' },
     { path: '/new-game', page: 'new-game' },
     { path: '/new-game/world-select', page: 'world-select' },
     { path: '/new-game/character-create', page: 'character-create' },

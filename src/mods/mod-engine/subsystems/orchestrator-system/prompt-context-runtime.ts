@@ -138,6 +138,7 @@ export function assemblePromptContextRuntime(
   )
   const lightWorldSetting = orchestrator['buildLightWorldSetting'](narrativeTime.eraLabel)
   const roundGuidance = orchestrator['buildRoundGuidanceInput']()
+  const controlPlane = orchestrator.getNarrativeControlPlaneView(context)
   const assembled: PromptContext = {
     worldNarrativeView: projectWorldSettingForNarrativeAI(lightWorldSetting),
     characterProfileView: characterNarrativeView.profile,
@@ -150,10 +151,15 @@ export function assemblePromptContextRuntime(
     timelineMemory: orchestrator['buildPromptTimelineMemory'](),
     recentStories: buildRecentStoriesProjection(orchestrator),
     narrativeTimeWindow: narrativeTime.narrativeWindow,
+    ...(useSettingsStore.getState().preGenerateRounds === 1
+      && orchestrator.getPendingNarrativeBatch().length === 0
+      ? { narrativeBatchSize: 3 }
+      : {}),
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
     ),
     playerBranchIntent: roundGuidance.playerBranchIntent,
+    controlPlane,
   }
 
   if (isInstrumentEnabled()) {

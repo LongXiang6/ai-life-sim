@@ -26,28 +26,28 @@
   gap: calc(8.333 * var(--final-flow-density-px));
 }
 
-.quickActions button {
+.quickActions a {
   display: grid;
   width: calc(32.5 * var(--final-flow-density-px));
   height: calc(32.5 * var(--final-flow-density-px));
   place-items: center;
-  padding: 0;
   border: calc(0.833 * var(--final-flow-density-px)) solid var(--flow-line-strong);
   border-radius: 50%;
   background: var(--flow-paper);
   box-shadow: 0 calc(3.333 * var(--final-flow-density-px)) calc(8.333 * var(--final-flow-density-px)) rgba(120, 100, 70, 0.08);
   color: var(--flow-muted);
+  text-decoration: none;
   cursor: pointer;
   transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
-.quickActions button:hover,
-.quickActions button:focus-visible {
+.quickActions a:hover,
+.quickActions a:focus-visible {
   border-color: var(--color-border-focus);
   background: var(--flow-paper);
 }
 
-.quickActions button:active {
+.quickActions a:active {
   transform: translateY(var(--final-flow-density-px));
 }
 
@@ -113,6 +113,7 @@
   cursor: pointer;
   font: inherit;
   text-align: center;
+  text-decoration: none;
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
@@ -208,7 +209,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .primaryAction,
-  .quickActions button,
+  .quickActions a,
   .routeAction,
   .utilityAction {
     transition: none;
@@ -228,7 +229,7 @@
   gap: 6px;
 }
 
-.quickActions button {
+.quickActions a {
   width: 32px;
   height: 32px;
   border-radius: 6px;

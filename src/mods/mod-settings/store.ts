@@ -133,7 +133,7 @@ interface SettingsState {
   talentThinkingIntensity: ReasoningEffort
   /** AI 命格生成开关 */
   aiTalentGeneration: boolean
-  /** 下一轮主故事预生成开关；只允许关闭或预生成一轮。 */
+  /** 批量生成故事开关。 */
   preGenerateRounds: 0 | 1
   /** 剧情一致性种子（空=自动生成） */
   storySeed: string

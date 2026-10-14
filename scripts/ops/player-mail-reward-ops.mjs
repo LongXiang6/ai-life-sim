@@ -32,9 +32,9 @@ export function parseRewardTalent(raw, rewardId, startsAt) {
     }
   }
   const categoryMigration = {
-    battle: 'action', exploration: 'cognition', social: 'expression', production: 'stewardship',
+    battle: 'enhancement', exploration: 'perception', social: 'control', production: 'creation',
   }
-  const category = categoryMigration[String(value.category || '').trim().toLowerCase()] || value.category || 'misc'
+  const category = categoryMigration[String(value.category || '').trim().toLowerCase()] || value.category || 'creation'
   const rarity = value.rarity || 'common'
   const talent = {
     id: String(value.id || `mail-reward:${rewardId}`),
@@ -55,7 +55,7 @@ export function parseRewardTalent(raw, rewardId, startsAt) {
       ...(source.runId ? { runId: String(source.runId) } : {}),
     },
   }
-  if (!['action', 'cognition', 'expression', 'stewardship', 'misc'].includes(talent.category)) {
+  if (!['enhancement', 'control', 'perception', 'summoning', 'creation'].includes(talent.category)) {
     throw new Error('礼包天赋类别无效')
   }
   if (!['common', 'fine', 'rare', 'epic', 'legendary', 'mythic'].includes(talent.rarity)) {

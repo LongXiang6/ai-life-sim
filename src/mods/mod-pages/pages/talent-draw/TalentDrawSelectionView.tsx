@@ -150,7 +150,6 @@ export function TalentDrawSelectionView({
                 <span className={styles.candidateCopy}>
                   <strong>{pattern.name}</strong>
                   <span>{pattern.description}</span>
-                  <i>{pattern.effect}</i>
                 </span>
               </button>
             )
@@ -171,7 +170,6 @@ export function TalentDrawSelectionView({
                 <span className={styles.candidateCopy}>
                   <strong>{pattern.name}</strong>
                   <span>{pattern.description}</span>
-                  {pattern.effect ? <i>{pattern.effect}</i> : null}
                 </span>
                 {attributeSummary !== '无属性加成' ? (
                   <span className={styles.candidateEffects}><i>{attributeSummary}</i></span>

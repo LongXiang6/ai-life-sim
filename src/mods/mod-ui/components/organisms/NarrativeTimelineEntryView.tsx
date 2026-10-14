@@ -186,12 +186,17 @@ export function NarrativeTimelineEntryView({
   )
 
   return (
-    <div className={[styles.entry, isEnding ? styles.entryEnding : ''].filter(Boolean).join(' ')}>
+    <div className={[
+      styles.entry,
+      isEnding ? styles.entryEnding : '',
+      entry.isBirth ? styles.entryBirth : '',
+    ].filter(Boolean).join(' ')}>
       {entry.ageLabel ? (
         <div className={styles.entryMeta} data-narrative-age={entry.ageLabel}>
           <span>{entry.ageLabel}</span>
         </div>
       ) : null}
+      {entry.isBirth ? <h2 className={styles.entryBirthTitle}>初临人间</h2> : null}
       <div className={styles.entryBody}>
         {splitNarrativeParagraphs(entry.text).map((paragraph, paragraphIndex) => (
           <p key={paragraphIndex} className={styles.entryParagraph}>{paragraph.trim()}</p>

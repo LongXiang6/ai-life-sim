@@ -6,6 +6,16 @@
 
 import type { ZodSchema } from 'zod'
 import type { ContextCapabilityProfile, SimulationScope, WorldContextKind } from '../subsystem-contracts'
+import type { NarrativeControlPlaneView } from './narrative/control-plane'
+
+export type {
+  NarrativeBirthProfile,
+  NarrativeLifePlan,
+  NarrativeDirectionHint,
+  NarrativeEventCandidate,
+  NarrativeWorldTimelineCommitment,
+  NarrativeControlPlaneView,
+} from './narrative/control-plane'
 
 export interface WorldSetting {
   contextId: string
@@ -68,7 +78,11 @@ export interface PromptContext {
   currentTime?: string
   /** 主叙事本轮实际覆盖的时间窗口；由统一时间真源派生，不是独立状态。 */
   narrativeTimeWindow?: string
+  /** 开启批量自动推进时，一次主故事调用应返回的有序故事包数量。 */
+  narrativeBatchSize?: number
   talents?: NarrativeTalentPromptView[]
+  /** 条件触发式叙事控制平面的只读投影。 */
+  controlPlane?: NarrativeControlPlaneView
 }
 
 export interface PromptTemplate<TOutput = unknown> {

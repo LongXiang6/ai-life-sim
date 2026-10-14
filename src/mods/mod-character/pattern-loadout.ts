@@ -15,17 +15,16 @@ export function getPatternLoadoutCount(
   return patterns.length + mythicPatterns.length
 }
 
-export function isPatternLoadoutComplete(
+export function isPatternLoadoutValid(
   patterns: readonly PatternIdentity[],
   mythicPatterns: readonly PatternIdentity[],
 ): boolean {
-  return getPatternLoadoutCount(patterns, mythicPatterns) === PATTERN_LOADOUT_SLOT_COUNT
+  return getPatternLoadoutCount(patterns, mythicPatterns) <= PATTERN_LOADOUT_SLOT_COUNT
 }
 
 export function assertPatternLoadout(
   patterns: readonly PatternIdentity[],
   mythicPatterns: readonly PatternIdentity[],
-  requireFull = false,
 ): void {
   if (new Set(patterns.map((pattern) => pattern.id)).size !== patterns.length) {
     throw new Error('普通命格选择包含重复项')
@@ -36,8 +35,5 @@ export function assertPatternLoadout(
   const total = getPatternLoadoutCount(patterns, mythicPatterns)
   if (total > PATTERN_LOADOUT_SLOT_COUNT) {
     throw new Error(`普通命格与轮回天赋合计不能超过 ${PATTERN_LOADOUT_SLOT_COUNT} 项`)
-  }
-  if (requireFull && total !== PATTERN_LOADOUT_SLOT_COUNT) {
-    throw new Error(`必须填满 ${PATTERN_LOADOUT_SLOT_COUNT} 个命格携带槽（当前 ${total} 个）`)
   }
 }

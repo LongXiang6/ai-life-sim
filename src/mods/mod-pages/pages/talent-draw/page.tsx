@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation'
 
 import {
   DESTINY_PATTERN_DISPLAY_COUNT,
-  PATTERN_LOADOUT_SLOT_COUNT,
   useCharacterStore,
 } from '@/mods/mod-character'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
@@ -137,7 +136,6 @@ function TalentDrawContent() {
   const footerDisabled = selection.isConfirming
     || busyDrawing
     || (phase === 'ready' && !getDestinyPatternSystem().getPoolFillStatus().initialReady)
-    || (phase === 'selecting' && selection.selectedData.length !== PATTERN_LOADOUT_SLOT_COUNT)
   const footerTitle = selection.isConfirming
     ? '正在确认'
     : phase === 'idle'
@@ -155,9 +153,9 @@ function TalentDrawContent() {
           : `已完成 ${visibleRevealCount} / ${DESTINY_PATTERN_DISPLAY_COUNT} · 正在连接命盘`
         : phase === 'ready'
           ? '五类首批命印已归位'
-          : selection.selectedData.length === PATTERN_LOADOUT_SLOT_COUNT
-            ? '四个携带槽已确认 · 进入属性分配'
-            : `还需选择 ${PATTERN_LOADOUT_SLOT_COUNT - selection.selectedData.length} 项命格`
+          : selection.selectedData.length > 0
+            ? `已选择 ${selection.selectedData.length} 项命格 · 进入属性分配`
+            : '未选择命格 · 进入属性分配'
 
   const handleFooterAction = useCallback(() => {
     if (phase === 'idle') void doGenerate()
@@ -187,7 +185,7 @@ function TalentDrawContent() {
                       {phase === 'selecting' ? '选择命格' : '命格抽取'}
                     </h1>
                     <p>{phase === 'selecting'
-                      ? '在五类页签中填满四个携带槽，普通命格与轮回天赋可自由组合。'
+                      ? '普通命格与轮回天赋可自由组合。'
                       : '五类命印，静待天命。'}</p>
                   </div>
                 </header>

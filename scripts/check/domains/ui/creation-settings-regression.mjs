@@ -1,5 +1,5 @@
 /**
- * Purpose: Verify creation-flow budget, seed lifetime, and local model profiles.
+ * Purpose: Verify optional talent loadouts, creation budget, seed lifetime, and model profiles.
  * Owner: quality:ui
  * Responsibility: Focused creation/settings regression smoke only.
  */
@@ -33,6 +33,10 @@ const [
   startHook,
   accountCloudSync,
   dataManagement,
+  { useCharacterStore },
+  { assertPatternLoadout, isPatternLoadoutValid },
+  talentSelection,
+  talentView,
 ] = await Promise.all([
   import('../../../../src/mods/mod-settings/store.ts'),
   import('../../../../src/mods/mod-pages/helpers/character-creation-draft-store.ts'),
@@ -44,6 +48,10 @@ const [
   readFile(new URL('../../../../src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts', import.meta.url), 'utf8'),
   readFile(new URL('../../../../src/mods/mod-pages/helpers/account-cloud-sync.ts', import.meta.url), 'utf8'),
   readFile(new URL('../../../../src/mods/mod-settings/components/SettingsDataManagement.tsx', import.meta.url), 'utf8'),
+  import('../../../../src/mods/mod-character/store.ts'),
+  import('../../../../src/mods/mod-character/pattern-loadout.ts'),
+  readFile(new URL('../../../../src/mods/mod-pages/pages/talent-draw/useTalentDrawSelection.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../../../../src/mods/mod-pages/pages/talent-draw/TalentDrawSelectionView.tsx', import.meta.url), 'utf8'),
 ])
 
 useSettingsStore.setState({
@@ -100,8 +108,41 @@ assert.doesNotMatch(
   startHook,
   /orchestrator\.applyRoundChanges\(\[|MAX_CREATION_COMMIT_ATTEMPTS|isTransientCreationCommitReason|命格系统尚未准备完成/,
 )
-assert.match(fatePage, /const patternLoadoutConfirmed = isPatternLoadoutComplete\(selectedPatterns, equippedReincarnationTalents\)/)
+assert.match(fatePage, /const patternLoadoutConfirmed = isPatternLoadoutValid\(selectedPatterns, equippedReincarnationTalents\)/)
+assert.match(attributePage, /const hasPatterns = isPatternLoadoutValid\(selectedPatterns, equippedReincarnationTalents\)/)
 assert.match(fatePage, /const worldReady = worldInitialized && !!worldConfig && worldCode > 0/)
-assert.match(fatePage, /const runtimeGateReason = allModsLoaded \? null/)
+assert.match(fatePage, /const runtimeGateReason = !allModsLoaded/)
+assert.match(fatePage, /enabled: worldReady && characterConfirmed && patternLoadoutConfirmed/)
+assert.doesNotMatch(talentSelection, /selectedData\.length !== PATTERN_LOADOUT_SLOT_COUNT|assertPatternLoadout\([^)]*, true\)/)
+assert.doesNotMatch(talentView, /pattern\.effect/)
+
+const candidates = Array.from({ length: 5 }, (_, index) => ({
+  id: `optional-pattern-${index}`,
+  lineageId: `optional-lineage-${index}`,
+  version: 1,
+  name: `金手指${index}`,
+  description: '简要能力介绍',
+  effect: '符合能力自身条件时真实生效，不受世界题材限制。',
+  category: 'creation',
+  rarity: 'common',
+  attrBonus: { mind: 1 },
+}))
+for (let count = 0; count <= 4; count++) {
+  const selected = candidates.filter((_, index) => index < count)
+  assert.equal(isPatternLoadoutValid(selected, []), true)
+  assert.doesNotThrow(() => assertPatternLoadout(selected, []))
+  useCharacterStore.getState().setPatternLoadout(selected, [], candidates)
+  const state = useCharacterStore.getState()
+  assert.equal(state.destinyPatterns.patterns.length, count)
+  assert.deepEqual(state.destinyPatterns.patterns.map((pattern) => pattern.effect), selected.map((pattern) => pattern.effect))
+  assert.equal(state.equippedReincarnationTalents.length, 0)
+}
+assert.equal(isPatternLoadoutValid(candidates, []), false)
+assert.throws(() => useCharacterStore.getState().setPatternLoadout(candidates, [], candidates), /不能超过/)
+assert.throws(() => assertPatternLoadout([candidates[0], candidates[0]], []), /重复/)
+assert.equal(isPatternLoadoutValid([candidates[0]], [{ id: 'reincarnation-fixture' }]), true)
+assert.equal(isPatternLoadoutValid(candidates, [{ id: 'reincarnation-fixture' }]), false)
+useCharacterStore.getState().setPatternLoadout([], [], candidates)
+assert.deepEqual(useCharacterStore.getState().destinyPatterns.patterns, [])
 
 console.log('PASS: creation-settings-regression')

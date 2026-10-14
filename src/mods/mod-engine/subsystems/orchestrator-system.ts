@@ -80,7 +80,12 @@ import {
   recordExecutionSequenceResult,
   type DevelopmentSystemStatus,
 } from '@/core/logger/development-system-diagnostic'
-import { useCharacterStore } from '@/mods/mod-character'
+import {
+  ATTR_KEYS,
+  ATTRIBUTE_NAMES,
+  getAttrSemantic,
+  useCharacterStore,
+} from '@/mods/mod-character'
 import { getSeasonForMonth } from '../helpers/calendar-season.js'
 import type { NarrativeTimelineEntry } from '../helpers/timeline-memory'
 import {
@@ -99,9 +104,10 @@ import type {
   AIModelConfig,
   ModManifest,
   LuckNarrativeGuidance,
+  NarrativeBirthProfile,
+  NarrativeControlPlaneView,
 } from '@/foundation'
 import { createSubsystemAdvanceExecutionNodes } from '../helpers/subsystem-execution-flow'
-import { invalidateNarrativePreGeneration } from '../helpers/narrative-pre-generation'
 import {
   RoundDiagnosticController,
   CampaignStageRuntime,
@@ -135,6 +141,13 @@ import type {
   PreparedNarrativeStoryContinuityLedger,
   StoryContinuitySourceTime,
 } from './orchestrator-system/narrative-story-continuity-contracts'
+import {
+  buildNarrativeControlInput,
+  NarrativeControlPlane,
+  type NarrativeControlTriggerInput,
+  type NarrativeControlPlanePersistenceState,
+} from '../helpers/narrative-control-plane'
+import { executeNarrativeControlCall } from '../helpers/narrative-control-plane-call'
 
 // Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
 
@@ -175,6 +188,7 @@ export interface OrchestratorPersistenceState {
   engineSubsystemStates?: Record<string, unknown>
   /** 外部系统的完整存档状态；与每轮 collectState 相关视图分离。 */
   persistentSubsystemStates?: Record<string, unknown>
+  narrativeControlPlane?: NarrativeControlPlanePersistenceState
 }
 
 type RuntimeManagedSubsystem = ISubSystem & {
@@ -305,6 +319,16 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private readonly runtime: OrchestratorRuntimeDependencies
   private readonly projectionMode: boolean
+  private readonly narrativeControlPlane = new NarrativeControlPlane()
+  private pendingNarrativeControlPlaneSelection?: {
+    roundSequence: number
+    fingerprint: string
+    timelineFingerprint: string
+    selectedDirectionId?: string
+    selectedEventId?: string
+    hadDueWorldEvents: boolean
+  }
+  private pendingBirthBackgroundCall?: Promise<NarrativeBirthProfile | undefined>
 
   constructor(options: OrchestratorSystemOptions = {}) {
     super()
@@ -324,6 +348,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     compressedSummaries: { summaries: [] },
     lastAutoSaveRound: 0,
     storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
+    pendingNarrativeBatch: [],
   }
 
   /** 递增即表示人生时间线已经切换；旧异步写入只能取消，不能提交。 */
@@ -605,7 +630,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 角色等 owning system 完成本地命令后，重建同一份规范子系统快照。 */
   refreshCommittedSubsystemStateSnapshot(): void {
-    if (!this.projectionMode) invalidateNarrativePreGeneration()
+    if (!this.projectionMode) this.clearPendingNarrativeBatch()
     this.collectSubsystemStates(false, false)
   }
 
@@ -660,9 +685,9 @@ export class OrchestratorSystem extends BaseSubsystem {
   setTimeStep(step: RoundContext['timeStep']): void {
     const normalizedStep = normalizeCanonicalTimeStep(step)
     if (
-      !this.projectionMode
-      && (this.state.timeStep.unit !== normalizedStep.unit || this.state.timeStep.value !== normalizedStep.value)
-    ) invalidateNarrativePreGeneration()
+      this.state.timeStep.unit !== normalizedStep.unit
+      || this.state.timeStep.value !== normalizedStep.value
+    ) this.clearPendingNarrativeBatch()
     this.state.timeStep = normalizedStep
     this.runtime.time.setTimeStep(normalizedStep)
     if (!this.projectionMode) useEngineStore.getState().setTimeStep(normalizedStep)
@@ -684,7 +709,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   setLastPlayerChoice(choice: string): void {
     const nextChoice = choice.trim() || undefined
-    if (!this.projectionMode && nextChoice !== this.lastPlayerChoice) invalidateNarrativePreGeneration()
+    if (nextChoice !== this.lastPlayerChoice) this.clearPendingNarrativeBatch()
     this.lastPlayerChoice = nextChoice
   }
 
@@ -726,10 +751,42 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.lifeGeneration
   }
 
+  getPendingNarrativeBatch(): Array<{ roundSequence: number; response: string }> {
+    return structuredClone(this.state.pendingNarrativeBatch)
+  }
+
+  getBirthNarrativeProfile(): NarrativeBirthProfile | undefined {
+    return this.narrativeControlPlane.getBirthProfile()
+  }
+
+  setPendingNarrativeBatch(
+    batch: Array<{ roundSequence: number; response: string }>,
+  ): void {
+    this.state.pendingNarrativeBatch = structuredClone(batch)
+    if (!this.projectionMode) useEngineStore.setState({
+      pendingNarrativeBatch: structuredClone(this.state.pendingNarrativeBatch),
+    })
+  }
+
+  clearPendingNarrativeBatch(): void {
+    this.state.pendingNarrativeBatch = []
+    if (!this.projectionMode) useEngineStore.setState({ pendingNarrativeBatch: [] })
+  }
+
+  consumePendingNarrativeBatch(roundSequence: number): string | undefined {
+    const next = this.state.pendingNarrativeBatch[0]
+    if (!next || next.roundSequence !== roundSequence) return undefined
+    this.state.pendingNarrativeBatch = this.state.pendingNarrativeBatch.slice(1)
+    if (!this.projectionMode) useEngineStore.setState({
+      pendingNarrativeBatch: structuredClone(this.state.pendingNarrativeBatch),
+    })
+    return next.response
+  }
+
   resolveBranchChoice(branchId: string, choice: string): void {
     const trimmed = choice.trim()
     if (!branchId || !trimmed) return
-    if (!this.projectionMode) invalidateNarrativePreGeneration()
+    this.clearPendingNarrativeBatch()
 
     this.state.narrativeHistory = this.state.narrativeHistory.map((entry) =>
       entry.id === branchId
@@ -915,6 +972,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       lastPlayerChoice: this.lastPlayerChoice,
       lastNarrativeLuckGuidance: this.lastNarrativeLuckGuidance,
       engineSubsystemStates: this.exportInternalSubsystemStates(),
+      narrativeControlPlane: this.narrativeControlPlane.capturePersistenceState(),
       ...(includePersistentSubsystemStates
         ? { persistentSubsystemStates: this.exportPersistentSubsystemStates() }
         : {}),
@@ -940,11 +998,12 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastNarrativeLuckGuidance = state.lastNarrativeLuckGuidance
       ? structuredClone(state.lastNarrativeLuckGuidance)
       : null
+    this.pendingNarrativeControlPlaneSelection = undefined
+    this.narrativeControlPlane.restorePersistenceState(state.narrativeControlPlane)
     this.importInternalSubsystemStates(state.engineSubsystemStates)
   }
 
   importPersistenceState(state: OrchestratorPersistenceState, restorePersistentSubsystemStates = true): void {
-    if (!this.projectionMode) invalidateNarrativePreGeneration()
     const clonedState = structuredClone(state.state) as unknown
     const rawState = clonedState && typeof clonedState === 'object' && !Array.isArray(clonedState)
       ? clonedState as Partial<EngineState> & {
@@ -976,6 +1035,9 @@ export class OrchestratorSystem extends BaseSubsystem {
       timeStep,
       narrativeHistory,
       storyRepetitionStats: summarizeNarrativeHistoryRepetition(narrativeHistory),
+      pendingNarrativeBatch: Array.isArray(rawState.pendingNarrativeBatch)
+        ? structuredClone(rawState.pendingNarrativeBatch)
+        : [],
     }
     this.state = restored
     this.importPersistenceRuntimeState(
@@ -1044,6 +1106,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!storeHasProgress && runtimeHasResidualState) {
       this.reset()
     }
+    if (
+      this.worldSetting?.contextId !== worldSetting.contextId
+      || this.characterState?.characterId !== characterState.characterId
+    ) this.clearPendingNarrativeBatch()
     if (!storeHasProgress) {
       this.hydrateSubsystemsFromStores()
     }
@@ -1407,7 +1473,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   pause(): void {
-    if (!this.projectionMode) invalidateNarrativePreGeneration()
     this.state.status = 'paused'
   }
 
@@ -1418,7 +1483,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   stop(): void {
-    if (!this.projectionMode) invalidateNarrativePreGeneration()
+    this.clearPendingNarrativeBatch()
     this.state.status = 'complete'
   }
 
@@ -1450,9 +1515,10 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 取消尚未提交的旧人生异步操作；真实回合失败不会恢复旧运行态。 */
   invalidatePendingLifeOperations(): void {
-    invalidateNarrativePreGeneration()
+    this.clearPendingNarrativeBatch()
     this.lifeGeneration += 1
     this.pendingNarrativeRoundPreparation = undefined
+    this.pendingNarrativeControlPlaneSelection = undefined
   }
 
   reset(): void {
@@ -1477,13 +1543,17 @@ export class OrchestratorSystem extends BaseSubsystem {
       compressedSummaries: { summaries: [] },
       lastAutoSaveRound: 0,
       storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
+      pendingNarrativeBatch: [],
     }
     this.lastSubsystemStates = {}
     this.lastExecutedFullContent = null
     this.acceptedNarrativeRecords.clear()
     this.lastPlayerChoice = undefined
+    this.state.pendingNarrativeBatch = []
     this.pendingNarrativeRoundPreparation = undefined
+    this.pendingNarrativeControlPlaneSelection = undefined
     this.lastNarrativeLuckGuidance = null
+    this.narrativeControlPlane.reset()
     this.worldSetting = null
     this.characterState = null
     this.runtime.summaryCompressor.reset()
@@ -1530,6 +1600,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       compressedSummaries: structuredClone(store.compressedSummaries),
       lastAutoSaveRound,
       storyRepetitionStats,
+      pendingNarrativeBatch: structuredClone(store.pendingNarrativeBatch),
     }
     if (store.lifeRunId !== lifeRunId || store.storyRepetitionStats !== storyRepetitionStats) {
       useEngineStore.setState({ lifeRunId, narrativeHistory, storyRepetitionStats })
@@ -1567,6 +1638,219 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   assemblePromptContext(): PromptContext {
     return assemblePromptContextRuntime(this)
+  }
+
+  getNarrativeControlPlaneView(context = this.buildRoundContext()): NarrativeControlPlaneView {
+    const input = this.buildNarrativeControlTriggerInput(context)
+    if (!input) {
+      return { directionHints: [], eventCandidates: [], dueWorldEvents: [] }
+    }
+    const prepared = this.narrativeControlPlane.inspect(input)
+    const controlInput = buildNarrativeControlInput(input)
+    const view = this.narrativeControlPlane.getView(
+      controlInput.age,
+      prepared.fingerprint,
+      controlInput.timelineFingerprint,
+      String(context.roundSequence),
+    )
+    this.pendingNarrativeControlPlaneSelection = {
+      roundSequence: context.roundSequence ?? 0,
+      fingerprint: prepared.fingerprint,
+      timelineFingerprint: controlInput.timelineFingerprint,
+      ...(view.directionHints[0]?.id
+        ? { selectedDirectionId: view.directionHints[0].id }
+        : {}),
+      ...(view.eventCandidates[0]?.id
+        ? { selectedEventId: view.eventCandidates[0].id }
+        : {}),
+      hadDueWorldEvents: view.dueWorldEvents.length > 0,
+    }
+    return view
+  }
+
+  /**
+   * Refresh only the conditional control-plane layers whose source fingerprint
+   * is missing or invalidated. Abstract outputs are persisted and projected to
+   * the main-story input; they never enter history as facts.
+   */
+  async prepareConditionalNarrativeControl(
+    aiConfig: AIModelConfig,
+    _promptTemplate: PromptTemplate,
+    sessionId?: string,
+  ): Promise<void> {
+    if (this.projectionMode || !this.worldSetting || !this.characterState) return
+    const input = this.buildNarrativeControlTriggerInput(this.getRoundContextSnapshot())
+    if (!input) return
+    const controlInput = buildNarrativeControlInput(input)
+    const { birthContext: _birthContext, ...sharedControlInput } = controlInput
+    let prepared = this.narrativeControlPlane.inspect(input)
+    const order = ['birth', 'timeline', 'plan', 'direction', 'event'] as const
+    for (const kind of order) {
+      const trigger = prepared.triggers.find((item) => item.kind === kind)
+      if (!trigger) continue
+      const currentView = this.narrativeControlPlane.getView(
+        controlInput.age,
+        prepared.fingerprint,
+        controlInput.timelineFingerprint,
+        String(controlInput.roundSequence),
+      )
+      try {
+        const result = await executeNarrativeControlCall({
+          kind,
+          trigger: trigger.reason,
+          payload: {
+            ...sharedControlInput,
+            ...(kind === 'birth' ? { birthContext: controlInput.birthContext } : {}),
+            ...(kind !== 'birth' && currentView.birthProfile
+              ? { birthProfile: currentView.birthProfile }
+              : {}),
+            ...(currentView.lifePlan ? { lifePlan: currentView.lifePlan } : {}),
+            ...(currentView.directionHints.length > 0 ? { directionHints: currentView.directionHints } : {}),
+            ...(currentView.eventCandidates.length > 0 ? { eventCandidates: currentView.eventCandidates } : {}),
+            ...(currentView.dueWorldEvents.length > 0 ? { dueWorldEvents: currentView.dueWorldEvents } : {}),
+            当前时间: {
+              年: this.state.round.year,
+              月: this.state.round.month,
+              日: this.state.round.day,
+              totalDays: this.state.round.totalDays,
+              totalBasePoints: this.state.round.totalBasePoints,
+            },
+          },
+          aiConfig,
+          lifeRunId: this.state.lifeRunId,
+          round: this.state.totalRounds,
+          sessionId,
+        })
+        if (kind === 'birth') this.narrativeControlPlane.commitBirth(result.value, trigger.fingerprint)
+        if (kind === 'plan') this.narrativeControlPlane.commitPlan(result.value, trigger.fingerprint)
+        if (kind === 'direction') this.narrativeControlPlane.commitDirections(result.value, trigger.fingerprint)
+        if (kind === 'event') this.narrativeControlPlane.commitEvents(result.value, trigger.fingerprint)
+        if (kind === 'timeline') this.narrativeControlPlane.commitTimeline(result.value, trigger.fingerprint)
+      } catch (error) {
+        if (kind === 'birth') throw error
+        logger.warn('narrative-control-plane', 'conditional-call-deferred', {
+          kind,
+          round: this.state.totalRounds,
+          reason: error instanceof Error ? error.message : String(error),
+        })
+      }
+      prepared = this.narrativeControlPlane.inspect(input)
+    }
+  }
+
+  /**
+   * Generate the birth background during fate preview. The result is owned by
+   * the same control plane used by formal rounds, so the first story round
+   * consumes it without issuing a second birth call.
+   */
+  async prepareBirthBackground(
+    aiConfig: AIModelConfig,
+    sessionId?: string,
+  ): Promise<NarrativeBirthProfile | undefined> {
+    if (this.projectionMode || !this.worldSetting || !this.characterState) return undefined
+    if (this.pendingBirthBackgroundCall) return this.pendingBirthBackgroundCall
+
+    const run = async (): Promise<NarrativeBirthProfile | undefined> => {
+      const input = this.buildNarrativeControlTriggerInput(this.getRoundContextSnapshot())
+      if (!input) return undefined
+      const controlInput = buildNarrativeControlInput(input)
+      const prepared = this.narrativeControlPlane.inspect(input)
+      const currentView = this.narrativeControlPlane.getView(
+        controlInput.age,
+        prepared.fingerprint,
+        controlInput.timelineFingerprint,
+        String(controlInput.roundSequence),
+      )
+      const trigger = prepared.triggers.find((item) => item.kind === 'birth')
+      if (!trigger) return currentView.birthProfile
+
+      const result = await executeNarrativeControlCall({
+        kind: 'birth',
+        trigger: '命运预览缺少出生背景',
+        payload: {
+          ...controlInput,
+          当前时间: {
+            年: this.state.round.year,
+            月: this.state.round.month,
+            日: this.state.round.day,
+            totalDays: this.state.round.totalDays,
+            totalBasePoints: this.state.round.totalBasePoints,
+          },
+        },
+        aiConfig,
+        lifeRunId: this.state.lifeRunId,
+        round: this.state.totalRounds,
+        sessionId,
+      })
+      this.narrativeControlPlane.commitBirth(result.value, trigger.fingerprint)
+      return this.narrativeControlPlane.getView(
+        controlInput.age,
+        trigger.fingerprint,
+        controlInput.timelineFingerprint,
+        String(controlInput.roundSequence),
+      ).birthProfile
+    }
+
+    const pending = run()
+    const tracked = pending.finally(() => {
+      if (this.pendingBirthBackgroundCall === tracked) {
+        this.pendingBirthBackgroundCall = undefined
+      }
+    })
+    this.pendingBirthBackgroundCall = tracked
+    return tracked
+  }
+
+  commitNarrativeControlPlaneOutcome(): void {
+    const selection = this.pendingNarrativeControlPlaneSelection
+    if (!selection) return
+    this.narrativeControlPlane.commitRoundOutcome(selection)
+    this.pendingNarrativeControlPlaneSelection = undefined
+  }
+
+  private buildNarrativeControlTriggerInput(
+    context: RoundContext,
+  ): NarrativeControlTriggerInput | undefined {
+    if (!this.worldSetting || !this.characterState) return undefined
+    const character = useCharacterStore.getState()
+    const selectedPatterns = [
+      ...(character.destinyPatterns.patterns ?? []),
+      ...character.equippedReincarnationTalents,
+    ]
+    const growthHistory = character.destinyPatterns.growthHistory
+    const openingTalents = selectedPatterns.map((talent) => {
+      const openingSource = growthHistory
+        .filter((entry) => entry.lineageId === talent.lineageId)
+        .sort((left, right) => left.source.version - right.source.version)[0]?.source
+      return openingSource ?? talent
+    })
+    const openingAttributes = Object.fromEntries(ATTR_KEYS.map((key) => {
+      const talentBonus = openingTalents.reduce((total, pattern) => (
+        total + (pattern.attrBonus?.[key] ?? 0)
+      ), 0)
+      return [
+        ATTRIBUTE_NAMES[key],
+        getAttrSemantic(key, character.characterBase.base[key] + talentBonus),
+      ]
+    })) as Record<'心智' | '体魄' | '魅力' | '财富', string>
+    const selectedTalents = openingTalents.map((talent) => ({
+      名称: talent.name,
+      介绍: talent.description,
+      效果: talent.effect,
+    }))
+    return {
+      world: this.worldSetting,
+      character: this.characterState,
+      context,
+      subsystemStates: this.lastSubsystemStates,
+      lifeRunId: this.state.lifeRunId,
+      playerIntent: this.lastPlayerChoice,
+      historyLength: this.state.narrativeHistory.length,
+      birthContext: {
+        开局属性: openingAttributes,
+        已选天赋: selectedTalents,
+      },
+    }
   }
 
   private buildLightWorldSetting(eraLabel: string): WorldSetting {
@@ -1887,3 +2171,24 @@ export class OrchestratorSystem extends BaseSubsystem {
 
 /** 单例 */
 export const orchestrator = new OrchestratorSystem()
+
+const NARRATIVE_BATCH_SETTINGS_KEYS = [
+  'preGenerateRounds',
+  'provider',
+  'customKey',
+  'customUrl',
+  'customModel',
+  'temperature',
+  'reasoningEffort',
+  'storySeed',
+  'narrativeStyleText',
+  'narrativeStyleVersion',
+  'narrativeAddressing',
+  'wordCountTarget',
+] as const
+
+useSettingsStore.subscribe((current, previous) => {
+  if (NARRATIVE_BATCH_SETTINGS_KEYS.some((key) => current[key] !== previous[key])) {
+    orchestrator.clearPendingNarrativeBatch()
+  }
+})

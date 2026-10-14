@@ -1236,9 +1236,10 @@
 .screen {
       position: relative;
       display: flex;
+      flex: 0 0 auto;
       min-height: 0;
       flex-direction: column;
-      padding: var(--final-flow-content-gutter) var(--final-flow-content-gutter) calc(80 * var(--final-flow-density-px));
+      padding: var(--final-flow-content-gutter);
       overflow: visible;
     }
 
@@ -1427,7 +1428,9 @@
 /* Desktop folio polish: the selected world becomes the context block and the
  * directory reads as a compact source index. */
 .screen {
-  padding: 0 28px;
+  padding-top: 0;
+  padding-right: 28px;
+  padding-left: 28px;
 }
 
 .header {
@@ -1540,7 +1543,8 @@
 
 @media (max-width: 760px) {
   .screen {
-    padding: 0 16px;
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .header {

@@ -18,6 +18,7 @@ import {
   inspectNarrativeResponseQuality,
   type NarrativeResponseQuality,
 } from './narrative-response-quality'
+import { parseAIJSON } from '@/core/ai-service/parse-ai-json'
 import type { OrchestratorSystem } from '../subsystems/orchestrator-system'
 
 export type MainNarrativeExecutionKind = 'real' | 'preview'
@@ -42,6 +43,23 @@ export interface MainNarrativeRequest {
 export interface MainNarrativeResult {
   response: string
   quality: NarrativeResponseQuality & { parsed: NonNullable<NarrativeResponseQuality['parsed']> }
+  queuedResponses: string[]
+}
+
+function splitNarrativeBatchResponse(response: string): { primary: string; queuedResponses: string[] } {
+  const parsed = parseAIJSON<unknown>(response)
+  const items = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>).故事批次
+      : undefined
+  if (!Array.isArray(items) || items.length < 1) {
+    return { primary: response, queuedResponses: [] }
+  }
+  return {
+    primary: JSON.stringify(items[0]) ?? '',
+    queuedResponses: items.slice(1).map((item) => JSON.stringify(item) ?? ''),
+  }
 }
 
 function buildMainNarrativeFingerprint(input: {
@@ -165,11 +183,13 @@ export async function executeMainNarrativeRequest(
     if (!isAiResponseTruncatedError(error) || !error.content?.trim()) throw error
     response = error.content
   }
+  const batch = splitNarrativeBatchResponse(response)
+  const terminalGuidance = request.segments.userSegments.at(-1) ?? ''
   const quality = inspectNarrativeResponseQuality(
-    response,
+    batch.primary,
     request.wordCountTarget,
     request.repetitionContext,
-    request.segments.userSegments.at(-1) ?? '',
+    terminalGuidance,
   )
 
   recordRoundCacheMetrics({
@@ -183,8 +203,24 @@ export async function executeMainNarrativeRequest(
     throw error
   }
 
+  const queuedResponses: string[] = []
+  if (!quality.parsed.branch && !quality.parsed.endingTitle) {
+    for (const queuedResponse of batch.queuedResponses) {
+      const queuedQuality = inspectNarrativeResponseQuality(
+        queuedResponse,
+        request.wordCountTarget,
+        undefined,
+        terminalGuidance,
+      )
+      if (!queuedQuality.valid || !queuedQuality.parsed) break
+      queuedResponses.push(queuedResponse)
+      if (queuedQuality.parsed.branch || queuedQuality.parsed.endingTitle) break
+    }
+  }
+
   return {
-    response,
+    response: batch.primary,
     quality: { ...quality, parsed: quality.parsed },
+    queuedResponses,
   }
 }

@@ -278,15 +278,15 @@ for (const option of AVAILABLE_TIME_STEPS) {
   assertIncludes(hint, profile.prompt, `${profile.id} prompt must enter the assembled time guidance`)
 }
 
-// Removed or malformed values must resolve to the canonical one-month default.
+// Removed or malformed values must resolve to the canonical one-year default.
 const fallbackYearStep = { unit: 'year', value: 7 }
 const fallbackYearProfile = getTimeScaleNarrativeProfile(fallbackYearStep)
-assertSame(fallbackYearProfile.key, 'month:1', 'unlisted year step must restore the one-month default')
-assertIncludes(fallbackYearProfile.prompt, '覆盖一个自然月', 'unlisted year step must restore the one-month span')
+assertSame(fallbackYearProfile.key, 'year:1', 'unlisted year step must restore the one-year default')
+assertIncludes(fallbackYearProfile.prompt, '覆盖一年', 'unlisted year step must restore the one-year span')
 const fallbackInvalidStep = { unit: 'week', value: 7 }
 const fallbackInvalidProfile = getTimeScaleNarrativeProfile(fallbackInvalidStep)
-assertSame(fallbackInvalidProfile.key, 'month:1', 'invalid step must restore the one-month default')
-assertIncludes(fallbackInvalidProfile.prompt, '覆盖一个自然月', 'invalid step must restore the one-month span')
+assertSame(fallbackInvalidProfile.key, 'year:1', 'invalid step must restore the one-year default')
+assertIncludes(fallbackInvalidProfile.prompt, '覆盖一年', 'invalid step must restore the one-year span')
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '覆盖1年', 'one-year hint must expose its time span')
@@ -312,10 +312,10 @@ assertOk(!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('先选择能在该�
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
 assertIncludes(tenYearHint, '覆盖10年', 'ten-year hint must expose the decade span')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
-assertIncludes(fiftyYearHint, '覆盖1个月', 'removed fifty-year step must restore the one-month span')
+assertIncludes(fiftyYearHint, '覆盖一年', 'removed fifty-year step must restore the one-year span')
 assertOk(!fiftyYearHint.includes('事件链') && !fiftyYearHint.includes('单一人物线'), 'removed fifty-year step must not add a historical template')
 const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
-assertIncludes(millenniumHint, '覆盖1个月', 'removed millennium step must restore the one-month span')
+assertIncludes(millenniumHint, '覆盖一年', 'removed millennium step must restore the one-year span')
 
 const januaryCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'month', value: 1 },
@@ -389,7 +389,7 @@ for (const [index, rarity] of promotionRarities.entries()) {
     name: `${rarity}-source`,
     description: '来源说明',
     effect: '来源效果',
-    category: 'cognition',
+    category: 'perception',
     rarity,
     attrBonus: {},
     strengthenLevel: rarity === 'mythic' ? 3 : 0,
@@ -434,7 +434,7 @@ const invalidNonMythicReincarnation = {
   version: 1,
   name: '错误精良',
   description: '说明',
-  category: 'action',
+  category: 'enhancement',
   rarity: 'fine',
   effect: '效果',
   attrBonus: {},
@@ -459,7 +459,7 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
       name: '旧命格',
       description: '旧命格描述',
       effect: '旧命格效果',
-      category: 'cognition',
+      category: 'perception',
       rarity: 'rare',
       polarity: 'positive',
       attrBonus: { mind: 1, resources: 4 },
@@ -803,21 +803,15 @@ assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*4/.test(constantsSrc), 'each desti
 assertOk(/DESTINY_PATTERN_CATEGORY_TARGET_COUNT\s*=\s*12/.test(constantsSrc), 'each destiny category must fill to twelve candidates')
 assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 20, 'destiny display count must expose five categories times four candidates')
 assertSame(DESTINY_PATTERN_CATEGORY_TARGET_COUNT, 12, 'destiny background target must be twelve per category')
-assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'action,cognition,expression,stewardship,misc', 'destiny category order must remain stable')
+assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'enhancement,control,perception,summoning,creation', 'destiny category order must remain stable')
 assertOk(
-  DESTINY_PATTERN_CATEGORY_CONFIG.action.label === '根基'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.cognition.label === '专精'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.expression.label === '特质'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.stewardship.label === '规则'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.misc.label === '机缘'
-    && Object.values(DESTINY_PATTERN_CATEGORY_CONFIG).every((entry) => (
-      entry.guidance.includes('不限制天赋类型')
-      || entry.guidance.includes('题材、载体和作用对象不限')
-      || entry.guidance.includes('不限定为表达或性格')
-      || entry.guidance.includes('不要求属于经营或生产')
-      || entry.guidance.includes('任意类型')
-    )),
-  'destiny category guidance must stay macro and must not restrict ability types',
+  DESTINY_PATTERN_CATEGORY_CONFIG.enhancement.label === '强化与变身'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.control.label === '操控与投射'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.perception.label === '感知与信息'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.summoning.label === '召唤与分身'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.creation.label === '创造与转化'
+    && Object.values(DESTINY_PATTERN_CATEGORY_CONFIG).every((entry) => entry.guidance.includes('不限制其他能力类型')),
+  'destiny categories must describe primary mechanisms without restricting other ability types',
 )
 for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
   const prompt = buildDestinyPatternSystemPrompt(category)
@@ -828,9 +822,14 @@ for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
       && prompt.includes('不得把特殊机制降格为普通观察力、熟练技巧或仅有属性加成'),
     `${category} destiny prompt must carry its own primary-mechanism guidance`,
   )
+  assertOk(
+    prompt.includes('设定描述：不超过30字')
+      && prompt.includes('完整作用方式和边界放在效果字段'),
+    `${category} destiny prompt must limit the candidate summary to thirty characters without shortening the full effect`,
+  )
 }
 assertOk(
-  /AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS[\s\S]{0,260}\['action'\][\s\S]{0,120}\['cognition'\][\s\S]{0,120}\['expression'\][\s\S]{0,120}\['stewardship'\][\s\S]{0,120}\['misc'\]/.test(constantsSrc),
+  /AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS[\s\S]{0,260}\['enhancement'\][\s\S]{0,120}\['control'\][\s\S]{0,120}\['perception'\][\s\S]{0,120}\['summoning'\][\s\S]{0,120}\['creation'\]/.test(constantsSrc),
   'destiny generation must keep five independent category tasks',
 )
 assertOk(!constantsSrc.includes('DESTINY_PATTERN_EARLY_READY_TIMEOUT_MS'), 'AI destiny readiness must not time out to presets')
@@ -850,10 +849,10 @@ assertOk(
 )
 assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'9\.1\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'9\.3\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 9.1.0',
+  'destiny prompt builder and cache version must share version 9.3.0',
 )
 assertOk(
   destinyPromptSrc.includes('每条命格必须先提供明确、可实际生效的正向收益')
@@ -889,20 +888,23 @@ assertOk(
   destinyPromptSrc.includes('二至六个汉字')
     && destinyPromptSrc.includes('保留古典用词质感')
     && destinyPromptSrc.includes('比喻最多一处')
-    && destinyPromptSrc.includes('分类只是候选浏览和生成分配的宏观标签')
-    && destinyPromptSrc.includes('世界规则决定机制是否成立')
+     && destinyPromptSrc.includes('主机制族只用于候选浏览和生成分配')
+    && destinyPromptSrc.includes('世界题材只影响倾向和适配，不决定能力类型是否允许出现')
     && destinyPromptSrc.includes('种族与背景不得扩写为出生、成长、职业、师承、关系或过去事件')
     && destinyPromptSrc.includes('能力类型决定能做什么，稀有度决定做到什么程度')
-    && destinyPromptSrc.includes('普通级是输入世界允许能力的低阶形态，保留真实作用机制')
+    && destinyPromptSrc.includes('普通级是任意能力类型的低阶形态，保留真实作用机制')
     && destinyPromptSrc.includes('不得把特殊机制降格为普通观察力、熟练技巧或仅有属性加成')
     && !destinyPromptSrc.includes('凡俗尺度')
-    && destinyPromptSrc.includes('不能因为分类而把普通候选集中到单一领域'),
+     && destinyPromptSrc.includes('不能因为主机制族而把普通候选收窄为单一题材'),
   'destiny prompt must preserve real ability mechanisms while rarity controls strength, not type',
 )
 assertOk(
-  destinyPromptSrc.includes('幻想、虚幻、神秘、象征')
-    && destinyPromptSrc.includes('输入事实封闭'),
-  'destiny prompt must allow varied speculative themes without inventing missing facts',
+  ['特异功能', '超能力', '异常能力', '修炼能力', '游戏技能', '系统面板'].every((kind) => destinyPromptSrc.includes(kind))
+    && destinyPromptSrc.includes('现代都市或纯科幻世界也能抽到修炼、玄幻、超能力等天赋')
+    && destinyPromptSrc.includes('跨题材能力出现倾向较低但始终可能')
+    && destinyPromptSrc.includes('金手指可以自带自身成立所需的局部机制')
+    && !destinyPromptSrc.includes('只沿用其中已经明确的规则'),
+  'destiny prompt must allow cross-genre cheats without inventing a shared world power system or biography',
 )
 const makeDestinyPattern = (index, category) => ({
   类别: category,
@@ -918,31 +920,42 @@ const diverseDestinyCandidates = parseDestinyPatternAIResponse(JSON.stringify({ 
   ['元素掌控', '直接引导近处元素。'],
   ['矢量操纵', '改变接触物体的运动方向。'],
   ['无限进化', '经历促成身体或能力的适应性变化。'],
-].map(([名称, 效果]) => ({ 类别: '规则', 名称, 设定描述: 效果, 效果, 属性加成: {} })) }), 'stewardship')
+].map(([名称, 效果]) => ({ 类别: '创造与转化', 名称, 设定描述: 效果, 效果, 属性加成: {} })) }), 'creation')
 assertOk(
   diverseDestinyCandidates.length === 6
-    && diverseDestinyCandidates.every((candidate) => candidate.category === 'stewardship' && candidate.effect),
+    && diverseDestinyCandidates.every((candidate) => candidate.category === 'creation' && candidate.effect),
   'destiny parser must accept varied real ability mechanisms without a type whitelist',
 )
 assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '行动')] }).success, 'destiny transport schema must stay permissive')
 const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '专精', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，财富+1，魅力-1' },
-  { 类别: '专精', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
-] }), 'cognition')
+  { 类别: '感知与信息', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，财富+1，魅力-1' },
+  { 类别: '感知与信息', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
+] }), 'perception')
 assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
 const partialResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '根基', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
-  { 类别: '根基', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
-] }), 'action')
+  { 类别: '强化与变身', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
+  { 类别: '强化与变身', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
+] }), 'enhancement')
 assertOk(partialResponse.length === 1 && partialResponse[0].name === '铁壁磐石', 'destiny parser must keep valid siblings when one item is unusable')
+const completeDestinyDescription = '触碰物件后能够读取它留下的局部信息，描述长度由生成 Prompt 负责，解析保留完整内容。'
+const completeDestinyEffect = '触碰普通物件时能读取最近留下的局部痕迹，效果保留实际发动方式、可观察结果与信息边界。'
+const completeDestinyResponse = parseDestinyPatternAIResponse(JSON.stringify({ 天赋: [
+  { 类别: '感知与信息', 名称: '触物读痕', 设定描述: completeDestinyDescription, 效果: completeDestinyEffect, 属性加成: {} },
+] }), 'perception')
+assertOk(
+  completeDestinyResponse.length === 1
+    && completeDestinyResponse[0].description === completeDestinyDescription
+    && completeDestinyResponse[0].effect === completeDestinyEffect,
+  'destiny summary length must remain a generation instruction, not runtime rejection or truncation',
+)
 const numberedResponse = parseDestinyPatternAIResponse(JSON.stringify({
-  第一条: { effect: '交流更稳。', attributes: '魅力+2，心智-1', title: '言简意明', type: 'expression', detail: '能迅速说清重点。' },
+  第一条: { effect: '交流更稳。', attributes: '魅力+2，心智-1', title: '言简意明', type: 'control', detail: '能迅速说清重点。' },
   第二条: { 属性加成: { 魅力: '1' }, 效果: '关系更易维持。', 名称: '守信重诺', 描述: '答应的事会认真完成。' },
-}), 'expression')
+}), 'control')
 assertOk(
   numberedResponse.length === 2
     && numberedResponse[0].name === '言简意明'
-    && numberedResponse[1].category === 'expression',
+    && numberedResponse[1].category === 'control',
   'destiny parser must recognize numbered object wrappers, aliases, missing assigned categories, and field disorder',
 )
 assertOk(
@@ -1178,7 +1191,8 @@ assertOk(
     && /DESTINY_PATTERN_CATEGORY_CONFIG\[id\]\.label/.test(talentDrawPageSrc)
     && /\{ id: 'mythic', label: '轮回天赋' \}/.test(talentDrawPageSrc)
     && /resolvedLoadoutSlots\.map\(/.test(talentDrawPageSrc)
-    && /selectedData\.length !== PATTERN_LOADOUT_SLOT_COUNT/.test(talentDrawPageSrc)
+    && !/selectedData\.length !== PATTERN_LOADOUT_SLOT_COUNT/.test(talentDrawPageSrc)
+    && talentDrawPageSrc.includes('未选择命格 · 进入属性分配')
     && !/role="dialog"|TalentDrawMythicLibrary|useTalentDrawMythicLibrary/.test(talentDrawPageSrc)
     && !/TalentAstrolabe|astrolabe|fateNode/.test(talentDrawPageSrc)
     && !/progressTrack|progressFill/.test(talentDrawPageSrc),
@@ -1235,7 +1249,7 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'9\.26\.0'/.test(narrativePromptSrc), 'narrative contract must use version 9.26.0')
+assertOk(/version:\s*'9\.30\.0'/.test(narrativePromptSrc), 'narrative contract must use version 9.30.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

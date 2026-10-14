@@ -124,11 +124,11 @@ export const DESTINY_PATTERN_CATEGORY_INITIAL_COUNT = AI_DESTINY_PATTERN_BATCH_S
 
 /** 普通命格的固定分类顺序。 */
 export const DESTINY_PATTERN_CATEGORY_ORDER: readonly DestinyPatternCategory[] = [
-  'action',
-  'cognition',
-  'expression',
-  'stewardship',
-  'misc',
+  'enhancement',
+  'control',
+  'perception',
+  'summoning',
+  'creation',
 ] as const
 
 /** 每个分类的后台候选目标数。 */
@@ -136,20 +136,20 @@ export const DESTINY_PATTERN_CATEGORY_TARGET_COUNT = 12
 
 /** 一批命格生成的五个独立分类任务。 */
 export const AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS: readonly (readonly DestinyPatternCategory[])[] = [
-  ['action'],
-  ['cognition'],
-  ['expression'],
-  ['stewardship'],
-  ['misc'],
+  ['enhancement'],
+  ['control'],
+  ['perception'],
+  ['summoning'],
+  ['creation'],
 ] as const
 
 /** 命格类别名称与说明；类别只用于候选整理，不限制天赋题材或作用类型。 */
 export const DESTINY_PATTERN_CATEGORY_CONFIG: Record<DestinyPatternCategory, { label: string; guidance: string }> = {
-  action: { label: '根基', guidance: '表示能力的底层倾向或成长根基；不限制天赋类型，可以表现为身体、心智、感知、技艺、关系、资源、运势或轻微异常，不能把本标签收窄为身体类。' },
-  cognition: { label: '专精', guidance: '表示可被调用、练习或深化的明确优势；不限制天赋类型，题材、载体和作用对象不限，可以是战斗、知识、创造、社交、经营、探索或其他稳定机制。' },
-  expression: { label: '特质', guidance: '表示角色稳定的能力特性或行为机制；不限制天赋类型，允许生成主动技能、被动倾向、条件效果、感知方式或关系影响，不限定为表达或性格。' },
-  stewardship: { label: '规则', guidance: '表示一条清晰可观察的触发—作用—结果规则；不限制天赋类型，可以作用于行动、认知、关系、资源、环境或特殊现象，不要求属于经营或生产。' },
-  misc: { label: '机缘', guidance: '表示机会、适配、共鸣或轻微偏转等高层天赋原型；不限制天赋类型，仍可生成任意类型的有限能力，不得把机缘写成必然成功、全知全能或决定命运。' },
+  enhancement: { label: '强化与变身', guidance: '以身体、精神、形态、属性或成长进化产生直接改变为主；可包含再生、适应、熟练度和变身子型，但不限制其他能力类型。' },
+  control: { label: '操控与投射', guidance: '以主动影响外物、能量、元素、空间、时间或因果关系为主；可包含念动力、元素、矢量和时空子型，但不限制其他能力类型。' },
+  perception: { label: '感知与信息', guidance: '以获得、解析、标记、预测或呈现信息为主；可包含鉴定、预感、读心、记忆和系统面板子型，但不限制其他能力类型。' },
+  summoning: { label: '召唤与分身', guidance: '以召唤、契约、复制体、伙伴或独立行动单元为主；可包含任务、契约和临时借用子型，但不限制其他能力类型。' },
+  creation: { label: '创造与转化', guidance: '以创造、合成、炼化、复制、提取或改变对象性质为主；可包含制造、资源转化和能力获取子型，但不限制其他能力类型。' },
 }
 
 /** 普通级命格的属性净分配与负属性绝对值上限。 */
@@ -228,30 +228,30 @@ export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id' | 'category' | '
 
 /** 非 AI 模式使用的人工分类；未列入的旧预设不进入新分类抽取。 */
 export const PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME: Readonly<Record<string, DestinyPatternCategory>> = {
-  稳息行军: 'action',
-  定势回稳: 'action',
-  预热蓄势: 'action',
-  后手识变: 'action',
-  察隙: 'cognition',
-  记痕回放: 'cognition',
-  晨息定位: 'cognition',
-  定念校验: 'cognition',
-  标记回收: 'cognition',
-  承诺印记: 'expression',
-  察言应对: 'expression',
-  共情回响: 'expression',
-  信任蓄力: 'expression',
-  情绪过载: 'expression',
-  稳手校准: 'stewardship',
-  火候调谐: 'stewardship',
-  流程归位: 'stewardship',
-  进度守恒: 'stewardship',
-  复核成品: 'stewardship',
-  风险预读: 'stewardship',
-  拼接灵感: 'misc',
-  顺手时机: 'misc',
-  环境回响: 'misc',
-  迁移入门: 'misc',
+  稳息行军: 'enhancement',
+  定势回稳: 'enhancement',
+  预热蓄势: 'enhancement',
+  后手识变: 'enhancement',
+  察隙: 'perception',
+  记痕回放: 'perception',
+  晨息定位: 'perception',
+  定念校验: 'perception',
+  标记回收: 'perception',
+  承诺印记: 'control',
+  察言应对: 'control',
+  共情回响: 'control',
+  信任蓄力: 'control',
+  情绪过载: 'control',
+  稳手校准: 'creation',
+  火候调谐: 'creation',
+  流程归位: 'creation',
+  进度守恒: 'creation',
+  复核成品: 'creation',
+  风险预读: 'creation',
+  拼接灵感: 'creation',
+  顺手时机: 'creation',
+  环境回响: 'perception',
+  迁移入门: 'creation',
 }
 
 // ============================================================

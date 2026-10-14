@@ -106,12 +106,12 @@ check(
 check(
   'V3',
   'Product/OpeningFlow/DestinyPatternSelection',
-  'Can the local preset path produce five classified categories, fill four shared slots, write the owner, and navigate?',
+  'Can the local preset path produce five categories, confirm an optional loadout, write the owner, and navigate?',
   () => requireModuleFragments('src/mods/mod-pages/pages/talent-draw/page.tsx', [
     'useTalentDrawGeneration',
     'DESTINY_PATTERN_DISPLAY_COUNT',
-    'PATTERN_LOADOUT_SLOT_COUNT',
     'selection.handleConfirm()',
+    '未选择命格 · 进入属性分配',
     'router.prefetch(\'/attribute-alloc\')',
     'TalentDrawSelectionView',
   ]),
@@ -138,15 +138,15 @@ check(
   () => {
     requireFragments('src/mods/mod-pages/pages/fate-preview/page.tsx', [
       'const characterConfirmed = hasConfirmedCharacter',
-      'const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)',
+      'const patternLoadoutConfirmed = isPatternLoadoutValid(selectedPatterns, equippedReincarnationTalents)',
        'const worldReady = worldInitialized && !!worldConfig && worldCode > 0',
       'useFatePreviewStart',
-      'const runtimeGateReason = allModsLoaded ? null',
+      'const runtimeGateReason = !allModsLoaded',
       'confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}',
     ])
     requireFragments('src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts', [
       'ensureOrchestratorContextFromStores()',
-      'if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return',
+      'if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !birthReady || !worldReady) return',
       'allModsLoaded',
       "setGamePhase('simulation')",
       "router.push('/game-story')",
@@ -233,7 +233,7 @@ check(
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
       ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 15'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 11'],
-      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 10'],
+      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 11'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])
     return `${stores.length} persisted store contracts present`

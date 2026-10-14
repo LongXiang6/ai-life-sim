@@ -107,6 +107,19 @@
   border-block: 1px solid rgb(168 114 104 / 32%);
 }
 
+.entryBirth {
+  padding-bottom: 22px;
+}
+
+.entryBirthTitle {
+  margin: 0 0 10px;
+  color: var(--flow-ink);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .entryMeta {
   display: flex;
   justify-content: space-between;

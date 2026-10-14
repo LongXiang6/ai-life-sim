@@ -28,7 +28,7 @@
     {
       "path": "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
       "owner": "quality:narrative",
-      "reviewedLines": 799,
+      "reviewedLines": 881,
       "reason": "叙事中文协议回归把消息组装、解析、成长状态和存档投影作为一条完整证据链。"
     },
     {
@@ -36,12 +36,6 @@
       "owner": "quality:narrative",
       "reviewedLines": 1223,
       "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
-    },
-    {
-      "path": "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 465,
-      "reason": "叙事运行时子系统状态回归共享同一恢复、投影和提交生命周期证据。"
     },
     {
       "path": "scripts/check/domains/structural/execution-flow-contracts-runner.ts",

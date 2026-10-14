@@ -40,7 +40,8 @@ export function resolveCharacterAgeDaysFromBasePoints(
 }
 
 export function resolveInitialAgeAnchorBasePoints(totalBasePoints: number): number {
-  return Math.min(CHARACTER_BASE_POINTS_PER_YEAR, Math.max(0, Math.round(totalBasePoints)))
+  void totalBasePoints
+  return 0
 }
 
 export function resolveCharacterAgeDays(

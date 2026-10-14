@@ -174,6 +174,24 @@ async function inspectRoute(page, viewport, route) {
     }
   }
 
+  if (route.name === 'world-select' && width < 768) {
+    await page.click('#world-source-tab-custom')
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('添加自定义世界')))
+    const customActionClearsBottomBar = await page.evaluate(() => {
+      const main = document.querySelector('main')
+      const action = [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('添加自定义世界'))
+      const bottomBar = document.querySelector('[data-flow-bottom-bar]')
+      if (!(main instanceof HTMLElement) || !(action instanceof HTMLElement) || !(bottomBar instanceof HTMLElement)) return false
+      main.scrollTop = main.scrollHeight
+      return action.getBoundingClientRect().bottom <= bottomBar.getBoundingClientRect().top - 15
+    })
+    assertCheck(
+      customActionClearsBottomBar,
+      'custom-world creation action cannot scroll to a clear position above the bottom bar',
+      failures,
+    )
+  }
+
   assertCheck(errors.length === 0, `console errors: ${errors.join(' | ')}`, failures)
 
   await page.screenshot({

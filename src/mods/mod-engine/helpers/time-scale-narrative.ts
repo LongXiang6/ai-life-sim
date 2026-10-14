@@ -54,20 +54,12 @@ const TIME_SCALE_NARRATIVE_PROFILE_BY_KEY = new Map(
 function buildFallbackTimeScaleNarrativeProfile(timeStep: TimeStep): TimeScaleNarrativeProfile {
   const amount = normalizeAmount(timeStep.value)
   const key = `${timeStep.unit}:${amount}`
-  const unitLabel: Record<TimeStep['unit'], string> = {
-    day: '日',
-    month: '个月',
-    season: '季',
-    year: '年',
-  }
-  const nearestProfile = TIME_SCALE_NARRATIVE_PROFILES
-    .filter((profile) => profile.key.startsWith(`${timeStep.unit}:`))
-    .sort((left, right) => left.macroLevel - right.macroLevel)[0]
+  const nearestProfile = TIME_SCALE_NARRATIVE_PROFILES.find((profile) => profile.key === 'year:1')
   return {
     key,
     id: `${timeStep.unit}-calendar-fallback-${amount}`,
     macroLevel: nearestProfile?.macroLevel ?? 40,
-    prompt: `本轮覆盖${amount}${unitLabel[timeStep.unit]}。`,
+    prompt: '本轮覆盖一年。',
   }
 }
 

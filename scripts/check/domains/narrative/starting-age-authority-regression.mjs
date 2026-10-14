@@ -200,8 +200,8 @@ assertOk(
 )
 assertOk(!/\bage\s*:\s*0\b/.test(handleBody), 'handleStartLife must not hard-reset any age field to 0')
 assertOk(
-  handleBody.includes('if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !worldReady) return'),
-  'handleStartLife must enforce character, four-slot loadout, and local world-readiness prerequisites even if invoked outside the disabled button',
+  handleBody.includes('if (isStarting || !characterConfirmed || !patternLoadoutConfirmed || !birthReady || !worldReady) return'),
+  'handleStartLife must enforce character, optional loadout capacity, birth readiness, and local world readiness even outside the disabled button',
 )
 assertOk(
   /allModsLoaded|核心模拟系统尚未加载完成/u.test(handleBody)
@@ -209,13 +209,13 @@ assertOk(
   'handleStartLife must retain the core-runtime readiness check and restore the engine context from Store state',
 )
 assertOk(
-  sourceText.includes('const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)')
-    && sourceText.includes('const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)')
+  sourceText.includes('const patternLoadoutConfirmed = isPatternLoadoutValid(selectedPatterns, equippedReincarnationTalents)')
+    && sourceText.includes('const hasPatterns = isPatternLoadoutValid(selectedPatterns, equippedReincarnationTalents)')
     && sourceText.includes('const worldReady = worldInitialized && !!worldConfig && worldCode > 0')
     && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}')
     && !sourceText.includes("getSubsystemBindings().some(({ id }) => id === 'destiny-pattern')")
     && !sourceText.includes('命格系统尚未准备完成'),
-  'fate preview must require a complete four-slot pattern loadout, local world confirmation, and ready core runtime, without a destiny-subsystem binding gate',
+  'fate preview must allow optional loadouts within capacity, require local world confirmation and ready core runtime, without a destiny-subsystem binding gate',
 )
 assertOk(
   /export const PATTERN_LOADOUT_SLOT_COUNT = 4\b/.test(characterConstantsSourceText),

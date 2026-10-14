@@ -47,14 +47,11 @@ import {
   prepareMainNarrativeRequest,
 } from '../../helpers/main-narrative-call'
 import {
-  startNarrativePreGeneration,
-  takeNarrativePreGeneration,
-} from '../../helpers/narrative-pre-generation'
-import {
   buildNarrativeStoryContinuityPromptInput,
   type NarrativeStoryContinuityPromptInput,
 } from '../../helpers/narrative-story-continuity-context'
 import {
+  inspectNarrativeResponseQuality,
   inspectNarrativeStoryContinuityQuality,
   inspectNarrativeTalentGrowthQuality,
 } from '../../helpers/narrative-response-quality'
@@ -90,6 +87,8 @@ export interface StageRuntimeContext extends RoundContext {
   _playerChoice?: string
   _legendaryEncounterInjected?: boolean
   _narrativeResponse?: string
+  _queuedNarrativeResponses?: string[]
+  _queuedNarrativeRound?: number
   _narrativeParsed?: ParsedNarrative
   _preparedNarrative?: AcceptedNarrativeResult
   _committedRoundResult?: AcceptedNarrativeResult
@@ -392,9 +391,23 @@ export function loadStages(
       maxRounds: 1,
     },
     {
-      name: 'assemble-prompt',
+      name: 'prepare-control-plane',
       phase: 'execute',
       dependsOn: ['collect-states'],
+      order: 400,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onEnter: async (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        if (ctx._isPreparedRoundReattempt) return
+        await orchestrator.prepareConditionalNarrativeControl(aiConfig, promptTemplate, sessionId)
+      },
+      maxRounds: 1,
+    },
+    {
+      name: 'assemble-prompt',
+      phase: 'execute',
+      dependsOn: ['prepare-control-plane'],
       order: 500,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
@@ -427,6 +440,11 @@ export function loadStages(
         if (!ctx._promptContext) throw narrativeRejection('主故事调用缺少叙事上下文。')
 
         const state = orchestrator.getState()
+        const nextQueued = orchestrator.getPendingNarrativeBatch()[0]
+        if (nextQueued && nextQueued.roundSequence !== state.totalRounds) {
+          orchestrator.clearPendingNarrativeBatch()
+        }
+        const queued = nextQueued?.roundSequence === state.totalRounds ? nextQueued : undefined
         const request = prepareMainNarrativeRequest({
           owner: orchestrator,
           promptTemplate,
@@ -436,13 +454,27 @@ export function loadStages(
         })
         let response: string
         let quality
-        let source: 'live' | 'preview' = 'live'
+        const source = 'live' as const
         try {
-          const preGenerated = await takeNarrativePreGeneration(request)
-          const result = preGenerated ?? await executeMainNarrativeRequest(request, 'real')
-          if (preGenerated) source = 'preview'
-          response = result.response
-          quality = result.quality
+          if (queued) {
+            response = queued.response
+            const parsedQueued = inspectNarrativeResponseQuality(
+              response,
+              useSettingsStore.getState().wordCountTarget,
+              undefined,
+              request.segments.userSegments.at(-1),
+            )
+            if (!parsedQueued.valid || !parsedQueued.parsed) {
+              throw narrativeRejection('缓存故事包中的下一轮正文未通过本地协议校验。')
+            }
+            quality = { ...parsedQueued, parsed: parsedQueued.parsed, queuedResponses: [] }
+            ctx._queuedNarrativeRound = state.totalRounds
+          } else {
+            const result = await executeMainNarrativeRequest(request, 'real')
+            response = result.response
+            quality = result.quality
+            ctx._queuedNarrativeResponses = result.queuedResponses
+          }
         } catch (error) {
           orchestrator.noteNarrativeQuality({
             source,
@@ -497,6 +529,19 @@ export function loadStages(
         })
         buildFrozenSpecialistInputs(ctx)
         ctx._committedRoundResult = orchestrator.commitNarrativeResponse(prepared.narrativeId)
+        if (ctx._queuedNarrativeRound !== undefined) {
+          orchestrator.consumePendingNarrativeBatch(ctx._queuedNarrativeRound)
+        }
+        if (ctx._narrativeParsed.branch || ctx._narrativeParsed.endingTitle) {
+          orchestrator.clearPendingNarrativeBatch()
+        } else if (ctx._queuedNarrativeResponses?.length) {
+          orchestrator.setPendingNarrativeBatch(
+            ctx._queuedNarrativeResponses.map((response, index) => ({
+              roundSequence: prepared.roundSequence + index + 1,
+              response,
+            })),
+          )
+        }
         useEngineStore.getState().updatePendingNarrative(
           executionId,
           'committing',
@@ -829,6 +874,14 @@ export function loadStages(
             committedChangeCount,
           })
           orchestrator.finalizeNarrativeResponse(prepared.narrativeId)
+          try {
+            orchestrator.commitNarrativeControlPlaneOutcome()
+          } catch (error) {
+            logger.warn('narrative-control-plane', 'round-outcome-commit-deferred', {
+              round: prepared.roundSequence,
+              reason: error instanceof Error ? error.message : String(error),
+            })
+          }
         } catch (error) {
           await restoreCommittedSteps(restoreSteps, error)
         }
@@ -847,12 +900,6 @@ export function loadStages(
         if (!ctx._committedRoundResult) {
           throw new Error('回合终态缺少已经完整提交的正文结果')
         }
-        startNarrativePreGeneration({
-          owner: orchestrator,
-          promptTemplate,
-          aiConfig,
-          sessionId,
-        })
       },
       maxRounds: 1,
     },

@@ -43,7 +43,7 @@ assertOk(/unit:\s*'day'/.test(timeSteps) && /unit:\s*'month'/.test(timeSteps) &&
 assertOk(!/unit:\s*'event'/.test(timeSteps), 'UI time-step options must remove event nodes')
 assertOk(/normalizeCanonicalTimeStep/.test(resolver), 'resolver must use the canonical step normalizer')
 assertOk(/return \{ calendarAdvance: normalizeCanonicalTimeStep\(step\) \}/.test(resolver), 'resolver must normalize every runtime step at one boundary')
-assertOk(/timeStep:\s*\{\s*unit:\s*'month',\s*value:\s*1\s*\}/.test(engineConstants), 'new-engine default time step must be month:1')
+assertOk(/timeStep:\s*\{\s*unit:\s*'year',\s*value:\s*1\s*\}/.test(engineConstants), 'new-engine default time step must be year:1')
 assertOk(/daysForStep/.test(timeSystem), 'TimeSystem must calculate calendar deltas')
 assertOk(!/advanceAnnualEvent|eventNodeCount|eventNodeIndex|unit === 'event'/.test(timeSystem), 'TimeSystem must not use the event-node clock')
 assertOk(/getBasePointsPassed/.test(orchestrator) && /basePointsPassed:/.test(orchestrator), 'orchestrator must inject base-point deltas')

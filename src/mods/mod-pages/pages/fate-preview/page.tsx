@@ -21,7 +21,7 @@ import {
   ATTRIBUTE_NAMES,
   ATTR_KEYS,
   getPatternLoadoutCount,
-  isPatternLoadoutComplete,
+  isPatternLoadoutValid,
 } from '@/mods/mod-character'
 
 import styles from './FatePreview.module.css'
@@ -32,6 +32,7 @@ import {
   resolvePreviewRaceInfo,
 } from './fate-preview-helpers'
 import { useFatePreviewStart } from './useFatePreviewStart'
+import { useFatePreviewBirthProfile } from './useFatePreviewBirthProfile'
 import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
 
 function FatePreviewContent() {
@@ -61,26 +62,45 @@ function FatePreviewContent() {
 
   const selectedPatterns = useMemo(() => destinyPatterns.patterns ?? [], [destinyPatterns.patterns])
   const characterConfirmed = hasConfirmedCharacter(name, race, startingAge, lifespan)
-  const patternLoadoutConfirmed = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)
+  const patternLoadoutConfirmed = isPatternLoadoutValid(selectedPatterns, equippedReincarnationTalents)
   const patternLoadoutCount = getPatternLoadoutCount(selectedPatterns, equippedReincarnationTalents)
   const creationGateReason = !characterConfirmed
     ? '角色资料尚未确认，请返回角色创建完成确认。'
     : !patternLoadoutConfirmed
-      ? `当前已确认 ${patternLoadoutCount} 项命格；开始人生前必须填满 ${PATTERN_LOADOUT_SLOT_COUNT} 个携带槽。`
+      ? `当前已确认 ${patternLoadoutCount} 项命格，超过 ${PATTERN_LOADOUT_SLOT_COUNT} 个携带槽的容量。`
       : null
   const worldReady = worldInitialized && !!worldConfig && worldCode > 0
+  const {
+    birthProfile,
+    isLoading: birthLoading,
+    error: birthError,
+    retry: retryBirthProfile,
+  } = useFatePreviewBirthProfile({
+    enabled: worldReady && characterConfirmed && patternLoadoutConfirmed,
+    worldCode,
+  })
+  const birthReady = Boolean(birthProfile) && !birthLoading && !birthError
   const { allModsLoaded, handleStartLife, isStarting, startError } = useFatePreviewStart({
     worldReady,
     characterBase,
     characterConfirmed,
     patternLoadoutConfirmed,
+    birthReady,
     gender,
     name,
     startingAge,
     storySeed,
     worldConfig,
   })
-  const runtimeGateReason = allModsLoaded ? null : '核心模拟系统正在加载，请稍候。'
+  const runtimeGateReason = !allModsLoaded
+    ? '核心模拟系统正在加载，请稍候。'
+    : birthLoading
+      ? '正在铺展你的来处，请稍候。'
+      : birthError
+        ? '你的来处暂未铺展，请重试。'
+        : !birthProfile
+          ? '你的来处尚未铺展。'
+          : null
   const startNotice = startError ?? creationGateReason ?? runtimeGateReason
 
   /** 属性加成汇总 */
@@ -133,9 +153,46 @@ function FatePreviewContent() {
             </div>
           </section>
 
+          <section className={`${styles.section} ${styles.birthSection}`} aria-labelledby="birth-profile-title">
+            <div className={styles.sectionHead}>
+              <small id="birth-profile-title">落地人间 · 此身来处</small>
+            </div>
+            {birthLoading ? (
+              <p className={styles.birthLoading}>正在为你铺展初临此世的景象……</p>
+            ) : birthProfile ? (
+              <>
+                <div className={styles.birthNarrativeBlock}>
+                  <small className={styles.birthNarrativeLabel}>初临此世</small>
+                  <p className={styles.birthNarrative}>{birthProfile.叙事背景}</p>
+                </div>
+                <div className={styles.birthFacts}>
+                  <small className={styles.birthFactsLabel}>你的来处</small>
+                  <div className={styles.birthGrid}>
+                    <div className={styles.birthItem}><small>降生之地</small><strong>{birthProfile.出生地点}</strong></div>
+                    <div className={styles.birthItem}><small>家中亲缘</small><strong>{birthProfile.家庭结构}</strong></div>
+                    <div className={styles.birthItem}><small>最初照料</small><strong>{birthProfile.照料者}</strong></div>
+                    <div className={styles.birthItem}><small>家中底色</small><strong>{birthProfile.家庭资源}</strong></div>
+                    <div className={styles.birthItem}><small>所处世道</small><strong>{birthProfile.社会处境}</strong></div>
+                  </div>
+                </div>
+                <div className={styles.birthLists}>
+                  <div><small>眼前门径</small><ul>{birthProfile.机会.map((item) => <li key={item}>{item}</li>)}</ul></div>
+                  <div><small>所受掣肘</small><ul>{birthProfile.限制.map((item) => <li key={item}>{item}</li>)}</ul></div>
+                </div>
+              </>
+            ) : (
+              <div className={styles.birthError}>
+                <p>{birthError ? '你的来处暂未铺展，请重试。' : '你的来处尚未铺展。'}</p>
+                <button type="button" className={styles.retryBtn} onClick={() => void retryBirthProfile()}>
+                  重新铺展
+                </button>
+              </div>
+            )}
+          </section>
+
           <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attributes-patterns-title">
             <div className={styles.sectionHead}>
-              <small id="attributes-patterns-title">根基既定 · 命格相赠</small>
+              <small id="attributes-patterns-title">属性既定 · 命格相赠</small>
             </div>
             <div className={styles.attrGrid}>
               {ATTR_KEYS.map((key) => {
@@ -167,7 +224,7 @@ function FatePreviewContent() {
                     <span>{pattern.description}</span>
                   </div>
                 )
-              }) : <p className={styles.emptyText}>尚未确认命格。</p>}
+              }) : equippedReincarnationTalents.length === 0 ? <p className={styles.emptyText}>未携带天赋。</p> : null}
               {equippedReincarnationTalents.map((pattern) => (
                 <div
                   key={pattern.id}
@@ -215,7 +272,7 @@ function FatePreviewContent() {
         backText="返回"
         backDescription={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
         onConfirm={handleStartLife}
-        confirmText={creationGateReason ? '创建信息未完成' : runtimeGateReason ? '加载模拟系统' : isStarting ? '正在确认…' : '开始人生'}
+        confirmText={creationGateReason ? '创建信息未完成' : runtimeGateReason ? '铺展你的来处' : isStarting ? '正在确认…' : '开始人生'}
         confirmNumber="07"
         confirmDescription={creationGateReason ?? runtimeGateReason ?? '世界与角色资料已确认 · 开启人生'}
         confirmDisabled={Boolean(creationGateReason || runtimeGateReason || isStarting) || !worldReady}
@@ -238,7 +295,7 @@ export default function FatePreviewPage() {
   const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
   const hasWorld = Boolean(worldConfig && worldCode > 0 && worldInitialized)
   const hasCharacter = Boolean(characterName.trim())
-  const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)
+  const hasPatterns = isPatternLoadoutValid(selectedPatterns, equippedReincarnationTalents)
 
   useEffect(() => {
     if (!storesHydrated) return

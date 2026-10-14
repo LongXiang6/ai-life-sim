@@ -34,6 +34,7 @@ export default defineMod({
       'advance-time',
       'subsystem-advance',
       'collect-states',
+      'prepare-control-plane',
       'assemble-prompt',
       'ai-narration',
       'prepare-narrative',

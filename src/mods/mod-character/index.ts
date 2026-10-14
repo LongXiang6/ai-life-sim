@@ -72,7 +72,7 @@ export { useCharacterStore } from './store'
 export {
   assertPatternLoadout,
   getPatternLoadoutCount,
-  isPatternLoadoutComplete,
+  isPatternLoadoutValid,
 } from './pattern-loadout'
 export {
   createDestinyPatternLineageId,

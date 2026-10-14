@@ -55,9 +55,6 @@ export default function WelcomePage() {
     const availableSaves = saveManager.listSaves()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSaves(availableSaves)
-    if (!isDisclaimerAccepted()) {
-      setShowDisclaimer(true)
-    }
   }, [])
 
   useEffect(() => {
@@ -77,12 +74,14 @@ export default function WelcomePage() {
     return () => { active = false }
   }, [accountStatus, addToast])
 
-  const handleStartNewGame = useCallback(async () => {
+  const handleStartNewGame = useCallback(async (event?: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isDisclaimerAccepted()) {
+      event?.preventDefault()
       pendingActionRef.current = 'start-new-game'
       setShowDisclaimer(true)
       return
     }
+    event?.preventDefault()
     if (!await hasAvailableApiConfiguration()) {
       addToast('warning', '当前主叙事模型不可用：请在“模型调用”选择官方厂商预设，可继续填写自己的 API Key', 5000)
       setSettingsTab('model-call')
@@ -90,8 +89,8 @@ export default function WelcomePage() {
       return
     }
     pendingActionRef.current = null
-    router.push('/new-game')
-  }, [router, addToast])
+    window.location.assign('/new-game')
+  }, [addToast])
 
   const handleContinue = useCallback(async (slot: number): Promise<boolean> => {
     try {
@@ -175,12 +174,6 @@ export default function WelcomePage() {
             onDeleteSave={handleDeleteSave}
             onContinueCloudSave={handleContinueCloudSave}
             onDeleteCloudSave={handleDeleteCloudSave}
-            onOpenSettings={() => router.push('/settings')}
-            onOpenAccount={() => router.push('/account')}
-            onOpenHelp={() => router.push('/help')}
-            onOpenFeedback={() => router.push('/feedback')}
-            onOpenLeaderboard={() => router.push('/leaderboard')}
-            onOpenMailbox={() => router.push('/mailbox')}
           />
         </div>
       </div>

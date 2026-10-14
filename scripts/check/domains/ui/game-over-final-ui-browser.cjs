@@ -20,7 +20,7 @@ const mythic = {
   version: 1,
   name: '未熄之诺',
   description: '承诺',
-  category: 'expression',
+  category: 'control',
   rarity: 'mythic',
   effect: '重要承诺会持续留下可追溯的行动方向。',
   attrBonus: {},

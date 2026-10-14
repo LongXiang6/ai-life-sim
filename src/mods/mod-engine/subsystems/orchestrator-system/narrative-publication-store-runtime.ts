@@ -37,6 +37,7 @@ export function publishNarrativeStateToStore(engineState: EngineState): void {
       narrativeHistory,
       currentNarrative: engineState.currentNarrative,
       storyRepetitionStats: structuredClone(engineState.storyRepetitionStats),
+      pendingNarrativeBatch: structuredClone(engineState.pendingNarrativeBatch),
     }
   })
 }

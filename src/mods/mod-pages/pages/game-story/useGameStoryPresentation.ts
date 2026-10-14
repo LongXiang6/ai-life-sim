@@ -22,7 +22,7 @@ import {
   useEngineStore,
   useNarrative,
 } from '@/mods/mod-engine'
-import { formatCurrentNarrativeTimeLabel } from '@/mods/mod-engine/engine-api'
+import { formatCurrentNarrativeTimeLabel, orchestrator } from '@/mods/mod-engine/engine-api'
 import { PRESET_WORLDS, resolvePresetWorldCode, useWorldStore } from '@/mods/mod-world'
 import type { NarrativeEntry } from '@/mods/mod-ui'
 
@@ -82,6 +82,7 @@ export function useGameStoryPresentation({
   totalRounds,
 }: UseGameStoryPresentationOptions) {
   const { narrativeHistory } = useNarrative()
+  const birthProfile = orchestrator.getBirthNarrativeProfile()
   const timeStep = useEngineStore((state) => state.timeStep)
   const health = useCharacterStore((state) => state.characterBase.status?.health) ?? INITIAL_HEALTH
   const characterName = useCharacterStore((state) => state.name)
@@ -178,8 +179,15 @@ export function useGameStoryPresentation({
           : undefined,
       }
     })
+    if (birthProfile?.叙事背景) {
+      entries.unshift({
+        text: birthProfile.叙事背景,
+        ageLabel: '0 岁',
+        isBirth: true,
+      })
+    }
     return entries
-  }, [characterAge, narrativeHistory, narrativeTimeLabel])
+  }, [birthProfile, characterAge, narrativeHistory, narrativeTimeLabel])
 
   const worldSurrounding = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
@@ -205,6 +213,7 @@ export function useGameStoryPresentation({
   return {
     characterAge,
     characterName,
+    hasBirthNarrative: Boolean(birthProfile?.叙事背景),
     destinyPatterns,
     displayBaseAttrs,
     equippedReincarnationTalents,

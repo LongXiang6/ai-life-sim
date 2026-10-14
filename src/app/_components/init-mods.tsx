@@ -1,5 +1,7 @@
 'use client'
 
+/** Purpose: Coordinate client-side MOD startup. Owner: app:init-mods. Responsibility: Restore storage, register routes, and run the MOD bootstrap sequence. */
+
 /**
  * @module InitMods
  * @description MOD 加载入口 —— 轻量壳，重逻辑延迟 dynamic import
@@ -9,6 +11,7 @@
 import { useEffect } from 'react'
 
 import { useGlobalStore } from '@/core/global-store'
+import { initStorage } from '@/core/storage/persist-layer'
 import {
   installGlobalLogHandlers,
   reportDiagnosticSessionEnvironment,
@@ -28,11 +31,8 @@ export function InitMods({ children }: { children: React.ReactNode }) {
     let cancelled = false
 
     void (async () => {
-      await ensureDiagnosticPlayerCode()
+      await initStorage()
       if (cancelled) return
-      await initializeAccountCloudSync()
-      if (cancelled) return
-      void reportDiagnosticSessionEnvironment()
 
       const { registerModRoutes } = await import('./init-mods-routes')
       const result = await registerModRoutes()
@@ -47,6 +47,11 @@ export function InitMods({ children }: { children: React.ReactNode }) {
       }
 
       if (cancelled) return
+      await ensureDiagnosticPlayerCode()
+      if (cancelled) return
+      await initializeAccountCloudSync()
+      if (cancelled) return
+      void reportDiagnosticSessionEnvironment()
 
       const { runModBootstrap } = await import('./init-mods-bootstrap')
       if (cancelled) return

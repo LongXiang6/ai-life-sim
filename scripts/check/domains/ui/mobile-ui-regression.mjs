@@ -69,6 +69,14 @@ function scaledPx(value) {
 }
 
 const welcomePageSrc = readRel('src/mods/mod-pages/pages/welcome/page.tsx')
+const welcomeInitialEffectSrc = welcomePageSrc.slice(
+  welcomePageSrc.indexOf('useEffect(() => {'),
+  welcomePageSrc.indexOf('\n  }, [])'),
+)
+const welcomeStartActionSrc = welcomePageSrc.slice(
+  welcomePageSrc.indexOf('const handleStartNewGame'),
+  welcomePageSrc.indexOf('const handleContinue'),
+)
 const welcomeViewSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeView.tsx')
 const welcomeSaveSheetSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx')
 const welcomeCssSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeView.module.css')
@@ -273,6 +281,24 @@ assertOk(
 )
 assertOk(welcomeViewSrc.includes('🌱 开始新人生') && welcomeViewSrc.includes('⚙️ 设置') && welcomeViewSrc.includes('📜 游戏说明'), 'welcome actions must use the finalized semantic emoji labels')
 assertOk(
+  !welcomeInitialEffectSrc.includes('setShowDisclaimer(true)')
+    && welcomeStartActionSrc.includes('if (!isDisclaimerAccepted())')
+    && welcomeStartActionSrc.includes('setShowDisclaimer(true)'),
+  'the first-use disclaimer must open from the new-life action without blocking welcome-page utilities on initial load',
+)
+assertOk(
+  [
+    'href="/new-game"',
+    'href="/account"',
+    'href="/settings"',
+    'href="/help"',
+    'href="/feedback"',
+    'href="/leaderboard"',
+    'href="/mailbox"',
+  ].every((href) => welcomeViewSrc.includes(href)),
+  'welcome navigation must expose native href targets so embedded browsers remain usable when client-side routing is unavailable',
+)
+assertOk(
   /\.primaryAction:hover,\s*\.primaryAction:focus-visible\s*\{[^}]*background:\s*var\(--flow-accent\);[^}]*color:\s*var\(--text-on-accent/u.test(welcomeCssSrc)
     && !/\.primaryAction:hover,\s*\.primaryAction:focus-visible,\s*\.routeAction/u.test(welcomeCssSrc),
   'welcome primary action hover and focus must preserve the theme accent and high-contrast text',
@@ -405,13 +431,14 @@ assertOk(
   'approved presentation preferences must update actual narrative spacing and motion behavior',
 )
 assertOk(
-  settingsModelSrc.includes('预生成下一轮')
+  settingsModelSrc.includes('批量生成故事')
     && settingsModelSrc.includes('preGenerateRounds === 1')
     && settingsModelSrc.includes('setPreGenerateRounds(preGenerationEnabled ? 0 : 1)')
-    && settingsModelSrc.includes('当前故事与两次并行后调用全部完成后')
+    && settingsModelSrc.includes('一次主故事请求生成当前及后续两轮')
+    && settingsModelSrc.includes('每次点击只发布并结算一轮')
     && !settingsModelSrc.includes('预生成下一轮（已停用）')
     && !settingsModelSrc.includes('下一轮预生成已停用'),
-  'settings must expose the persisted next-round pre-generation switch and describe its post-call timing',
+  'settings must expose the batch-story switch and describe one-round-per-click consumption',
 )
 assertOk(
   settingsPresetsSrc.includes('setProvider(DEFAULT_AI_PROVIDER_ID)')
@@ -529,6 +556,14 @@ assertOk(
     && worldSelectMobileSrc.includes('flow-responsive-layout')
     && bottomActionBarSrc.includes('data-flow-bottom-bar'),
   'WF2 world select must use the native responsive viewport with a shared viewport-anchored bottom bar',
+)
+assertOk(
+  hasCssDeclaration(worldSelectCssSrc, 'screen', 'flex', '0 0 auto')
+    && worldSelectCssSrc.includes('padding: var(--final-flow-content-gutter);')
+    && worldSelectCssSrc.includes('padding-right: 16px;')
+    && worldSelectCssSrc.includes('padding-left: 16px;')
+    && !worldSelectCssSrc.includes('padding: 0 16px;'),
+  'world selection mobile content must preserve its bottom clearance when the responsive horizontal padding changes',
 )
 assertOk(
   worldSelectMainGridSrc.includes('handleRequestClearWorldCache')
@@ -666,11 +701,12 @@ assertOk(
     && hasCssDeclaration(talentDrawCssSrc, 'selectionView', 'display', 'contents')
     && hasCssDeclaration(talentDrawCssSrc, 'progressBar', 'position', 'sticky')
     && talentDrawPageSrc.includes('confirmationRef.current')
-    && talentDrawPageSrc.includes('selectedData.length !== PATTERN_LOADOUT_SLOT_COUNT')
-    && talentDrawPageSrc.includes('assertPatternLoadout(selectedPatterns, selectedMythicPatterns, true)')
+    && !talentDrawPageSrc.includes('selectedData.length !== PATTERN_LOADOUT_SLOT_COUNT')
+    && talentDrawPageSrc.includes('assertPatternLoadout(selectedPatterns, selectedMythicPatterns)')
     && talentDrawPageSrc.includes('useCharacterStore.getState().setPatternLoadout(')
     && talentDrawPageSrc.includes("navigate('/attribute-alloc')")
-    && talentDrawPageSrc.includes('四个携带槽已确认 · 进入属性分配'),
+    && talentDrawPageSrc.includes('未选择命格 · 进入属性分配')
+    && !talentDrawPageSrc.includes('<i>{pattern.effect}</i>'),
   'talent selection must use the finalized shared-slot layout and make one atomic owner commit',
 )
 assertOk(

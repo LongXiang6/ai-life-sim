@@ -1,4 +1,9 @@
 /**
+ * Purpose: Coordinate localStorage and OPFS persistence. Owner: core:storage.
+ * Responsibility: Restore OPFS-backed values and flush queued writes.
+ */
+
+/**
  * @module persist-layer.ts
  * @description localStorage + OPFS 双层持久化层
  * @mod core
@@ -107,7 +112,7 @@ export function enqueueOpfsWrite(key: string, value: string | null): void {
 /**
  * 初始化持久化层：从 OPFS 恢复到 localStorage
  *
- * 调用时机：应用启动时（StorageInit 组件 useEffect 中）
+ * 调用时机：应用启动时（InitMods 注册 MOD 路由前）
  * 幂等：多次调用只执行一次
  *
  * 行为：

@@ -259,6 +259,7 @@ export function finalizeNarrativeResponseRuntime(
   // Round-complete subscribers observe the settled flow; visible story publication happened earlier.
   eventBus.emit('mod-engine:round-complete', structuredClone(prepared.result))
   if (prepared.narrative.endingTitle) {
+    orchestrator.clearPendingNarrativeBatch()
     orchestrator['state'].status = 'complete'
     useEngineStore.setState({ status: 'complete' })
   }

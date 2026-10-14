@@ -64,11 +64,11 @@ const context = {
   existingNames: [],
 }
 const categoryLabels = {
-  action: '根基',
-  cognition: '专精',
-  expression: '特质',
-  stewardship: '规则',
-  misc: '机缘',
+  enhancement: '强化与变身',
+  control: '操控与投射',
+  perception: '感知与信息',
+  summoning: '召唤与分身',
+  creation: '创造与转化',
 }
 const variationWords = [
   '急停转身', '狭窄穿行', '长途负重', '水面平衡',
@@ -195,7 +195,7 @@ const sameContentPatterns = await sameContentSystem.generateWithAI(context)
 assert.equal(sameContentRequestCount, 5, 'same-content candidates must not trigger retries')
 assert.equal(sameContentPatterns.length, 20, 'same-name candidates must retain one canonical name plus three unique names per category')
 assert.equal(
-  sameContentPatterns.filter((pattern) => pattern.name === '根基同名倾向').length,
+  sameContentPatterns.filter((pattern) => pattern.name === '强化与变身同名倾向').length,
   1,
   'same-name candidates must retain only the first candidate in each category',
 )
@@ -223,13 +223,13 @@ assert.equal(overflowPatterns.length, 25, 'initial responses above four items mu
 const injectedSystem = new DestinyPatternSystem()
 const injected = injectedSystem.generateFromAI([
   {
-    category: 'action',
+    category: 'enhancement',
     name: ' 手眼　协调 ',
     description: '处理细小物件时动作较稳。',
     effects: '日常操作中较少出现明显失误。',
   },
   {
-    category: 'action',
+    category: 'enhancement',
     name: '手眼协调',
     description: '处理细小物件时动作较稳。',
     effects: '日常操作中较少出现明显失误。',

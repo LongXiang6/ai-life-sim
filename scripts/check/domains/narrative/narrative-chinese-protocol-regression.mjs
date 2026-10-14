@@ -22,6 +22,7 @@ import { COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT } from '../../../../s
 import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts'
 import { projectNarrativeHistoryEntryRuntime } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts'
 import { formatDestinyPatternsForPrompt } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/prompt-talent-projection.ts'
+import { NarrativeControlPlane } from '../../../../src/mods/mod-engine/helpers/narrative-control-plane.ts'
 
 let failed = 0
 function assertOk(condition, message) {
@@ -107,7 +108,17 @@ assertOk(
   '01 服务端必须按 prompt.txt 最终顺序合成唯一 user 消息',
 )
 assertOk(
-  ["生成一段新的、已经发生并留下结果的人生记录","历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风","先形成会作用于玩家的新外部局面","事件结果是正文唯一的事实底稿","玩家是事件身份、因果主线和正文重心的归属者","空间、环境、光线、声音、触感、气味、物件位置或人物反应","每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串"].every(phrase => composedStoryMessage.includes(phrase)),
+  [
+    '你是宏观事件级的人生模拟器',
+    '叙事以影响玩家人生位置的外部局面与结构变化为中心',
+    '历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风',
+    '先形成改变玩家社会位置、制度机会、资源、组织关系、教育路径、迁徙方向、职业身份或生存条件的外部局面',
+    '正文是宏观事件记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放',
+    '按年或更长跨度时，呈现跨度中的积累、转折和结果如何改变玩家的位置、关系或处境',
+    '事件结果是正文唯一的事实底稿',
+    '玩家是事件身份、因果主线和正文重心的归属者',
+    '每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串',
+  ].every((phrase) => composedStoryMessage.includes(phrase)),
   '01 核心契约必须生成多项独立结果的人生记录，历史只提供既定事实而不锁定主题或写法',
 )
 assertOk(
@@ -218,10 +229,10 @@ assertOk(
   '01 不得泄漏内部状态字段',
 )
 const growthPatterns = [
-  ['lineage-action', '行动命格', 'action', 'epic'],
-  ['lineage-cognition', '认知命格', 'cognition', 'common'],
-  ['lineage-expression', '表达命格', 'expression', 'common'],
-  ['lineage-stewardship', '经营命格', 'stewardship', 'common'],
+  ['lineage-enhancement', '强化命格', 'enhancement', 'epic'],
+  ['lineage-perception', '感知命格', 'perception', 'common'],
+  ['lineage-control', '操控命格', 'control', 'common'],
+  ['lineage-creation', '创造命格', 'creation', 'common'],
 ].map(([lineageId, name, category, rarity], index) => ({
   lineageId,
   version: index + 1,
@@ -348,7 +359,7 @@ const reincarnationSource = {
   id: 'reincarnation-v1',
   name: '回声天赋',
   description: '能把曾经经历过的声音重新带回当前判断。',
-  category: 'cognition',
+  category: 'perception',
   rarity: 'common',
   effect: '在相关事件中恢复关键声音线索。',
   attrBonus: {},
@@ -389,7 +400,7 @@ assertOk(
 const transformationSource = {
   ...structuredClone(growthPatterns[1]),
   id: 'transformation-v1', lineageId: 'transformation-lineage', version: 1,
-  category: 'action', name: '体能强化',
+  category: 'enhancement', name: '体能强化',
   description: '你可以主动强化身体的爆发力。', effect: '发动后身体力量得到局部增强。',
   attrBonus: { physique: 1 },
 }
@@ -756,9 +767,9 @@ assertOk(
 )
 
 assertOk(
-  narrativePrompt.version === '9.26.0'
-    && narrativeStoryContinuityPrompt.version === '3.1.0'
-    && narrativeTalentGrowthPrompt.version === '3.7.0'
+  narrativePrompt.version === '9.30.0'
+    && narrativeStoryContinuityPrompt.version === '3.2.0'
+    && narrativeTalentGrowthPrompt.version === '3.8.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
@@ -776,11 +787,11 @@ assertOk(
   '03 正式固定规则必须区分强度与类型，并按玩家经历重构而不锁定原能力',
 )
 assertOk(
-  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文选择最能证明玩家经历、位置或关系改变且最有故事张力的结果作为重心')
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('阅读重心落在最能证明玩家人生改变且最有故事张力的结果上')
     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('不提供已经形成的状态差事实')
     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('把每件新事推演到现实已经改变并留下可理解的结果')
     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('选择、获得、失去、关系变化、位置变化和代价必须来自因果')
-    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('即使玩家处于幼年或依赖阶段，也要通过合龄的感知、移动、学习、游戏、依恋、恐惧、社交、观察或选择进入因果'),
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('即使玩家处于幼年或依赖阶段，也要写时代、制度、经济、公共危机、教育资源、迁徙或组织变化如何通过照料、资源和机会作用于玩家'),
   '固定主故事 Prompt 必须组织人生局面与故事因果而不设事件配额或强制玩家主动成功',
 )
 assertOk(
@@ -795,5 +806,86 @@ assertOk(
     && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"当前状态"'),
   '固定主故事 Prompt 必须声明六个输出字段，应用只消费四项结果',
 )
-if (failed > 0) process.exit(1); console.log('[narrative-chinese-protocol-regression] PASS')
 
+const controlPlane = new NarrativeControlPlane()
+const controlInput = (roundSequence, ageDays = 0, playerIntent = '') => ({
+  world: { contextId: 'world-a', contextKind: 'world', name: '雾港', description: '沿海城邦' },
+  character: { characterId: 'player-a', name: '岑澜', gender: 'female', background: '港区居民' },
+  context: { roundSequence },
+  subsystemStates: {
+    'character-base': { data: { status: { currentStageId: 'life-stage-2', ageDays } } },
+  },
+  lifeRunId: 'control-plane-smoke',
+  playerIntent,
+  historyLength: roundSequence - 1,
+})
+const firstControlInput = controlInput(1)
+let controlPreparation = controlPlane.inspect(firstControlInput)
+assertOk(
+  controlPreparation.triggers.map((trigger) => trigger.kind).sort().join('|') === 'birth|plan|timeline',
+  '控制平面初始只调用缺少的出生背景、人生规划和世界时间线',
+)
+const birthTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'birth')
+const timelineTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'timeline')
+controlPlane.commitBirth({ 叙事背景: '你在雾港的一户人家出生。' }, birthTrigger.fingerprint)
+controlPlane.commitTimeline([
+  { 事件名称: '港务会重审航道', 目标年龄: 1, 因果前提: '新港道投入使用' },
+], timelineTrigger.fingerprint)
+controlPreparation = controlPlane.inspect(firstControlInput)
+const planTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'plan')
+assertOk(Boolean(planTrigger), '缺少当前规划时才触发人生规划调用')
+controlPlane.commitPlan({ 当前阶段: '成长期', 阶段目标: '完成基础学业' }, planTrigger.fingerprint)
+controlPreparation = controlPlane.inspect(firstControlInput)
+const directionTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'direction')
+const eventTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'event')
+assertOk(Boolean(directionTrigger && eventTrigger), '规划建立后才触发缺失的方向池与抽象事件池')
+controlPlane.commitDirections([
+  { 方向: '寻找新的学习机会' },
+  { 方向: '修复与同伴的信任' },
+  { 方向: '承担一项家庭责任' },
+], directionTrigger.fingerprint)
+controlPlane.commitEvents([
+  { 事件类型: '学业机会' },
+  { 事件类型: '关系摩擦' },
+  { 事件类型: '家庭资源变化' },
+], eventTrigger.fingerprint)
+
+const directionIds = new Set()
+const eventIds = new Set()
+for (let round = 1; round <= 3; round += 1) {
+  const input = controlInput(round)
+  const view = controlPlane.getView(0, controlPreparation.fingerprint, timelineTrigger.fingerprint, String(round))
+  assertOk(view.directionHints.length === 1 && view.eventCandidates.length === 1, '每轮只投影池内抽取的一项软候选')
+  directionIds.add(view.directionHints[0].id)
+  eventIds.add(view.eventCandidates[0].id)
+  controlPlane.commitRoundOutcome({
+    fingerprint: controlPreparation.fingerprint,
+    timelineFingerprint: timelineTrigger.fingerprint,
+    selectedDirectionId: view.directionHints[0].id,
+    selectedEventId: view.eventCandidates[0].id,
+    hadDueWorldEvents: false,
+  })
+  const remainingTriggers = controlPlane.inspect(input).triggers
+  assertOk(
+    round < 3
+      ? remainingTriggers.length === 0
+      : remainingTriggers.map((trigger) => trigger.kind).sort().join('|') === 'direction|event',
+    round < 3 ? '池内仍有候选时不重复调用辅助生成器' : '方向池与事件池耗尽后才重新生成',
+  )
+}
+assertOk(directionIds.size === 3 && eventIds.size === 3, '池内候选逐轮消耗，不连续重复同一方向或事件')
+const dueInput = controlInput(4, 365)
+const duePreparation = controlPlane.inspect(dueInput)
+const dueView = controlPlane.getView(1, duePreparation.fingerprint, timelineTrigger.fingerprint, '4')
+assertOk(dueView.dueWorldEvents.length === 1, '世界时间线承诺到达目标年龄后才进入到期视图')
+controlPlane.commitRoundOutcome({
+  fingerprint: duePreparation.fingerprint,
+  timelineFingerprint: timelineTrigger.fingerprint,
+  hadDueWorldEvents: true,
+})
+assertOk(
+  controlPlane.inspect(dueInput).triggers.some((trigger) => trigger.kind === 'timeline'),
+  '当前世界承诺全部消费后才请求下一批未来时间线',
+)
+
+if (failed > 0) process.exit(1); console.log('[narrative-chinese-protocol-regression] PASS')

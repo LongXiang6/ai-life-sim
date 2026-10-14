@@ -108,6 +108,7 @@ const initialState = {
   currentNarrative: '',
   compressionStats: { compressedRoundCount: 0, lastSourceRound: null, lastAttemptRound: null, lastCompletedAt: 0 },
   compressedSummaries: { summaries: [], } as CompressedSummaries,
+  pendingNarrativeBatch: [],
   lastAutoSaveRound: 0,
   narrativeError: null as string | null,
   pendingNarrative: null as PendingNarrative | null,
@@ -118,7 +119,7 @@ const initialState = {
   legendaryEncounterCheckedForLifeRunId: undefined,
 }
 
-export const ENGINE_STORE_SCHEMA_VERSION = 10
+export const ENGINE_STORE_SCHEMA_VERSION = 11
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -164,6 +165,9 @@ export function migrateEnginePersistedState(
     old.round = round
   }
   old.timeStep = normalizeCanonicalTimeStep(old.timeStep)
+  old.pendingNarrativeBatch = Array.isArray(old.pendingNarrativeBatch)
+    ? old.pendingNarrativeBatch
+    : []
 
   delete old.coreMemoryNpcMap
   return old

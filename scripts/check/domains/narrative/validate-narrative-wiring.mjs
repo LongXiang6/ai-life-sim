@@ -44,8 +44,6 @@ const protocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
 const quality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
 const mainNarrativeCall = read('src/mods/mod-engine/helpers/main-narrative-call.ts')
 const httpTransport = read('src/core/ai-service/ai-client/http-transport.ts')
-const preGenerationPath = path.join(ROOT, 'src/mods/mod-engine/helpers/narrative-pre-generation.ts')
-const preGeneration = fs.existsSync(preGenerationPath) ? fs.readFileSync(preGenerationPath, 'utf8') : ''
 const cachePool = read('src/core/ai-service/cache-pool.ts')
 const promptContextRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts')
 const timelineProjectionRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts')
@@ -78,12 +76,12 @@ assertOk(
     && !mainNarrativeCall.includes("name: 'submit_story_turn'")
     && !mainNarrativeCall.includes('toolChoice')
     && !mainNarrativeCall.includes('responseToolName')
-    && mainNarrativeCall.includes("'real' | 'preview'")
-    && preGeneration.includes('createNarrativeProjection()')
-    && preGeneration.includes("executeMainNarrativeRequest(request, 'preview'")
-    && preGeneration.includes('candidate.fingerprint !== request.fingerprint')
-    && !preGeneration.includes('executeRoundV2('),
-  '01 必须由正式回合或隔离的下一轮正文预生成复用同一请求契约，且不得恢复整轮预览旁路',
+    && mainNarrativeCall.includes('splitNarrativeBatchResponse')
+    && mainNarrativeCall.includes('queuedResponses')
+    && mainNarrativeCall.includes('故事批次')
+    && promptContextRuntime.includes('narrativeBatchSize: 3')
+    && !fs.existsSync(path.join(ROOT, 'src/mods/mod-engine/helpers/narrative-pre-generation.ts')),
+  '01 批次必须由正式主故事响应拆包，且不保留独立预生成入口',
 )
 assertOk(
     !mainNarrativeCall.includes('strict: true')
@@ -96,15 +94,15 @@ assertOk(
   '01 必须宽容解析人生重开文本、简写分支结局与状态行属性，不启用工具或额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '9.26.0'")
-    && narrativePrompt.includes('mod-engine:narrative:9.26.0')
+  narrativePrompt.includes("version: '9.30.0'")
+    && narrativePrompt.includes('mod-engine:narrative:9.30.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.79.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.56.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.55.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
-    && continuityPrompt.includes("version: '3.1.0'")
-    && talentPrompt.includes("version: '3.7.0'")
-    && talentPrompt.includes('mod-engine:narrative-talent-growth:3.7.0')
+    && continuityPrompt.includes("version: '3.2.0'")
+    && talentPrompt.includes("version: '3.8.0'")
+    && talentPrompt.includes('mod-engine:narrative-talent-growth:3.8.0')
     && [narrativePrompt, continuityPrompt, talentPrompt].every((source) => (
       source.includes("systemPrompt: ''") && source.includes('serverPromptAssetId:')
     )),
@@ -113,21 +111,18 @@ assertOk(
 assertOk(
   narrativeServer.includes('composeNarrativeUserMessage')
     && narrativeServer.includes('COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE')
-    && narrativeServer.includes("生成一段新的、已经发生并留下结果的人生记录")
-    && narrativeServer.includes("正文是广角人生记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放")
+    && narrativeServer.includes("你是宏观事件级的人生模拟器")
+    && narrativeServer.includes("不把宏观写成公共报告，也不缩成写实小说式的家庭日常")
+    && narrativeServer.includes("正文是宏观事件记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放")
     && narrativeServer.includes("历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风")
-    && narrativeServer.includes("你是以玩家人生与世界交互为主体的文字游戏式人生重开模拟器")
-    && narrativeServer.includes("面对非标准世界观")
-    && narrativeServer.includes("陌生表达不套用现实默认规则")
     && narrativeServer.includes("世界按自己的规则、资源边界、相关者行动和开放可能性变化")
-    && narrativeServer.includes("家庭只能作为玩家的背景、资源、关系或处境，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线")
+    && narrativeServer.includes("家庭只能作为玩家的背景、资源、关系或处境证据，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线")
     && narrativeServer.includes("玩家是事件身份、因果主线和正文重心的归属者")
-    && narrativeServer.includes("即使玩家处于幼年或依赖阶段，也要通过合龄的感知、移动、学习、游戏、依恋、恐惧、社交、观察或选择进入因果")
-    && narrativeServer.includes("先形成会作用于玩家的新外部局面")
+    && narrativeServer.includes("即使玩家处于幼年或依赖阶段，也要写时代、制度、经济、公共危机、教育资源、迁徙或组织变化如何通过照料、资源和机会作用于玩家")
+    && narrativeServer.includes("先形成改变玩家社会位置、制度机会、资源、组织关系、教育路径、迁徙方向、职业身份或生存条件的外部局面")
     && narrativeServer.includes("事件结果是正文唯一的事实底稿")
     && narrativeServer.includes("正文使用第二人称“你/你的”")
-    && narrativeServer.includes("细节必须服务玩家的行动、位置、关系、结果或代价")
-    && narrativeServer.includes("空间、环境、光线、声音、触感、气味、物件位置或人物反应")
+    && narrativeServer.includes("细节只作为证明玩家行动、位置、关系、结果或代价的少量证据")
     && narrativeServer.includes("本次调用内依次完成")
     && narrativeServer.includes("每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串")
     && narrativeServer.includes('dynamic[0].世界')
@@ -135,7 +130,6 @@ assertOk(
     && narrativeServer.includes('dynamic[2].历史输出')
     && narrativeServer.includes('dynamic[3].玩家本次点属性')
     && narrativeServer.includes('dynamic[4].本次信息')
-    && narrativeServer.includes("篇幅偏好: '正文约100字。'")
     && narrativeServer.includes('时间窗口')
     && narrativeServer.includes('"正文": ""')
     && narrativeServer.includes('"命运分支": false')
@@ -144,9 +138,9 @@ assertOk(
     && narrativeServer.includes('"事件结果": [')
     && narrativeServer.includes('"财富": 0')
     && narrativeServer.includes('"结局": false')
-    && narrativeServer.includes("每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串")
-    && narrativeServer.includes("正文选择最能证明玩家经历、位置或关系改变且最有故事张力的结果作为重心，其他独立结果自然并置、反衬或改变代价。"),
-  '01 必须按 prompt.txt 单向流程合成五段动态数据和六字段输出契约',
+    && narrativeServer.includes('故事批次')
+    && narrativeServer.includes('按年或更长跨度时，呈现跨度中的积累、转折和结果如何改变玩家的位置、关系或处境'),
+  '01 必须按宏观事件级目标编译五段动态数据、批次和故事输出契约',
 )
 assertOk(
   promptContextRuntime.includes('projectNarrativeResultForPrompt')
@@ -239,7 +233,10 @@ assertOk(
     && campaign.includes('getRoundContextSnapshot')
     && campaign.includes('totalBasePoints: roundContext.totalBasePoints')
     && /name: 'commit-round'[\s\S]{0,220}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign)
-    && /name: 'finalize-round'[\s\S]{0,260}dependsOn: \['commit-round'\][\s\S]{0,500}startNarrativePreGeneration\(/u.test(campaign),
+    && campaign.includes('getPendingNarrativeBatch()')
+    && campaign.includes('consumePendingNarrativeBatch(')
+    && campaign.includes('setPendingNarrativeBatch(')
+    && campaign.includes('clearPendingNarrativeBatch()'),
   '正文发布后必须并行执行 02/03，并由 commit-round 唯一汇合',
 )
 assertOk(
@@ -313,4 +310,3 @@ if (failed > 0) {
 }
 
 console.log('[OK] 01 主故事与并行 02/03 接线验证通过')
-

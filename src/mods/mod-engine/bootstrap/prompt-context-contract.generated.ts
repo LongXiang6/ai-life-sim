@@ -27,7 +27,9 @@ export const PROMPT_CONTEXT_FIELDS = [
   "causalChainHint",
   "currentTime",
   "narrativeTimeWindow",
-  "talents"
+  "narrativeBatchSize",
+  "talents",
+  "controlPlane"
 ] as const
 
 /** narrative-prompt 模板 variables[] */

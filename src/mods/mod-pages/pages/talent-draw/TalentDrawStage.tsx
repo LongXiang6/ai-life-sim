@@ -61,7 +61,7 @@ export function TalentDrawStage({
       <div className={styles.ritualCopy}>
         <strong>{phase === 'idle' ? '让命运揭示你的命格' : busyDrawing ? '五类命格正在归位' : '五类首批命印已归位'}</strong>
         <p>{phase === 'idle'
-          ? '准备就绪后开始抽取，根基、专精、特质、规则、机缘五类命格会依次归位。'
+          ? '准备就绪后开始抽取，强化与变身、操控与投射、感知与信息、召唤与分身、创造与转化五类命格会依次归位。'
           : busyDrawing ? generationMessage : '五类首批命印已全部归位。'}</p>
       </div>
       <div className={styles.sealWrap}>

@@ -62,8 +62,8 @@ function seedPage(page) {
       wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true,
     }}))
     localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
-      { id: 'fixture-mythic-1', lineageId: 'fixture-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'expression', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
-      { id: 'fixture-mythic-2', lineageId: 'fixture-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'cognition', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
+      { id: 'fixture-mythic-1', lineageId: 'fixture-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'control', rarity: 'mythic', effect: '重要承诺会留下可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
+      { id: 'fixture-mythic-2', lineageId: 'fixture-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'perception', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
     ] } }))
   }, worldCode)
 }
@@ -302,7 +302,7 @@ async function main() {
     console.error('FATE_PREVIEW_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-4000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled, title: button.title })) })))
     throw error
   }
-  await assertCreationUiContract(page, { header: '06 / 07', primaryText: '开始人生', includes: ['核对命书', '此界此身', '根基既定', '同因同果'] })
+  await assertCreationUiContract(page, { header: '06 / 07', primaryText: '开始人生', includes: ['核对命书', '此界此身', '属性既定', '同因同果'] })
   await capture('preview')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始人生'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))

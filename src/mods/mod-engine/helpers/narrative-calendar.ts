@@ -183,7 +183,7 @@ export function buildNarrativeTimeContext(
     : (eraStartYear !== 0 ? '' : '创世纪元')
   const eraLabel = formatEraYear(calendarYear, defaultEraName)
   const seasonName = SEASON_NAMES[getSeasonForMonth(context.round.month)] ?? ''
-  const timeStep = normalizeCanonicalTimeStep(context.timeStep ?? { unit: 'month', value: 1 })
+  const timeStep = normalizeCanonicalTimeStep(context.timeStep ?? { unit: 'year', value: 1 })
   const timeLabel = formatNarrativePromptTimeLabel(timeStep, eraLabel, context.round)
 
   return {

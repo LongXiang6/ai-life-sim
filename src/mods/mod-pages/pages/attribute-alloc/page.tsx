@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation'
 import {
   getAttrSemantic,
   getAttrTierIndex,
-  isPatternLoadoutComplete,
+  isPatternLoadoutValid,
   useCharacterStore,
 } from '@/mods/mod-character'
 import type { BaseAttributes } from '@/mods/mod-character'
@@ -135,7 +135,7 @@ function AttributeAllocContent() {
             <FlowRunningHead stepLabel="05 / 07" />
             <div className={styles.titleCopy}>
               <h1><span className="semantic-emoji" aria-hidden="true">📜</span>属性分配</h1>
-              <p><span className={styles.deco} aria-hidden="true">❖</span>命格既显，根基待你一一铭定<span className={styles.deco} aria-hidden="true">❖</span></p>
+              <p><span className={styles.deco} aria-hidden="true">❖</span>命格既显，属性待你一一铭定<span className={styles.deco} aria-hidden="true">❖</span></p>
             </div>
           </header>
 
@@ -244,7 +244,7 @@ export default function AttributeAllocPage() {
   const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
   const hasWorld = Boolean(worldConfig && worldCode > 0 && worldInitialized)
   const hasCharacter = Boolean(characterName.trim())
-  const hasPatterns = isPatternLoadoutComplete(selectedPatterns, equippedReincarnationTalents)
+  const hasPatterns = isPatternLoadoutValid(selectedPatterns, equippedReincarnationTalents)
 
   useEffect(() => {
     if (!storesHydrated) return

@@ -21,6 +21,7 @@ export interface NarrativeEntry {
   timestamp?: number
   eraLabel?: string
   ageLabel?: string
+  isBirth?: boolean
   isDeath?: boolean
   isLifeEnd?: boolean
   isBranchPoint?: boolean

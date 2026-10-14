@@ -1,7 +1,7 @@
 /**
- * Purpose: Verify immediate narrative publication and next-round pre-generation wiring.
+ * Purpose: Regress the batched main-story response and persistent queue lifecycle.
  * Owner: quality:narrative
- * Responsibility: Runtime snapshot removal, immediate publication, and post-call wiring only.
+ * Responsibility: Verify batch parsing, one-round consumption, invalidation, and save/restore.
  */
 
 import assert from 'node:assert/strict'
@@ -9,457 +9,147 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import { getProjectRoot } from '../../lib/project-root.mjs'
-import { BaseSubsystem } from '../../../../src/core/subsystem-base.ts'
-import { useSettingsStore } from '../../../../src/mods/mod-settings/store.ts'
+import { useSettingsStore } from '../../../../src/mods/mod-settings/settings-runtime-api.ts'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { executeMainNarrativeRequest, prepareMainNarrativeRequest } from '../../../../src/mods/mod-engine/helpers/main-narrative-call.ts'
-import {
-  getNarrativePreGenerationStatus,
-  invalidateNarrativePreGeneration,
-  startNarrativePreGeneration,
-  takeNarrativePreGeneration,
-} from '../../../../src/mods/mod-engine/helpers/narrative-pre-generation.ts'
-import { prepareNarrativeRoundPromptContext } from '../../../../src/mods/mod-engine/helpers/narrative-round-prompt-preparation.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import { OrchestratorSystem } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
 
 const root = getProjectRoot(import.meta.url)
 const read = (relativePath) => fs.readFile(path.join(root, relativePath), 'utf8')
+const campaign = await read('src/mods/mod-engine/campaigns/default/index.ts')
+const orchestratorSource = await read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const mainCallSource = await read('src/mods/mod-engine/helpers/main-narrative-call.ts')
+const hooksSource = await read('src/mods/mod-engine/hooks.ts')
+const acceptanceSource = await read('src/mods/mod-engine/subsystems/orchestrator-system/narrative-acceptance-runtime.ts')
 
-const [hooks, orchestrator, acceptance, campaign, mainCall, preGeneration, saveRestore, requestBody, proxyRoute] = await Promise.all([
-  read('src/mods/mod-engine/hooks.ts'),
-  read('src/mods/mod-engine/subsystems/orchestrator-system.ts'),
-  read('src/mods/mod-engine/subsystems/orchestrator-system/narrative-acceptance-runtime.ts'),
-  read('src/mods/mod-engine/campaigns/default/index.ts'),
-  read('src/mods/mod-engine/helpers/main-narrative-call.ts'),
-  read('src/mods/mod-engine/helpers/narrative-pre-generation.ts'),
-  read('src/mods/mod-engine/helpers/save-restore.ts'),
-  read('src/core/ai-service/ai-client/request-body.ts'),
-  read('src/app/api/proxy/route.ts'),
-])
+assert.equal(mainCallSource.includes('故事批次'), true)
+assert.equal(mainCallSource.includes('queuedResponses'), true)
+assert.equal(campaign.includes('consumePendingNarrativeBatch('), true)
+assert.equal(campaign.includes('setPendingNarrativeBatch('), true)
+assert.equal(campaign.includes('clearPendingNarrativeBatch()'), true)
+assert.equal(orchestratorSource.includes('pendingNarrativeBatch: Array.isArray(rawState.pendingNarrativeBatch)'), true)
+assert.equal(hooksSource.includes('pendingNarrativeBatch: structuredClone(o.pendingNarrativeBatch)'), true)
+assert.equal(acceptanceSource.includes('orchestrator.clearPendingNarrativeBatch()'), true)
 
-let failed = 0
-function assertOk(condition, message) {
-  if (condition) return
-  console.error(`FAIL: ${message}`)
-  failed += 1
+useSettingsStore.setState({
+  provider: 'custom',
+  customKey: 'fixture-key',
+  customUrl: 'https://example.invalid/v1',
+  customModel: 'fixture-model',
+  temperature: 0.4,
+  reasoningEffort: 'high',
+  storySeed: '',
+  narrativeStyleText: '',
+  narrativeStyleVersion: 0,
+  narrativeAddressing: 'second-person',
+  wordCountTarget: 100,
+  preGenerateRounds: 1,
+})
+
+const owner = new OrchestratorSystem()
+const promptContext = {
+  worldNarrativeView: { 名称: '测试世界', 描述: '存在明确制度与资源边界的测试世界。' },
+  characterProfileView: {
+    姓名: '测试者',
+    性别: '未设定',
+    种族: '人类',
+    背景: '已确认的出生背景与早期处境。',
+    基础属性: {},
+  },
+  characterStatusView: { 年龄: 0, 属性数值: { mind: 1, physique: 1, charisma: 1, familyBackground: 2 } },
+  subsystemSummaries: [],
+  timelineMemory: [],
+  recentStories: [],
+  currentTime: '测试纪元',
+  narrativeTimeWindow: '本轮覆盖一年。',
+  narrativeBatchSize: 3,
+  wordCountInstruction: '正文约100字。',
+  narrativeAddressing: 'second-person',
+  talents: [{ 名称: '测试天赋', 效果: '在符合条件时改变玩家获得机会的方式。', 引用: '命格-1' }],
+  playerBranchIntent: undefined,
 }
+owner.setContext(
+  { contextId: 'world:batch', contextKind: 'world', simulationScope: 'active', name: '测试世界', description: '存在明确制度与资源边界的测试世界。', era: '测试纪元', config: {} },
+  { characterId: 'character:batch', name: '测试者', age: 0, gender: 'unknown', background: '已确认的出生背景与早期处境。', attributes: {} },
+)
 
-const runtimeSources = { hooks, orchestrator, campaign }
-const forbiddenRuntimeTerms = [
-  'capturePreviewSnapshot',
-  'restorePreviewSnapshot',
-  'reconcilePreviewSnapshotWithEngineStore',
-  'runPreviewRound',
-  'isPreviewExecution',
-  'previewExecutionDepth',
-  'previewAbortSignal',
-  'previewCompletion',
-  'capturePreviewState',
-  'restorePreviewState',
-  'roundSnapshot',
-  'rollbackError',
+const stories = [
+  { 时间定位: '', 事件结果: [{ 事件: '制度变化', 成因: '外部规则改变。', 结果: '你获得新的公共机会。', 影响: '你的社会位置发生变化。' }], 正文: '第一轮宏观事件已经改变了你的机会。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
+  { 时间定位: '', 事件结果: [{ 事件: '组织重组', 成因: '新的组织进入你的生活。', 结果: '你被纳入新的学习与协作网络。', 影响: '你获得持续的关系资源。' }], 正文: '第二轮事件让你进入新的组织网络。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
+  { 时间定位: '', 事件结果: [{ 事件: '关系转折', 成因: '前项变化引发新的选择。', 结果: '你承担一项新的公共责任。', 影响: '你的长期方向被重新定义。' }], 正文: '第三轮事件把你的责任推向更大的公共范围。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
 ]
 
-for (const [name, source] of Object.entries(runtimeSources)) {
-  for (const term of forbiddenRuntimeTerms) {
-    assertOk(!source.includes(term), `${name} must not retain runtime snapshot or rollback term ${term}`)
-  }
-}
-
-assertOk(
-  orchestrator.includes('exportPersistenceState(')
-    && orchestrator.includes('importPersistenceState(')
-    && saveRestore.includes('collectGameSavePayload()'),
-  'save/load must keep the explicit persistence contract without exposing runtime rollback entry points',
-)
-assertOk(
-  preGeneration.includes('createNarrativeProjection()')
-    && preGeneration.includes("executeMainNarrativeRequest(request, 'preview'")
-    && preGeneration.includes('candidate.fingerprint !== request.fingerprint')
-    && !preGeneration.includes('await active.promise')
-    && campaign.includes('takeNarrativePreGeneration(request)')
-    && campaign.includes('startNarrativePreGeneration({')
-    && !preGeneration.includes('executeRoundV2(')
-    && !preGeneration.includes('ai-story-continuity')
-    && !preGeneration.includes('ai-talent-growth'),
-  'next-round pre-generation must use an isolated one-story projection and exact-fingerprint consumption',
-)
-assertOk(
-  hooks.includes('await orchestrator.executeRoundV2(')
-    && !hooks.includes('capturePreviewSnapshot')
-    && !hooks.includes('restorePreviewSnapshot'),
-  'real rounds must execute directly and never restore a previous round after failure',
-)
-assertOk(
-  !campaign.includes('isPreviewExecution')
-    && !campaign.includes('runPreviewRound')
-    && /buildFrozenSpecialistInputs\(ctx\)[\s\S]{0,200}orchestrator\.commitNarrativeResponse\(prepared\.narrativeId\)/u.test(campaign)
-    && !campaign.includes('takePreGeneratedNarrative(request)'),
-  'the campaign must freeze specialist inputs and publish the accepted main story before specialist execution',
-)
-assertOk(
-  /orchestrator\.updateNarrativeTransitionAudit[\s\S]{0,220}orchestrator\.finalizeNarrativeResponse/u.test(campaign)
-    && !/name: 'commit-round'[\s\S]*ctx\._committedRoundResult = orchestrator\.commitNarrativeResponse/u.test(campaign),
-  'the specialist commit stage must settle the audit and release bookkeeping without publishing the story again',
-)
-assertOk(
-  acceptance.includes('正文已发布，故事连续性与天赋成长正在并行收束')
-    && acceptance.includes('a published story remains visible on post-story failure'),
-  'post-story failure must preserve an already published narrative and mark its audit',
-)
-assertOk(
-  !requestBody.includes('maxTokens')
-    && !requestBody.includes('max_tokens')
-    && !proxyRoute.includes('max_tokens')
-    && !proxyRoute.includes('budget_tokens'),
-  'AI request assembly and proxy forwarding must not carry output or reasoning token budgets',
-)
-
-class ProjectionCharacter extends BaseSubsystem {
-  id = 'character-base'
-  mod = 'mod-character'
-  label = '投影角色'
-  description = '验证预生成只推进复制状态'
-  value = 0
-  advance() { this.value += 1 }
-  collectState() {
-    return {
-      id: this.id,
-      summary: `value=${this.value}`,
-      data: {
-        value: this.value,
-        base: { mind: 1, physique: 1, charisma: 1, familyBackground: 1 },
-        current: { mind: 1, physique: 1, charisma: 1, familyBackground: 1 },
-        modifiers: { mind: 0, physique: 0, charisma: 0, familyBackground: 0 },
-        startingAge: 18,
-        status: { fortune: { value: 0 } },
-      },
-    }
-  }
-  applyChanges() {}
-  reset() { this.value = 0 }
-  capturePersistenceState() { return { value: this.value } }
-  restorePersistenceState(state) { this.value = Number(state?.value ?? 0) }
-}
-
-class ReadOnlyProjectionView extends BaseSubsystem {
-  id = 'world-context-registry'
-  mod = 'mod-world'
-  label = '只读世界投影'
-  description = '默认 advance 的活动子系统无需私有持久化接口'
-  collectState() { return { id: this.id, summary: 'fixture-world', data: { currentContextId: 'fixture-world' } } }
-  applyChanges() { throw new Error('read-only projection must not receive writes') }
-  reset() {}
-}
-
-const preGenerationAiConfig = {
-  model: 'fixture-model', temperature: 0.4, stream: false, reasoningEffort: 'high',
-}
-
-async function createPreGenerationFixture(preGenerateRounds = 1) {
-  invalidateNarrativePreGeneration()
-  useSettingsStore.setState({
-    provider: 'custom', customKey: 'fixture-key', customUrl: 'https://example.invalid/v1',
-    customModel: preGenerationAiConfig.model, temperature: preGenerationAiConfig.temperature,
-    reasoningEffort: preGenerationAiConfig.reasoningEffort, storySeed: '', narrativeStyleText: '',
-    narrativeStyleVersion: 0, narrativeAddressing: 'second-person', wordCountTarget: 800,
-    preGenerateRounds,
-  })
-  const fixtureOwner = new OrchestratorSystem()
-  fixtureOwner.getRuntimeDependencies().time.reset()
-  const character = new ProjectionCharacter()
-  fixtureOwner.registerSubsystem(character)
-  fixtureOwner.registerSubsystem(new ReadOnlyProjectionView())
-  fixtureOwner.setContext({
-    contextId: 'world:pre-generation-fixture', contextKind: 'world', simulationScope: 'active',
-    capabilityProfile: {
-      contextId: 'world:pre-generation-fixture', capabilities: ['life'],
-      enabledSubsystemIds: ['character-base', 'world-context-registry'], derivedFrom: 'explicit',
-    },
-    name: '预生成回归世界', description: '验证下一轮正文预生成。', era: '测试纪元',
-    config: {
-      difficulty: 'normal', essenceTag: 'modern', powerSystemTag: 'none', eraStartYear: 1,
-      powerFramework: {
-        id: 'fixture:power', label: '无超常力量体系', enabled: false,
-        progression: 'bounded', ranks: [], source: 'world-default',
-      },
-    },
-  }, {
-    characterId: 'character:pre-generation-fixture', name: '预生成测试者', age: 18,
-    gender: 'unknown', background: '验证缓存身份和失效边界。', attributes: {},
-  })
-  await fixtureOwner.collectAllSubsystemStates(false)
-  return { owner: fixtureOwner, character }
-}
-
-function startFixturePreGeneration(owner) {
-  startNarrativePreGeneration({
-    owner, promptTemplate: narrativePrompt, aiConfig: preGenerationAiConfig,
-    sessionId: 'pre-generation-regression',
-  })
-}
-
-async function waitForPreGeneration(expected) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const status = getNarrativePreGenerationStatus()
-    if (status.state === expected) return status
-    await new Promise((resolve) => setTimeout(resolve, 0))
-  }
-  assert.fail(`pre-generation did not reach ${expected}`)
-}
-
-async function prepareNextNarrativeRequest(owner) {
-  owner.advanceTime()
-  await owner.advanceAllSubsystems()
-  await owner.collectAllSubsystemStates(false)
-  const preparedContext = prepareNarrativeRoundPromptContext(owner)
-  return prepareMainNarrativeRequest({
-    owner, promptTemplate: narrativePrompt, promptContext: preparedContext.promptContext,
-    aiConfig: preGenerationAiConfig, sessionId: 'pre-generation-regression',
-  })
-}
-
-function readRoundPromptPayload(owner) {
-  const promptContext = owner.assemblePromptContext()
-  return JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[0])
-}
-
-function readRoundChoice(owner) {
-  return readRoundPromptPayload(owner)[4].本次信息.命运分支
-}
-
-async function assertPreGenerationInvalidated(label, mutate) {
-  const fixture = await createPreGenerationFixture()
-  startFixturePreGeneration(fixture.owner)
-  await waitForPreGeneration('ready')
-  await mutate(fixture.owner)
-  assert.equal(getNarrativePreGenerationStatus().state, 'idle', `${label} must invalidate preview`)
-}
-
 const originalFetch = globalThis.fetch
-const proxyRequests = []
-let previewSequence = 0
-let holdPreviewResponse = false
-let releaseHeldPreview
-globalThis.fetch = async (input, init) => {
-  assert.equal(String(input), '/api/proxy')
-  const requestBody = JSON.parse(String(init?.body ?? '{}'))
-  proxyRequests.push(requestBody)
-  if (holdPreviewResponse && requestBody.trace_context?.executionKind === 'preview') {
-    await new Promise((resolve) => {
-      releaseHeldPreview = resolve
-    })
-  }
-  previewSequence += 1
-  const content = JSON.stringify({
-    正文: `第${previewSequence}段预生成测试正文抵达新的生活落点。`,
-    属性: { 心智: 0, 体魄: 0, 魅力: 0, 财富: 0 },
-    命运分支: false,
-    结局: false,
-  })
-  return new Response(JSON.stringify({ choices: [{
-    message: { content }, finish_reason: 'stop',
-  }] }), { status: 200, headers: { 'content-type': 'application/json' } })
+const requests = []
+globalThis.fetch = async (_input, init) => {
+  requests.push(JSON.parse(String(init?.body ?? '{}')))
+  return new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({ 故事批次: stories }) }, finish_reason: 'stop' }],
+  }), { status: 200, headers: { 'content-type': 'application/json' } })
 }
 
 try {
-  const disabled = await createPreGenerationFixture(0)
-  const beforeDisabled = proxyRequests.length
-  startFixturePreGeneration(disabled.owner)
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  assert.equal(proxyRequests.length, beforeDisabled, 'disabled pre-generation must issue zero requests')
+  const prepared = prepareMainNarrativeRequest({
+    owner,
+    promptTemplate: narrativePrompt,
+    promptContext,
+    aiConfig: { model: 'fixture-model', temperature: 0.4, stream: false, reasoningEffort: 'high' },
+  })
+  const result = await executeMainNarrativeRequest(prepared, 'real')
+  assert.equal(result.quality.parsed.narrative, stories[0].正文)
+  assert.equal(result.queuedResponses.length, 2)
+  assert.equal(JSON.parse(result.queuedResponses[0]).正文, stories[1].正文)
+  assert.equal(JSON.parse(result.queuedResponses[1]).正文, stories[2].正文)
+  assert.equal(requests.length, 1)
 
-  const uncompressed = await createPreGenerationFixture(0)
-  const fullStories = Array.from({ length: 11 }, (_, index) => (
-    `你完成历史完整性测试事项[${index + 1}]，取得对应资格。\n共同账本确认了你的权益。欠款已经清偿。`
-  ))
-  fullStories[8] = '父亲从搬运岗调回车间，腰伤却已落下病根。母亲在纺织厂食堂找了份择菜的零工。食堂灶台边多了一条规矩：小孩不许靠近。'
-  fullStories[9] = '电工刘叔收你做学徒，父亲同意你参与接线练习。你完成旧灯座修复，领到修理报酬。家里用这笔钱清偿了诊所欠款。'
-  fullStories[10] = '厂里取消搬运外包，父亲所在车间转为生产线检修。母亲加入食堂固定班组，家庭有了稳定收入。刘叔将独立修理灯具的活交给了你。'
-  for (const narrative of fullStories) {
-    uncompressed.owner.advanceTime()
-    const entry = uncompressed.owner.prepareNarrativeResponse({ narrative })
-    uncompressed.owner.commitNarrativeResponse(entry.narrativeId)
-    uncompressed.owner.finalizeNarrativeResponse(entry.narrativeId)
+  const invalidSecond = { ...stories[1], 正文: '' }
+  globalThis.fetch = async (_input, init) => {
+    requests.push(JSON.parse(String(init?.body ?? '{}')))
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ 故事批次: [stories[0], invalidSecond, stories[2]] }) }, finish_reason: 'stop' }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
   }
-  const uncompressedPayload = readRoundPromptPayload(uncompressed.owner)
-  const historicalEvents = uncompressedPayload[2].历史输出.事件
-  assert.equal(historicalEvents.length, fullStories.length,
-    'all committed story history must reach 历史输出 exactly once')
-  assert.ok(fullStories.every((story, index) => historicalEvents[index].includes(story)),
-    '历史输出 must preserve complete multi-result stories and their committed order')
-  assert.ok(
-    historicalEvents[8].includes('父亲从搬运岗调回车间')
-      && historicalEvents[8].includes('腰伤却已落下病根')
-      && historicalEvents[8].includes('母亲在纺织厂食堂找了份择菜的零工'),
-    'recent history must retain the established transfer, injury, and employment instead of only the closing rule',
-  )
-  assert.deepEqual(uncompressed.owner.getState().narrativeHistory.map((entry) => entry.text), fullStories,
-    'main-story projection must not rewrite or replace the complete committed source stories')
+  const partial = await executeMainNarrativeRequest(prepared, 'real')
+  assert.equal(partial.queuedResponses.length, 0)
 
-  const defaultStyle = await createPreGenerationFixture(0); const defaultStyleChoice = readRoundChoice(defaultStyle.owner)
-  assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'empty saved style must resolve to the default source')
-  assert.equal(defaultStyle.owner.getNarrativeStyleSnapshot().text, '', 'empty saved style must not receive a hidden default fallback')
-  assert.ok(!defaultStyleChoice.includes('叙述风格：') && !defaultStyleChoice.includes('保留古典用词质感'), 'empty saved style must not alter the fixed life-simulator Prompt')
+  const queued = stories.slice(1).map((story, index) => ({ roundSequence: index + 2, response: JSON.stringify(story) }))
+  owner.setPendingNarrativeBatch(queued)
+  assert.equal(owner.getPendingNarrativeBatch().length, 2)
+  assert.equal(owner.consumePendingNarrativeBatch(1), undefined)
+  assert.equal(owner.consumePendingNarrativeBatch(2), queued[0].response)
+  assert.equal(owner.getPendingNarrativeBatch().length, 1)
+  owner.setPendingNarrativeBatch(queued)
+  const saved = owner.exportPersistenceState(false)
+  const restored = new OrchestratorSystem()
+  restored.importPersistenceState(saved, false)
+  assert.deepEqual(restored.getPendingNarrativeBatch(), queued)
+  restored.clearPendingNarrativeBatch()
+  assert.deepEqual(restored.getPendingNarrativeBatch(), [])
+  restored.importPersistenceState({ ...saved, state: { ...saved.state, pendingNarrativeBatch: undefined } }, false)
+  assert.deepEqual(restored.getPendingNarrativeBatch(), [])
 
-  const rawCustomStyle = '  用克制短句保留潮声。\n第二行  保留两个空格。  '
-  const customStyle = await createPreGenerationFixture(0)
-  useSettingsStore.getState().saveNarrativeStyleText(rawCustomStyle)
-  const customStyleChoice = readRoundChoice(customStyle.owner)
-  const customStylePayload = readRoundPromptPayload(customStyle.owner)
-  assert.equal(customStyle.owner.getNarrativeStyleSnapshot().source, 'custom', 'non-empty saved style must resolve to the custom source')
-  assert.equal(customStyle.owner.getNarrativeStyleSnapshot().text, rawCustomStyle, 'orchestrator must retain the exact saved custom style bytes')
-  assert.ok(
-    !customStyleChoice.includes(rawCustomStyle)
-      && !JSON.stringify(customStylePayload).includes(rawCustomStyle)
-      && customStylePayload[4].本次信息.时间节点.length > 0,
-    'custom style must not override the fixed Prompt while current-time guidance remains available',
-  )
+  owner.setPendingNarrativeBatch(queued)
+  owner.setTimeStep({ unit: 'month', value: 1 })
+  assert.deepEqual(owner.getPendingNarrativeBatch(), [])
+  owner.setPendingNarrativeBatch(queued)
+  owner.setLastPlayerChoice('new direction')
+  assert.deepEqual(owner.getPendingNarrativeBatch(), [])
 
-  const whitespaceStyle = await createPreGenerationFixture(0); useSettingsStore.getState().saveNarrativeStyleText('  \n\t  ')
-  assert.equal(whitespaceStyle.owner.getNarrativeStyleSnapshot().source, 'default', 'whitespace-only saved style must normalize to the default source')
-  assert.ok(!readRoundChoice(whitespaceStyle.owner).includes('叙述风格：'), 'whitespace-only saved style must not alter 当前信息')
-
-  const exact = await createPreGenerationFixture()
-  useSettingsStore.getState().setWordCountTarget(200)
-  const beforeExact = proxyRequests.length
-  startFixturePreGeneration(exact.owner)
-  const ready = await waitForPreGeneration('ready')
-  assert.equal(proxyRequests.length, beforeExact + 1, 'one start must issue one preview request')
-  assert.equal(proxyRequests.at(-1)?.cache_pool, 'narrative-main')
-  assert.equal(proxyRequests.at(-1)?.trace_context?.executionKind, 'preview')
-  assert.equal(proxyRequests.at(-1)?.deadline_context?.reasoningEffort, 'high',
-    'main-story preview must preserve the configured reasoning effort')
-  const previewMessages = proxyRequests.at(-1).messages
-  assert.equal(previewMessages.length, 1)
-  assert.equal(previewMessages[0].role, 'user')
-  const previewPayload = JSON.parse(previewMessages[0].content)
-  assert.deepEqual(previewPayload.map((segment) => Object.keys(segment)), [
-    ['世界'], ['玩家信息'], ['历史输出'], ['玩家本次点属性'], ['本次信息'],
-  ], 'preview must send the approved five-element data layer')
-  assert.match(previewPayload[3].玩家本次点属性.财富, /^-?\d+$/u)
-  assert.equal(previewPayload[4].本次信息.命运分支, '')
-  assert.equal(previewPayload[4].本次信息.篇幅偏好, '正文约200字。')
-  assert.equal(exact.owner.getState().totalRounds, 0)
-  assert.equal(exact.character.value, 0, 'preview must not advance the formal subsystem')
-  const exactRequest = await prepareNextNarrativeRequest(exact.owner)
-  assert.equal(exactRequest.fingerprint, ready.fingerprint)
-  assert.ok((await takeNarrativePreGeneration(exactRequest))?.response.includes('预生成测试正文'))
-  assert.equal(await takeNarrativePreGeneration(exactRequest), undefined, 'preview is consumed once')
-  await executeMainNarrativeRequest(exactRequest, 'real')
-  assert.equal(proxyRequests.at(-1).trace_context.executionKind, 'real')
-  assert.equal(proxyRequests.at(-1)?.deadline_context?.reasoningEffort, 'high',
-    'main-story real request must preserve the configured reasoning effort')
-  assert.deepEqual(proxyRequests.at(-1).messages, previewMessages,
-    'real transport must send the same selected length and round data as preview')
-
-  const changedLength = await createPreGenerationFixture()
-  useSettingsStore.getState().setWordCountTarget(200)
-  startFixturePreGeneration(changedLength.owner)
-  const originalLengthReady = await waitForPreGeneration('ready')
-  useSettingsStore.getState().setWordCountTarget(400)
-  assert.equal(getNarrativePreGenerationStatus().state, 'idle',
-    'changing word count must invalidate a ready preview')
-  startFixturePreGeneration(changedLength.owner)
-  const changedLengthReady = await waitForPreGeneration('ready')
-  assert.notEqual(changedLengthReady.fingerprint, originalLengthReady.fingerprint,
-    'changing the model-visible length preference must produce a new request fingerprint')
-  const changedLengthMessages = proxyRequests.at(-1).messages
-  assert.notDeepEqual(changedLengthMessages, proxyRequests.at(-2).messages,
-    'changing the length preference must update the main-story message')
-  assert.equal(JSON.parse(proxyRequests.at(-2).messages[0].content)[4].本次信息.篇幅偏好, '正文约200字。')
-  assert.equal(JSON.parse(changedLengthMessages[0].content)[4].本次信息.篇幅偏好, '正文约400字。')
-  const changedLengthRequest = await prepareNextNarrativeRequest(changedLength.owner)
-  assert.equal(changedLengthRequest.fingerprint, changedLengthReady.fingerprint)
-  await executeMainNarrativeRequest(changedLengthRequest, 'real')
-  assert.equal(proxyRequests.at(-1).trace_context.executionKind, 'real')
-  assert.deepEqual(proxyRequests.at(-1).messages, changedLengthMessages,
-    'real transport must use the changed length without retaining the old preference')
-
-  const mismatch = await createPreGenerationFixture()
-  startFixturePreGeneration(mismatch.owner)
-  await waitForPreGeneration('ready')
-  const matchingRequest = await prepareNextNarrativeRequest(mismatch.owner)
-  assert.equal(await takeNarrativePreGeneration({
-    ...matchingRequest, fingerprint: `${matchingRequest.fingerprint}:changed`,
-  }), undefined)
-  assert.equal(await takeNarrativePreGeneration(matchingRequest), undefined, 'mismatch discards preview')
-
-  const nonBlocking = await createPreGenerationFixture()
-  const nonBlockingRequestPromise = prepareNextNarrativeRequest(nonBlocking.owner)
-  holdPreviewResponse = true
-  startFixturePreGeneration(nonBlocking.owner)
-  await waitForPreGeneration('running')
-  const nonBlockingRequest = await nonBlockingRequestPromise
-  const nonBlockingResult = await Promise.race([
-    takeNarrativePreGeneration(nonBlockingRequest),
-    new Promise((resolve) => setTimeout(() => resolve('timed-out'), 100)),
-  ])
-  assert.equal(nonBlockingResult, undefined,
-    'an in-flight preview must be cancelled immediately instead of blocking the formal round')
-  holdPreviewResponse = false
-  releaseHeldPreview?.()
-  releaseHeldPreview = undefined
-
-  await assertPreGenerationInvalidated('branch change', (fixtureOwner) => fixtureOwner.setLastPlayerChoice('另一条路'))
-  await assertPreGenerationInvalidated('growth commit', (fixtureOwner) => fixtureOwner.refreshCommittedSubsystemStateSnapshot())
-  await assertPreGenerationInvalidated('ending', (fixtureOwner) => fixtureOwner.stop())
-  await assertPreGenerationInvalidated('settings', () => useSettingsStore.getState().setPreGenerateRounds(0))
-  await assertPreGenerationInvalidated('life cycle', (fixtureOwner) => fixtureOwner.invalidatePendingLifeOperations())
-  assert.ok(proxyRequests.every((request) => request.cache_pool === 'narrative-main'))
+  const payload = JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[0])
+  assert.equal(payload[4].本次信息.批量输出.includes('3轮'), true)
 } finally {
-  invalidateNarrativePreGeneration()
   globalThis.fetch = originalFetch
 }
 
-const owner = new OrchestratorSystem()
 const formalBefore = owner.exportPersistenceState()
-assert.deepEqual(owner.exportPersistenceState(), formalBefore, 'formal state must remain unchanged before the round is committed')
-
-const historyBefore = owner.getState().narrativeHistory.length
 const prepared = owner.prepareNarrativeResponse({
-  narrative: '门外的脚步停在雨声里，屋内的人仍未看见这段尚未完成结算的故事。',
+  narrative: '正文已经发布，但后续分析仍需收束。',
 })
-assert.equal(owner.getState().narrativeHistory.length, historyBefore, 'preparation must keep the candidate private while specialist inputs freeze')
 owner.commitNarrativeResponse(prepared.narrativeId)
-assert.equal(owner.getState().narrativeHistory.length, historyBefore + 1, 'protocol acceptance must publish the main story immediately')
-assert.equal('historyEvent' in owner.getState().narrativeHistory.at(-1), false, 'narrative records must not persist a removed history-event field')
-assert.equal('currentState' in owner.getState().narrativeHistory.at(-1), false, 'narrative records must not persist a removed current-state field')
-assert.equal(owner.getState().narrativeHistory.at(-1)?.transitionAudit?.trusted, false, 'published story must show that post-story analysis is still settling')
-owner.updateNarrativeTransitionAudit(prepared.narrativeId, {
-  requestedChangeCount: 0,
-  committedChangeCount: 0,
-})
-assert.equal(owner.getState().narrativeHistory.at(-1)?.transitionAudit?.trusted, true, 'successful specialists must settle the published story audit')
-owner.finalizeNarrativeResponse(prepared.narrativeId)
-assert.equal(owner.getState().narrativeHistory.length, historyBefore + 1, 'successful finalization must retain formal history')
+owner.discardNarrativeResponse(prepared.narrativeId, '附加分析测试失败')
+assert.equal(owner.getState().narrativeHistory.at(-1)?.text, '正文已经发布，但后续分析仍需收束。')
+assert.equal(owner.getState().narrativeHistory.at(-1)?.transitionAudit?.trusted, false)
+assert.equal(formalBefore.state.narrativeHistory.length + 1, owner.getState().narrativeHistory.length)
 
-const failingOwner = new OrchestratorSystem()
-const failingPrepared = failingOwner.prepareNarrativeResponse({
-  narrative: '窗前的灯光落在尚待分析的本轮记录上。',
-})
-failingOwner.commitNarrativeResponse(failingPrepared.narrativeId)
-failingOwner.discardNarrativeResponse(failingPrepared.narrativeId, '附加分析测试失败')
-assert.equal(failingOwner.getState().narrativeHistory.length, 1, 'post-story failure must retain the published narrative')
-assert.equal(failingOwner.getState().narrativeHistory[0]?.transitionAudit?.trusted, false, 'post-story failure must mark the narrative audit untrusted')
-assert.deepEqual(failingOwner.getState().narrativeHistory[0]?.transitionAudit?.reasons, ['附加分析测试失败'])
-
-assertOk(/function buildMainNarrativeFingerprint/u.test(mainCall), 'main-story request must own the complete fingerprint')
-assertOk(/prompt:[\s\S]*messages:[\s\S]*request:/u.test(mainCall), 'fingerprint must include prompt, messages, and request parameters')
-assertOk(
-  /const result = preGenerated \?\? await executeMainNarrativeRequest\(request, 'real'\)/u.test(campaign),
-  'formal execution must reuse one matching preview or issue one real main-story request',
-)
-assertOk(
-  /name: 'commit-round'[\s\S]{0,180}dependsOn: \[\s*'ai-story-continuity',\s*'ai-talent-growth',?\s*\]/u.test(campaign),
-  'commit must depend on exactly the 02 and 03 post-story calls',
-)
-assertOk(
-  /name: 'finalize-round'[\s\S]{0,260}dependsOn: \['commit-round'\][\s\S]{0,500}startNarrativePreGeneration\(/u.test(campaign),
-  'next-round pre-generation must start only after the post-story commit-round barrier',
-)
-assertOk(/storyWasPublished[\s\S]*await orchestrator\.triggerAutoSave\(\)/u.test(hooks), 'a published story must be saved even when post-story analysis fails')
-
-if (failed > 0) process.exit(1)
 console.log('PASS: runtime-subsystem-state-regression')

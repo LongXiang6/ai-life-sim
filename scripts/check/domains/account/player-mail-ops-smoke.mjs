@@ -90,7 +90,7 @@ try {
     version: 1,
     name: '运维礼包天赋',
     description: '用于验证礼包领取的普通天赋。',
-    category: 'misc',
+    category: 'creation',
     rarity: 'common',
     effect: '进入账号轮回天赋库。',
     attrBonus: { mind: 1, luck: 2 },

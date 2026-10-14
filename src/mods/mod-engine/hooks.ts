@@ -156,6 +156,7 @@ export function syncOrchestratorToEngineStore(): void {
     currentNarrative: o.currentNarrative,
     compressionStats: { ...o.compressionStats },
     compressedSummaries: structuredClone(o.compressedSummaries),
+    pendingNarrativeBatch: structuredClone(o.pendingNarrativeBatch),
     lastAutoSaveRound: o.lastAutoSaveRound,
     storyRepetitionStats: structuredClone(o.storyRepetitionStats),
   }))

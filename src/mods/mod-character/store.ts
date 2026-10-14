@@ -207,7 +207,7 @@ export const useCharacterStore = create<CharacterStore>()(
       }),
       setPatternLoadout: (patterns, reincarnationTalents, candidates) => set((state) => {
         const equippedReincarnationTalents = normalizeEquippedReincarnationTalents(reincarnationTalents)
-        assertPatternLoadout(patterns, equippedReincarnationTalents, true)
+        assertPatternLoadout(patterns, equippedReincarnationTalents)
         const rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 } satisfies DestinyPatternState['rarityCount']
         for (const pattern of patterns) rarityCount[pattern.rarity]++
         return {

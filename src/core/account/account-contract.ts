@@ -20,17 +20,33 @@ export const REINCARNATION_LIBRARY_MAX_SLOTS = 36
 export const ACCOUNT_MAX_SESSIONS = 5
 export const ACCOUNT_SYNC_BODY_LIMIT = 256 * 1024
 
-const DESTINY_PATTERN_CATEGORY_VALUES = ['action', 'cognition', 'expression', 'stewardship', 'misc'] as const
+const DESTINY_PATTERN_CATEGORY_VALUES = ['enhancement', 'control', 'perception', 'summoning', 'creation'] as const
 const DESTINY_PATTERN_CATEGORY_MIGRATION: Readonly<Record<string, (typeof DESTINY_PATTERN_CATEGORY_VALUES)[number]>> = {
-  action: 'action',
-  cognition: 'cognition',
-  expression: 'expression',
-  stewardship: 'stewardship',
-  misc: 'misc',
-  battle: 'action',
-  exploration: 'cognition',
-  social: 'expression',
-  production: 'stewardship',
+  enhancement: 'enhancement',
+  control: 'control',
+  perception: 'perception',
+  summoning: 'summoning',
+  creation: 'creation',
+  action: 'enhancement',
+  battle: 'enhancement',
+  movement: 'enhancement',
+  foundation: 'enhancement',
+  cognition: 'perception',
+  knowledge: 'perception',
+  exploration: 'perception',
+  specialization: 'perception',
+  expression: 'control',
+  communication: 'control',
+  social: 'control',
+  trait: 'control',
+  stewardship: 'creation',
+  management: 'creation',
+  production: 'creation',
+  manufacture: 'creation',
+  rule: 'creation',
+  misc: 'creation',
+  miscellaneous: 'creation',
+  opportunity: 'creation',
 }
 
 /** Cloud boundary migration: legacy category values are normalized once on parse. */

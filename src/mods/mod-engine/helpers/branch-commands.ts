@@ -10,10 +10,9 @@
 
 import { useEngineStore } from '../store'
 import { orchestrator } from '../subsystems/orchestrator-system'
-import { invalidateNarrativePreGeneration } from './narrative-pre-generation'
 /** 切换“下轮强制分支”。 */
 export function setForceBranchNextRound(value: boolean): void {
-  if (useEngineStore.getState().forceBranchNext !== value) invalidateNarrativePreGeneration()
+  if (useEngineStore.getState().forceBranchNext !== value) orchestrator.clearPendingNarrativeBatch()
   useEngineStore.getState().setForceBranchNext(value)
 }
 

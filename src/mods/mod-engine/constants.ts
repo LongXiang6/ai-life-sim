@@ -86,7 +86,7 @@ export const REIGN_DURATION = 40
 /** 默认引擎配置 */
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   model: 'deepseek-chat',
-  timeStep: { unit: 'month', value: 1 },
+  timeStep: { unit: 'year', value: 1 },
   temperature: 0.8,
 }
 

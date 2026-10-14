@@ -37,23 +37,43 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '9\.26\.0'/u)
+assert.match(sources.mainPrompt, /version: '9\.30\.0'/u)
+assert(
+  sources.orchestrator.includes('const openingTalents = selectedPatterns.map')
+    && sources.orchestrator.includes('growthHistory')
+    && sources.orchestrator.includes('.sort((left, right) => left.source.version - right.source.version)')
+    && sources.orchestrator.includes('birthContext: {')
+    && sources.orchestrator.includes('getAttrSemantic'),
+  '出生控制平面必须从开局天赋版本投影属性语义与天赋输入',
+)
+assert(
+  sources.mainSystemPrompt.includes('按年或更长跨度时，呈现跨度中的积累、转折和结果'),
+  '主故事 Prompt 必须要求年跨度呈现积累、转折和落地结果',
+)
+assert(
+  sources.fatePreview.includes('初临此世')
+    && sources.fatePreview.includes('你的来处')
+    && !sources.fatePreview.includes('出生事实'),
+  '命运预览的出生板块必须使用沉浸式栏目名',
+)
 // Asset-contract checks do not establish actual generation quality.
 for (const phrase of [
-  "生成一段新的、已经发生并留下结果的人生记录",
-  "正文是广角人生记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放",
+  "生成已经发生并留下结果的人生记录",
+  "正文是宏观事件记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放",
   "历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风",
-  "你是以玩家人生与世界交互为主体的文字游戏式人生重开模拟器",
+  "你是宏观事件级的人生模拟器",
   "世界按自己的规则、资源边界、相关者行动和开放可能性变化",
-  "家庭只能作为玩家的背景、资源、关系或处境，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线",
+  "家庭只能作为玩家的背景、资源、关系或处境证据，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线",
   "玩家是事件身份、因果主线和正文重心的归属者",
-  "即使玩家处于幼年或依赖阶段，也要通过合龄的感知、移动、学习、游戏、依恋、恐惧、社交、观察或选择进入因果",
+  "即使玩家处于幼年或依赖阶段，也要写时代、制度、经济、公共危机、教育资源、迁徙或组织变化如何通过照料、资源和机会作用于玩家",
   "面对非标准世界观",
-  "先形成会作用于玩家的新外部局面",
+  "玩家信息中已经确认的天赋是玩家独有的外挂金手指",
+  "即使超出世界题材或世界没有同类力量体系，也不否定或降格为普通技巧",
+  "先形成改变玩家社会位置、制度机会、资源、组织关系、教育路径、迁徙方向、职业身份或生存条件的外部局面",
   "事件结果是正文唯一的事实底稿",
   "正文使用第二人称“你/你的”",
-  "细节必须服务玩家的行动、位置、关系、结果或代价",
-  "可通过相关的空间、环境、光线、声音、触感、气味、物件位置或人物反应让结果可感知",
+  "细节只作为证明玩家行动、位置、关系、结果或代价的少量证据",
+  "不堆写家庭日常和感官装饰",
   "只返回一个合法 JSON 对象",
   "事件、成因、结果、影响"
 ]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(phrase), phrase)
@@ -77,6 +97,7 @@ assert.match(sources.continuityPrompt, /本轮剧情/u)
 assert.match(sources.continuityPrompt, /未来事件/u)
 assert.match(sources.continuityPrompt, /时间.*剧情.*权重/u)
 assert.match(sources.talentPrompt, /天赋成长的推演者/u)
+assert.match(sources.talentPrompt, /不因跨题材或世界没有同类力量体系而否定、降格或排除其成长/u)
 assert.match(sources.talentPrompt, /下一等级/u)
 assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
 assert.match(sources.talentPrompt, /转变强化依据玩家本局已成立经历和突破契机重新塑造能力/u)
@@ -181,4 +202,3 @@ for (const token of textInferenceTokens) {
 
 assert.match(sources.fatePreview, /startingAge/u)
 console.log('PASS: semantic-authority-audit')
-

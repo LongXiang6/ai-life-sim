@@ -145,8 +145,8 @@ export function SettingsTabModel() {
           </div>
           <div className={styles.sectionRow}>
             <div>
-              <div className={styles.controlTitle}>预生成下一轮</div>
-              <p className={styles.descText}>开启后，当前故事与两次并行后调用全部完成后，自动请求并缓存下一轮正文。</p>
+              <div className={styles.controlTitle}>批量生成故事</div>
+              <p className={styles.descText}>开启后，一次主故事请求生成当前及后续两轮；每次点击只发布并结算一轮。</p>
             </div>
             <div className={styles.toggleLabel}>
               <span className={styles.toggleStatus}>{preGenerationEnabled ? '已开启' : '已关闭'}</span>
@@ -155,7 +155,7 @@ export function SettingsTabModel() {
                 role="switch"
                 aria-checked={preGenerationEnabled}
                 onClick={() => setPreGenerateRounds(preGenerationEnabled ? 0 : 1)}
-                title={preGenerationEnabled ? '点击关闭下一轮预生成' : '点击开启下一轮预生成'}
+                title={preGenerationEnabled ? '点击关闭批量生成故事' : '点击开启批量生成故事'}
                 className={styles.toggleTrack}
               >
                 <div className={styles.toggleThumb} />

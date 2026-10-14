@@ -41,8 +41,8 @@ function seedPage(page) {
       narrativeStyle: 'default', wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true,
     }}))
     localStorage.setItem('mod-character:persist:reincarnation-library', JSON.stringify({ version: 1, state: { talents: [
-      { id: 'live-mythic-1', lineageId: 'live-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'expression', rarity: 'mythic', effect: '重要承诺会保留可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '真实测试', characterName: '旧角色' } },
-      { id: 'live-mythic-2', lineageId: 'live-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'cognition', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '真实测试', characterName: '旧角色' } },
+      { id: 'live-mythic-1', lineageId: 'live-mythic-1', version: 1, name: '未熄之诺', description: '承诺', category: 'control', rarity: 'mythic', effect: '重要承诺会保留可追溯的行动方向。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 1, source: { worldName: '真实测试', characterName: '旧角色' } },
+      { id: 'live-mythic-2', lineageId: 'live-mythic-2', version: 1, name: '回声拾光', description: '记忆', category: 'perception', rarity: 'mythic', effect: '重要关系会保留可回到现场的线索。', attrBonus: {}, strengthenLevel: 1, acquiredAt: 2, source: { worldName: '真实测试', characterName: '旧角色' } },
     ] } }))
   }, worldCode)
 }

@@ -72,7 +72,7 @@ export interface CharacterBaseState {
 export type DestinyPatternRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
 
 /** 命格所属的主要作用机制；轮回天赋沿用同一分类契约。 */
-export type DestinyPatternCategory = 'action' | 'cognition' | 'expression' | 'stewardship' | 'misc'
+export type DestinyPatternCategory = 'enhancement' | 'control' | 'perception' | 'summoning' | 'creation'
 
 /** 命格成长路线。 */
 export type DestinyPatternGrowthRoute = '深度强化' | '广度强化' | '转变强化'

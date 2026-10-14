@@ -15,7 +15,7 @@ export const DEFAULT_TALENT_GROWTH_LIVE_EVAL_SAMPLES = [
   'growth-history-continuity',
 ]
 
-function pattern({ lineageId, name, category = 'cognition', rarity = 'common', description, effect, attrBonus = { familyBackground: 1 } }) {
+function pattern({ lineageId, name, category = 'perception', rarity = 'common', description, effect, attrBonus = { familyBackground: 1 } }) {
   return {
     lineageId,
     version: 1,
@@ -116,7 +116,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
         pattern({
           lineageId: 'lineage:fortune-sense',
           name: '拾遗识宝',
-          category: 'cognition',
+          category: 'perception',
           description: '偶尔在杂乱环境中发现被忽略的物件。',
           effect: '在少数探索中可能注意到被遮挡的普通物件，但本局正文没有直接结果。',
           attrBonus: { luck: 1 },

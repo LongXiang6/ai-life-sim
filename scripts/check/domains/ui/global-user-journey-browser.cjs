@@ -56,9 +56,11 @@ async function assertPage(page, label) {
 async function testWelcomeUtilities(page) {
   await page.goto(`${baseUrl}/welcome`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
+  const disclaimerOnLoad = await page.$('[role="dialog"]')
+  if (disclaimerOnLoad) throw new Error('first-use disclaimer must not cover welcome actions on initial load')
   const welcome = await assertPage(page, 'welcome')
 
-  await clickText(page, '设置')
+  await clickText(page, '设置', 'a')
   await page.waitForSelector('[role="dialog"]')
   for (const tab of ['模型设置', '模型调用', '个性化']) {
     await clickText(page, tab, '[role="tab"]')
@@ -74,7 +76,7 @@ async function testWelcomeUtilities(page) {
   if (!settings.dialogInsideViewport || settings.tabs.length !== 3) throw new Error(`settings contract failed: ${JSON.stringify(settings)}`)
   await page.click('button[aria-label="关闭设置"]')
 
-  await clickText(page, '游戏说明')
+  await clickText(page, '游戏说明', 'a')
   await page.waitForSelector('[role="dialog"] nav[aria-label="说明章节"]')
   const chapters = await page.$$('[role="dialog"] nav[aria-label="说明章节"] button')
   for (const chapter of chapters) await chapter.click()
@@ -86,6 +88,16 @@ async function testWelcomeUtilities(page) {
   }), chapterCount)
   if (help.chapters === 0 || !help.changelogVisible) throw new Error(`help contract failed: ${JSON.stringify(help)}`)
   await page.click('button[aria-label="关闭说明"]')
+
+  await page.goto(`${baseUrl}/welcome`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('h1')
+  await clickText(page, '开始新人生', 'a')
+  await page.waitForSelector('[role="dialog"]')
+  if (!await page.$eval('[role="dialog"]', (dialog) => dialog.textContent?.includes('开始之前') === true)) {
+    throw new Error('first-use disclaimer must open after the player starts a new life')
+  }
+  await page.click('button[aria-label="退出"]')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
   return { welcome, settings, help }
 }
 
@@ -173,7 +185,6 @@ async function main() {
   page.on('response', (response) => { if (response.status() >= 500) serverErrors.push(`${response.status()} ${new URL(response.url()).pathname}`) })
   await page.evaluateOnNewDocument(() => {
     localStorage.clear()
-    localStorage.setItem('ai-life-sim:disclaimer-accepted', '2.3.0')
     localStorage.setItem('ai-life-sim:mod-character:cache:destiny-pool:2', JSON.stringify({ cached: true }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,

@@ -160,6 +160,11 @@ export interface EngineState {
   lastAutoSaveRound: number
   /** 本局故事重复率的持久化聚合快照。 */
   storyRepetitionStats: NarrativeRepetitionSummary
+  /** 一次批量主故事调用中尚未展示的后续故事包。 */
+  pendingNarrativeBatch: Array<{
+    roundSequence: number
+    response: string
+  }>
   /** 本局抽中的低频跨世界传奇；只作为一次性低优先级叙事素材。 */
   legendaryEncounter?: LegendaryEncounterProjection & {
     status: 'selected' | 'injected'

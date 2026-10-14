@@ -11,12 +11,14 @@
 import type { SaveMetadata } from '@/core/storage/save-manager'
 import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 import { FlowRunningHead } from '@/mods/mod-ui'
+import type { MouseEvent } from 'react'
+import Link from 'next/link'
 
 import styles from './WelcomeView.module.css'
 import WelcomeSaveSheet from './WelcomeSaveSheet'
 
 interface WelcomeViewProps {
-  onStartNewGame: () => void
+  onStartNewGame: (event?: MouseEvent<HTMLAnchorElement>) => void
   runtimeReady: boolean
   saves: SaveMetadata[]
   cloudSave: CloudManualSaveSummary | null
@@ -26,12 +28,6 @@ interface WelcomeViewProps {
   onDeleteSave: (slot: number) => Promise<boolean>
   onContinueCloudSave: () => Promise<boolean>
   onDeleteCloudSave: () => Promise<boolean>
-  onOpenSettings: () => void
-  onOpenAccount: () => void
-  onOpenHelp: () => void
-  onOpenFeedback: () => void
-  onOpenLeaderboard: () => void
-  onOpenMailbox: () => void
 }
 
 export default function WelcomeView({
@@ -45,12 +41,6 @@ export default function WelcomeView({
   onDeleteSave,
   onContinueCloudSave,
   onDeleteCloudSave,
-  onOpenSettings,
-  onOpenAccount,
-  onOpenHelp,
-  onOpenFeedback,
-  onOpenLeaderboard,
-  onOpenMailbox,
 }: WelcomeViewProps) {
   const hasAnySave = saves.length > 0 || Boolean(cloudSave)
 
@@ -61,17 +51,17 @@ export default function WelcomeView({
       </div>
 
       <nav className={styles.quickActions} aria-label="排行榜与邮箱">
-        <button type="button" onClick={onOpenLeaderboard} aria-label="打开排行榜" title="排行榜">
+        <Link href="/leaderboard" aria-label="打开排行榜" title="排行榜">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M8 4h8v3a4 4 0 0 1-8 0V4Z" />
             <path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 11v5M8 20h8M9 16h6v4" />
           </svg>
-        </button>
-        <button type="button" onClick={onOpenMailbox} aria-label="打开邮箱" title="邮箱">
+        </Link>
+        <Link href="/mailbox" aria-label="打开邮箱" title="邮箱">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
           </svg>
-        </button>
+        </Link>
       </nav>
 
       <div className={styles.content}>
@@ -82,14 +72,14 @@ export default function WelcomeView({
         </section>
 
         <section className={styles.actions} aria-label="开始与辅助操作">
-          <button
-            type="button"
+          <Link
+            href="/new-game"
             className={styles.primaryAction}
             onClick={onStartNewGame}
             title="进入世界选择界面，创建一个全新的人生"
           >
             🌱 开始新人生
-          </button>
+          </Link>
 
           <div className={styles.routeList}>
             {hasAnySave && (
@@ -109,10 +99,10 @@ export default function WelcomeView({
 
           <div className={styles.sectionDivider} role="presentation" />
           <div className={styles.utilityGrid}>
-            <button type="button" className={styles.utilityAction} onClick={onOpenAccount}>☁️ 账号与云端</button>
-            <button type="button" className={styles.utilityAction} onClick={onOpenSettings}>⚙️ 设置</button>
-            <button type="button" className={styles.utilityAction} onClick={onOpenHelp}>📜 游戏说明</button>
-            <button type="button" className={styles.utilityAction} onClick={onOpenFeedback}>💬 反馈与建议</button>
+            <Link href="/account" className={styles.utilityAction}>☁️ 账号与云端</Link>
+            <Link href="/settings" className={styles.utilityAction}>⚙️ 设置</Link>
+            <Link href="/help" className={styles.utilityAction}>📜 游戏说明</Link>
+            <Link href="/feedback" className={styles.utilityAction}>💬 反馈与建议</Link>
           </div>
         </section>
       </div>

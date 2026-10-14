@@ -85,6 +85,7 @@ export default function GamePage() {
     displayBaseAttrs,
     equippedReincarnationTalents,
     genderLabel,
+    hasBirthNarrative,
     health,
     narrativeEntries,
     narrativeHistory,
@@ -100,7 +101,12 @@ export default function GamePage() {
     worldSurrounding,
     worldTagSections,
   } = presentation
-  const projectedNarrativeLength = narrativeHistory.length + (hasVisiblePendingNarrative ? 1 : 0)
+  const projectedNarrativeLength = narrativeHistory.length
+    + (hasBirthNarrative ? 1 : 0)
+    + (hasVisiblePendingNarrative ? 1 : 0)
+  const displayUnresolvedBranchIndex = unresolvedBranchIndex === null
+    ? null
+    : unresolvedBranchIndex + (hasBirthNarrative ? 1 : 0)
   const {
     activeTimeStepKey,
     activeTimeStepLabel,
@@ -294,7 +300,7 @@ export default function GamePage() {
         hasEndingEvent: isDead,
         onAdvance: handleNarrativeAdvance,
         onGoToGameOver: handleGoToGameOver,
-        unresolvedBranchIndex,
+        unresolvedBranchIndex: displayUnresolvedBranchIndex,
         branchTitle,
         branchOptions,
         selectedBranchOptionId,

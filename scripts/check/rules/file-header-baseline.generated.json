@@ -813,19 +813,9 @@
       "sha256": "1689cfbcc22f22f155fdfa180c59449a16fe831dcaa600684a8182d42bda269a"
     },
     {
-      "path": "src/app/_components/init-mods.tsx",
-      "owner": "app:_components",
-      "sha256": "bfbaf406283a3e2af4b896d920972b5008f073c4ab7a18e8ac31471ceed85b72"
-    },
-    {
       "path": "src/app/_components/preference-effects.tsx",
       "owner": "app:_components",
       "sha256": "b71a25a6e07316471600dcd6e7ff237c90c360d066eca0286e7d2ced87db02e8"
-    },
-    {
-      "path": "src/app/_components/storage-init.tsx",
-      "owner": "app:_components",
-      "sha256": "0b9c9e72916f81234c17dbe4a35e3ded427d952d4e5f5710384ec0f34b4e0bab"
     },
     {
       "path": "src/app/[...mod-page]/page.tsx",
@@ -1268,11 +1258,6 @@
       "sha256": "355867415caefc572861781e9bdad25c55cc6d2205841764497b21bc313c7e76"
     },
     {
-      "path": "src/core/storage/persist-layer.ts",
-      "owner": "core:storage",
-      "sha256": "6f78564c3d7cc43b8d602d2b5b94c9368305a1ef0fc3ad04196e3b417cb8d6fd"
-    },
-    {
       "path": "src/core/store-migration/migration-runner.ts",
       "owner": "core:store-migration",
       "sha256": "ff6afc223355c5a43d14a3acf7e161201c369f7448ac133b7a59af33d853636c"
@@ -1690,7 +1675,7 @@
     {
       "path": "src/mods/mod-pages/manifest.ts",
       "owner": "mod-pages",
-      "sha256": "3c0f35f6b46168725c795b330e029ea410ff1ba5a148981c461e41b059a2aafb"
+      "sha256": "f06a8166fbf6e5a61d09d1081313586cf6747fd470fe0eca9f14ba06599395b0"
     },
     {
       "path": "src/mods/mod-pages/pages/character-create/page.tsx",

@@ -80,7 +80,7 @@ const initialData = {
     version: 1,
     name: '照夜星',
     description: '守望',
-    category: 'action',
+    category: 'enhancement',
     rarity: 'mythic',
     effect: '在关键时刻保持清醒。',
     attrBonus: {},

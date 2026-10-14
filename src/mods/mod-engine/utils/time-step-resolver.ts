@@ -16,7 +16,7 @@ export interface ResolvedTick {
 }
 /**
  * Normalize a persisted/UI step to one of the seven public canonical values.
- * Removed or malformed values restore the default one-month step.
+ * Removed or malformed values restore the default one-year step.
  */
 export function resolveTimeStep(step: TimeStep | undefined): ResolvedTick {
   return { calendarAdvance: normalizeCanonicalTimeStep(step) }

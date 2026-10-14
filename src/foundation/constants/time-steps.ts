@@ -59,7 +59,7 @@ export function normalizeCanonicalTimeStep(step: unknown): TimeStep {
       return { unit: unit as TimeStep['unit'], value: Number(rawValue) }
     }
   }
-  return { unit: 'month', value: 1 }
+  return { unit: 'year', value: 1 }
 }
 
 /** 编码为 UI 选择键 `unit:value` */

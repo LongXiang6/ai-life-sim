@@ -174,6 +174,17 @@
       "oversized": []
     },
     {
+      "id": "app:welcome",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app/welcome"
+      ],
+      "files": [
+        "src/app/welcome/page.tsx"
+      ],
+      "oversized": []
+    },
+    {
       "id": "code-generation",
       "responsibility": "从唯一声明源生成确定性接线和索引",
       "directories": [
@@ -698,6 +709,7 @@
         "src/foundation/types/mod.types.ts",
         "src/foundation/types/narrative.types.ts",
         "src/foundation/types/narrative/content-policy.ts",
+        "src/foundation/types/narrative/control-plane.ts",
         "src/foundation/types/narrative/difficulty.ts",
         "src/foundation/types/narrative/memory.ts",
         "src/foundation/types/narrative/stage.ts",
@@ -1141,8 +1153,11 @@
         "src/mods/mod-engine/helpers/narrative-calendar.ts",
         "src/mods/mod-engine/helpers/narrative-change-bundle.ts",
         "src/mods/mod-engine/helpers/narrative-context-scope.ts",
+        "src/mods/mod-engine/helpers/narrative-control-plane-call.ts",
+        "src/mods/mod-engine/helpers/narrative-control-plane-input.ts",
+        "src/mods/mod-engine/helpers/narrative-control-plane-normalizers.ts",
+        "src/mods/mod-engine/helpers/narrative-control-plane.ts",
         "src/mods/mod-engine/helpers/narrative-event-candidate-quality.ts",
-        "src/mods/mod-engine/helpers/narrative-pre-generation.ts",
         "src/mods/mod-engine/helpers/narrative-prompt-component-types.ts",
         "src/mods/mod-engine/helpers/narrative-repetition-metrics.ts",
         "src/mods/mod-engine/helpers/narrative-response-quality.ts",
@@ -1330,6 +1345,7 @@
         "src/mods/mod-pages/pages/fate-preview/fate-preview-helpers.ts",
         "src/mods/mod-pages/pages/fate-preview/FatePreview.module.css",
         "src/mods/mod-pages/pages/fate-preview/page.tsx",
+        "src/mods/mod-pages/pages/fate-preview/useFatePreviewBirthProfile.ts",
         "src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts",
         "src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts",
         "src/mods/mod-pages/pages/feedback/Feedback.module.css",
@@ -2143,8 +2159,7 @@
       ],
       "oversized": [
         "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
-        "scripts/check/domains/narrative/playtest-quality-regression.mjs",
-        "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs"
+        "scripts/check/domains/narrative/playtest-quality-regression.mjs"
       ]
     },
     {
