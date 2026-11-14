@@ -98,22 +98,17 @@ const NarrativeAITalentAttributeBonusSchema = z.object({
 })
 
 export const NarrativeAITalentGrowthDataSchema = z.object({
-  成长判定: z.discriminatedUnion('需要成长', [
-    z.object({ 需要成长: z.literal(false) }),
-    z.object({
-      需要成长: z.literal(true),
-      命格血脉编号: z.string().trim().min(1),
-      成长依据: z.string().trim().min(1).max(300),
-      依据窗口编号: z.array(z.string().trim().min(1)).min(1),
-      下一阶方向: z.array(z.object({
-        路线: z.enum(['深度强化', '广度强化', '转变强化']),
-        名称: z.string().trim().min(2).max(6),
-        详细介绍: z.string().trim().min(1).max(300),
-        效果描述: z.string().trim().min(1).max(300),
-        属性加成: NarrativeAITalentAttributeBonusSchema,
-      })),
-    }),
-  ]),
+  命格血脉编号: z.string().trim().min(1),
+  机缘类型: z.enum(['顿悟', '危机觉醒', '传承回响', '异变']),
+  成长依据: z.string().trim().min(1).max(300),
+  依据窗口编号: z.array(z.string().trim().min(1)).min(1),
+  下一阶方向: z.array(z.object({
+    路线: z.enum(['深度强化', '广度强化', '转变强化']),
+    名称: z.string().trim().min(2).max(6),
+    详细介绍: z.string().trim().min(1).max(300),
+    效果描述: z.string().trim().min(1).max(300),
+    属性加成: NarrativeAITalentAttributeBonusSchema,
+  })).length(3),
 })
 
 export const NarrativeAIStoryContinuityMemorySchema = z.array(z.object({

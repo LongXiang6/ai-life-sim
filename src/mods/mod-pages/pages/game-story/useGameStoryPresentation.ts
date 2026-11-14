@@ -13,7 +13,9 @@ import {
   DEFAULT_STAMINA,
   DEFAULT_VITALITY,
   DESTINY_PATTERN_GROWTH_MINIMUM_AGE,
-  DESTINY_PATTERN_RARITY_CONFIG,
+  DESTINY_PATTERN_APTITUDE_CONFIG,
+  DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG,
+  DESTINY_PATTERN_OPPORTUNITY_CONFIG,
   RACE_LIFESPAN,
   type CharacterHealthState,
   useCharacterStore,
@@ -55,12 +57,12 @@ function resolveWorldIcon(
     worldConfig?.essenceTag,
     worldConfig?.powerSystemTag,
   ].filter(Boolean).join(' ')
-  if (/赛博|科幻|星际|机械|科技|未来/u.test(semanticText)) return '🌌'
-  if (/武|战争|军|骑士|战斗|刀|剑/u.test(semanticText)) return '⚔️'
-  if (/魔法|巫|神|灵|修炼|仙|幻想/u.test(semanticText)) return '✨'
-  if (/废土|末日|灾变|生存|荒野/u.test(semanticText)) return '🏜️'
-  if (/恐怖|异常|诡|惊悚/u.test(semanticText)) return '🕯️'
-  return '🌍'
+  if (/赛博|科幻|星际|机械|科技|未来/u.test(semanticText)) return '星'
+  if (/武|战争|军|骑士|战斗|刀|剑/u.test(semanticText)) return '武'
+  if (/魔法|巫|神|灵|修炼|仙|幻想/u.test(semanticText)) return '灵'
+  if (/废土|末日|灾变|生存|荒野/u.test(semanticText)) return '荒'
+  if (/恐怖|异常|诡|惊悚/u.test(semanticText)) return '诡'
+  return '世'
 }
 
 type EngineRound = ReturnType<typeof useEngineStore.getState>['round']
@@ -87,9 +89,15 @@ export function useGameStoryPresentation({
   const health = useCharacterStore((state) => state.characterBase.status?.health) ?? INITIAL_HEALTH
   const characterName = useCharacterStore((state) => state.name)
   const characterAge = useCharacterStore((state) => state.age)
+  const startingAge = useCharacterStore((state) => state.characterBase.startingAge)
   const gender = useCharacterStore((state) => state.gender)
   const race = useCharacterStore((state) => state.race)
   const characterBase = useCharacterStore((state) => state.characterBase)
+  const characterBackground = useCharacterStore((state) => state.background)
+  const characterStatus = characterBase.status
+  const currentLifeStage = characterStatus?.lifeStages.find(
+    (stage) => stage.stageId === characterStatus.currentStageId,
+  ) ?? null
   const destinyPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
   const pendingDestinyPatternGrowth = useCharacterStore((state) => state.destinyPatterns.pendingGrowth)
   const equippedReincarnationTalents = useCharacterStore((state) => state.equippedReincarnationTalents)
@@ -140,14 +148,17 @@ export function useGameStoryPresentation({
   const narrativeEntries = useMemo<NarrativeEntry[]>(() => {
     const projectGrowthPattern = (pattern: {
       name: string
-      rarity: keyof typeof DESTINY_PATTERN_RARITY_CONFIG
+      aptitudeTier: keyof typeof DESTINY_PATTERN_APTITUDE_CONFIG
+      developmentStage: keyof typeof DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG
       description: string
       effect: string
       attrBonus?: Partial<Record<'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck', number>>
     }) => ({
       name: pattern.name,
-      rarity: pattern.rarity,
-      rarityLabel: DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity].label,
+      aptitudeTier: pattern.aptitudeTier,
+      aptitudeLabel: DESTINY_PATTERN_APTITUDE_CONFIG[pattern.aptitudeTier].label,
+      developmentStage: pattern.developmentStage,
+      developmentLabel: DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG[pattern.developmentStage].label,
       description: pattern.description,
       effect: pattern.effect,
       attrBonus: { ...pattern.attrBonus },
@@ -175,6 +186,9 @@ export function useGameStoryPresentation({
             result: chunk.destinyPatternGrowth.result
               ? projectGrowthPattern(chunk.destinyPatternGrowth.result)
               : undefined,
+            opportunityLabel: chunk.destinyPatternGrowth.opportunityKind
+              ? DESTINY_PATTERN_OPPORTUNITY_CONFIG[chunk.destinyPatternGrowth.opportunityKind].label
+              : undefined,
             }
           : undefined,
       }
@@ -186,33 +200,43 @@ export function useGameStoryPresentation({
         isBirth: true,
       })
     }
+    if (startingAge > 0 && birthProfile?.介入前史) {
+      entries.splice(birthProfile.叙事背景 ? 1 : 0, 0, {
+        text: birthProfile.介入前史,
+        ageLabel: `${startingAge} 岁`,
+        isInterventionHistory: true,
+      })
+    }
     return entries
-  }, [birthProfile, characterAge, narrativeHistory, narrativeTimeLabel])
+  }, [birthProfile, characterAge, narrativeHistory, narrativeTimeLabel, startingAge])
 
   const worldSurrounding = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
     if (!worldConfig) return items
-    if (worldConfig.name) items.push({ icon: '🌍', label: '世界', value: worldConfig.name })
+    if (worldConfig.name) items.push({ icon: '', label: '世界', value: worldConfig.name })
     return items
   }, [worldConfig])
   const worldBasicStatus = useMemo(() => [
-    { icon: '📅', label: '纪元', value: narrativeTimeLabel },
-    { icon: '🌤', label: '季节', value: seasonName || '?' },
+    { icon: '', label: '纪元', value: narrativeTimeLabel },
+    { icon: '', label: '季节', value: seasonName || '?' },
   ], [narrativeTimeLabel, seasonName])
   const worldCharStatus = useMemo(() => {
     const items = [
-      { icon: '❤️', label: '生命', value: `${health.vitality}/${health.maxVitality}` },
-      { icon: '💪', label: '体力', value: String(health.stamina) },
-      { icon: '🧠', label: '精神', value: String(health.spirit) },
+      { icon: '', label: '生命', value: `${health.vitality}/${health.maxVitality}` },
+      { icon: '', label: '体力', value: String(health.stamina) },
+      { icon: '', label: '精神', value: String(health.spirit) },
     ]
     const activeConditionCount = health.conditions.filter((condition) => condition.status !== 'resolved').length
-    if (activeConditionCount > 0) items.push({ icon: '🩹', label: '状况', value: String(activeConditionCount) })
+    if (activeConditionCount > 0) items.push({ icon: '', label: '状况', value: String(activeConditionCount) })
     return items
   }, [health])
 
   return {
     characterAge,
+    characterBackground,
     characterName,
+    birthProfile,
+    currentLifeStage,
     hasBirthNarrative: Boolean(birthProfile?.叙事背景),
     destinyPatterns,
     displayBaseAttrs,
@@ -222,6 +246,7 @@ export function useGameStoryPresentation({
     narrativeEntries,
     narrativeHistory,
     narrativeTimeLabel,
+    startingAge,
     pendingDestinyPatternGrowth,
     raceName: (RACE_LIFESPAN[race] ?? { name: race }).name,
     recentRepetitionMetrics: narrativeHistory

@@ -88,12 +88,13 @@ function asInteger(value: unknown, fallback: number): number {
   return Number.isFinite(numeric) ? Math.trunc(numeric) : fallback
 }
 
-function asBoolean(value: unknown): boolean | undefined {
-  if (typeof value === 'boolean') return value
-  const text = asText(value)?.toLocaleLowerCase()
+function normalizeOpportunityKind(value: unknown): '顿悟' | '危机觉醒' | '传承回响' | '异变' | undefined {
+  const text = asText(value)?.replace(/\s+/gu, '')
   if (!text) return undefined
-  if (['true', '1', '是', '需要', '成长', 'yes'].includes(text)) return true
-  if (['false', '0', '否', '不需要', '不成长', 'no'].includes(text)) return false
+  if (/异变|变异|失控|mutation/iu.test(text)) return '异变'
+  if (/危机|险境|创伤|应激|crisis/iu.test(text)) return '危机觉醒'
+  if (/传承|遗物|师承|旧地|legacy/iu.test(text)) return '传承回响'
+  if (/顿悟|领悟|沉淀|insight/iu.test(text)) return '顿悟'
   return undefined
 }
 
@@ -219,30 +220,27 @@ export function inspectNarrativeTalentGrowthQuality(content: string): NarrativeT
   try {
     const raw = asRecord(parseNarrativeAIJson(content))
     if (!raw) throw new Error('天赋成长响应不是对象')
-    const decision = asRecord(pick(raw, ['成长判定', '成长判断', '判定'])) ?? raw
-    const needsGrowth = asBoolean(pick(decision, ['需要成长', '是否成长', '成长'])) ?? false
-    if (!needsGrowth) return { valid: true, reason: '', result: { 成长判定: { 需要成长: false } } }
-
-    const lineageId = asText(pick(decision, ['命格血脉编号', '命格编号', '血脉编号', '编号']))
-      ?? asText(pick(raw, ['命格血脉编号', '命格编号', '血脉编号', '编号']))
+    const lineageId = asText(pick(raw, ['命格血脉编号', '命格编号', '血脉编号', '编号']))
     if (!lineageId) throw new Error('成长结果缺少可识别的命格血脉编号')
+    const opportunityKind = normalizeOpportunityKind(pick(raw, ['机缘类型', '机缘']))
+    if (!opportunityKind) throw new Error('成长结果缺少有效的机缘类型')
     const growthEvidence = boundedText(
-      pick(decision, ['成长依据', '成长证据', '依据']),
+      pick(raw, ['成长依据', '成长证据', '依据']),
       300,
-      '已根据当前回合直接事实判定成长。',
+      '本次机缘已由程序确认。',
     )!
-    const evidenceWindowIds = asArray(pick(decision, ['依据窗口编号', '证据窗口编号', '依据窗口', 'evidenceWindowIds']))
+    const evidenceWindowIds = asArray(pick(raw, ['依据窗口编号', '证据窗口编号', '依据窗口', 'evidenceWindowIds']))
       .map((value) => asText(value))
       .filter((value): value is string => Boolean(value))
     if (evidenceWindowIds.length === 0) throw new Error('成长结果缺少依据窗口编号')
-    const routeValues = asArray(pick(decision, ['下一阶方向', '成长路线', '路线', '方向']))
-    if (routeValues.length < 3) throw new Error('成长结果缺少三条可供选择的路线')
+    const routeValues = asArray(pick(raw, ['下一阶方向', '成长路线', '路线', '方向']))
+    if (routeValues.length !== 3) throw new Error('成长结果必须恰好包含三条路线')
     const requiredRoutes: Array<'深度强化' | '广度强化' | '转变强化'> = ['深度强化', '广度强化', '转变强化']
-    const normalizedRoutes = routeValues.slice(0, 8).map((value, index) => {
+    const normalizedRoutes = routeValues.map((value, index) => {
       const item = asRecord(value) ?? {}
       const route = normalizeRouteName(pick(item, ['路线', '方向', '类型', 'route']))
-        ?? (routeValues.length === 3 ? requiredRoutes[index] : undefined)
-      if (!route) return undefined
+        ?? requiredRoutes[index]
+      if (!route) throw new Error('成长结果包含无法识别的路线')
       const name = boundedText(pick(item, ['名称', '标题', 'name']), 6, route) ?? route
       const detail = boundedText(
         pick(item, ['详细介绍', '介绍', '说明', 'description']),
@@ -257,17 +255,15 @@ export function inspectNarrativeTalentGrowthQuality(content: string): NarrativeT
         效果描述: effect,
         属性加成: normalizeAttributeBonus(pick(item, ['属性加成', '属性', '加成', 'attributeBonus'])),
       }
-    }).filter((value): value is NonNullable<typeof value> => Boolean(value))
+    })
     const byRoute = new Map(normalizedRoutes.map((route) => [route.路线, route]))
     if (byRoute.size !== 3) throw new Error('成长结果无法完整识别三条不同路线')
     const result = NarrativeAITalentGrowthDataSchema.parse({
-      成长判定: {
-        需要成长: true,
-        命格血脉编号: lineageId,
-        成长依据: growthEvidence,
-        依据窗口编号: evidenceWindowIds,
-        下一阶方向: requiredRoutes.map((route) => byRoute.get(route)!),
-      },
+      命格血脉编号: lineageId,
+      机缘类型: opportunityKind,
+      成长依据: growthEvidence,
+      依据窗口编号: evidenceWindowIds,
+      下一阶方向: requiredRoutes.map((route) => byRoute.get(route)!),
     })
     return { valid: true, reason: '', result }
   } catch (error) {

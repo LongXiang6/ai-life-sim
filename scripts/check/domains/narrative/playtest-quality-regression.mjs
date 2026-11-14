@@ -1310,9 +1310,9 @@ assertOk(
   '01 must project existing timeline and recent stories into 历史输出 without a separate current-state field',
 )
 assertOk(
-  talentGrowthPromptSrc.includes('程序筛选')
-    && talentGrowthPromptSrc.includes('多天赋'),
-  '03 must prefer other eligible talents without inventing growth evidence',
+  talentGrowthPromptSrc.includes('机缘已经由程序确认')
+    && talentGrowthPromptSrc.includes('本次机缘对应的唯一天赋'),
+  '03 must generate routes only for the single opportunity selected by the program',
 )
 assertOk(
   promptBuilderSrc.includes('{ 世界: world }')

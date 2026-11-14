@@ -11,6 +11,7 @@ import { decideReincarnationPromotion, createPromotedReincarnationTalent } from 
 import { DestinyPatternSystem } from '../../../../src/mods/mod-character/subsystems/destiny-pattern-system.ts'
 import { parseDestinyPatternAIResponse } from '../../../../src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts'
 import { buildNarrativeTalentGrowthPromptInput } from '../../../../src/mods/mod-engine/helpers/narrative-talent-growth-context.ts'
+import { checkTalentGrowthOpportunity } from '../../../../src/mods/mod-engine/helpers/narrative-talent-opportunity.ts'
 import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts'
 import { ReincarnationTalentSchema } from '../../../../src/core/account/account-contract.ts'
 
@@ -61,8 +62,8 @@ const item = { 类别: 'control', 名称: '折光留影', 简介: '影子展开�
 assert.equal(parseDestinyPatternAIResponse(JSON.stringify({ 天赋: [item, { ...item, 类别: 'battle' }, { ...item, 稀有度: '普通' }] })).length, 1)
 
 const evidence = (count) => Array.from({ length: count }, (_, index) => ({
-  lineageId: source.lineageId, sourceRound: 22 + index, usage: '在灯光下留下残影引开追踪。',
-  result: '残影使追踪者判断失误并成功脱身。', ...(index === count - 1 ? { breakthrough: '紧急脱身中发现了新的操控方式。' } : {}),
+  lineageId: source.lineageId, sourceRound: 22 + index,
+  result: '残影使追踪者判断失误并成功脱身。',
 }))
 const baseInput = {
   patterns: [source], compressedSummaries: { summaries: [] }, recentStories: [], currentRound: 24,
@@ -73,9 +74,8 @@ assert.equal(eligible(), 1)
 assert.equal(eligible({ currentAge: 15 }), 0)
 assert.equal(eligible({ currentAge: 16 }), 1)
 assert.equal(eligible({ growthEvidence: evidence(1) }), 0)
-assert.equal(eligible({ growthEvidence: evidence(2).map(({ breakthrough: _, ...entry }) => entry) }), 1)
 assert.equal(eligible({ growthEvidence: evidence(2).map((entry) => ({ ...entry, sourceRound: 30 })) }), 0)
-assert.equal(eligible({ growthAssessments: [{ lineageId: source.lineageId, evaluatedBreakthroughRound: 23, evaluatedThroughRound: 23 }] }), 0)
+assert.equal(eligible({ growthAssessments: [{ lineageId: source.lineageId, evaluatedThroughRound: 23 }] }), 0)
 const mastered = { ...source, version: 2, developmentStage: 'mastery' }
 const history = { lineageId: source.lineageId, roundSequence: 4, totalBasePoints: 20000, source, result: mastered }
 assert.equal(eligible({ patterns: [mastered], growthHistory: [history] }), 0)
@@ -85,10 +85,46 @@ assert.equal(eligible({ patterns: [mastered], growthHistory: [history], growthEv
 assert.equal(eligible({ growthHistory: [history, history] }), 0)
 assert.equal(eligible({ growthHistory: Array.from({ length: 6 }, (_, index) => ({ ...history, lineageId: `other-${index}` })) }), 0)
 assert.equal(eligible({ patterns: [{ ...source, developmentStage: 'complete' }] }), 0)
+const opportunityWindows = evidence(2).map((entry) => ({
+  id: `round:${entry.sourceRound}`,
+  round: entry.sourceRound,
+  time: `第${entry.sourceRound}轮`,
+  facts: [entry.result],
+}))
+const checkOpportunity = (lifeRunId) => checkTalentGrowthOpportunity({
+  candidates: [{ pattern: source, evidenceWindows: opportunityWindows }],
+  assessments: [],
+  currentRound: 24,
+  currentAge: 40,
+  currentStageId: 'life-stage-3',
+  fortuneValue: 50,
+  lifeRunId,
+})
+const deterministicOpportunity = checkOpportunity('same-life')
+assert.deepEqual(checkOpportunity('same-life'), deterministicOpportunity)
+assert.equal(deterministicOpportunity.checkedAssessments.length, 1)
+assert.equal(deterministicOpportunity.checkedAssessments[0].evaluatedThroughRound, 23)
+let hitOpportunity
+for (let index = 0; index < 200 && !hitOpportunity; index += 1) {
+  hitOpportunity = checkOpportunity(`hit-${index}`).selection
+}
+assert(hitOpportunity)
+assert(['insight', 'crisis', 'legacy', 'mutation'].includes(hitOpportunity.kind))
+assert(hitOpportunity.chance > 0 && hitOpportunity.chance <= 0.25)
+assert.equal(hitOpportunity.pattern.lineageId, source.lineageId)
+const skippedOpportunity = checkTalentGrowthOpportunity({
+  candidates: [{ pattern: source, evidenceWindows: opportunityWindows }],
+  assessments: [{ lineageId: source.lineageId, evaluatedThroughRound: 23 }],
+  currentRound: 25,
+  currentAge: 41,
+  lifeRunId: 'already-checked',
+})
+assert.equal(skippedOpportunity.checkedAssessments.length, 0)
+assert.equal(skippedOpportunity.selection, undefined)
 const rules = JSON.parse(COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT)
-assert(rules.局内成长边界.证据窗口.includes('稳定成功'))
-assert(rules.局内成长边界.证据窗口.includes('重要挑战'))
+assert(rules.目标.includes('只推进一个开发阶段'))
 assert(rules.资质与开发边界.能力连续性.includes('不得削弱'))
+assert(rules.输出契约.不变量.some((rule) => rule.includes('禁止返回不成长')))
 for (const [level, failureRate, severity] of [[5, 10, '轻微异变'], [6, 20, '局部异变'], [7, 30, '明显异变'], [8, 40, '重大异变'], [9, 50, '彻底重组'], [20, 50, '彻底重组']]) {
   const apex = { ...source, aptitudeTier: 9, apexStrengthenLevel: level }
   const failure = decideReincarnationPromotion(apex, () => 0)

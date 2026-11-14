@@ -7,7 +7,7 @@
 import type {
   AttributeModifiers, BaseAttributes, CharacterBaseState, DestinyPattern,
   DestinyPatternGrowthAssessment, DestinyPatternGrowthEvidence, DestinyPatternGrowthHistoryEntry,
-  DestinyPatternGrowthOption, DestinyPatternState,
+  DestinyPatternGrowthOption, DestinyPatternGrowthOpportunityKind, DestinyPatternState,
   LifespanDraftState, PendingDestinyPatternGrowth, ReincarnationTalent,
   DestinyPatternGrowthSource,
 } from '../types'
@@ -228,6 +228,12 @@ function sanitizePendingGrowth(
     || second.route !== '广度强化'
     || third.route !== '转变强化'
   ) return null
+  const opportunityKind = value.opportunityKind === 'insight'
+    || value.opportunityKind === 'crisis'
+    || value.opportunityKind === 'legacy'
+    || value.opportunityKind === 'mutation'
+    ? value.opportunityKind as DestinyPatternGrowthOpportunityKind
+    : undefined
   return {
     choiceId: value.choiceId.trim(),
     narrativeId: value.narrativeId.trim(),
@@ -235,6 +241,7 @@ function sanitizePendingGrowth(
     lineageId: value.lineageId.trim(),
     source,
     options: [first, second, third],
+    ...(opportunityKind ? { opportunityKind } : {}),
   }
 }
 
@@ -323,34 +330,17 @@ function sanitizeGrowthEvidence(value: unknown): DestinyPatternGrowthEvidence[] 
     if (typeof item.lineageId !== 'string' || !item.lineageId.trim()) continue
     if (!Number.isSafeInteger(item.sourceRound) || Number(item.sourceRound) < 1) continue
     if (typeof item.result !== 'string' || !item.result.trim()) continue
-    const usage = typeof item.usage === 'string' && item.usage.trim() ? item.usage.trim() : undefined
     const evidence: DestinyPatternGrowthEvidence = {
       lineageId: item.lineageId.trim(),
       sourceRound: Number(item.sourceRound),
-      ...(usage ? { usage } : {}),
       result: item.result.trim(),
-      ...(typeof item.breakthrough === 'string' && item.breakthrough.trim()
-        ? { breakthrough: item.breakthrough.trim() }
-        : {}),
     }
     const key = `${evidence.lineageId}:${evidence.sourceRound}`
     const previous = byKey.get(key)
     byKey.set(key, previous
       ? {
           ...previous,
-          ...(evidence.usage
-            ? {
-                usage: previous.usage
-                  ? previous.usage.includes(evidence.usage)
-                    ? previous.usage
-                    : `${previous.usage}；${evidence.usage}`
-                  : evidence.usage,
-              }
-            : {}),
           result: previous.result.includes(evidence.result) ? previous.result : `${previous.result}；${evidence.result}`,
-          ...(previous.breakthrough || !evidence.breakthrough
-            ? {}
-            : { breakthrough: evidence.breakthrough }),
         }
       : evidence)
   }
@@ -369,9 +359,6 @@ function sanitizeGrowthAssessments(value: unknown): DestinyPatternGrowthAssessme
     const assessment: DestinyPatternGrowthAssessment = {
       lineageId: item.lineageId.trim(),
       evaluatedThroughRound: Number(item.evaluatedThroughRound),
-      ...(Number.isSafeInteger(item.evaluatedBreakthroughRound) && Number(item.evaluatedBreakthroughRound) >= 1
-        ? { evaluatedBreakthroughRound: Number(item.evaluatedBreakthroughRound) }
-        : {}),
     }
     const previous = latest.get(assessment.lineageId)
     if (!previous || assessment.evaluatedThroughRound > previous.evaluatedThroughRound) {

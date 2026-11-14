@@ -105,19 +105,20 @@ assert.match(sources.continuityPrompt, /人生模拟器的故事连续性提取�
 assert.match(sources.continuityPrompt, /本轮剧情/u)
 assert.match(sources.continuityPrompt, /未来事件/u)
 assert.match(sources.continuityPrompt, /时间.*剧情.*权重/u)
-assert.match(sources.talentPrompt, /天赋成长的推演者/u)
-assert.match(sources.talentPrompt, /不因跨题材或世界没有同类力量体系而否定、降格或排除其成长/u)
-assert.match(sources.talentPrompt, /下一开发阶段/u)
+assert.match(sources.talentPrompt, /天赋进阶路线生成器/u)
+assert.match(sources.talentPrompt, /机缘已经由程序确认/u)
+assert.match(sources.talentPrompt, /不因世界没有同类力量体系而否定或降格/u)
+assert.match(sources.talentPrompt, /目标开发阶段/u)
 assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
-assert.match(sources.talentPrompt, /转变强化依据本局经历和突破契机重塑机制组合/u)
-assert.match(sources.talentPrompt, /三条路线都必须保留当前已成立能力/u)
+assert.match(sources.talentPrompt, /转变强化依据本局经历和机缘气质重塑机制组合/u)
+assert.match(sources.talentPrompt, /三条路线都必须保留当前已经成立的核心能力/u)
 assert.match(sources.talentPrompt, /不得削弱、删除、倒退/u)
-assert.match(sources.talentPrompt, /三条路线均从当前版本出发/u)
+assert.match(sources.talentPrompt, /三条路线都从当前版本出发/u)
 assert.doesNotMatch(sources.talentPrompt, /每条路线保留同一命格的核心来源|不额外扩大影响总量|凡俗可及/u)
 assert.match(sources.talentPrompt, /长期积累/u)
-assert.match(sources.talentPrompt, /时间沉淀/u)
-assert.match(sources.talentPrompt, /明确契机/u)
-assert.match(sources.talentPrompt, /三项共同成立/u)
+assert.match(sources.talentPrompt, /机缘类型/u)
+assert.match(sources.talentPrompt, /禁止返回不成长/u)
+assert.doesNotMatch(sources.talentPrompt, /突破契机|明确契机|三项共同成立/u)
 assert.doesNotMatch(sources.talentPrompt, /感知[^\n]{0,80}不得[^\n]{0,80}(?:创造|消除|操控)/u)
 assert.doesNotMatch(sources.talentPrompt, /判断[^\n]{0,80}不得[^\n]{0,80}(?:创造|消除|操控)/u)
 for (const prompt of [sources.continuityPrompt, sources.talentPrompt]) {
@@ -158,20 +159,15 @@ assert(NarrativeAIStoryContinuityDataSchema.safeParse({
   未来事件: [],
 }).success)
 assert(NarrativeAITalentGrowthDataSchema.safeParse({
-  成长判定: { 需要成长: false },
-}).success)
-assert(NarrativeAITalentGrowthDataSchema.safeParse({
-  成长判定: {
-    需要成长: true,
-    命格血脉编号: 'lineage:test',
-    成长依据: '既有事实明确体现了能力效果。',
-    依据窗口编号: ['round:16', 'round:17'],
-    下一阶方向: [
-      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 2 } },
-      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 财富: 1 } },
-      { 路线: '转变强化', 名称: '机械共鸣', 详细介绍: '你在修复潮门机械后，能够感应并协调近处机械的运转。', 效果描述: '通过共鸣调整机械运动，不再以听潮辨隙为能力机制。', 属性加成: { 心智: 2, 财富: 1 } },
-    ],
-  },
+  命格血脉编号: 'lineage:test',
+  机缘类型: '顿悟',
+  成长依据: '既有事实明确体现了能力效果。',
+  依据窗口编号: ['round:16', 'round:17'],
+  下一阶方向: [
+    { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 2 } },
+    { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 财富: 1 } },
+    { 路线: '转变强化', 名称: '机械共鸣', 详细介绍: '你在修复潮门机械后，能够感应并协调近处机械的运转。', 效果描述: '通过共鸣调整机械运动，不再以听潮辨隙为能力机制。', 属性加成: { 心智: 2, 财富: 1 } },
+  ],
 }).success, 'Schema 必须允许转变路线跨越能力类型，不以原能力相似度过滤')
 const continuityOrder = ['历史剧情:', '待压缩五轮正文:', '压缩范围:']
 let continuityCursor = -1

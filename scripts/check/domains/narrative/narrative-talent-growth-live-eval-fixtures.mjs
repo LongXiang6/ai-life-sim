@@ -8,8 +8,6 @@ import { buildNarrativeTalentGrowthPromptInput } from '../../../../src/mods/mod-
 
 export const DEFAULT_TALENT_GROWTH_LIVE_EVAL_SAMPLES = [
   'sufficient',
-  'insufficient',
-  'single-window',
   'multi-candidate',
   'world-boundary',
   'growth-history-continuity',
@@ -71,12 +69,10 @@ export function buildTalentGrowthLiveEvalSample(id) {
     description: '能根据近处水声与回声差异，判断明显堵塞、渗漏或断裂的大致位置。',
     effect: '在近处水域或管道旁，通过水声直接定位异常并形成可验证的维修判断。',
   })
-  const directEvidence = directStories.map((entry, index) => ({
+  const directEvidence = directStories.map((entry) => ({
     lineageId: directPattern.lineageId,
     sourceRound: entry.回合,
-    usage: `你在现场实际使用${directPattern.name}定位异常。`,
     result: entry.故事全文,
-    ...(index === directStories.length - 1 ? { breakthrough: '风暴前的连续险情促成了对细微回声差异的突破。' } : {}),
   }))
   if (id === 'sufficient') {
     return { id, expected: 'growth', currentRound: 4, totalDays: 8_760, patterns: [directPattern], growthEvidence: directEvidence, recentStories: directStories, characterContext: baseCharacter, worldContext: baseWorld }
@@ -94,7 +90,6 @@ export function buildTalentGrowthLiveEvalSample(id) {
       growthEvidence: [{
         lineageId: directPattern.lineageId,
         sourceRound: 30,
-        usage: '你在风暴夜里实际使用听潮辨隙定位主闸裂缝。',
         result: '拆检后确认裂缝位置与判断一致，避免了闸门失效。',
       }],
       historicalEvents: [{ occurrenceTime: '第28年', text: '角色长期参与北港检修，但此前没有直接依靠听潮辨隙定位异常的记录。' }],
@@ -164,12 +159,10 @@ export function buildTalentGrowthLiveEvalSample(id) {
       currentRound: 26,
       totalDays: 16_061,
       patterns: [evolved],
-      growthEvidence: [21, 22, 24, 25, 26].map((round, index) => ({
+      growthEvidence: [21, 22, 24, 25, 26].map((round) => ({
         lineageId: source.lineageId,
         sourceRound: round,
-        usage: '你主动制造声源并使用回声定域定位结构异常。',
         result: `第${round}轮复核确认了空洞或裂纹位置。`,
-        ...(index === 4 ? { breakthrough: '形制陌生的蓄水塔迫使能力形成稳定的多点声学探查。' } : {}),
       })),
       growthHistory: [{
         choiceId: 'growth-choice-1', narrativeId: 'narrative-4', roundSequence: 4, lineageId: source.lineageId,
@@ -193,7 +186,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
 
 export function buildTalentGrowthLiveEvalPrompt(sample) {
   const historicalEvents = sample.historicalEvents ?? [{ occurrenceTime: '第20年春', text: '角色已连续多年参加北港检修，并在师傅带领下反复训练听潮、比对潮位和复测封堵结果，形成稳定的长期积累。' }]
-  return buildNarrativeTalentGrowthPromptInput({
+  const input = {
     patterns: sample.patterns,
     compressedSummaries: {
       summaries: [{
@@ -213,5 +206,16 @@ export function buildTalentGrowthLiveEvalPrompt(sample) {
     growthAssessments: sample.growthAssessments ?? [],
     characterContext: sample.characterContext,
     worldContext: sample.worldContext,
+  }
+  const base = buildNarrativeTalentGrowthPromptInput(input)
+  const selected = base.eligiblePatterns[0]
+  if (!selected) return base
+  return buildNarrativeTalentGrowthPromptInput({
+    ...input,
+    opportunity: {
+      pattern: selected,
+      evidenceWindows: base.evidenceWindowsByLineage[selected.lineageId] ?? [],
+      kind: 'insight',
+    },
   })
 }

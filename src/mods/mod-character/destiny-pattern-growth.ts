@@ -18,6 +18,7 @@ import type {
   PendingDestinyPatternGrowth,
   ReincarnationTalent,
   DestinyPatternGrowthSource,
+  DestinyPatternGrowthOpportunityKind,
 } from './types'
 import { basePointsToCalendarDays } from '@/foundation'
 import { DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER } from './constants'
@@ -169,6 +170,7 @@ export function createPendingDestinyPatternGrowth(input: {
   roundSequence: number
   source: DestinyPatternGrowthSource
   directions: readonly DestinyPatternGrowthDirection[]
+  opportunityKind?: DestinyPatternGrowthOpportunityKind
 }): PendingDestinyPatternGrowth {
   const narrativeId = input.narrativeId.trim()
   if (!narrativeId) throw new Error('天赋成长缺少对应故事编号')
@@ -223,6 +225,7 @@ export function createPendingDestinyPatternGrowth(input: {
     lineageId: input.source.lineageId,
     source: structuredClone(input.source),
     options,
+    ...(input.opportunityKind ? { opportunityKind: input.opportunityKind } : {}),
   }
 }
 
@@ -371,17 +374,10 @@ export function recordDestinyPatternGrowthEvidenceInState(
     ) continue
     const key = `${item.lineageId}:${item.sourceRound}`
     const previous = merged.get(key)
-    const usage = item.usage?.trim()
-      ? mergeEvidenceText(previous?.usage, item.usage)
-      : previous?.usage
     merged.set(key, {
       lineageId: item.lineageId,
       sourceRound: item.sourceRound,
-      ...(usage ? { usage } : {}),
       result: mergeEvidenceText(previous?.result, item.result),
-      ...(previous?.breakthrough || !item.breakthrough?.trim()
-        ? (previous?.breakthrough ? { breakthrough: previous.breakthrough } : {})
-        : { breakthrough: item.breakthrough.trim() }),
     })
   }
   return {
@@ -411,11 +407,6 @@ export function recordDestinyPatternGrowthAssessmentsInState(
     latest.set(item.lineageId, {
       lineageId: item.lineageId,
       evaluatedThroughRound: item.evaluatedThroughRound,
-      ...(item.evaluatedBreakthroughRound !== undefined
-        ? { evaluatedBreakthroughRound: item.evaluatedBreakthroughRound }
-        : previous?.evaluatedBreakthroughRound !== undefined
-          ? { evaluatedBreakthroughRound: previous.evaluatedBreakthroughRound }
-          : {}),
     })
   }
   return {

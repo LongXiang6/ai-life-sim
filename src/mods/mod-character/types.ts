@@ -98,6 +98,9 @@ export interface DestinyPattern {
   attrBonus: Partial<AttributeModifiers>
 }
 
+/** 自动进阶的机缘气质；只影响路线表现，不改变阶段或资质规则。 */
+export type DestinyPatternGrowthOpportunityKind = 'insight' | 'crisis' | 'legacy' | 'mutation'
+
 /** 天赋成长 AI 只负责提供的内容方向，不得改变资质阶位。 */
 export interface DestinyPatternGrowthDirection {
   route: DestinyPatternGrowthRoute
@@ -125,6 +128,8 @@ export interface PendingDestinyPatternGrowth {
   lineageId: string
   source: DestinyPatternGrowthSource
   options: [DestinyPatternGrowthOption, DestinyPatternGrowthOption, DestinyPatternGrowthOption]
+  /** 本次自动进阶的机缘气质；旧待选项可以没有。 */
+  opportunityKind?: DestinyPatternGrowthOpportunityKind
 }
 
 /** 已确认的命格成长路线记录。 */
@@ -147,16 +152,13 @@ export interface DestinyPatternGrowthHistoryEntry {
 export interface DestinyPatternGrowthEvidence {
   lineageId: string
   sourceRound: number
-  usage?: string
   result: string
-  breakthrough?: string
 }
 
-/** 单条命格最近一次已经交给成长 AI 复评到的证据水位。 */
+/** 单条命格最近一次已经交给成长程序复核到的证据水位。 */
 export interface DestinyPatternGrowthAssessment {
   lineageId: string
   evaluatedThroughRound: number
-  evaluatedBreakthroughRound?: number
 }
 
 /** AI 命格输入（供外部 AI 数据传入 generateFromAI 方法） */

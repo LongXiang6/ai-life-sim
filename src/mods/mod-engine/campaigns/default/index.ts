@@ -22,6 +22,7 @@ import {
 import { logger } from '@/core/logger/client-logger'
 import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
 import { useCharacterStore } from '@/mods/mod-character'
+import { DESTINY_PATTERN_OPPORTUNITY_CONFIG } from '@/mods/mod-character'
 import {
   captureCharacterBaseTransactionState,
   restoreCharacterBaseTransactionState,
@@ -63,8 +64,10 @@ import {
 import {
   buildNarrativeTalentGrowthPromptInput,
   getDestinyPatternMinimumEvidenceWindows,
+  type NarrativeTalentGrowthBuildInput,
   type NarrativeTalentGrowthPromptInput,
 } from '../../helpers/narrative-talent-growth-context'
+import { checkTalentGrowthOpportunity } from '../../helpers/narrative-talent-opportunity'
 import { narrativeStoryContinuityPrompt } from '../../prompts/narrative-story-continuity-prompt'
 import { narrativeTalentGrowthPrompt } from '../../prompts/narrative-talent-growth-prompt'
 import { prepareNarrativeRoundPromptContext } from '../../helpers/narrative-round-prompt-preparation'
@@ -95,6 +98,7 @@ export interface StageRuntimeContext extends RoundContext {
   _recentStories?: RecentStoryProjection[]
   _frozenRoundContext?: RoundContext
   _frozenNarrativeHistory?: NarrativeChunk[]
+  _talentBuildInput?: NarrativeTalentGrowthBuildInput
   _talentInput?: NarrativeTalentGrowthPromptInput
   _talentAssessmentUpdates?: DestinyPatternGrowthAssessment[]
   _talentEvidence?: DestinyPatternGrowthEvidence[]
@@ -269,7 +273,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
   ctx._frozenRoundContext = structuredClone(roundContext)
   ctx._frozenNarrativeHistory = narrativeHistory
   ctx._recentStories = recentStories
-  ctx._talentInput = buildNarrativeTalentGrowthPromptInput({
+  ctx._talentBuildInput = {
     patterns: [
       ...getDestinyPatternSystem().getPatterns(),
       ...equippedReincarnationTalents,
@@ -293,7 +297,8 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
       世界: structuredClone(ctx._promptContext.worldNarrativeView),
       当前时间: ctx._promptContext.currentTime,
     },
-  })
+  }
+  ctx._talentInput = buildNarrativeTalentGrowthPromptInput(ctx._talentBuildInput)
   ctx._continuityInput = buildNarrativeStoryContinuityPromptInput({
     currentRound: ctx._preparedNarrative.roundSequence,
     currentNarrative,
@@ -684,8 +689,16 @@ export function loadStages(
       onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
         const prepared = requirePreparedNarrative(ctx, '天赋成长')
-        if (!ctx._talentInput) {
+        if (!ctx._talentInput || !ctx._talentBuildInput) {
           throw specialistRejection('TalentGrowth', '天赋成长', '缺少冻结输入。')
+        }
+        if (useCharacterStore.getState().destinyPatterns.pendingGrowth) {
+          ctx._preparedTalentGrowth = null
+          logger.info('narrative-quality', 'talent-growth-call-skipped', {
+            round: prepared.roundSequence,
+            reason: '已有等待玩家选择的天赋成长',
+          })
+          return
         }
         if (ctx._talentInput.eligiblePatterns.length === 0) {
           ctx._preparedTalentGrowth = null
@@ -695,84 +708,129 @@ export function loadStages(
           })
           return
         }
-        try {
-          const response = await callStructuredSpecialist({
-          label: '天赋成长',
-          errorKind: 'TalentGrowth',
-          callKind: 'narrative-talent-growth',
-          prompt: narrativeTalentGrowthPrompt,
-          userSegments: ctx._talentInput.userSegments,
-          aiConfig,
-          sessionId,
+        const characterState = useCharacterStore.getState()
+        const status = characterState.characterBase.status
+        const fortuneValue = status?.fortune?.value ?? 0
+        const currentStageId = status?.currentStageId
+        const opportunity = checkTalentGrowthOpportunity({
+          candidates: ctx._talentInput.eligiblePatterns.map((pattern) => ({
+            pattern,
+            evidenceWindows: ctx._talentInput!.evidenceWindowsByLineage[pattern.lineageId] ?? [],
+          })),
+          assessments: ctx._talentBuildInput.growthAssessments,
+          currentRound: prepared.roundSequence,
+          currentAge: ctx._talentBuildInput.currentAge,
+          currentStageId,
+          fortuneValue,
+          lifeRunId: orchestrator.getState().lifeRunId,
         })
-          const quality = inspectNarrativeTalentGrowthQuality(response)
-        if (!quality.valid || !quality.result) {
-          throw specialistRejection(
-            'TalentGrowth',
-            '天赋成长',
-            `响应未通过天赋成长契约：${quality.reason}`,
-          )
-        }
-          const decision = quality.result.成长判定
-          ctx._talentAssessmentUpdates = structuredClone(ctx._talentInput.assessmentUpdates)
-          if (!decision.需要成长) {
+        ctx._talentAssessmentUpdates = structuredClone(opportunity.checkedAssessments)
+        if (!opportunity.selection) {
           ctx._preparedTalentGrowth = null
+          logger.info('narrative-quality', 'talent-growth-opportunity-missed', {
+            round: prepared.roundSequence,
+            checked: opportunity.checkedAssessments.length,
+          })
           return
         }
-        const source = ctx._talentInput.eligiblePatterns.find((pattern) => (
-          pattern.lineageId === decision.命格血脉编号
-        ))
-        if (!source) {
-          throw specialistRejection(
-            'TalentGrowth',
-            '天赋成长',
-            `返回了不属于当前可成长天赋的血脉编号：${decision.命格血脉编号}`,
+        const selectedLineageId = opportunity.selection.pattern.lineageId
+        try {
+          const promptInput = buildNarrativeTalentGrowthPromptInput({
+            ...ctx._talentBuildInput,
+            opportunity: {
+              pattern: opportunity.selection.pattern,
+              evidenceWindows: opportunity.selection.evidenceWindows,
+              kind: opportunity.selection.kind,
+            },
+          })
+          if (
+            promptInput.eligiblePatterns.length !== 1
+            || promptInput.eligiblePatterns[0]?.lineageId !== selectedLineageId
+          ) {
+            throw specialistRejection('TalentGrowth', '天赋成长', '机缘命中的天赋未形成唯一冻结输入。')
+          }
+          const response = await callStructuredSpecialist({
+            label: '天赋成长',
+            errorKind: 'TalentGrowth',
+            callKind: 'narrative-talent-growth',
+            prompt: narrativeTalentGrowthPrompt,
+            userSegments: promptInput.userSegments,
+            aiConfig,
+            sessionId,
+          })
+          const quality = inspectNarrativeTalentGrowthQuality(response)
+          if (!quality.valid || !quality.result) {
+            throw specialistRejection(
+              'TalentGrowth',
+              '天赋成长',
+              `响应未通过天赋成长契约：${quality.reason}`,
+            )
+          }
+          const decision = quality.result
+          if (decision.命格血脉编号 !== selectedLineageId) {
+            throw specialistRejection(
+              'TalentGrowth',
+              '天赋成长',
+              `返回了不属于本次机缘的天赋血脉编号：${decision.命格血脉编号}`,
+            )
+          }
+          const expectedKind = DESTINY_PATTERN_OPPORTUNITY_CONFIG[opportunity.selection.kind].label
+          if (decision.机缘类型 !== expectedKind) {
+            throw specialistRejection(
+              'TalentGrowth',
+              '天赋成长',
+              `返回的机缘类型与本次机缘不一致：${decision.机缘类型}`,
+            )
+          }
+          const availableEvidenceWindows = promptInput.evidenceWindowsByLineage[selectedLineageId] ?? []
+          const allowedEvidenceWindowIds = new Set(availableEvidenceWindows.map((window) => window.id))
+          const evidenceWindowIds = decision.依据窗口编号
+          const minimumEvidenceWindows = getDestinyPatternMinimumEvidenceWindows(
+            opportunity.selection.pattern.developmentStage as 'awakening' | 'mastery',
           )
-        }
-        const availableEvidenceWindows = ctx._talentInput.evidenceWindowsByLineage[source.lineageId] ?? []
-        const allowedEvidenceWindowIds = new Set(availableEvidenceWindows.map((window) => window.id))
-        const evidenceWindowIds = decision.依据窗口编号
-        const minimumEvidenceWindows = getDestinyPatternMinimumEvidenceWindows(
-          source.developmentStage as 'awakening' | 'mastery',
-        )
-        if (
-          evidenceWindowIds.length < minimumEvidenceWindows
-          || new Set(evidenceWindowIds).size !== evidenceWindowIds.length
-          || evidenceWindowIds.some((windowId) => !allowedEvidenceWindowIds.has(windowId))
-        ) {
-          throw specialistRejection(
-            'TalentGrowth',
-            '天赋成长',
-            `成长结果引用了不足或无效的证据窗口：需要至少${minimumEvidenceWindows}个不重复且属于当前天赋的窗口。`,
-          )
-        }
-        const directions = decision.下一阶方向.map((direction): DestinyPatternGrowthDirection => ({
-          route: direction.路线,
-          name: direction.名称,
-          description: direction.详细介绍,
-          effect: direction.效果描述,
-          attrBonus: {
-            ...(direction.属性加成.体魄 === undefined ? {} : { physique: direction.属性加成.体魄 }),
-            ...(direction.属性加成.心智 === undefined ? {} : { mind: direction.属性加成.心智 }),
-            ...(direction.属性加成.魅力 === undefined ? {} : { charisma: direction.属性加成.魅力 }),
-            ...(direction.属性加成.财富 === undefined ? {} : { familyBackground: direction.属性加成.财富 }),
-            ...(direction.属性加成.气运 === undefined ? {} : { luck: direction.属性加成.气运 }),
-          },
-        }))
-        const pending = createPendingDestinyPatternGrowth({
-          narrativeId: prepared.narrativeId,
-          roundSequence: prepared.roundSequence,
-          source,
-          directions,
-        })
-        ctx._preparedTalentGrowth = prepareDestinyPatternGrowthChoice(pending)
+          if (
+            evidenceWindowIds.length < minimumEvidenceWindows
+            || new Set(evidenceWindowIds).size !== evidenceWindowIds.length
+            || evidenceWindowIds.some((windowId) => !allowedEvidenceWindowIds.has(windowId))
+          ) {
+            throw specialistRejection(
+              'TalentGrowth',
+              '天赋成长',
+              `成长结果引用了不足或无效的证据窗口：需要至少${minimumEvidenceWindows}个不重复且属于本次机缘的窗口。`,
+            )
+          }
+          const directions = decision.下一阶方向.map((direction): DestinyPatternGrowthDirection => ({
+            route: direction.路线,
+            name: direction.名称,
+            description: direction.详细介绍,
+            effect: direction.效果描述,
+            attrBonus: {
+              ...(direction.属性加成.体魄 === undefined ? {} : { physique: direction.属性加成.体魄 }),
+              ...(direction.属性加成.心智 === undefined ? {} : { mind: direction.属性加成.心智 }),
+              ...(direction.属性加成.魅力 === undefined ? {} : { charisma: direction.属性加成.魅力 }),
+              ...(direction.属性加成.财富 === undefined ? {} : { familyBackground: direction.属性加成.财富 }),
+              ...(direction.属性加成.气运 === undefined ? {} : { luck: direction.属性加成.气运 }),
+            },
+          }))
+          const pending = createPendingDestinyPatternGrowth({
+            narrativeId: prepared.narrativeId,
+            roundSequence: prepared.roundSequence,
+            source: opportunity.selection.pattern,
+            directions,
+            opportunityKind: opportunity.selection.kind,
+          })
+          ctx._preparedTalentGrowth = prepareDestinyPatternGrowthChoice(pending)
           logger.info('narrative-quality', 'talent-growth-response-accepted', {
             round: prepared.roundSequence,
             lineageId: pending.lineageId,
+            opportunityKind: opportunity.selection.kind,
             targetDevelopmentStage: pending.options[0].pattern.developmentStage,
           })
         } catch (error) {
           ctx._preparedTalentGrowth = null
+          ctx._talentAssessmentUpdates = structuredClone(
+            opportunity.checkedAssessments.filter((assessment) => assessment.lineageId !== selectedLineageId),
+          )
           logger.info('narrative-quality', 'talent-growth-response-deferred', {
             round: prepared.roundSequence,
             reason: error instanceof Error ? error.message : String(error),

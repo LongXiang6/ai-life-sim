@@ -81,6 +81,8 @@ export interface NarrativeDestinyPatternGrowthProjection {
   ]
   selectedOptionId?: string
   result?: NarrativeDestinyPatternGrowthPattern
+  /** 自动进阶机缘气质；旧记录可以没有。 */
+  opportunityKind?: 'insight' | 'crisis' | 'legacy' | 'mutation'
 }
 
 /** 已提交的逐轮叙事记录 */

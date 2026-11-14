@@ -400,19 +400,16 @@ const talentGrowthInput = buildNarrativeTalentGrowthPromptInput({
     result: recentGrowthResult,
     committedAt: 100,
   }],
-  growthEvidence: growthPatterns.slice(1).flatMap((pattern, index) => ([
+  growthEvidence: growthPatterns.slice(1).flatMap((pattern) => ([
     {
       lineageId: pattern.lineageId,
       sourceRound: 15,
-      usage: `${pattern.name}在检修中被实际使用。`,
       result: `${pattern.name}形成了可复核结果。`,
     },
     {
       lineageId: pattern.lineageId,
       sourceRound: 16,
-      usage: `${pattern.name}再次在现场被实际使用。`,
       result: `${pattern.name}再次形成了可复核结果。`,
-      ...(index === 0 ? { breakthrough: '一次突发险情促成了能力突破。' } : { breakthrough: '一次关键复测促成了能力突破。' }),
     },
   ])),
 })
@@ -464,12 +461,11 @@ const evidenceState = {
   growthAssessments: [{
     lineageId: growthPatterns[1].lineageId,
     evaluatedThroughRound: 10,
-    evaluatedBreakthroughRound: 9,
   }],
 }
 const recordedEvidenceState = recordDestinyPatternGrowthEvidenceInState(evidenceState, [
-  { lineageId: growthPatterns[1].lineageId, sourceRound: 12, usage: '在险情中实际使用。', result: '成功稳定局面。' },
-  { lineageId: growthPatterns[1].lineageId, sourceRound: 12, usage: '同回合再次验证。', result: '结果可复核。', breakthrough: '突发险情促成突破。' },
+  { lineageId: growthPatterns[1].lineageId, sourceRound: 12, result: '成功稳定局面。' },
+  { lineageId: growthPatterns[1].lineageId, sourceRound: 12, result: '结果可复核。' },
 ])
 const recordedAssessmentState = recordDestinyPatternGrowthAssessmentsInState(
   recordedEvidenceState,
@@ -477,14 +473,15 @@ const recordedAssessmentState = recordDestinyPatternGrowthAssessmentsInState(
 )
 assertOk(
   recordedEvidenceState.growthEvidence.length === 1
-    && recordedEvidenceState.growthEvidence[0].usage.includes('再次验证')
-    && recordedEvidenceState.growthEvidence[0].breakthrough === '突发险情促成突破。',
-  '03 同一回合多条天赋线索必须合并为一个证据窗口并保留突破契机',
+    && recordedEvidenceState.growthEvidence[0].result.includes('结果可复核')
+    && !('usage' in recordedEvidenceState.growthEvidence[0])
+    && !('breakthrough' in recordedEvidenceState.growthEvidence[0]),
+  '03 同一回合多条天赋线索必须合并为一个只含可观察结果的证据窗口',
 )
 assertOk(
   recordedAssessmentState.growthAssessments[0].evaluatedThroughRound === 12
-    && recordedAssessmentState.growthAssessments[0].evaluatedBreakthroughRound === 9,
-  '03 复评水位更新时不能因新结果缺少突破字段而覆盖既有突破水位',
+    && !('evaluatedBreakthroughRound' in recordedAssessmentState.growthAssessments[0]),
+  '03 复评水位只记录证据回合，不再保留突破契机水位',
 )
 const reincarnationSource = {
   lineageId: 'reincarnation-lineage',
@@ -546,7 +543,12 @@ const firstTransformation = createPendingDestinyPatternGrowth({
     { route: '广度强化', name: '持久强化', description: '你能在持续行动中强化身体。', effect: '身体强化适用更多行动。', attrBonus: { physique: 1 } },
     { route: '转变强化', name: '机械共鸣', description: '强化的力量沿掌心传入机件，卡死的齿轮随呼吸重新咬合，身体仍可独立发力。', effect: '保留主动身体强化；触碰机械时可将强化力量用于协调其运转。', attrBonus: { mind: 2 } },
   ],
+  opportunityKind: 'crisis',
 })
+assertOk(
+  firstTransformation.opportunityKind === 'crisis',
+  '03 玩家的三选一必须保留本次机缘类型，供时间线显示',
+)
 const firstTransformationResult = resolvePendingDestinyPatternGrowthInState(
   registerPendingDestinyPatternGrowthInState(growthState([transformationSource]), firstTransformation, 19),
   firstTransformation.options[2].optionId, 100, 3000,
@@ -555,8 +557,7 @@ const transformedEvidenceState = recordDestinyPatternGrowthEvidenceInState(
   { ...firstTransformationResult.state, growthEvidence: [], growthAssessments: [] },
   [28, 29, 30].map((sourceRound) => ({
     lineageId: transformationSource.lineageId, sourceRound,
-    usage: '你以机械共鸣协调元素供能机械。', result: '机械运动被实际调整，救援通道恢复。',
-    ...(sourceRound === 30 ? { breakthrough: '元素核心失控时，你通过共鸣触及供能元素并完成救援，能力发生质变。' } : {}),
+    result: '机械运动被实际调整，救援通道恢复。',
   })),
 )
 const transformedGrowthInput = buildNarrativeTalentGrowthPromptInput({
@@ -955,38 +956,36 @@ assertOk(
 )
 
 const growthResult = {
-  成长判定: {
-    需要成长: true,
-    命格血脉编号: 'lineage:tide-listener',
-    成长依据: '连续复测中，听潮辨隙直接定位了堵塞并形成验证结果。',
-    依据窗口编号: ['round:16', 'round:17'],
-    下一阶方向: [
-      { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能分辨更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 4, 体魄: -1 } },
-      { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 2, 财富: 1 } },
-      { 路线: '转变强化', 名称: '机械共鸣', 详细介绍: '你在修复潮门机械后，能够感应并协调近处机械的运转。', 效果描述: '通过共鸣调整机械运动，不再以听潮辨隙为能力机制。', 属性加成: { 心智: 2, 财富: 1 } },
-    ],
-  },
+  命格血脉编号: 'lineage:tide-listener',
+  机缘类型: '危机觉醒',
+  成长依据: '连续复测中，听潮辨隙直接定位了堵塞并形成验证结果。',
+  依据窗口编号: ['round:16', 'round:17'],
+  下一阶方向: [
+    { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能分辨更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 4, 体魄: -1 } },
+    { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 2, 财富: 1 } },
+    { 路线: '转变强化', 名称: '机械共鸣', 详细介绍: '你在修复潮门机械后，能够感应并协调近处机械的运转。', 效果描述: '通过共鸣调整机械运动，不再以听潮辨隙为能力机制。', 属性加成: { 心智: 2, 财富: 1 } },
+  ],
 }
 const growthQuality = inspectNarrativeTalentGrowthQuality(JSON.stringify(growthResult))
 assertOk(growthQuality.valid, '03 必须接受固定顺序的三条同级路线')
 assertOk(
-  growthQuality.result?.成长判定.需要成长
-    && growthQuality.result.成长判定.下一阶方向[2].名称 === '机械共鸣',
+  growthQuality.result?.机缘类型 === '危机觉醒'
+    && growthQuality.result.下一阶方向[2].名称 === '机械共鸣',
   '03 解析器必须接受机制不同的转变路线，不以原能力相似度过滤',
 )
 const noLocalBudget = structuredClone(growthResult)
-noLocalBudget.成长判定.下一阶方向[0].属性加成 = { 财富: 100, 体魄: -50 }
+noLocalBudget.下一阶方向[0].属性加成 = { 财富: 100, 体魄: -50 }
 assertOk(
   NarrativeAITalentGrowthDataSchema.safeParse(noLocalBudget).success
     && !validateDestinyPatternAttrBonusForAptitude({ familyBackground: 100, physique: -50 }, 2),
   '03 传输协议保持宽容，但本地天赋提交必须拒绝越过等级边界的属性',
 )
 const wrongOrder = structuredClone(growthResult)
-wrongOrder.成长判定.下一阶方向.reverse()
+wrongOrder.下一阶方向.reverse()
 const reorderedQuality = inspectNarrativeTalentGrowthQuality(JSON.stringify(wrongOrder))
 assertOk(
   reorderedQuality.valid
-    && reorderedQuality.result?.成长判定.下一阶方向.map((item) => item.路线).join('|') === '深度强化|广度强化|转变强化',
+    && reorderedQuality.result?.下一阶方向.map((item) => item.路线).join('|') === '深度强化|广度强化|转变强化',
   '03 解析器必须识别乱序路线并恢复固定输出顺序',
 )
 
@@ -1026,21 +1025,21 @@ assertOk(
 assertOk(
   narrativePrompt.version === '10.0.0'
     && narrativeStoryContinuityPrompt.version === '3.2.0'
-    && narrativeTalentGrowthPrompt.version === '4.0.0'
+    && narrativeTalentGrowthPrompt.version === '5.0.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 const growthRules = JSON.parse(COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT)
 assertOk(
-  growthRules.目标.includes('绝不改变资质阶位')
-    && growthRules.输入映射.玩家已选天赋.includes('血脉编号只串联成长记录')
-    && growthRules.资质与开发边界.资质阶位.includes('机制复杂度')
-    && growthRules.资质与开发边界.开发阶段.includes('至少需要2个')
-    && growthRules.资质与开发边界.开发阶段.includes('至少需要3个')
+  growthRules.目标.includes('只推进一个开发阶段')
+    && growthRules.目标.includes('资质阶位原样保留')
+    && growthRules.输入映射.玩家已选天赋.includes('本次机缘对应的唯一天赋')
+    && growthRules.资质与开发边界.开发阶段.includes('只前进一个阶段')
     && growthRules.路线规则.some((rule) => rule.includes('保留当前能力已经成立的核心结果'))
-    && growthRules.路线规则.some((rule) => rule.includes('约30至45字')),
-  '03 固定规则须分开资质与开发阶段，并保留能力连续性及2/3窗口门槛',
+    && growthRules.路线规则.some((rule) => rule.includes('约30至45字'))
+    && growthRules.输出契约.不变量.some((rule) => rule.includes('禁止返回不成长')),
+  '03 固定规则须只生成单天赋路线，并保留能力连续性、属性边界和禁止不成长契约',
 )
 assertOk(
   COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('角色是中心')

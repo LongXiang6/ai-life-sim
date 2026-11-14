@@ -191,6 +191,14 @@ export const DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG = {
   complete: { label: '圆满' },
 } as const
 
+/** 自动进阶机缘的叙事气质；只影响路线表现，不改变阶段或资质。 */
+export const DESTINY_PATTERN_OPPORTUNITY_CONFIG = {
+  insight: { label: '顿悟', description: '长期积累后突然想通。' },
+  crisis: { label: '危机觉醒', description: '在危险、失败或失去中被迫突破。' },
+  legacy: { label: '传承回响', description: '师承、遗物、旧地或前史在关键时刻回应。' },
+  mutation: { label: '异变', description: '力量失控、世界规则冲突或未知机缘改变了形态。' },
+} as const
+
 /** 内置原创能力池，模型不可用时仍保持开局资质与阶段契约。 */
 export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id' | 'category' | 'lineageId' | 'version'>[] = [
   { name: '骨鸣换力', description: '撞击落在身上，骨节反而响起低鸣；下一拳挥出时，刚才吞下的冲力也沿指骨一并砸出。', aptitudeTier: 2, developmentStage: 'awakening', effect: '主动绷紧身体承受钝击时，可将身体承受范围内的一部分冲力暂存于骨节，再由下一次肢体动作释放；未被吸收的伤害照常成立，不能储存穿刺伤、叠存多次冲击或永久保留力量，骨骼受伤时无法使用。', attrBonus: { physique: 1 } },

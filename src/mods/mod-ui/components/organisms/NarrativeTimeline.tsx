@@ -7,6 +7,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { clamp } from '@/core/shared'
 
@@ -22,6 +23,7 @@ export interface NarrativeEntry {
   eraLabel?: string
   ageLabel?: string
   isBirth?: boolean
+  isInterventionHistory?: boolean
   isDeath?: boolean
   isLifeEnd?: boolean
   isBranchPoint?: boolean
@@ -32,8 +34,10 @@ export interface NarrativeEntry {
 
 export interface NarrativeDestinyPatternGrowthPatternEntry {
   name: string
-  rarity: 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
-  rarityLabel: string
+  aptitudeTier: number
+  aptitudeLabel: string
+  developmentStage: string
+  developmentLabel: string
   description: string
   effect: string
   attrBonus: Partial<Record<'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck', number>>
@@ -48,11 +52,13 @@ export interface NarrativeDestinyPatternGrowthEntry {
   }>
   selectedOptionId?: string
   result?: NarrativeDestinyPatternGrowthPatternEntry
+  opportunityLabel?: string
 }
 
 export interface NarrativeTimelineProps {
   entries: NarrativeEntry[]
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>
+  tailContent?: ReactNode
   advanceText?: string
   advanceHint?: string
   showAdvance?: boolean
@@ -78,11 +84,12 @@ export interface NarrativeTimelineProps {
 export function NarrativeTimeline({
   entries,
   scrollContainerRef,
+  tailContent,
   advanceText = '轻触，让岁月流转',
   advanceHint = '下一段故事已经准备好',
   showAdvance = false,
   advanceBlocked = false,
-  advanceBlockedText = '✔ 请先选择命运',
+  advanceBlockedText = '请先选择命运',
   isGenerating = false,
   hasEndingEvent = false,
   onAdvance,
@@ -218,6 +225,11 @@ export function NarrativeTimeline({
             </div>
           ) : null}
           {eventElements}
+          {tailContent ? (
+            <div className={styles.tailContent} data-narrative-tail-content>
+              {tailContent}
+            </div>
+          ) : null}
           {showAdvance ? (
             <div className={styles.advanceDock}>
               <div className={styles.advanceArea}>

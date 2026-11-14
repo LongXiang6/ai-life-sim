@@ -34,6 +34,7 @@ function samePendingGrowth(
   return left.choiceId === right.choiceId
     && left.narrativeId === right.narrativeId
     && left.lineageId === right.lineageId
+    && left.opportunityKind === right.opportunityKind
     && left.source.id === right.source.id
     && left.source.version === right.source.version
     && left.options[0].optionId === right.options[0].optionId
@@ -78,6 +79,7 @@ function projectPendingGrowth(
       route: option.route,
       ...projectPattern(option.pattern),
     })) as NarrativeDestinyPatternGrowthProjection['options'],
+    ...(pending.opportunityKind ? { opportunityKind: pending.opportunityKind } : {}),
   }
 }
 

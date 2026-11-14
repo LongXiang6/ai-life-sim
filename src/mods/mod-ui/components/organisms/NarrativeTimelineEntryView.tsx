@@ -65,7 +65,7 @@ function NarrativeBranchEditor({
 
   return (
     <div className={styles.branchPending}>
-      <h3 className={styles.branchPendingTitle}>🎲 {branchTitle || '命运分叉点'} 🎲</h3>
+      <h3 className={styles.branchPendingTitle}>{branchTitle || '命运分叉点'}</h3>
       {branchOptions.length > 0 ? (
         <div className={styles.branchOptionsList}>
           {branchOptions.map((option, optionIndex) => (
@@ -128,11 +128,11 @@ function splitNarrativeParagraphs(text: string): string[] {
 }
 
 const ATTRIBUTE_PRESENTATION: Readonly<Record<string, { label: string; icon: string }>> = {
-  mind: { label: '心智', icon: '🧠' },
-  physique: { label: '体魄', icon: '💪' },
-  charisma: { label: '魅力', icon: '💫' },
-  familyBackground: { label: '财富', icon: '🏠' },
-  luck: { label: '气运', icon: '🍀' },
+  mind: { label: '心智', icon: '心' },
+  physique: { label: '体魄', icon: '体' },
+  charisma: { label: '魅力', icon: '魅' },
+  familyBackground: { label: '财富', icon: '财' },
+  luck: { label: '气运', icon: '运' },
 }
 
 function formatAttributeBonus(
@@ -189,7 +189,7 @@ export function NarrativeTimelineEntryView({
     <div className={[
       styles.entry,
       isEnding ? styles.entryEnding : '',
-      entry.isBirth ? styles.entryBirth : '',
+      entry.isBirth || entry.isInterventionHistory ? styles.entryBirth : '',
     ].filter(Boolean).join(' ')}>
       {entry.ageLabel ? (
         <div className={styles.entryMeta} data-narrative-age={entry.ageLabel}>
@@ -197,6 +197,7 @@ export function NarrativeTimelineEntryView({
         </div>
       ) : null}
       {entry.isBirth ? <h2 className={styles.entryBirthTitle}>初临人间</h2> : null}
+      {entry.isInterventionHistory ? <h2 className={styles.entryBirthTitle}>介入前史</h2> : null}
       <div className={styles.entryBody}>
         {splitNarrativeParagraphs(entry.text).map((paragraph, paragraphIndex) => (
           <p key={paragraphIndex} className={styles.entryParagraph}>{paragraph.trim()}</p>
@@ -206,16 +207,16 @@ export function NarrativeTimelineEntryView({
         <section className={styles.growthPanel} aria-label="天赋成长">
           <header className={styles.growthHeader}>
             <div>
-              <small>天赋成长</small>
+              <small>天赋成长{entry.destinyPatternGrowth.opportunityLabel ? ` · ${entry.destinyPatternGrowth.opportunityLabel}` : ''}</small>
               <h3>选择下一阶走向</h3>
             </div>
             <span>三选一</span>
           </header>
 
           <>
-              <article className={styles.growthSource} data-rarity={entry.destinyPatternGrowth.source.rarity}>
+              <article className={styles.growthSource} data-aptitude={entry.destinyPatternGrowth.source.aptitudeTier}>
                 <div className={styles.growthPatternTitle}>
-                  <span>{entry.destinyPatternGrowth.source.rarityLabel}</span>
+                  <span>{entry.destinyPatternGrowth.source.aptitudeLabel} · {entry.destinyPatternGrowth.source.developmentLabel}</span>
                   <strong>{entry.destinyPatternGrowth.source.name}</strong>
                 </div>
                 <p>{entry.destinyPatternGrowth.source.description}</p>
@@ -228,14 +229,14 @@ export function NarrativeTimelineEntryView({
                     key={option.optionId}
                     type="button"
                     className={`${styles.growthOption} ${pendingGrowthOptionId === option.optionId ? styles.growthOptionSelected : ''}`}
-                    data-rarity={option.rarity}
+                    data-aptitude={option.aptitudeTier}
                     disabled={branchProps.isGenerating}
                     aria-pressed={pendingGrowthOptionId === option.optionId}
                     onClick={() => setPendingGrowthOptionId(option.optionId)}
                   >
                     <span className={styles.growthOptionIndex}>方向 {String(optionIndex + 1).padStart(2, '0')}</span>
                     <span className={styles.growthPatternTitle}>
-                      <span>{option.route} · {option.rarityLabel}</span>
+                      <span>{option.route} · {option.aptitudeLabel} · {option.developmentLabel}</span>
                       <strong>{option.name}</strong>
                     </span>
                       <span className={styles.growthOptionDescription}>{option.description}</span>

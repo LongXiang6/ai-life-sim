@@ -40,13 +40,9 @@ function readLocalEnv(name) {
 }
 
 function normalizeRouteResult(result, sample, promptInput) {
-  if (!result?.成长判定?.需要成长) {
-    return { needsGrowth: false, target: null, routes: [], checks: [] }
-  }
-  const decision = result.成长判定
-  const source = sample.patterns.find((item) => item.lineageId === decision.命格血脉编号)
+  const source = sample.patterns.find((item) => item.lineageId === result.命格血脉编号)
   const targetStage = source ? getNextDestinyPatternDevelopmentStage(source.developmentStage) : undefined
-  const evidenceWindowIds = decision.依据窗口编号 ?? []
+  const evidenceWindowIds = result.依据窗口编号 ?? []
   const availableEvidenceWindows = source
     ? (promptInput.evidenceWindowsByLineage[source.lineageId] ?? [])
     : []
@@ -61,7 +57,7 @@ function normalizeRouteResult(result, sample, promptInput) {
   if (!source || !evidenceValid) {
     return {
       needsGrowth: false,
-      target: decision.命格血脉编号 ?? null,
+      target: result.命格血脉编号 ?? null,
       routes: [],
       rawNeedsGrowth: true,
       localRejected: true,
@@ -73,7 +69,7 @@ function normalizeRouteResult(result, sample, promptInput) {
       }],
     }
   }
-  const routes = decision.下一阶方向 ?? []
+  const routes = result.下一阶方向 ?? []
   const checks = []
   checks.push({ name: 'route-count', pass: routes.length === 3, detail: String(routes.length) })
   checks.push({ name: 'evidence-window-gate', pass: true, detail: evidenceWindowIds.join('|') })
@@ -97,7 +93,7 @@ function normalizeRouteResult(result, sample, promptInput) {
   checks.push({ name: 'no-system-terms', pass: !SYSTEM_TERMS.test(descriptions), detail: descriptions.match(SYSTEM_TERMS)?.join('、') ?? '' })
   const costCounts = routes.map((item) => (String(item.详细介绍) + ' ' + String(item.效果描述)).match(COST_TERMS)?.length ?? 0)
   checks.push({ name: 'optional-cost-shape', pass: true, detail: costCounts })
-  const contextText = `${decision.成长依据} ${descriptions}`
+  const contextText = `${result.成长依据} ${descriptions}`
   const contextHits = ['潮', '水', '检修', '港', '北港', '声'].filter((term) => contextText.includes(term))
   checks.push({ name: 'context-grounding-signal', pass: contextHits.length >= 1, detail: contextHits })
   if (sample.id === 'world-boundary') {
@@ -109,7 +105,7 @@ function normalizeRouteResult(result, sample, promptInput) {
     const continuityHits = continuityTerms.filter((term) => descriptions.includes(term))
     checks.push({ name: 'growth-history-continuity', pass: continuityHits.length >= 1, detail: continuityHits })
   }
-  return { needsGrowth: true, target: decision.命格血脉编号, routes, checks, costCounts, evidence: decision.成长依据, evidenceWindowIds }
+  return { needsGrowth: true, target: result.命格血脉编号, routes, checks, costCounts, evidence: result.成长依据, evidenceWindowIds }
 }
 
 function checkExpectedDecision(sample, normalized) {

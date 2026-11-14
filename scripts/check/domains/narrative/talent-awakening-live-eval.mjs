@@ -144,9 +144,9 @@ async function main() {
     check('eligible-growth-three-routes', () => {
       const quality = inspectNarrativeTalentGrowthQuality(content)
       assert(quality.valid, quality.reason)
-      const decision = quality.result.成长判定
-      assert.equal(decision.需要成长, true)
+      const decision = quality.result
       assert.equal(decision.命格血脉编号, growthSource.lineageId)
+      assert.equal(decision.机缘类型, '顿悟')
       const ids = decision.依据窗口编号
       assert(ids.length >= 2 && new Set(ids).size === ids.length)
       assert(ids.every(id => growthInput.evidenceWindowsByLineage[growthSource.lineageId].some(window => window.id === id)))
