@@ -1,5 +1,5 @@
 /**
- * Purpose: Own selected destiny patterns, candidates, rarity counts, and the public subsystem lifecycle.
+ * Purpose: Own selected destiny patterns, candidates, aptitude counts, and the public subsystem lifecycle.
  * Owner: mod-character
  * Responsibility: Mutate character-owned destiny state while delegating transient AI pool generation and value validation.
  */
@@ -10,7 +10,7 @@ import type {
   DestinyPatternGrowthHistoryEntry,
   PendingDestinyPatternGrowth,
   DestinyPatternInput,
-  DestinyPatternRarity,
+  DestinyPatternAptitudeTier,
   DestinyPatternState,
 } from '../types'
 import { BaseSubsystem } from '@/core'
@@ -44,7 +44,8 @@ import type {
 import { DestinyPatternAiPoolService } from './destiny-pattern-system/ai-pool-service'
 import {
   dedupeDestinyPatterns,
-  getDestinyPatternRarityLabel,
+  getDestinyPatternAptitudeLabel,
+  validateDestinyPatternAptitudeTier,
   validateDestinyPatternAttrBonus,
   validateDestinyPatternCategory,
 } from './destiny-pattern-system/validation'
@@ -60,7 +61,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
   private state: DestinyPatternState = {
     candidates: [],
     patterns: [],
-    rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+    aptitudeCount: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
     pendingGrowth: null,
     growthHistory: [],
     growthEvidence: [],
@@ -73,19 +74,19 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
   collectState(context: RoundContext): SubSystemState {
     const s = this.state
-    const rarityLines = Object.entries(s.rarityCount)
+    const aptitudeLines = Object.entries(s.aptitudeCount)
       .filter(([, count]) => count > 0)
-      .map(([r, c]) => `${getDestinyPatternRarityLabel(r as DestinyPatternRarity)}×${c}`)
+      .map(([tier, count]) => `${getDestinyPatternAptitudeLabel(Number(tier) as DestinyPatternAptitudeTier)}×${count}`)
     const bonusSummary = this.summarizeAttrBonuses()
 
     return {
       id: this.id,
-      summary: `【${this.label}】已持有 ${s.patterns.length} 条命格（${rarityLines.join(' ')}）${bonusSummary ? ' | 属性加成：' + bonusSummary : ''}`,
+      summary: `【${this.label}】已持有 ${s.patterns.length} 条命格（${aptitudeLines.join(' ')}）${bonusSummary ? ' | 属性加成：' + bonusSummary : ''}`,
       data: structuredClone({
         contextId: context.contextId,
         candidates: s.candidates,
         patterns: s.patterns,
-        rarityCount: s.rarityCount,
+        aptitudeCount: s.aptitudeCount,
       pendingGrowth: s.pendingGrowth,
       growthHistory: s.growthHistory,
       growthEvidence: s.growthEvidence,
@@ -110,7 +111,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     // 设置完整命格列表
     if (Array.isArray(ch.patterns)) {
       this.state.patterns = []
-      this.state.rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 }
+      this.state.aptitudeCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 }
       for (const p of ch.patterns as DestinyPattern[]) {
         this.addPattern(p)
       }
@@ -123,7 +124,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     this.state = {
       candidates: [],
       patterns: [],
-      rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+      aptitudeCount: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
       pendingGrowth: null,
       growthHistory: [],
       growthEvidence: [],
@@ -177,7 +178,6 @@ export class DestinyPatternSystem extends BaseSubsystem {
         id,
         ...template,
         category,
-        rarity: 'common',
       }, id))
     }
 
@@ -198,6 +198,8 @@ export class DestinyPatternSystem extends BaseSubsystem {
       try {
         const category = validateDestinyPatternCategory(input.category)
         if (!category) continue
+        const aptitudeTier = validateDestinyPatternAptitudeTier(input.aptitudeTier)
+        if (aptitudeTier === null || aptitudeTier > 3 || input.developmentStage !== 'awakening') continue
         const name = input.name.trim()
         const description = input.description.trim()
         const effect = input.effects.trim()
@@ -209,10 +211,11 @@ export class DestinyPatternSystem extends BaseSubsystem {
           name,
           description,
           category,
-          rarity: 'common',
+          aptitudeTier,
+          developmentStage: 'awakening',
           effect,
           attrBonus: input.attrBonus
-            ? validateDestinyPatternAttrBonus(input.attrBonus as Record<string, number>, 'common')
+            ? validateDestinyPatternAttrBonus(input.attrBonus as Record<string, number>, aptitudeTier)
             : {},
         }, id)
 
@@ -289,7 +292,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     }
 
     this.state.patterns = selected
-    this.recountRarity()
+    this.recountAptitude()
     return selected
   }
 
@@ -303,9 +306,9 @@ export class DestinyPatternSystem extends BaseSubsystem {
     return [...this.state.candidates]
   }
 
-  /** 获取稀有度统计 */
-  getRarityCount(): Record<DestinyPatternRarity, number> {
-    return { ...this.state.rarityCount }
+  /** 获取资质统计 */
+  getAptitudeCount(): Record<DestinyPatternAptitudeTier, number> {
+    return { ...this.state.aptitudeCount }
   }
 
   /** 获取命格列表 */
@@ -390,13 +393,13 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
   private addPattern(pattern: DestinyPattern): void {
     this.state.patterns.push(pattern)
-    this.state.rarityCount[pattern.rarity] = (this.state.rarityCount[pattern.rarity] ?? 0) + 1
+    this.state.aptitudeCount[pattern.aptitudeTier] = (this.state.aptitudeCount[pattern.aptitudeTier] ?? 0) + 1
   }
 
-  private recountRarity(): void {
-    this.state.rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 }
+  private recountAptitude(): void {
+    this.state.aptitudeCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 }
     for (const p of this.state.patterns) {
-      this.state.rarityCount[p.rarity] = (this.state.rarityCount[p.rarity] ?? 0) + 1
+      this.state.aptitudeCount[p.aptitudeTier] = (this.state.aptitudeCount[p.aptitudeTier] ?? 0) + 1
     }
   }
 

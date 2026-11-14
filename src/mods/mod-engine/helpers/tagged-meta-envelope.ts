@@ -9,7 +9,7 @@
 import type {
   NarrativeAIAttributeChanges,
   NarrativeAIBranch,
-  NarrativeAIEventResult,
+  NarrativeAICharacterDeath,
   NarrativeAITalentEvidenceHint,
   NarrativeAIEnding,
 } from './narrative-ai-protocol'
@@ -18,7 +18,8 @@ import { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 
 export interface NarrativeResponseEnvelope {
   narrative: string
-  eventResults?: NarrativeAIEventResult[]
+  eventCardsConsumed?: string[]
+  characterDeath?: NarrativeAICharacterDeath
   talentEvidenceHints?: NarrativeAITalentEvidenceHint[]
   branch?: NarrativeAIBranch
   ending?: NarrativeAIEnding
@@ -161,21 +162,30 @@ function normalizeAttributeChanges(value: unknown): NarrativeAIAttributeChanges 
   return Object.keys(result).length > 0 ? result as NarrativeAIAttributeChanges : undefined
 }
 
-function normalizeEventResults(value: unknown): NarrativeAIEventResult[] | undefined {
+function normalizeEventCardConsumption(value: unknown): string[] | undefined {
   const normalized = normalizeOptionalJsonValue(value)
   if (!Array.isArray(normalized)) return undefined
-  const results: NarrativeAIEventResult[] = []
-  for (const item of normalized) {
-    const record = asRecord(item)
-    if (!record) continue
-    const event = normalizedText(record.事件 ?? record.event)
-    const cause = normalizedText(record.成因 ?? record.cause)
-    const result = normalizedText(record.结果 ?? record.result)
-    const impact = normalizedText(record.影响 ?? record.impact)
-    if (!event || !cause || !result || !impact) continue
-    results.push({ 事件: event, 成因: cause, 结果: result, 影响: impact })
+  const names = [...new Set(
+    normalized
+      .map((item) => normalizedText(item))
+      .filter((name): name is string => Boolean(name)),
+  )]
+  return names.length > 0 ? names : undefined
+}
+
+function normalizeCharacterDeath(value: unknown): NarrativeAICharacterDeath | undefined {
+  const record = asRecord(normalizeOptionalJsonValue(value))
+  if (!record) return undefined
+  const causeKind = normalizedText(record.死因类型)
+  const causeLabel = normalizedText(record.死因)
+  if (
+    !causeLabel
+    || !['story', 'condition', 'trauma', 'life-ending'].includes(causeKind ?? '')
+  ) return undefined
+  return {
+    死因类型: causeKind as NarrativeAICharacterDeath['死因类型'],
+    死因: causeLabel,
   }
-  return results.length > 0 ? results : undefined
 }
 
 function normalizeTalentEvidenceHints(value: unknown): NarrativeAITalentEvidenceHint[] | undefined {
@@ -186,19 +196,11 @@ function normalizeTalentEvidenceHints(value: unknown): NarrativeAITalentEvidence
     const record = asRecord(item)
     if (!record) continue
     const reference = normalizedText(record.引用 ?? record.reference ?? record.天赋引用)
-    const sourceRound = typeof record.来源回合 === 'number'
-      ? Math.trunc(record.来源回合)
-      : Number(record.来源回合 ?? record.round)
-    const usage = normalizedText(record.实际使用 ?? record.使用事实 ?? record.usage)
     const result = normalizedText(record.可观察结果 ?? record.观察结果 ?? record.result)
-    const breakthrough = normalizedText(record.突破契机 ?? record.breakthrough)
-    if (!reference || !Number.isSafeInteger(sourceRound) || sourceRound < 1 || !usage || !result) continue
+    if (!reference || !result) continue
     results.push({
       引用: reference,
-      来源回合: sourceRound,
-      实际使用: usage,
       可观察结果: result,
-      ...(breakthrough ? { 突破契机: breakthrough } : {}),
     })
   }
   return results.length > 0 ? results : undefined
@@ -211,6 +213,7 @@ function parseJsonRecord(source: string): JsonRecord | undefined {
       followingTopLevelFields: [
         '正文',
         '属性',
+        '角色死亡',
         '命运分支',
         '分支',
         '结局',
@@ -370,12 +373,16 @@ export function parseNarrativeResponseEnvelope(
   const directEnding = normalizeEnding(
     pickEnvelopeField(json, ['结局', '终局', 'ending']) ?? lifeSimulator.ending ?? tagged.ending,
   )
+  const characterDeath = normalizeCharacterDeath(pickEnvelopeField(json, ['角色死亡']))
   const inferredEnding = !directEnding
     && isExplicitPermanentNoAgency(options.terminalGuidance)
     && hasCompletedTerminalNarrative(narrative)
     ? { 评语: '此生已尽', 总结: '这一生至此结束。' }
     : undefined
-  const ending = directEnding ?? inferredEnding
+  const deathEnding = characterDeath
+    ? { 评语: '此生已尽', 总结: `${characterDeath.死因}，此生至此结束。` }
+    : undefined
+  const ending = directEnding ?? inferredEnding ?? deathEnding
   const branch = ending
     ? undefined
     : normalizeBranch(
@@ -389,8 +396,8 @@ export function parseNarrativeResponseEnvelope(
     reportedAttributesFromJson(json) ?? lifeSimulator.reportedAttributes,
     options.currentAttributes,
   )
-  const eventResults = normalizeEventResults(
-    pickEnvelopeField(json, ['事件结果', 'eventResults', 'events']),
+  const eventCardsConsumed = normalizeEventCardConsumption(
+    pickEnvelopeField(json, ['事件卡消费', 'eventCardConsumption', 'eventCardsConsumed']),
   )
   const talentEvidenceHints = normalizeTalentEvidenceHints(
     pickEnvelopeField(json, ['天赋表现线索', '天赋线索', 'talentEvidenceHints', 'talentEvidence']),
@@ -398,7 +405,8 @@ export function parseNarrativeResponseEnvelope(
 
   return {
     narrative,
-    ...(eventResults ? { eventResults } : {}),
+    ...(eventCardsConsumed ? { eventCardsConsumed } : {}),
+    ...(characterDeath ? { characterDeath } : {}),
     ...(talentEvidenceHints ? { talentEvidenceHints } : {}),
     ...(branch ? { branch } : {}),
     ...(ending ? { ending } : {}),

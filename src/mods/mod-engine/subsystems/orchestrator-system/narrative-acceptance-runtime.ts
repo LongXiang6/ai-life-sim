@@ -46,6 +46,24 @@ function buildAttributeChangeInstruction(
   }
 }
 
+function buildCharacterStatusChangeInstruction(
+  parsed: ParsedNarrative,
+  roundContext: import('@/foundation').RoundContext,
+): SubSystemChanges | undefined {
+  if (!parsed.characterDeath) return undefined
+  return {
+    id: 'character-base',
+    targetObjectId: 'player:current',
+    targetContextId: roundContext.contextId,
+    operation: 'update-status',
+    description: `主故事明确角色死亡：${parsed.characterDeath.死因}`,
+    changes: {
+      deathCauseKind: parsed.characterDeath.死因类型,
+      deathCauseLabel: parsed.characterDeath.死因,
+    },
+  }
+}
+
 function buildPreparedRecord(
   orchestrator: OrchestratorSystem,
   parsed: ParsedNarrative,
@@ -102,7 +120,9 @@ function buildPreparedRecord(
   }
   const branchMeta = orchestrator['resolveBranchFromParsed'](parsed)
   const attributeChange = buildAttributeChangeInstruction(parsed, roundContext)
-  const changes = attributeChange ? [attributeChange] : []
+  const statusChange = buildCharacterStatusChangeInstruction(parsed, roundContext)
+  const changes = [attributeChange, statusChange]
+    .filter((change): change is SubSystemChanges => Boolean(change))
 
   return {
     schemaVersion: 1 as const,
@@ -113,7 +133,6 @@ function buildPreparedRecord(
     roundContext,
     narrative: structuredClone(parsed),
     narrativeText: narrative,
-    ...(parsed.eventResults ? { eventResults: structuredClone(parsed.eventResults) } : {}),
     ...(playerChoice ? { playerChoice } : {}),
     ageAtRound,
     displayTimeLabel,
@@ -183,7 +202,6 @@ export function commitNarrativeResponseRuntime(
       : {}),
     ...(prepared.narrative.endingTitle ? { endingTitle: prepared.narrative.endingTitle } : {}),
     ...(prepared.narrative.endingSummary ? { endingSummary: prepared.narrative.endingSummary } : {}),
-    ...(prepared.eventResults ? { eventResults: structuredClone(prepared.eventResults) } : {}),
   }
   const playerAction = consumeAcceptedPlayerRoundAction(
     orchestrator['lastPlayerChoice'],

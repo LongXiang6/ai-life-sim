@@ -37,7 +37,7 @@ const sources = {
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
 }
 
-assert.match(sources.mainPrompt, /version: '9\.30\.0'/u)
+assert.match(sources.mainPrompt, /version: '10\.0\.0'/u)
 assert(
   sources.orchestrator.includes('const openingTalents = selectedPatterns.map')
     && sources.orchestrator.includes('growthHistory')
@@ -47,8 +47,34 @@ assert(
   '出生控制平面必须从开局天赋版本投影属性语义与天赋输入',
 )
 assert(
-  sources.mainSystemPrompt.includes('按年或更长跨度时，呈现跨度中的积累、转折和结果'),
-  '主故事 Prompt 必须要求年跨度呈现积累、转折和落地结果',
+  sources.mainSystemPrompt.includes('你是人生模拟器')
+    && sources.mainSystemPrompt.includes('角色是中心')
+    && sources.mainSystemPrompt.includes('历史是已经发生的人生')
+    && sources.mainSystemPrompt.includes('正文像人生小说的一章，不是因果报告')
+    && sources.mainSystemPrompt.includes('允许概括、跳跃、留白')
+    && sources.mainSystemPrompt.includes('“人生规划”和“事件卡池”只是软提示')
+    && sources.mainSystemPrompt.includes('事件卡池只提供卡名')
+    && sources.mainSystemPrompt.includes('属性只写发生持续变化的项')
+    && sources.mainSystemPrompt.includes('一次最多返回 10 轮')
+    && !sources.mainSystemPrompt.includes('先形成改变玩家社会位置'),
+  '主故事 Prompt 必须保持角色中心、正文优先和不设事件配额',
+)
+const eventCardCallSource = read('src/mods/mod-engine/helpers/narrative-control-plane-call.ts')
+assert(
+  eventCardCallSource.includes('{"事件卡":[{"名称":"","正负":"正","权重":3}]}')
+    && eventCardCallSource.includes('卡不是事实')
+    && !/生命周期|适用阶段|持续条件|最低合龄/u.test(eventCardCallSource)
+    && ['15%', '抽 3 张', '抽三张', '手牌', '难度权重', 'DIFFICULTY_FATE_WEIGHTS', 'DIFFICULTY_NEGATIVE_EVENT_CEILINGS', '最低合龄']
+      .every((banned) => !sources.mainSystemPrompt.includes(banned) && !eventCardCallSource.includes(banned))
+    && !read('src/foundation/types/narrative/control-plane.ts').includes('最低合龄') && !read('src/mods/mod-engine/helpers/narrative-control-plane-normalizers.ts').includes('最低合龄'),
+  '事件卡只声明 名称/正负/权重，不写合龄、生命周期或阶段，也不残留抽卡概率、手牌与难度权重',
+)
+assert.equal([...sources.mainSystemPrompt.matchAll(/【示例\d｜/gu)].length, 0, '主故事固定资产不得再携带示例矩阵')
+assert(
+  ['# 角色', '# 输入', '# 写法', '# 输出'].every((heading) => sources.mainSystemPrompt.includes(heading))
+    && ['【输入1：世界】', '【输入2：玩家】', '【输入3：历史】', '【输入4：属性】', '【输入5：本次条件】']
+      .every((heading) => sources.mainSystemPrompt.includes(heading)),
+  '主故事 Prompt 必须保持角色、输入、写法、输出与五段动态输入结构',
 )
 assert(
   sources.fatePreview.includes('初临此世')
@@ -56,37 +82,20 @@ assert(
     && !sources.fatePreview.includes('出生事实'),
   '命运预览的出生板块必须使用沉浸式栏目名',
 )
-// Asset-contract checks do not establish actual generation quality.
 for (const phrase of [
-  "生成已经发生并留下结果的人生记录",
-  "正文是宏观事件记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放",
-  "历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风",
-  "你是宏观事件级的人生模拟器",
-  "世界按自己的规则、资源边界、相关者行动和开放可能性变化",
-  "家庭只能作为玩家的背景、资源、关系或处境证据，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线",
-  "玩家是事件身份、因果主线和正文重心的归属者",
-  "即使玩家处于幼年或依赖阶段，也要写时代、制度、经济、公共危机、教育资源、迁徙或组织变化如何通过照料、资源和机会作用于玩家",
-  "面对非标准世界观",
-  "玩家信息中已经确认的天赋是玩家独有的外挂金手指",
-  "即使超出世界题材或世界没有同类力量体系，也不否定或降格为普通技巧",
-  "先形成改变玩家社会位置、制度机会、资源、组织关系、教育路径、迁徙方向、职业身份或生存条件的外部局面",
-  "事件结果是正文唯一的事实底稿",
-  "正文使用第二人称“你/你的”",
-  "细节只作为证明玩家行动、位置、关系、结果或代价的少量证据",
-  "不堆写家庭日常和感官装饰",
-  "只返回一个合法 JSON 对象",
-  "事件、成因、结果、影响"
+  '只返回一个合法 JSON 对象',
+  '事件卡消费（可选）',
+  '天赋表现线索（可选）',
+  '命运分支：本轮自然形成',
+  '结局：人生不可逆终态',
+  '角色死亡：明确死亡时',
 ]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(phrase), phrase)
 assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /【输入1：世界】/u)
 assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /【输入5：本次条件】/u)
-assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /本次调用内依次完成：恢复世界边界和已成立事实；形成新的外部局面；裁决玩家与世界的交互、结果和代价；编译正文；结算并返回 JSON/u)
-assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /代码区块/u)
-assert.match(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /只返回一个合法 JSON 对象/u)
-assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /玩家处于依赖阶段时，以外部局面和照料者的目标为事件主体/u)
-assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /家庭日常只能作为玩家位置的证据或后果/u)
-assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /作为文字游戏式人生重开模拟器的叙事引擎|五项数据是只读事实|已确认的命运方向必须落实/u)
-assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /本轮唯一的叙事对象|形成一条完整的叙事弧线|围绕一个主要状态变化|事件抽取器|世界演变/u)
-for (const field of ["\"时间定位\"","\"事件结果\"","\"正文\"","\"命运分支\"","\"属性\"","\"结局\""]) assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
+assert.doesNotMatch(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE, /代码区块|时间定位|事件结果|自然寿命变化/u)
+for (const field of ['"正文"', '"属性"', '"命运分支"', '"结局"', '"角色死亡"']) {
+  assert(COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
+}
 assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查', '你暂时撤回'] }).success)
 assert(NarrativeAIBranchSchema.safeParse({ 选项: ['你先观察', '你请求协助', '你调整工具', '你退出现场'] }).success)
 assert.equal(NarrativeAIBranchSchema.safeParse({ 选项: ['你继续勘查'] }).success, false)
@@ -98,12 +107,12 @@ assert.match(sources.continuityPrompt, /未来事件/u)
 assert.match(sources.continuityPrompt, /时间.*剧情.*权重/u)
 assert.match(sources.talentPrompt, /天赋成长的推演者/u)
 assert.match(sources.talentPrompt, /不因跨题材或世界没有同类力量体系而否定、降格或排除其成长/u)
-assert.match(sources.talentPrompt, /下一等级/u)
+assert.match(sources.talentPrompt, /下一开发阶段/u)
 assert.match(sources.talentPrompt, /深度强化、广度强化、转变强化/u)
-assert.match(sources.talentPrompt, /转变强化依据玩家本局已成立经历和突破契机重新塑造能力/u)
-assert.match(sources.talentPrompt, /不要求保留最初天赋或上一版本的能力特征/u)
-assert.match(sources.talentPrompt, /新天赋可以与最初天赋毫不相干/u)
-assert.match(sources.talentPrompt, /深度、广度也以当前已确认版本为起点/u)
+assert.match(sources.talentPrompt, /转变强化依据本局经历和突破契机重塑机制组合/u)
+assert.match(sources.talentPrompt, /三条路线都必须保留当前已成立能力/u)
+assert.match(sources.talentPrompt, /不得削弱、删除、倒退/u)
+assert.match(sources.talentPrompt, /三条路线均从当前版本出发/u)
 assert.doesNotMatch(sources.talentPrompt, /每条路线保留同一命格的核心来源|不额外扩大影响总量|凡俗可及/u)
 assert.match(sources.talentPrompt, /长期积累/u)
 assert.match(sources.talentPrompt, /时间沉淀/u)
@@ -128,10 +137,17 @@ assert.equal([...sources.campaign.matchAll(/name: '(ai-[^']+)'/gu)].length, 3)
 
 assert.match(sources.parser, /parseNarrativeResponseEnvelope\(content, options\)/u)
 assert.match(sources.parser, /endingTitle/u)
-assert.match(sources.parser, /eventResults/u)
-assert.match(sources.orchestrator, /eventResults/u)
+assert.doesNotMatch(sources.parser, /eventResults|naturalLifespanDeltaYears|时间定位|事件结果|自然寿命变化/u)
+assert.doesNotMatch(sources.orchestrator, /eventResults|naturalLifespanDeltaYears/u)
 assert.doesNotMatch(sources.parser, /本轮记忆|未来事件|成长判定/u)
 assert.doesNotMatch(sources.orchestrator, /runNarrativePostProcessing|launchNarrativeBackgroundAnalysis|combineNarrativeBackgroundAnalysis/u)
+assert(
+  !sources.protocol.includes('来源回合: z.number().int().positive(),')
+    && sources.campaign.includes('sourceRound: preparedNarrative.roundSequence')
+    && !sources.campaign.includes('hint.来源回合 !=='),
+  '天赋线索来源回合必须由引擎按本轮记录，模型不输出回合号',
+)
+assert.doesNotMatch(sources.protocol, /NarrativeAIEventResult|时间定位|事件结果|自然寿命变化/u)
 
 assert(NarrativeAIStoryContinuityDataSchema.safeParse({
   本轮剧情: [{ 时间: '317年4月13日', 剧情: '临时封堵通过承压复测。', 权重: 6 }],
@@ -148,8 +164,8 @@ assert(NarrativeAITalentGrowthDataSchema.safeParse({
   成长判定: {
     需要成长: true,
     命格血脉编号: 'lineage:test',
-  成长依据: '既有事实明确体现了能力效果。',
-  依据窗口编号: ['round:16', 'round:17'],
+    成长依据: '既有事实明确体现了能力效果。',
+    依据窗口编号: ['round:16', 'round:17'],
     下一阶方向: [
       { 路线: '深度强化', 名称: '听隙入微', 详细介绍: '能听出更细的近处渗漏差异。', 效果描述: '同类水声中更快辨清堵塞位置。', 属性加成: { 财富: 2 } },
       { 路线: '广度强化', 名称: '百流同辨', 详细介绍: '在更多水域环境中分辨异常水声。', 效果描述: '陌生河港也可依水声判断近处水路异常。', 属性加成: { 心智: 1, 财富: 1 } },

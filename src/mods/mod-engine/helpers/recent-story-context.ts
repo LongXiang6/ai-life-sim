@@ -11,7 +11,6 @@
 import type { YearEvent } from '@/foundation'
 
 import type { NarrativeChunk } from '../types'
-import type { NarrativeEventResult } from '../types'
 
 /** 02/03 的详细故事派生窗口：当前来源回合加此前最多四轮。 */
 export const RECENT_STORY_WINDOW = 5
@@ -27,7 +26,6 @@ export interface RecentStorySource {
   branchOptions?: readonly string[]
   resolvedChoice?: string
   resolvedChoiceRound?: number
-  eventResults?: readonly NarrativeEventResult[]
 }
 
 export interface RecentStoryProjection {
@@ -46,7 +44,6 @@ export interface RecentStoryProjection {
     内容: string
     确认回合: number | null
   }
-  事件结果?: readonly NarrativeEventResult[]
 }
 
 function projectRecentStory(source: RecentStorySource): RecentStoryProjection {
@@ -83,9 +80,6 @@ function projectRecentStory(source: RecentStorySource): RecentStoryProjection {
         },
       }
       : {}),
-    ...(source.eventResults && source.eventResults.length > 0
-      ? { 事件结果: structuredClone(source.eventResults) }
-      : {}),
   }
 }
 
@@ -118,7 +112,6 @@ export function buildRecentStoriesForRound(input: {
     branchOptions: entry.branchOptions,
     resolvedChoice: entry.resolvedChoice,
     resolvedChoiceRound: entry.resolvedChoiceRound,
-    eventResults: entry.eventResults,
   }))
   sources.push({ round: input.currentRound, ...input.currentStory })
   if (input.windowSize === undefined) return buildRecentStoryProjection(sources)

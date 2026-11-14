@@ -1,6 +1,12 @@
 /**
+ * Purpose: Expose the difficulty MOD public API.
+ * Owner: mod-difficulty
+ * Responsibility: Public difficulty exports only.
+ */
+
+/**
  * @module index.ts
- * @description MOD 公共 API 导出 —— 四档难度系统
+ * @description MOD 公共 API 导出 —— 五档叙事难度
  * @mod mod-difficulty
  */
 
@@ -18,7 +24,5 @@ export {
   DEFAULT_DIFFICULTY,
   STORAGE_KEY_DIFFICULTY,
 } from './constants'
-
-export { applyCeilingSuppress } from './utils'
 
 export { useDifficultyStore } from './store'

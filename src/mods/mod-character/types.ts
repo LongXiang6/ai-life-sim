@@ -68,8 +68,11 @@ export interface CharacterBaseState {
 // 命格（对齐废弃项目 Talent -> 重命名为 DestinyPattern）
 // ============================================================
 
-/** 稀有度等级（对齐废弃项目 TalentRarity；`mythic` 仅由结算升阶产生，局内成长仍封顶 `legendary`） */
-export type DestinyPatternRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
+/** 资质只表达机制复杂度，不表示能力范围或强度。 */
+export type DestinyPatternAptitudeTier = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+/** 当前开发程度与资质阶位分轴记录。 */
+export type DestinyPatternDevelopmentStage = 'awakening' | 'mastery' | 'complete'
 
 /** 命格所属的主要作用机制；轮回天赋沿用同一分类契约。 */
 export type DestinyPatternCategory = 'enhancement' | 'control' | 'perception' | 'summoning' | 'creation'
@@ -87,14 +90,15 @@ export interface DestinyPattern {
   name: string
   description: string
   category: DestinyPatternCategory
-  rarity: DestinyPatternRarity
+  aptitudeTier: DestinyPatternAptitudeTier
+  developmentStage: DestinyPatternDevelopmentStage
   /** 效果描述文本（语义约束，注入叙事 Prompt 确保 AI 描述匹配） */
   effect: string
   /** 属性加成；等级总量由 Prompt 提议并由 mod-character 在本地提交前校验。 */
   attrBonus: Partial<AttributeModifiers>
 }
 
-/** 天赋成长 AI 只负责提供的内容方向。 */
+/** 天赋成长 AI 只负责提供的内容方向，不得改变资质阶位。 */
 export interface DestinyPatternGrowthDirection {
   route: DestinyPatternGrowthRoute
   name: string
@@ -106,7 +110,7 @@ export interface DestinyPatternGrowthDirection {
 /** 局内成长可作用于普通命格或已携带的轮回天赋；两者共用同一条血脉。 */
 export type DestinyPatternGrowthSource = DestinyPattern | ReincarnationTalent
 
-/** 已由本地补齐等级、身份与版本的单个下一阶方向。 */
+/** 已由本地补齐开发阶段、身份与版本的单个方向。 */
 export interface DestinyPatternGrowthOption {
   optionId: string
   route: DestinyPatternGrowthRoute
@@ -143,7 +147,7 @@ export interface DestinyPatternGrowthHistoryEntry {
 export interface DestinyPatternGrowthEvidence {
   lineageId: string
   sourceRound: number
-  usage: string
+  usage?: string
   result: string
   breakthrough?: string
 }
@@ -160,6 +164,8 @@ export interface DestinyPatternInput {
   name: string
   description: string
   category: DestinyPatternCategory
+  aptitudeTier: DestinyPatternAptitudeTier
+  developmentStage: DestinyPatternDevelopmentStage
   /** 效果描述文本 */
   effects: string
   /** 属性加成（可选） */
@@ -186,12 +192,13 @@ export interface ReincarnationTalent {
   name: string
   description: string
   category: DestinyPatternCategory
-  rarity: DestinyPatternRarity
+  aptitudeTier: DestinyPatternAptitudeTier
+  developmentStage: DestinyPatternDevelopmentStage
   /** 跨局持续生效的非数值概念规则。 */
   effect: string
   attrBonus: Partial<AttributeModifiers>
-  /** 强化等级；非 mythic 为 0，首次升到 mythic 仍为 0，神话强化后按程序结果变化。 */
-  strengthenLevel: number
+  /** 至高资质后继续轮回强化的阶数。 */
+  apexStrengthenLevel: number
   acquiredAt: number
   source: ReincarnationTalentSource
 }
@@ -202,8 +209,8 @@ export interface DestinyPatternState {
   candidates: DestinyPattern[]
   /** 角色在共享携带槽中选择的普通命格。 */
   patterns: DestinyPattern[]
-  /** 稀有度统计 */
-  rarityCount: Record<DestinyPatternRarity, number>,
+  /** 当前携带天赋的资质阶位统计。 */
+  aptitudeCount: Record<DestinyPatternAptitudeTier, number>
   /** 当前等待玩家选择的下一阶方向。 */
   pendingGrowth: PendingDestinyPatternGrowth | null
   /** 本局完整命格成长路线。 */

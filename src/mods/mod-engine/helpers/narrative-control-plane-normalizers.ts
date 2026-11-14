@@ -6,19 +6,40 @@
 
 import type {
   NarrativeBirthProfile,
-  NarrativeDirectionHint,
-  NarrativeEventCandidate,
+  NarrativeEventCard,
   NarrativeLifePlan,
   NarrativeWorldTimelineCommitment,
 } from '@/foundation'
+
+const EVENT_CARD_NAME_MIN = 2
+const EVENT_CARD_NAME_MAX = 8
+const EVENT_CARD_POLARITIES: readonly NarrativeEventCard['正负'][] = ['正', '负', '双面']
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function stableText(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    return value.map(stableText).filter(Boolean).join('；')
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => {
+        const itemText = stableText(item)
+        return itemText ? `${key}：${itemText}` : ''
+      })
+      .filter(Boolean)
+      .join('；')
+  }
+  return ''
+}
+
 function textList(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.map(text).filter(Boolean)
+  const values = Array.isArray(value) ? value : [value]
+  return values.map(stableText).filter(Boolean)
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -27,13 +48,27 @@ function record(value: unknown): Record<string, unknown> {
     : {}
 }
 
+function canonicalText(value: string): string {
+  return value.normalize('NFKC').replace(/\s+/gu, ' ').trim().toLocaleLowerCase()
+}
+
+function boundedWeight(value: unknown): number {
+  const numeric = Number(value)
+  return Number.isSafeInteger(numeric) ? Math.min(5, Math.max(1, numeric)) : 3
+}
+
 export function normalizeBirthProfile(
   value: unknown,
   sourceFingerprint: string,
+  startingAge = 0,
 ): NarrativeBirthProfile {
   const source = record(value)
   const narrative = text(source.叙事背景)
   if (!narrative) throw new Error('出生背景响应缺少出生叙事')
+  const interventionHistory = text(source.介入前史)
+  if (startingAge > 0 && !interventionHistory) {
+    throw new Error('非零年龄开局的出生背景响应缺少介入前史')
+  }
   return {
     出生地点: text(source.出生地点) || '未明确的出生地',
     家庭结构: text(source.家庭结构) || '由当前世界规则决定的家庭结构',
@@ -43,6 +78,7 @@ export function normalizeBirthProfile(
     机会: textList(source.机会),
     限制: textList(source.限制),
     叙事背景: narrative,
+    ...(startingAge > 0 ? { 介入前史: interventionHistory } : {}),
     sourceFingerprint,
   }
 }
@@ -52,10 +88,17 @@ export function normalizeLifePlan(
   sourceFingerprint: string,
 ): NarrativeLifePlan {
   const source = record(value)
+  const stageId = text(source.阶段标识)
+  const currentStage = text(source.当前阶段)
+  // 阶段目标可能是单个字符串，也可能是分条数组；与列表字段同一套可读文本展开。
+  const stageGoal = stableText(source.阶段目标)
+  if (!stageId || !currentStage || !stageGoal) {
+    throw new Error('人生规划响应缺少阶段标识、当前阶段或阶段目标')
+  }
   return {
-    阶段标识: text(source.阶段标识) || '当前阶段',
-    当前阶段: text(source.当前阶段) || '当前人生阶段',
-    阶段目标: text(source.阶段目标) || '在当前条件下形成新的生活位置',
+    阶段标识: stageId,
+    当前阶段: currentStage,
+    阶段目标: stageGoal,
     未解决目标: textList(source.未解决目标),
     关系与资源变化: textList(source.关系与资源变化),
     下一阶段入口: textList(source.下一阶段入口),
@@ -64,48 +107,42 @@ export function normalizeLifePlan(
   }
 }
 
-export function normalizeDirections(
+export function normalizeEventCards(
   value: unknown,
   sourceFingerprint: string,
-): NarrativeDirectionHint[] {
-  if (!Array.isArray(value)) return []
-  return value.flatMap((item, index) => {
-    const source = record(item)
-    const direction = text(source.方向)
-    if (!direction) return []
+): NarrativeEventCard[] {
+  const source = record(value)
+  const rawList = Array.isArray(value)
+    ? value
+    : Array.isArray(source.事件卡)
+      ? source.事件卡 as unknown[]
+      : []
+  const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
+  return rawList.flatMap((item, index) => {
+    const card = record(item)
+    const name = text(card.名称)
+    const nameLength = Array.from(name).length
+    const polarity = text(card.正负)
+    if (
+      nameLength < EVENT_CARD_NAME_MIN
+      || nameLength > EVENT_CARD_NAME_MAX
+      || !(EVENT_CARD_POLARITIES as readonly string[]).includes(polarity)
+    ) return []
+    const nameKey = canonicalText(name)
+    const id = text(card.id) || `event-card:${sourceFingerprint}:${index + 1}`
+    if (seenNames.has(nameKey) || seenIds.has(id)) return []
+    seenNames.add(nameKey)
+    seenIds.add(id)
     return [{
-      id: text(source.id) || `direction:${sourceFingerprint}:${index + 1}`,
-      方向: direction,
-      适用条件: text(source.适用条件) || '适合当前阶段与角色条件',
-      可能推动: text(source.可能推动) || '推动玩家形成新的行动、关系或位置变化',
-      失效条件: text(source.失效条件) || '当前阶段、玩家意图或世界条件改变',
+      id,
+      名称: name,
+      正负: polarity as NarrativeEventCard['正负'],
+      权重: boundedWeight(card.权重),
       sourceFingerprint,
     }]
   })
 }
-
-export function normalizeEvents(
-  value: unknown,
-  sourceFingerprint: string,
-): NarrativeEventCandidate[] {
-  if (!Array.isArray(value)) return []
-  return value.flatMap((item, index) => {
-    const source = record(item)
-    const eventType = text(source.事件类型)
-    if (!eventType) return []
-    return [{
-      id: text(source.id) || `event:${sourceFingerprint}:${index + 1}`,
-      事件类型: eventType,
-      核心矛盾: text(source.核心矛盾) || '当前条件下出现需要玩家参与的现实矛盾',
-      参与者类型: text(source.参与者类型) || '与玩家处境直接相关的行动者',
-      适用条件: text(source.适用条件) || '适合当前世界、阶段和玩家状态',
-      可能影响: text(source.可能影响) || '关系、资源、能力或社会位置',
-      不适用条件: text(source.不适用条件) || '与已成立事实或玩家明确意图冲突',
-      sourceFingerprint,
-    }]
-  })
-}
-
 export function normalizeTimeline(
   value: unknown,
   sourceFingerprint: string,

@@ -17,13 +17,13 @@ export type TimeStepOption = TimeStep & {
 }
 
 const STEP_ICONS: Record<string, string> = {
-  'day:1': '🌅',
-  'month:1': '🌙',
-  'season:1': '🍂',
-  'year:1': '📅',
-  'year:3': '⚡',
-  'year:5': '🚀',
-  'year:10': '⏩',
+  'day:1': '日',
+  'month:1': '月',
+  'season:1': '季',
+  'year:1': '年',
+  'year:3': '三',
+  'year:5': '五',
+  'year:10': '十',
 }
 
 const RAW_STEPS: Array<TimeStep & { label: string; experimental?: boolean }> = [
@@ -39,7 +39,7 @@ const RAW_STEPS: Array<TimeStep & { label: string; experimental?: boolean }> = [
 /** 可用时间步长列表（从细到粗） */
 export const AVAILABLE_TIME_STEPS: TimeStepOption[] = RAW_STEPS.map((s) => ({
   ...s,
-  icon: STEP_ICONS[`${s.unit}:${s.value}`] ?? '📅',
+  icon: STEP_ICONS[`${s.unit}:${s.value}`] ?? '年',
 }))
 
 /** UI 默认展示（日历粒度推进 + 年度宏观快进） */

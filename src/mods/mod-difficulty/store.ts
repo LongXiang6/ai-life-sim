@@ -1,8 +1,14 @@
 'use client'
 
 /**
+ * Purpose: Persist the player's selected narrative difficulty.
+ * Owner: mod-difficulty
+ * Responsibility: Difficulty selection state and persistence only.
+ */
+
+/**
  * @module store.ts
- * @description Zustand Store —— 四档难度状态管理
+ * @description Zustand Store —— 五档叙事难度状态
  * @mod mod-difficulty
  */
 
@@ -27,9 +33,8 @@ export const useDifficultyStore = create<DifficultyStoreState>()(
       },
     }),
     {
-      name: 'mod-difficulty:persist:difficulty-state',
+      name: 'mod-difficulty:persist:narrative-difficulty-v2',
       version: 1,
-      migrate: (persistedState: unknown, _version: number) => persistedState as DifficultyStoreState,
       partialize: (state,) => {
         const { setLevel: _a, getConfig: _b, ...rest } = state
         return rest

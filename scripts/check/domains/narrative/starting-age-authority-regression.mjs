@@ -102,10 +102,29 @@ const raceCatalog = {
     clockMode: 'aging',
   },
 }
+const raceCatalogWithElf = {
+  ...raceCatalog,
+  elf: { name: '精灵', baseLifespanYears: 1000, clockMode: 'aging' },
+}
+const resolveRaceId = compileStandaloneFunction(
+  characterCreateSourceFile,
+  'resolveRaceId',
+  { RACE_LIFESPAN: raceCatalogWithElf },
+)
+const resolveRaceConfig = compileStandaloneFunction(
+  characterCreateSourceFile,
+  'resolveRaceConfig',
+  { RACE_LIFESPAN: raceCatalogWithElf, resolveRaceId },
+)
 const buildConfirmedRaceLifespan = compileStandaloneFunction(
   characterCreateSourceFile,
   'buildConfirmedRaceLifespan',
-  { RACE_LIFESPAN: raceCatalog },
+  { RACE_LIFESPAN: raceCatalogWithElf, resolveRaceConfig },
+)
+const computeMaxAge = compileStandaloneFunction(
+  characterCreateSourceFile,
+  'computeMaxAge',
+  { RACE_LIFESPAN: raceCatalogWithElf, resolveRaceConfig },
 )
 const resolvePreviewRaceInfo = compileStandaloneFunction(
   sourceFile,
@@ -139,6 +158,10 @@ assertOk(
     && customRace?.clockMode === 'aging',
   'custom races must be committed into the current structured lifespan draft',
 )
+assertOk(
+  resolveRaceId?.('精灵') === 'elf' && computeMaxAge?.('精灵') === 1000,
+  'custom-name entry must retain the canonical lifespan config when it matches a known race label',
+)
 const customLifespan = {
   raceId: '星鲸族',
   race: customRace,
@@ -165,6 +188,11 @@ assertOk(
   're-entering character creation must restore the selected custom race into the local option list',
 )
 assertOk(
+  characterCreateSourceText.includes('const raceId = resolveRaceId(race)')
+    && characterCreateSourceText.includes('setLifespanDraft({ raceId, race: confirmedRace, maximumLifespanYears: maxAge })'),
+  'character confirmation must persist a canonical race ID for typed names that match known race labels',
+)
+assertOk(
   characterCreateSourceText.includes('manualLifespan: storedManualLifespan')
     && characterCreateSourceText.includes('manualStartingAge: storedManualStartingAge')
     && characterCreateSourceText.includes('const manualLifespan = storedManualLifespan')
@@ -177,8 +205,8 @@ assertOk(
   'the currently edited lifespan input must take precedence over an older computed/restored value at confirmation',
 )
 assertOk(
-  (characterCreateSourceText.match(/buildConfirmedRaceLifespan\(race, maxAge\)/g) ?? []).length >= 2
-    && (characterCreateSourceText.match(/setLifespanDraft\(\{ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge \}\)/g) ?? []).length >= 2,
+  (characterCreateSourceText.match(/buildConfirmedRaceLifespan\(raceId, maxAge\)/g) ?? []).length >= 2
+    && (characterCreateSourceText.match(/setLifespanDraft\(\{ raceId, race: confirmedRace, maximumLifespanYears: maxAge \}\)/g) ?? []).length >= 2,
   'both forward confirmation and backward preservation must write the current lifespan draft',
 )
 assertOk(
@@ -244,6 +272,12 @@ assertOk(
     && characterStatusRuntimeSourceText.includes('status.maximumLifespanDays * 0.8')
     && characterStatusRuntimeSourceText.includes('不因到龄自动死亡'),
   'character-base status must turn the lifespan draft into staged guidance and a non-deterministic ending risk',
+)
+assertOk(
+  characterCreateSourceText.includes('此前经历仍然存在')
+    && characterCreateSourceText.includes('自然衰老参考，不是死亡线')
+    && characterCreateSourceText.includes('到龄不会自动死亡'),
+  'character creation must explain intervention age, prior life, and non-automatic natural death',
 )
 assertOk(
   domainsSourceText.includes("'scripts/check/domains/narrative/starting-age-authority-regression.mjs'"),

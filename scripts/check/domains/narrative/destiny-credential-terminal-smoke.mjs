@@ -64,11 +64,11 @@ const context = {
   existingNames: [],
 }
 const categoryLabels = {
-  enhancement: '强化与变身',
-  control: '操控与投射',
-  perception: '感知与信息',
-  summoning: '召唤与分身',
-  creation: '创造与转化',
+  enhancement: '灵躯蜕变',
+  control: '万象听令',
+  perception: '洞察天机',
+  summoning: '万灵随行',
+  creation: '造化成形',
 }
 const variationWords = [
   '急停转身', '狭窄穿行', '长途负重', '水面平衡',
@@ -109,12 +109,14 @@ generationSystem.setAIService(async (systemPrompt, userPrompt, options) => {
   }
   const variationOffset = (callIndex - 1) * 4
   return JSON.stringify({
-    命格: Array.from({ length: 4 }, (_, itemIndex) => ({
-      类别: label,
+    天赋: Array.from({ length: 4 }, (_, itemIndex) => ({
+      类别: category,
       名称: `${label}${variationWords[variationOffset + itemIndex]}倾向`,
-      设定描述: `${label}在${variationWords[variationOffset + itemIndex]}方面保有普通熟练倾向。`,
+      简介: `${label}在${variationWords[variationOffset + itemIndex]}方面保有普通熟练倾向。`,
+      资质阶位: itemIndex % 3 + 1,
+      开发阶段: '初醒',
       效果: `处理${variationWords[variationOffset + itemIndex]}时更容易保持稳定表现，适合日常情境。`,
-      属性加成: itemIndex === 0 ? '心智+1，财富+1，魅力-1' : { 体魄: 1 },
+      属性加成: itemIndex === 0 ? { 心智: 1, 财富: 1, 魅力: -1 } : { 体魄: 1 },
     })),
   })
 })
@@ -123,7 +125,7 @@ const initialPatterns = await generationSystem.generateWithAI(context)
 assert.equal(generationRequestCount, 5, 'fresh initial generation must make exactly five category calls')
 assert.equal(initialPatterns.length, 20, 'fresh initial generation must publish four candidates per category')
 assert.equal(generationSystem.getPoolFillStatus().initialReady, true, 'all five initial categories must publish the selection handoff')
-assert.equal(initialPatterns[0]?.attrBonus.mind, 1, 'string attribute bonuses must remain usable in the live generation path')
+assert.equal(initialPatterns[0]?.attrBonus.mind, 1, 'current numeric attributes must remain usable in the generation path')
 
 const fullPool = await generationSystem.startBackgroundFill(context, initialPatterns)
 assert.equal(generationRequestCount, 15, 'fresh full pool must use five initial calls plus ten background calls')
@@ -166,25 +168,28 @@ sameContentSystem.setAIService(async (_systemPrompt, _userPrompt, options) => {
   assert.ok(category, 'same-content fixture must resolve its assigned category')
   const label = categoryLabels[category]
   return JSON.stringify({
-    命格: [
+    天赋: [
       {
-        类别: label,
+        类别: category,
         名称: `${label}同名倾向`,
-        设定描述: `${label}方向完全相同的候选内容。`,
+        简介: `${label}方向完全相同的候选内容。`,
+        资质阶位: 1, 开发阶段: '初醒',
         效果: `${label}方向完全相同的候选效果。`,
         属性加成: { 体魄: 1 },
       },
       {
-        类别: label,
+        类别: category,
         名称: `${label}同名倾向`,
-        设定描述: `${label}方向完全相同的候选内容（重复）。`,
+        简介: `${label}方向完全相同的候选内容（重复）。`,
+        资质阶位: 1, 开发阶段: '初醒',
         效果: `${label}方向完全相同的候选效果（重复）。`,
         属性加成: { 体魄: 1 },
       },
       ...Array.from({ length: 3 }, (_, index) => ({
-        类别: label,
+        类别: category,
         名称: `${label}独立倾向${index + 1}`,
-        设定描述: `${label}方向独立的候选内容${index + 1}。`,
+        简介: `${label}方向独立的候选内容${index + 1}。`,
+        资质阶位: 1, 开发阶段: '初醒',
         效果: `${label}方向独立的候选效果${index + 1}。`,
         属性加成: { 体魄: 1 },
       })),
@@ -195,7 +200,7 @@ const sameContentPatterns = await sameContentSystem.generateWithAI(context)
 assert.equal(sameContentRequestCount, 5, 'same-content candidates must not trigger retries')
 assert.equal(sameContentPatterns.length, 20, 'same-name candidates must retain one canonical name plus three unique names per category')
 assert.equal(
-  sameContentPatterns.filter((pattern) => pattern.name === '强化与变身同名倾向').length,
+  sameContentPatterns.filter((pattern) => pattern.name === '灵躯蜕变同名倾向').length,
   1,
   'same-name candidates must retain only the first candidate in each category',
 )
@@ -208,10 +213,11 @@ overflowSystem.setAIService(async (_systemPrompt, _userPrompt, options) => {
   assert.ok(category, 'overflow fixture must resolve its assigned category')
   const label = categoryLabels[category]
   return JSON.stringify({
-    命格: Array.from({ length: 5 }, (_, index) => ({
-      类别: label,
+    天赋: Array.from({ length: 5 }, (_, index) => ({
+      类别: category,
       名称: `${label}额外候选${index + 1}`,
-      设定描述: `${label}方向的第${index + 1}条额外候选。`,
+      简介: `${label}方向的第${index + 1}条额外候选。`,
+      资质阶位: 1, 开发阶段: '初醒',
       效果: `${label}方向的第${index + 1}条额外效果。`,
       属性加成: {},
     })),
@@ -224,12 +230,14 @@ const injectedSystem = new DestinyPatternSystem()
 const injected = injectedSystem.generateFromAI([
   {
     category: 'enhancement',
+    aptitudeTier: 1, developmentStage: 'awakening',
     name: ' 手眼　协调 ',
     description: '处理细小物件时动作较稳。',
     effects: '日常操作中较少出现明显失误。',
   },
   {
     category: 'enhancement',
+    aptitudeTier: 1, developmentStage: 'awakening',
     name: '手眼协调',
     description: '处理细小物件时动作较稳。',
     effects: '日常操作中较少出现明显失误。',

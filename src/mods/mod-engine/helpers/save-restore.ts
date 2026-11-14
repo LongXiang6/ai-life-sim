@@ -11,6 +11,10 @@
 import { useGlobalStore } from '@/core/global-store'
 import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { saveManager } from '@/core/storage/save-manager'
+import {
+  assertCurrentGameSaveFormat,
+  GAME_SAVE_SCHEMA_VERSION,
+} from '@/core/storage/save-manager/save-format'
 import { sanitizeCharacterStateSnapshot, useCharacterStore } from '@/mods/mod-character'
 import {
   buildDefaultCalibration,
@@ -124,6 +128,7 @@ function buildEngineSavePayload(): Record<string, unknown> {
  * 不调用任何运行时预览或回合回退入口。
  */
 export async function applyGameSave(data: Record<string, unknown>): Promise<void> {
+  assertCurrentGameSaveFormat(data)
   assertRuntimeReady('加载存档')
   const core = assertCoreSavePayload(data)
   const migratedCharacter = sanitizeCharacterStateSnapshot(core.character)
@@ -209,6 +214,7 @@ export function collectGameSavePayload(): Record<string, unknown> {
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 
   return {
+    saveSchemaVersion: GAME_SAVE_SCHEMA_VERSION,
     engine: buildEngineSavePayload(),
     character: buildCharacterSavePayload(),
     world: buildWorldSavePayload(),
@@ -282,7 +288,8 @@ export function ensureOrchestratorContextFromStores(): boolean {
       name: p.name,
       description: p.description,
       effect: p.effect,
-      rarity: p.rarity,
+      aptitudeTier: p.aptitudeTier,
+      developmentStage: p.developmentStage,
     })),
   })
   return true

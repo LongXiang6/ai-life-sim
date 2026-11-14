@@ -4,13 +4,12 @@
  * Responsibility: Dynamic message fixtures, tolerant story parsing, and strict post-call Schemas only.
  */
 
-import fs from 'node:fs'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { parseAIJSON } from '../../../../src/core/ai-service/parse-ai-json.ts'
 import { NarrativeAIStoryResultSchema, NarrativeAIStoryContinuityDataSchema, NarrativeAITalentGrowthDataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { inspectNarrativeResponseQuality, inspectNarrativeStoryContinuityQuality, inspectNarrativeTalentGrowthQuality } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { buildNarrativeTalentGrowthPromptInput } from '../../../../src/mods/mod-engine/helpers/narrative-talent-growth-context.ts'
-import { createPendingDestinyPatternGrowth, recordDestinyPatternGrowthAssessmentsInState, recordDestinyPatternGrowthEvidenceInState, registerPendingDestinyPatternGrowthInState, resolvePendingDestinyPatternGrowthInState, validateDestinyPatternAttrBonusForRarity } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
+import { createPendingDestinyPatternGrowth, recordDestinyPatternGrowthAssessmentsInState, recordDestinyPatternGrowthEvidenceInState, registerPendingDestinyPatternGrowthInState, resolvePendingDestinyPatternGrowthInState, validateDestinyPatternAttrBonusForAptitude } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
 import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { formatNarrativeTimelineForPrompt, projectNarrativeResultForPrompt } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
@@ -23,6 +22,40 @@ import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from '../../../../src/
 import { projectNarrativeHistoryEntryRuntime } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts'
 import { formatDestinyPatternsForPrompt } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system/prompt-talent-projection.ts'
 import { NarrativeControlPlane } from '../../../../src/mods/mod-engine/helpers/narrative-control-plane.ts'
+import {
+  normalizeBirthProfile,
+  normalizeEventCards,
+  normalizeLifePlan,
+} from '../../../../src/mods/mod-engine/helpers/narrative-control-plane-normalizers.ts'
+import { buildNarrativeControlPrompt } from '../../../../src/mods/mod-engine/helpers/narrative-control-plane-call.ts'
+import { splitNarrativeBatchResponse } from '../../../../src/mods/mod-engine/helpers/main-narrative-call.ts'
+import {
+  birthFingerprint,
+  baseFingerprint,
+  buildNarrativeControlInput,
+  NARRATIVE_BIRTH_PROFILE_VERSION,
+  NARRATIVE_EVENT_POOL_VERSION,
+  NARRATIVE_PLAN_VERSION,
+  projectLifePlanForControlPlane,
+} from '../../../../src/mods/mod-engine/helpers/narrative-control-plane-input.ts'
+import {
+  advanceCharacterNarrativeStatus,
+  createCharacterNarrativeStatus,
+} from '../../../../src/mods/mod-character/subsystems/character-status-runtime.ts'
+import { applyCharacterStatusUpdate } from '../../../../src/mods/mod-character/subsystems/character-status-update.ts'
+import { sanitizeCharacterNarrativeStatus } from '../../../../src/mods/mod-character/subsystems/character-status-validation.ts'
+import {
+  CHARACTER_BASE_POINTS_PER_YEAR,
+  CHARACTER_DAYS_PER_YEAR,
+} from '../../../../src/foundation/subsystem-contracts/character-state.contract.ts'
+import {
+  FATE_DRAMATIC_BIAS_LABELS,
+  FATE_DRAMATIC_BIASES,
+} from '../../../../src/foundation/types/narrative/control-plane.ts'
+import {
+  DIFFICULTY_NARRATIVE_GUIDANCE,
+  DIFFICULTY_ORDER,
+} from '../../../../src/foundation/types/narrative/difficulty.ts'
 
 let failed = 0
 function assertOk(condition, message) {
@@ -38,6 +71,22 @@ function assertThrows(fn, message) {
     // expected
   }
 }
+/**
+ * 事件卡契约夹具：按当前卡片契约补齐字段，调用方只声明与本条断言相关的差异。
+ * 名称必须保持 2–8 个字符；默认值由抽取与归一化共用。
+ */
+const eventCard = (partial = {}) => {
+  const id = partial.id ?? 'event-card'
+  const fallbackName = Array.from(`事件${id}`).slice(0, 8).join('')
+  return {
+    id,
+    名称: fallbackName,
+    正负: '双面',
+    权重: 3,
+    sourceFingerprint: 'event-card-fixture',
+    ...partial,
+  }
+}
 const promptContext = {
   worldNarrativeView: {
     名称: '雾潮群岛',
@@ -48,21 +97,57 @@ const promptContext = {
     性别: '女',
     种族: '潮裔',
     背景: '测潮学徒兼浅海潜水员。',
-    基础属性: {},
+    基础属性: {
+      当前状态: { 心智: '善于处理复杂信息', 体魄: '稳定耐力', 魅力: '普通', 财富: '普通', 气运: '普通' },
+    },
   },
   characterStatusView: {
     年龄: 19,
+    自然寿命参考年龄: 100,
     属性数值: { mind: 2, physique: 1, charisma: -1, familyBackground: 0 },
     伤势: '不应发送',
   },
-  talents: [{ 名称: '听潮辨隙', 效果: '能根据近处水声察觉明显堵塞。' }],
+  talents: [{ 名称: '听潮辨隙', 资质阶位: '普通', 开发阶段: '初醒', 效果: '能根据近处水声察觉明显堵塞。' }],
   timelineMemory: ['议事会同意先做低潮勘查。'],
   recentStories: ['你仍是雾潮群岛的测潮学徒，住在港区，持有临时闸槽通行权。'],
   currentTime: '317年4月',
+  narrativeTimeWindow: '本轮覆盖一个自然年；已推进365天。',
   wordCountInstruction: '正文约200字。',
   playerBranchIntent: {
     命运分支: '利用低潮窗口复测闸槽，确认安全后完成临时封堵。',
     当前可叙述状态: '不应发送',
+  },
+  controlPlane: {
+    birthProfile: {
+      出生地点: '雾港外湾',
+      家庭结构: '两代渔工家庭',
+      照料者: '父母共同照料',
+      家庭资源: '稳定但有限',
+      社会处境: '港区居民',
+      机会: [],
+      限制: [],
+      叙事背景: '你出生在受海雾影响的外湾。',
+      介入前史: '你在港区长大，十六岁开始学习测潮。',
+      sourceFingerprint: 'internal-birth-source',
+    },
+    difficultyGuidance: '保持中性基线：不额外赐予主角光环，也不针对主角；按世界规则、行动和因果裁决。',
+    eventCards: [
+      {
+        id: 'internal-card-tide-gate',
+        名称: '闸槽开裂',
+        正负: '负',
+        权重: 4,
+        sourceFingerprint: 'internal-card-source',
+      },
+      {
+        id: 'internal-card-low-tide',
+        名称: '低潮提前',
+        正负: '双面',
+        权重: 3,
+        sourceFingerprint: 'internal-card-source',
+      },
+    ],
+    dueWorldEvents: [],
   },
   subsystemStates: { hidden: true },
 }
@@ -77,7 +162,7 @@ assertOk(
   '01 数据层数组必须保留五个原字段及顺序',
 )
 assertOk(
-  JSON.stringify(Object.keys(storyMessages[1].玩家信息)) === JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能']),
+  JSON.stringify(Object.keys(storyMessages[1].玩家信息)) === JSON.stringify(['姓名', '性别', '种族', '背景', '属性尺度', '当前属性语义', '天赋技能']),
   '01 数据层第二个字段必须是玩家信息',
 )
 assertOk(
@@ -88,38 +173,90 @@ assertOk(
 )
 assertOk(
   JSON.stringify(Object.keys(storyMessages[3].玩家本次点属性)) === JSON.stringify(['心智', '体魄', '魅力', '财富'])
-    && JSON.stringify(Object.keys(storyMessages[4].本次信息)) === JSON.stringify(['时间节点', '时间窗口', '命运分支', '篇幅偏好']),
+    && JSON.stringify(Object.keys(storyMessages[4].本次信息)) === JSON.stringify([
+      '时间节点',
+      '时间窗口',
+      '自然寿命参考年龄',
+      '命运分支',
+      '篇幅偏好',
+      '叙事称呼',
+      '文风偏好',
+      '控制平面',
+    ]),
   '01 属性与本次信息必须严格保留数据层字段',
 )
 assertOk(
-  storyMessages[1].玩家信息.天赋技能[0].名称 === '听潮辨隙'
+  storyMessages[1].玩家信息.属性尺度.includes('-10')
+    && storyMessages[1].玩家信息.当前属性语义.心智
+    && storyMessages[1].玩家信息.天赋技能[0].资质阶位 === '普通'
+    && storyMessages[1].玩家信息.天赋技能[0].开发阶段 === '初醒'
+    && storyMessages[1].玩家信息.天赋技能[0].名称 === '听潮辨隙'
     && storyMessages[1].玩家信息.天赋技能[0].效果.includes('近处水声')
     && storyMessages[4].本次信息.命运分支.includes('利用低潮窗口')
     && storyMessages[4].本次信息.篇幅偏好 === '正文约200字。'
+    && storyMessages[4].本次信息.叙事称呼 === '第二人称（用“你/你的”）'
+    && storyMessages[4].本次信息.文风偏好 === ''
+    && storyMessages[4].本次信息.自然寿命参考年龄 === 100
+    && storyMessages[4].本次信息.控制平面.出生背景.介入前史 === '你在港区长大，十六岁开始学习测潮。'
     && JSON.stringify(storyMessages[3].玩家本次点属性) === JSON.stringify({ 心智: '2', 体魄: '1', 魅力: '-1', 财富: '0' }),
-  '01 数据层必须传递天赋、玩家行动和整数字符串属性',
+  '01 数据层必须传递天赋、玩家行动、整数字符串属性、介入前史和自然寿命参考年龄',
+)
+const compactCards = storyMessages[4].本次信息.控制平面.事件卡池
+assertOk(
+  storyMessages[4].本次信息.控制平面.难度指引.includes('中性基线')
+    && Array.isArray(compactCards)
+    && compactCards.length === 2
+    && JSON.stringify(compactCards) === JSON.stringify(['闸槽开裂', '低潮提前']),
+  '控制平面必须只投影事件卡池名称数组，不携带卡片字段',
+)
+assertOk(
+  compactCards.every((name) => typeof name === 'string' && Array.from(name).length >= 2 && Array.from(name).length <= 8)
+    && !JSON.stringify(compactCards).includes('sourceFingerprint')
+    && JSON.stringify(storyMessages[4].本次信息.控制平面).includes('出生背景'),
+  '事件卡池投影只保留 2–8 字名称，旧候选与方向字段不得进入数据层',
+)
+assertOk(
+  storyMessages[4].本次信息.时间窗口.includes('本轮覆盖')
+    && storyMessages[4].本次信息.时间窗口.includes('已推进')
+    && !storyMessages[4].本次信息.时间窗口.includes('宏观编年体')
+    && !storyMessages[4].本次信息.时间窗口.includes('3 至 5 个时间阶段'),
+  '01 时间窗口只传递跨度事实，不再夹带宏观编年配额',
 )
 const composedStoryMessage = composeNarrativeUserMessage(segments.userSegments[0])
 assertOk(
   !composedStoryMessage.includes('代码区块')
-    && composedStoryMessage.includes('一次调用内的生成流程')
+    && composedStoryMessage.includes('# 角色')
+    && composedStoryMessage.includes('# 输出')
     && composedStoryMessage.includes('议事会同意先做低潮勘查。')
     && composedStoryMessage.includes('"财富": "0"'),
-  '01 服务端必须按 prompt.txt 最终顺序合成唯一 user 消息',
+  '01 服务端必须按受保护主故事资产顺序合成唯一 user 消息',
 )
 assertOk(
   [
-    '你是宏观事件级的人生模拟器',
-    '叙事以影响玩家人生位置的外部局面与结构变化为中心',
-    '历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风',
-    '先形成改变玩家社会位置、制度机会、资源、组织关系、教育路径、迁徙方向、职业身份或生存条件的外部局面',
-    '正文是宏观事件记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放',
-    '按年或更长跨度时，呈现跨度中的积累、转折和结果如何改变玩家的位置、关系或处境',
-    '事件结果是正文唯一的事实底稿',
-    '玩家是事件身份、因果主线和正文重心的归属者',
-    '每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串',
+    '你是人生模拟器',
+    '角色是中心',
+    '历史是已经发生的人生',
+    '事件是角色选择与世界反应共同留下的结果',
+    '正文像人生小说的一章，不是因果报告',
+    '允许概括、跳跃、留白',
+    '“人生规划”和“事件卡池”只是软提示',
+    '属性只写发生持续变化的项',
+    '事件卡消费（可选）',
+    '天赋表现线索（可选）',
   ].every((phrase) => composedStoryMessage.includes(phrase)),
-  '01 核心契约必须生成多项独立结果的人生记录，历史只提供既定事实而不锁定主题或写法',
+  '01 核心契约必须角色中心、正文优先并提供最小输出协议',
+)
+assertOk(
+  [...composedStoryMessage.matchAll(/【示例\d｜世界观：/gu)].length === 0
+    && (composedStoryMessage.match(/"正文":/gu) ?? []).length === 1
+    && composedStoryMessage.includes('"属性":')
+    && composedStoryMessage.includes('"角色死亡": false')
+    && composedStoryMessage.includes('"命运分支": false')
+    && composedStoryMessage.includes('"结局": false')
+    && composedStoryMessage.indexOf('# 角色') < composedStoryMessage.indexOf('# 输入')
+    && composedStoryMessage.indexOf('# 输入') < composedStoryMessage.indexOf('# 写法')
+    && composedStoryMessage.indexOf('# 写法') < composedStoryMessage.indexOf('# 输出'),
+  '编译后的主故事消息必须只保留一份最小 JSON 输出并保持角色/输入/写法/输出顺序',
 )
 assertOk(
   projectNarrativeResultForPrompt({ text: '你取得正式领航资格。', displayAge: 18 })
@@ -133,21 +270,16 @@ assertOk(
   '01 真实转岗记录必须保留父亲岗位、腰伤、母亲就业及灶台限制，不能只留下最后一句',
 )
 const multiResultNarrative = '你取得正式领航资格。\n议会免除了聚落的航道税！船主归还了抵押给你的船契。'
-const structuredEventProjection = projectNarrativeResultForPrompt({
+const multiResultProjection = projectNarrativeResultForPrompt({
   text: multiResultNarrative,
-  eventResults: [{ 事件: '航道税改革', 成因: '议会为恢复外海贸易重定税制。', 结果: '聚落免除旧航道税并恢复贸易。', 影响: '船主收回抵押船契，聚落承担短期财政缺口。' }],
   displayAge: 18,
 })
 assertOk(
-  structuredEventProjection.includes('已结束事件身份：航道税改革；已成立事实：成因：议会为恢复外海贸易重定税制。；结果：聚落免除旧航道税并恢复贸易。；影响：船主收回抵押船契，聚落承担短期财政缺口。')
-    && !structuredEventProjection.includes('本轮正文事实：')
-    && !structuredEventProjection.includes('你取得正式领航资格。')
-    && structuredEventProjection.startsWith('18岁：'),
-  '01 近期历史有结构化结果时只投影该事实底稿，避免把同一主线以正文再次强化',
+  multiResultProjection === `18岁：${multiResultNarrative}`,
+  '01 近期历史始终投影完整正文，不再依赖结构化事件账本',
 )
-const olderStructuredProjection = projectNarrativeHistoryEntryRuntime(null, {
+const olderProjection = projectNarrativeHistoryEntryRuntime(null, {
   text: multiResultNarrative,
-  eventResults: [{ 事件: '航道税改革', 成因: '议会调整税制。', 结果: '聚落恢复贸易。', 影响: '船主收回船契。' }],
   displayAge: 18,
 }, 1)
 const olderFallbackProjection = projectNarrativeHistoryEntryRuntime(null, {
@@ -155,12 +287,12 @@ const olderFallbackProjection = projectNarrativeHistoryEntryRuntime(null, {
   displayAge: 19,
 }, 2)
 assertOk(
-  JSON.stringify(formatNarrativeTimelineForPrompt([olderStructuredProjection, olderFallbackProjection]))
+  JSON.stringify(formatNarrativeTimelineForPrompt([olderProjection, olderFallbackProjection]))
     === JSON.stringify([
-      '18岁：已结束事件身份：航道税改革；已成立事实：成因：议会调整税制。；结果：聚落恢复贸易。；影响：船主收回船契。',
+      `18岁：${multiResultNarrative}`,
       `19岁：${multiResultNarrative}`,
     ]),
-  '01 较早未压缩轮次必须优先投影结构化结果，缺少结果时回退完整正文',
+  '01 较早未压缩轮次直接投影完整正文，缺少账本时不做二次推断',
 )
 const completeHistoryProjection = projectNarrativeResultForPrompt({
   text: `  ⟦正文⟧\r\n${multiResultNarrative.replace(/\n/gu, '\r\n')}  `,
@@ -220,7 +352,7 @@ const infantSegments = buildSegmentedPrompt(narrativePrompt, {
 })
 assertOk(
   JSON.parse(infantSegments.userSegments[0])[4].本次信息.时间节点
-    === '当前年龄=1；内部阶段索引=1；只用于合龄裁决，不得转写为正文或事件结果',
+    === '当前年龄=1；内部阶段索引=1；只用于合龄裁决，不转写为正文',
   '01 本次信息必须保留不可见的当前阶段索引',
 )
 assertOk(
@@ -229,23 +361,24 @@ assertOk(
   '01 不得泄漏内部状态字段',
 )
 const growthPatterns = [
-  ['lineage-enhancement', '强化命格', 'enhancement', 'epic'],
-  ['lineage-perception', '感知命格', 'perception', 'common'],
-  ['lineage-control', '操控命格', 'control', 'common'],
-  ['lineage-creation', '创造命格', 'creation', 'common'],
-].map(([lineageId, name, category, rarity], index) => ({
+  ['lineage-enhancement', '强化命格', 'enhancement', 5],
+  ['lineage-perception', '感知命格', 'perception', 1],
+  ['lineage-control', '操控命格', 'control', 1],
+  ['lineage-creation', '创造命格', 'creation', 1],
+].map(([lineageId, name, category, aptitudeTier], index) => ({
   lineageId,
   version: index + 1,
   id: `pattern-${index + 1}`,
   name,
   description: `${name}的能力说明。`,
   category,
-  rarity,
+  aptitudeTier,
+  developmentStage: 'awakening',
   effect: `${name}在相关事件中形成直接结果。`,
   attrBonus: { physique: 1 },
 }))
 const recentGrowthSource = structuredClone(growthPatterns[0])
-const recentGrowthResult = { ...structuredClone(recentGrowthSource), version: 5, rarity: 'legendary' }
+const recentGrowthResult = { ...structuredClone(recentGrowthSource), version: 5, developmentStage: 'mastery' }
 const talentGrowthInput = buildNarrativeTalentGrowthPromptInput({
   patterns: growthPatterns,
   compressedSummaries: { summaries: [] },
@@ -308,7 +441,7 @@ assertOk(
     && JSON.parse(underageTalentGrowthInput.userSegments[2]).玩家已选天赋.length === 0,
   '03 未满 16 岁时必须由程序清空成长候选并跳过成长 AI',
 )
-const growthState = (patterns, pendingGrowth = null, growthHistory = []) => ({ candidates: [], patterns, rarityCount: { common: 1, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 }, pendingGrowth, growthHistory })
+const growthState = (patterns, pendingGrowth = null, growthHistory = []) => ({ candidates: [], patterns, aptitudeCount: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 }, pendingGrowth, growthHistory, growthEvidence: [], growthAssessments: [] })
 const characterGrowthSnapshot = (age, destinyPatterns) => sanitizeCharacterStateSnapshot({ age, destinyPatterns, equippedReincarnationTalents: [] })
 const underageGrowthSource = structuredClone(growthPatterns[1])
 const underagePendingGrowth = createPendingDestinyPatternGrowth({
@@ -360,10 +493,11 @@ const reincarnationSource = {
   name: '回声天赋',
   description: '能把曾经经历过的声音重新带回当前判断。',
   category: 'perception',
-  rarity: 'common',
+  aptitudeTier: 1,
+  developmentStage: 'awakening',
   effect: '在相关事件中恢复关键声音线索。',
   attrBonus: {},
-  strengthenLevel: 0,
+  apexStrengthenLevel: 0,
   acquiredAt: 100,
   source: { worldName: '旧世界', characterName: '旧角色' },
 }
@@ -392,7 +526,7 @@ const reincarnationResolved = resolvePendingDestinyPatternGrowthInState(
   [reincarnationSource],
 )
 assertOk(
-  reincarnationPendingState.pendingGrowth?.source.strengthenLevel === 0
+  reincarnationPendingState.pendingGrowth?.source.apexStrengthenLevel === 0
     && reincarnationResolved.reincarnationTalents?.[0].version === 2
     && reincarnationResolved.state.patterns[0].lineageId === growthPatterns[2].lineageId,
   '03 轮回天赋必须复用同一成长状态，并在玩家确认后更新原携带槽而不伪造普通命格',
@@ -401,6 +535,7 @@ const transformationSource = {
   ...structuredClone(growthPatterns[1]),
   id: 'transformation-v1', lineageId: 'transformation-lineage', version: 1,
   category: 'enhancement', name: '体能强化',
+  aptitudeTier: 2,
   description: '你可以主动强化身体的爆发力。', effect: '发动后身体力量得到局部增强。',
   attrBonus: { physique: 1 },
 }
@@ -409,7 +544,7 @@ const firstTransformation = createPendingDestinyPatternGrowth({
   directions: [
     { route: '深度强化', name: '体能爆发', description: '你能增强同类身体爆发。', effect: '身体爆发更强。', attrBonus: { physique: 2 } },
     { route: '广度强化', name: '持久强化', description: '你能在持续行动中强化身体。', effect: '身体强化适用更多行动。', attrBonus: { physique: 1 } },
-    { route: '转变强化', name: '机械共鸣', description: '你在长期机械救援与改装后，能感应并协调机械运动。', effect: '触碰机械时以共鸣协调其运转。', attrBonus: { mind: 2 } },
+    { route: '转变强化', name: '机械共鸣', description: '强化的力量沿掌心传入机件，卡死的齿轮随呼吸重新咬合，身体仍可独立发力。', effect: '保留主动身体强化；触碰机械时可将强化力量用于协调其运转。', attrBonus: { mind: 2 } },
   ],
 })
 const firstTransformationResult = resolvePendingDestinyPatternGrowthInState(
@@ -437,7 +572,7 @@ assertOk(
     && currentTransformedCandidate.名称 === '机械共鸣'
     && currentTransformedCandidate.当前版本 === 2
     && currentTransformedCandidate.效果描述 === firstTransformationResult.historyEntry.result.effect
-    && currentTransformedCandidate.目标等级 === '稀有',
+    && currentTransformedCandidate.目标开发阶段 === '圆满',
   '03 下一次进阶必须使用已确认的新能力与新证据，不回到最初能力',
 )
 const secondTransformation = createPendingDestinyPatternGrowth({
@@ -445,7 +580,7 @@ const secondTransformation = createPendingDestinyPatternGrowth({
   directions: [
     { route: '深度强化', name: '机械协调', description: '你能更准确地协调机械。', effect: '机械共鸣控制更加精细。', attrBonus: { mind: 3 } },
     { route: '广度强化', name: '百械共鸣', description: '你能与更多种类的机械共鸣。', effect: '机械共鸣适用更多器械。', attrBonus: { mind: 2 } },
-    { route: '转变强化', name: '元素掌控', description: '你在元素核心救援后，能直接引导供能元素的流动。', effect: '你能引导近处元素，不再依赖机械共鸣或身体强化。', attrBonus: { luck: 1 } },
+    { route: '转变强化', name: '元素掌控', description: '掌心的力量顺着机轴流入供能核心，让失控火流沿着选定导管重新归位。', effect: '保留身体强化与触碰机械时协调运转的能力，并能沿机械导管引导其中的元素流动；不能凭空制造元素。', attrBonus: { luck: 1 } },
   ],
 })
 const secondTransformationResult = resolvePendingDestinyPatternGrowthInState(
@@ -457,14 +592,14 @@ const restoredTransformation = characterGrowthSnapshot(42, secondTransformationR
 const transformedStoryTalents = formatDestinyPatternsForPrompt(secondTransformationResult.state.patterns, true)
 assertOk(
   secondTransformationResult.state.patterns.length === 1
-    && transformedPattern.name === '元素掌控' && transformedPattern.rarity === 'rare'
+    && transformedPattern.name === '元素掌控' && transformedPattern.aptitudeTier === 2 && transformedPattern.developmentStage === 'complete'
     && transformedPattern.lineageId === transformationSource.lineageId && transformedPattern.version === 3
     && transformedPattern.attrBonus.physique === undefined && transformedPattern.attrBonus.mind === undefined
     && transformedPattern.attrBonus.luck === 1
     && secondTransformationResult.state.growthHistory.length === 2
     && secondTransformationResult.state.growthHistory[1].source.name === '机械共鸣'
     && secondTransformationResult.state.pendingGrowth === null,
-  '03 连续选择转变强化必须允许跨能力类型，保留成长身份但替换旧能力与完整属性',
+  '03 连续选择转变强化须保留资质、推进开发阶段，并以完整新效果延续已成立能力',
 )
 assertOk(
   restoredTransformation.destinyPatterns.patterns[0].name === '元素掌控'
@@ -495,42 +630,152 @@ assertOk(
   fourFieldOutput.narrative.includes('迁都诏书'),
   '01 缺少临时字段时仍必须保留可用正文',
 )
-const publicResults = [
-  JSON.parse(validWithBranch),
-  { 正文: '粮路恢复，城邦获得稳定补给。', 属性: { 心智: 3, 体魄: 1, 魅力: -1, 财富: 2 }, 命运分支: false, 结局: false },
-  { 正文: '你安然辞世，港口由议会接管。', 属性: { 心智: 2, 体魄: 1, 魅力: -1, 财富: 0 }, 命运分支: false, 结局: '此生无憾' },
+const livingEndingOutput = parseNarrativeResponseEnvelope(JSON.stringify({
+  正文: '你把港区测潮学徒的职责交给后来者，仍以顾问身份留在议事会。',
+  属性: { 心智: 0, 体魄: 0, 魅力: 0, 财富: 0 },
+  角色死亡: false,
+  命运分支: false,
+  结局: { 评语: '功成身退', 总结: '你结束了这段人生旅程，但仍然活着。' },
+}))
+assertOk(
+  Boolean(livingEndingOutput.ending)
+    && livingEndingOutput.characterDeath === undefined,
+  '01 普通人生结局不得推断或创建角色死亡状态',
+)
+const explicitDeathOutput = parseNarrativeResponseEnvelope(JSON.stringify({
+  正文: '战斗的重击夺去你的生命，护送队将你的遗物带回港城。',
+  属性: { 心智: 0, 体魄: 0, 魅力: 0, 财富: 0 },
+  角色死亡: { 死因类型: 'trauma', 死因: '战斗中遭受致命重击' },
+  命运分支: false,
+  结局: { 评语: '此生已尽', 总结: '战斗中遭受致命重击，此生至此结束。' },
+}))
+assertOk(
+  explicitDeathOutput.characterDeath?.死因类型 === 'trauma'
+    && explicitDeathOutput.ending?.评语 === '此生已尽',
+  '01 明确死亡必须恢复正式死因并进入结局',
+)
+const lifespanDraft = {
+  raceId: 'human',
+  race: { name: '人类', baseLifespanYears: 100, clockMode: 'aging' },
+  maximumLifespanYears: 100,
+}
+const worldLifeStageTemplate = [
+  { stageId: 'life-stage-1', displayName: '幼年期', description: '依赖照料', minAgeDays: 0, maxAgeDays: 6 * CHARACTER_DAYS_PER_YEAR, guidance: '按幼年处境推进' },
+  { stageId: 'life-stage-2', displayName: '成长期', description: '学习与探索', minAgeDays: 6 * CHARACTER_DAYS_PER_YEAR, maxAgeDays: 18 * CHARACTER_DAYS_PER_YEAR, guidance: '按成长处境推进' },
+  { stageId: 'life-stage-3', displayName: '行世期', description: '承担社会角色', minAgeDays: 18 * CHARACTER_DAYS_PER_YEAR, maxAgeDays: 60 * CHARACTER_DAYS_PER_YEAR, guidance: '按行世处境推进' },
+  { stageId: 'life-stage-4', displayName: '暮年期', description: '人生渐近收束', minAgeDays: 60 * CHARACTER_DAYS_PER_YEAR, guidance: '体现暮年阅历' },
 ]
+const stageLifespanStatus = createCharacterNarrativeStatus({
+  entityId: 'player-stage-lifespan',
+  startingAgeYears: 50,
+  totalBasePoints: 0,
+  lifespanDraft,
+  lifeStageTemplate: worldLifeStageTemplate,
+})
+const originalStageTemplate = JSON.stringify(stageLifespanStatus.lifeStageTemplate)
+assertOk(
+  stageLifespanStatus.currentStageId === 'life-stage-3'
+    && stageLifespanStatus.lifeStageTemplate[3].displayName === '暮年期'
+    && sanitizeCharacterNarrativeStatus(stageLifespanStatus)?.lifeStageTemplate.length
+      === stageLifespanStatus.lifeStageTemplate.length,
+  '角色状态必须保存可校验的未缩放生命阶段模板，并从中派生当前阶段',
+)
+assertOk(
+  stageLifespanStatus.maximumLifespanDays === 100 * CHARACTER_DAYS_PER_YEAR
+    && JSON.stringify(stageLifespanStatus.lifeStageTemplate) === originalStageTemplate,
+  '自然寿命固定后，角色状态仍保留原始生命阶段模板',
+)
+const agelessStatus = createCharacterNarrativeStatus({
+  entityId: 'player-ageless-stage',
+  startingAgeYears: 50,
+  totalBasePoints: 0,
+  lifespanDraft: {
+    ...lifespanDraft,
+    race: { ...lifespanDraft.race, clockMode: 'ageless' },
+  },
+  lifeStageTemplate: worldLifeStageTemplate,
+})
+assertOk(
+  agelessStatus.currentStageId === 'life-stage-3'
+    && agelessStatus.endRisk === 0
+    && agelessStatus.health.alive,
+  '非衰老生命形态不产生自然寿命终局风险或自动死亡',
+)
+const lifespanStatus = createCharacterNarrativeStatus({
+  entityId: 'player-lifespan',
+  startingAgeYears: 16,
+  totalBasePoints: 0,
+  lifespanDraft,
+})
+const elapsedYearsBasePoints = 84 * CHARACTER_BASE_POINTS_PER_YEAR
+const statusAtNaturalReference = advanceCharacterNarrativeStatus(
+  lifespanStatus,
+  16,
+  elapsedYearsBasePoints,
+)
+assertOk(
+  Math.floor(statusAtNaturalReference.ageDays / CHARACTER_DAYS_PER_YEAR) === 100
+    && statusAtNaturalReference.maximumLifespanDays === 100 * CHARACTER_DAYS_PER_YEAR
+    && statusAtNaturalReference.health.alive
+    && statusAtNaturalReference.endRisk === 100,
+  '到达自然寿命参考年龄只更新风险提示，不会自动死亡',
+)
+const explicitDeathStatus = structuredClone(statusAtNaturalReference)
+const pendingDeath = applyCharacterStatusUpdate({
+  status: explicitDeathStatus,
+  payload: { deathCauseKind: 'trauma', deathCauseLabel: '战斗中遭受致命重击' },
+  contextId: 'world-a',
+  totalBasePoints: elapsedYearsBasePoints,
+  evidenceEventIds: ['narrative-death'],
+})
+assertOk(
+  explicitDeathStatus.health.alive === false
+    && explicitDeathStatus.health.vitality === 0
+    && pendingDeath?.causeKind === 'trauma'
+    && pendingDeath?.causeLabel === '战斗中遭受致命重击',
+  '明确死亡必须由角色状态所有者写入死亡状态并等待历史事实绑定',
+)
 const currentAttributes = { 心智: 2, 体魄: 1, 魅力: -1, 财富: 0 }
+const schemaBase = {
+  正文: '码头开放，城邦恢复补给。',
+  属性: currentAttributes,
+  命运分支: false,
+  结局: false,
+  角色死亡: false,
+}
+assertOk(
+  NarrativeAIStoryResultSchema.safeParse(schemaBase).success
+    && NarrativeAIStoryResultSchema.safeParse({ ...schemaBase, 属性: { 心智: 3 } }).success,
+  '01 最小 Schema 必须接受完整或部分属性，不要求未变化项',
+)
 assertOk(
   NarrativeAIStoryResultSchema.safeParse({
-    时间定位: '20岁·317年',
-    事件结果: [{ 事件: '码头开放', 成因: '商路封锁', 结果: '城邦恢复补给', 影响: '粮价回落' }],
-    正文: '码头开放，城邦恢复补给。', 命运分支: false, 属性: currentAttributes, 结局: false,
-  }).success,
-  '01 声明Schema须接受新版事件结果对象数组，不增加临时字段运行门禁',
+    ...schemaBase,
+    正文: '战斗的重击夺去你的生命，护送队将你的遗物带回港城。',
+    角色死亡: { 死因类型: 'trauma', 死因: '战斗中遭受致命重击' },
+    结局: '此生已尽',
+  }).success
+    && !NarrativeAIStoryResultSchema.safeParse({
+      ...schemaBase,
+      正文: '角色死亡却仍提供未决分支。',
+      角色死亡: { 死因类型: 'trauma', 死因: '致命重击' },
+      命运分支: ['继续前行', '等待援军'],
+      结局: '此生已尽',
+    }).success,
+  '01 结构协议必须要求明确死亡与终局互斥的死亡分支',
 )
-for (const publicResult of publicResults) {
-  const expected = parseNarrativeResponseEnvelope(JSON.stringify(publicResult), { currentAttributes })
-  const eventResults = [{ 事件: '码头开放', 成因: '商路封锁', 结果: '城邦恢复补给', 影响: '粮价回落' }]
-  const expectedWithEvents = {
-    narrative: expected.narrative,
-    eventResults,
-    ...(expected.branch ? { branch: expected.branch } : {}),
-    ...(expected.ending ? { ending: expected.ending } : {}),
-    ...(expected.attributeChanges ? { attributeChanges: expected.attributeChanges } : {}),
-  }
-  for (const [payload, expectedResult] of [
-    [{ 时间定位: '20岁·317年', 事件结果: eventResults, ...publicResult }, expectedWithEvents],
-    [{ ...publicResult, 时间定位: '20岁·317年', 事件结果: eventResults }, expectedWithEvents],
-    [{ 时间定位: null, 事件结果: { 异常: true }, ...publicResult }, expected],
-  ]) {
-    const actual = parseNarrativeResponseEnvelope(JSON.stringify(payload), { currentAttributes })
-    assertOk(
-      JSON.stringify(actual) === JSON.stringify(expectedResult),
-      '01 合法事件结果应被独立恢复并保留到历史材料，异常事件结果不得阻断或污染正文、分支、结局及属性结果',
-    )
-  }
-}
+const legacyFieldsOutput = parseNarrativeResponseEnvelope(JSON.stringify({
+  ...schemaBase,
+  时间定位: '20岁·317年',
+  事件结果: [{ 事件: '码头开放', 成因: '商路封锁', 结果: '城邦恢复补给', 影响: '粮价回落' }],
+  自然寿命变化: -8,
+}), { currentAttributes })
+assertOk(
+  legacyFieldsOutput.eventResults === undefined
+    && legacyFieldsOutput.naturalLifespanDeltaYears === undefined
+    && legacyFieldsOutput.narrative === schemaBase.正文,
+  '01 V3A 不再恢复时间定位、事件结果或自然寿命变化，正文仍可用',
+)
 const arrayWrappedNarrative = parseNarrativeResponseEnvelope(JSON.stringify([{
   年龄: 1,
   心智: 2,
@@ -733,7 +978,7 @@ const noLocalBudget = structuredClone(growthResult)
 noLocalBudget.成长判定.下一阶方向[0].属性加成 = { 财富: 100, 体魄: -50 }
 assertOk(
   NarrativeAITalentGrowthDataSchema.safeParse(noLocalBudget).success
-    && !validateDestinyPatternAttrBonusForRarity({ familyBackground: 100, physique: -50 }, 'fine'),
+    && !validateDestinyPatternAttrBonusForAptitude({ familyBackground: 100, physique: -50 }, 2),
   '03 传输协议保持宽容，但本地天赋提交必须拒绝越过等级边界的属性',
 )
 const wrongOrder = structuredClone(growthResult)
@@ -765,65 +1010,153 @@ assertOk(
     && quality.parsed?.attributeChanges?.财富 === 2,
   '01 质量检查必须从五元素输入读取财富等属性基准并形成差值',
 )
+const consumptionQuality = inspectNarrativeResponseQuality(JSON.stringify({
+  事件卡消费: ['旧账被翻出', '旧账被翻出'],
+  正文: '另一段完整故事。',
+  属性: { 心智: 4, 体魄: 2, 魅力: 1, 财富: 6 },
+  命运分支: false,
+  结局: false,
+}), 200, undefined, qualityPromptInput)
+assertOk(
+  consumptionQuality.valid === true
+    && JSON.stringify(consumptionQuality.parsed?.事件卡消费) === JSON.stringify(['旧账被翻出']),
+  '01 解析必须保留并去重本轮实际消费的事件卡名',
+)
 
 assertOk(
-  narrativePrompt.version === '9.30.0'
+  narrativePrompt.version === '10.0.0'
     && narrativeStoryContinuityPrompt.version === '3.2.0'
-    && narrativeTalentGrowthPrompt.version === '3.8.0'
+    && narrativeTalentGrowthPrompt.version === '4.0.0'
     && narrativeStoryContinuityPrompt.outputFormat === 'json'
     && narrativeTalentGrowthPrompt.outputFormat === 'json',
   '01/02/03 Prompt 必须绑定当前单一职责版本',
 )
 const growthRules = JSON.parse(COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT)
 assertOk(
-  growthRules.目标.includes('能力类型决定能做什么，稀有度决定做到什么程度')
+  growthRules.目标.includes('绝不改变资质阶位')
     && growthRules.输入映射.玩家已选天赋.includes('血脉编号只串联成长记录')
-    && growthRules.等级能力边界.普通.includes('保留真实机制')
-    && growthRules.路线规则.some((rule) => rule.includes('新天赋可以与最初天赋毫不相干'))
-    && growthRules.路线规则.some((rule) => rule.includes('不要求转变后的新能力在成长前已经被使用'))
-    && growthRules.路线规则.some((rule) => rule.includes('深度、广度也以当前已确认版本为起点'))
-    && !COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('每条路线保留同一命格的核心来源')
-    && !COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT.includes('不额外扩大影响总量'),
-  '03 正式固定规则必须区分强度与类型，并按玩家经历重构而不锁定原能力',
+    && growthRules.资质与开发边界.资质阶位.includes('机制复杂度')
+    && growthRules.资质与开发边界.开发阶段.includes('至少需要2个')
+    && growthRules.资质与开发边界.开发阶段.includes('至少需要3个')
+    && growthRules.路线规则.some((rule) => rule.includes('保留当前能力已经成立的核心结果'))
+    && growthRules.路线规则.some((rule) => rule.includes('约30至45字')),
+  '03 固定规则须分开资质与开发阶段，并保留能力连续性及2/3窗口门槛',
 )
 assertOk(
-  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('阅读重心落在最能证明玩家人生改变且最有故事张力的结果上')
-    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('不提供已经形成的状态差事实')
-    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('把每件新事推演到现实已经改变并留下可理解的结果')
-    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('选择、获得、失去、关系变化、位置变化和代价必须来自因果')
-    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('即使玩家处于幼年或依赖阶段，也要写时代、制度、经济、公共危机、教育资源、迁徙或组织变化如何通过照料、资源和机会作用于玩家'),
-  '固定主故事 Prompt 必须组织人生局面与故事因果而不设事件配额或强制玩家主动成功',
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('角色是中心')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('历史是已经发生的人生')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文像人生小说的一章，不是因果报告')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('允许概括、跳跃、留白')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('按本次信息.篇幅偏好'),
+  '固定主故事 Prompt 必须保持角色中心、正文优先和篇幅偏好边界',
 )
 assertOk(
-  fs.readFileSync(new URL('../../../../../docs/prompt.txt', import.meta.url), 'utf8').replace(/\r\n/gu, '\n').trimEnd()
-    === COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.replace(/\r\n/gu, '\n').trimEnd(),
-  '外部主叙事 Prompt 必须与服务端样例动态编译文本内容一致',
+  narrativePrompt.serverPromptAssetId === 'mod-engine:narrative:10.0.0'
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('按本次信息.篇幅偏好')
+    && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('默认目标约300字')
+    && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('宏观编年体')
+    && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('3 至 5 个时间阶段'),
+  '主叙事受保护资产不得恢复默认字数或宏观编年配额',
 )
 assertOk(
-  ['"时间定位"', '"事件结果"', '"正文"', '"命运分支"', '"属性"', '"结局"'].every((field) => COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
-    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"篇幅偏好"')
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('“人生规划”和“事件卡池”只是软提示')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('采用某张卡并写入正文时')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('未采用的卡不产生事实')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('一次最多返回 10 轮'),
+  '主叙事受保护资产必须保留事件卡软提示和批量边界',
+)
+assertOk(
+  ['"正文"', '"属性"', '"命运分支"', '"结局"', '"角色死亡"', '事件卡消费（可选）', '天赋表现线索（可选）'].every((field) => COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
+    && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"时间定位"')
+    && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"事件结果"')
+    && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"自然寿命变化"')
     && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"历史事件"')
     && !COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"当前状态"'),
-  '固定主故事 Prompt 必须声明六个输出字段，应用只消费四项结果',
+  '固定主故事 Prompt 必须声明 V3A 最小字段，不恢复因果账本',
 )
 
 const controlPlane = new NarrativeControlPlane()
-const controlInput = (roundSequence, ageDays = 0, playerIntent = '') => ({
+const controlAttributeContext = (points = {}, talents = []) => ({
+  属性尺度: { 凡人最差: -10, 凡人基准: 0, 凡人正面上限: 10, 超凡: '小于-10或大于10' },
+  当前属性: Object.fromEntries(['心智', '体魄', '魅力', '财富'].map((name) => [
+    name,
+    { 点数: points[name] ?? 0, 语义: '普通' },
+  ])),
+  已选天赋: talents,
+})
+const controlInput = (
+  roundSequence,
+  ageDays = 0,
+  playerIntent = '',
+  difficulty = 'normal',
+  characterContext = controlAttributeContext(),
+) => ({
   world: { contextId: 'world-a', contextKind: 'world', name: '雾港', description: '沿海城邦' },
   character: { characterId: 'player-a', name: '岑澜', gender: 'female', background: '港区居民' },
-  context: { roundSequence },
+  context: { roundSequence, difficulty },
   subsystemStates: {
     'character-base': { data: { status: { currentStageId: 'life-stage-2', ageDays } } },
   },
   lifeRunId: 'control-plane-smoke',
   playerIntent,
   historyLength: roundSequence - 1,
+  narrativeWindow: '本轮覆盖一个自然年。',
+  birthContext: {
+    属性尺度: characterContext.属性尺度,
+    开局属性: characterContext.当前属性,
+    已选天赋: characterContext.已选天赋,
+  },
+  characterContext,
 })
 const firstControlInput = controlInput(1)
 let controlPreparation = controlPlane.inspect(firstControlInput)
+const startingAgeInput = (startingAge) => ({
+  ...firstControlInput,
+  subsystemStates: {
+    'character-base': { data: { startingAge } },
+  },
+})
 assertOk(
-  controlPreparation.triggers.map((trigger) => trigger.kind).sort().join('|') === 'birth|plan|timeline',
-  '控制平面初始只调用缺少的出生背景、人生规划和世界时间线',
+  NARRATIVE_BIRTH_PROFILE_VERSION === '1.8.0'
+    && birthFingerprint(startingAgeInput(0)) !== birthFingerprint(startingAgeInput(16)),
+  '出生前史的来源版本与起始年龄必须进入出生档案指纹，避免复用缺少前史的同源档案',
+)
+const birthProfileAtBirth = normalizeBirthProfile(
+  { 叙事背景: '你出生在雾港的一户人家。' },
+  'birth:0',
+  0,
+)
+let rejectsMissingInterventionHistory = false
+try {
+  normalizeBirthProfile({ 叙事背景: '你出生在雾港的一户人家。' }, 'birth:16', 16)
+} catch {
+  rejectsMissingInterventionHistory = true
+}
+assertOk(
+  birthProfileAtBirth.介入前史 === undefined
+    && rejectsMissingInterventionHistory
+    && normalizeBirthProfile({
+      叙事背景: '你出生在雾港的一户人家。',
+      介入前史: '你在港区长大。',
+    }, 'birth:16', 16).介入前史 === '你在港区长大。',
+  '出生档案必须要求非零起始年龄的介入前史，同时保持出生叙事与既往生活分离',
+)
+const arrayGoalPlan = normalizeLifePlan({
+  阶段标识: 'life-stage-1',
+  当前阶段: '婴幼儿期',
+  阶段目标: ['建立安全依恋与基本信任', { 方向: '发展语言理解与简单表达' }],
+}, 'plan:array-goal')
+assertOk(
+  arrayGoalPlan.阶段目标 === '建立安全依恋与基本信任；方向：发展语言理解与简单表达',
+  '人生规划的阶段目标接受字符串或数组/对象并展开为可读文本',
+)
+assertThrows(
+  () => normalizeLifePlan({ 阶段标识: 'life-stage-1', 当前阶段: '婴幼儿期' }, 'plan:missing-goal'),
+  '人生规划缺少阶段目标时必须抛出诊断错误',
+)
+assertOk(
+  controlPreparation.triggers.map((trigger) => trigger.kind).sort().join('|') === 'birth|event|plan|timeline',
+  '首轮即可同时触发出生、规划、时间线与事件池（事件池不依赖人生规划，首屏就有卡）',
 )
 const birthTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'birth')
 const timelineTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'timeline')
@@ -833,50 +1166,394 @@ controlPlane.commitTimeline([
 ], timelineTrigger.fingerprint)
 controlPreparation = controlPlane.inspect(firstControlInput)
 const planTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'plan')
-assertOk(Boolean(planTrigger), '缺少当前规划时才触发人生规划调用')
-controlPlane.commitPlan({ 当前阶段: '成长期', 阶段目标: '完成基础学业' }, planTrigger.fingerprint)
+assertOk(
+  Boolean(planTrigger) && controlPreparation.triggers.some((trigger) => trigger.kind === 'event'),
+  '缺少当前规划时规划与事件池同轮触发，事件池不再有规划门禁',
+)
+controlPlane.commitPlan(
+  { 阶段标识: 'life-stage-1', 当前阶段: '成长期', 阶段目标: '完成基础学业' },
+  planTrigger.fingerprint,
+)
 controlPreparation = controlPlane.inspect(firstControlInput)
-const directionTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'direction')
 const eventTrigger = controlPreparation.triggers.find((trigger) => trigger.kind === 'event')
-assertOk(Boolean(directionTrigger && eventTrigger), '规划建立后才触发缺失的方向池与抽象事件池')
-controlPlane.commitDirections([
-  { 方向: '寻找新的学习机会' },
-  { 方向: '修复与同伴的信任' },
-  { 方向: '承担一项家庭责任' },
-], directionTrigger.fingerprint)
-controlPlane.commitEvents([
-  { 事件类型: '学业机会' },
-  { 事件类型: '关系摩擦' },
-  { 事件类型: '家庭资源变化' },
-], eventTrigger.fingerprint)
+assertOk(
+  Boolean(eventTrigger) && !controlPreparation.triggers.some((trigger) => trigger.kind === 'plan'),
+  '提交规划会清空旧池，随后仍会请求事件卡池补充',
+)
+assertOk(
+  !controlPlane.commitEvents(
+    [eventCard({ id: 'stale-life-event', 名称: '旧人生事件', sourceFingerprint: 'stale-fingerprint' })],
+    'stale-fingerprint',
+  ) && controlPlane.capturePersistenceState().eventCards.length === 0,
+  '来源指纹不一致的事件卡写入必须被拒绝',
+)
+const poolCards = [
+  eventCard({ id: 'card-1', 名称: '漕运断绝', 正负: '负', 权重: 5 }),
+  eventCard({ id: 'card-2', 名称: '邻港借船', 正负: '正', 权重: 2 }),
+  eventCard({ id: 'card-3', 名称: '瘟疫爆发', 正负: '负', 权重: 4 }),
+  eventCard({ id: 'card-4', 名称: '拜师', 正负: '正', 权重: 3 }),
+  eventCard({ id: 'card-5', 名称: '旧友决裂', 正负: '双面', 权重: 2 }),
+  eventCard({ id: 'card-6', 名称: '破境', 正负: '双面', 权重: 1 }),
+  eventCard({ id: 'card-7', 名称: '认错人', 正负: '双面', 权重: 3 }),
+  // 反向夹具：旧合龄/阶段/生命周期字段进池后必须被抹掉，只剩 id/名称/正负/权重/指纹。
+  eventCard({ id: 'card-8', 名称: '青梅竹马', 正负: '正', 权重: 2, 最低合龄: 8, 适用阶段: 'life-stage-1', 生命周期: 'ongoing' }),
+]
+assertOk(controlPlane.commitEvents(poolCards, eventTrigger.fingerprint), '当前指纹下的事件卡池必须写入成功')
+const controlView = controlPlane.getView(
+  0,
+  controlPreparation.fingerprint,
+  timelineTrigger.fingerprint,
+  '1',
+  'normal',
+)
+const controlViewIds = controlView.eventCards.map((card) => card.id)
+const legacyFieldCard = controlView.eventCards.find((card) => card.id === 'card-8')
+assertOk(
+  controlViewIds.length === 8
+    && new Set(controlViewIds).size === 8
+    && controlView.eventCards.every((card) => {
+      const length = Array.from(card.名称).length
+      return length >= 2 && length <= 8
+    })
+    && Boolean(legacyFieldCard)
+    && !('最低合龄' in legacyFieldCard)
+    && !('适用阶段' in legacyFieldCard)
+    && !('生命周期' in legacyFieldCard)
+    && JSON.stringify(Object.keys(legacyFieldCard).sort())
+      === JSON.stringify(['id', 'sourceFingerprint', '名称', '正负', '权重'].sort()),
+  '控制平面视图必须给出整池全部卡（不做年龄或阶段过滤）；旧合龄/阶段/生命周期字段入池后必须被抹掉',
+)
+assertOk(
+  JSON.stringify(controlPlane.getView(
+    0,
+    controlPreparation.fingerprint,
+    timelineTrigger.fingerprint,
+    '1',
+    'normal',
+  ).eventCards.map((card) => card.id)) === JSON.stringify(controlViewIds),
+  '同指纹与年龄的卡池必须可复现',
+)
+controlPlane.commitRoundOutcome({
+  fingerprint: controlPreparation.fingerprint,
+  timelineFingerprint: timelineTrigger.fingerprint,
+  selectedEventIds: ['card-1', 'card-5'],
+  hadDueWorldEvents: false,
+})
+const afterPartialConsumption = controlPlane.getView(
+  0,
+  controlPreparation.fingerprint,
+  timelineTrigger.fingerprint,
+  '1',
+  'normal',
+).eventCards.map((card) => card.id)
+assertOk(
+  afterPartialConsumption.length === 6
+    && !afterPartialConsumption.includes('card-1')
+    && !afterPartialConsumption.includes('card-5'),
+  '只扣除主故事实际消费的卡，未消费卡必须留在池中',
+)
+assertOk(
+  !controlPlane.inspect(firstControlInput).triggers.some((trigger) => trigger.kind === 'event'),
+  '池内仍有可用卡时不请求补充事件池',
+)
+controlPlane.commitRoundOutcome({
+  fingerprint: controlPreparation.fingerprint,
+  timelineFingerprint: timelineTrigger.fingerprint,
+  selectedEventIds: afterPartialConsumption,
+  hadDueWorldEvents: false,
+})
+assertOk(
+  controlPlane.inspect(firstControlInput).triggers.some((trigger) => trigger.kind === 'event'),
+  '原始事件卡池真正耗尽后才请求补充事件池',
+)
+const drainPlane = new NarrativeControlPlane()
+let drainPreparation = drainPlane.inspect(controlInput(1))
+drainPlane.commitBirth(
+  { 叙事背景: '你在雾港出生。' },
+  drainPreparation.triggers.find((trigger) => trigger.kind === 'birth').fingerprint,
+)
+drainPlane.commitTimeline([], drainPreparation.triggers.find((trigger) => trigger.kind === 'timeline').fingerprint)
+drainPreparation = drainPlane.inspect(controlInput(1))
+drainPlane.commitPlan(
+  { 阶段标识: 'life-stage-1', 当前阶段: '成长期', 阶段目标: '完成基础学业' },
+  drainPreparation.triggers.find((trigger) => trigger.kind === 'plan').fingerprint,
+)
+drainPreparation = drainPlane.inspect(controlInput(1))
+drainPlane.commitEvents([
+  eventCard({ id: 'drain-1', 名称: '迁籍令', 正负: '负', 权重: 3 }),
+  eventCard({ id: 'drain-2', 名称: '盐路改道', 正负: '双面', 权重: 3 }),
+  eventCard({ id: 'drain-3', 名称: '信标误读', 正负: '双面', 权重: 2 }),
+], drainPreparation.triggers.find((trigger) => trigger.kind === 'event').fingerprint)
+const drainView = drainPlane.getView(
+  0,
+  drainPreparation.fingerprint,
+  drainPreparation.fingerprint,
+  1,
+  'normal',
+)
+assertOk(drainView.eventCards.length === 3, '整池可用卡必须全部进入主故事，不抽固定张数')
+drainPlane.commitRoundOutcome({
+  fingerprint: drainPreparation.fingerprint,
+  timelineFingerprint: drainPreparation.fingerprint,
+  selectedEventIds: drainView.eventCards.map((card) => card.id),
+  hadDueWorldEvents: false,
+})
+assertOk(
+  drainPlane.inspect(controlInput(1)).triggers.some((trigger) => trigger.kind === 'event'),
+  '事件卡池耗尽后才请求补充事件池',
+)
 
-const directionIds = new Set()
-const eventIds = new Set()
-for (let round = 1; round <= 3; round += 1) {
-  const input = controlInput(round)
-  const view = controlPlane.getView(0, controlPreparation.fingerprint, timelineTrigger.fingerprint, String(round))
-  assertOk(view.directionHints.length === 1 && view.eventCandidates.length === 1, '每轮只投影池内抽取的一项软候选')
-  directionIds.add(view.directionHints[0].id)
-  eventIds.add(view.eventCandidates[0].id)
-  controlPlane.commitRoundOutcome({
-    fingerprint: controlPreparation.fingerprint,
-    timelineFingerprint: timelineTrigger.fingerprint,
-    selectedDirectionId: view.directionHints[0].id,
-    selectedEventId: view.eventCandidates[0].id,
-    hadDueWorldEvents: false,
-  })
-  const remainingTriggers = controlPlane.inspect(input).triggers
+// 卡池契约：整池交付、无年龄/阶段过滤、难度不改变卡池、只扣池内实际消费
+const agePlane = new NarrativeControlPlane()
+const agePreparation = agePlane.inspect(controlInput(1))
+agePlane.commitEvents(poolCards, agePreparation.fingerprint)
+const poolAt = (ageYears, difficulty = 'normal') => agePlane.getView(
+  ageYears,
+  agePreparation.fingerprint,
+  agePreparation.fingerprint,
+  1,
+  difficulty,
+).eventCards
+assertOk(
+  poolAt(0).length === 8
+    && JSON.stringify(poolAt(0).map((card) => card.id)) === JSON.stringify(poolAt(40).map((card) => card.id))
+    && poolAt(0).every((card) => !('最低合龄' in card) && !('适用阶段' in card) && !('生命周期' in card)),
+  '整池不做年龄或阶段过滤：任何年龄都投影同一批卡，旧合龄/阶段/生命周期字段已被抹掉',
+)
+assertOk(
+  JSON.stringify(poolAt(20, 'casual').map((card) => card.id))
+    === JSON.stringify(poolAt(20, 'nightmare').map((card) => card.id)),
+  '难度只影响叙事指引，不改变卡池内容',
+)
+const suppressedPreparation = new NarrativeControlPlane().inspect({ ...controlInput(1), suppressEventRefill: true })
+assertOk(
+  !suppressedPreparation.triggers.some((trigger) => trigger.kind === 'event')
+    && new NarrativeControlPlane().inspect(controlInput(1)).triggers.some((trigger) => trigger.kind === 'event'),
+  '批次进行中（suppressEventRefill）不请求补池，也就不整体替换排队轮要消费的事件池',
+)
+const unknownIds = ['card-2', '不在池中的卡']
+agePlane.commitRoundOutcome({
+  fingerprint: agePreparation.fingerprint,
+  timelineFingerprint: agePreparation.fingerprint,
+  selectedEventIds: unknownIds,
+  hadDueWorldEvents: false,
+})
+assertOk(
+  JSON.stringify(poolAt(20).map((card) => card.id))
+    === JSON.stringify(poolCards.map((card) => card.id).filter((id) => id !== 'card-2')),
+  '只扣除池内已消费的卡：池外卡名映射不到 id，不扣也不采纳',
+)
+
+// 归一化：名称 2–8 字、正负枚举、权重钳制、同批重名合并、旧字段丢弃
+const normalizedCards = normalizeEventCards([
+  eventCard({ id: 'valid-card', 名称: '天降横财', 正负: '正', 权重: 5 }),
+  eventCard({ id: 'short-name', 名称: '财', 正负: '正' }),
+  eventCard({ id: 'long-name', 名称: '一场突如其来的巨大变故', 正负: '负' }),
+  eventCard({ id: 'bad-polarity', 名称: '不明倾向', 正负: '中' }),
+  eventCard({ id: 'duplicate-name', 名称: '天降横财', 正负: '负' }),
+  eventCard({ id: 'bounded-weight', 名称: '旧港借船', 正负: '双面', 权重: 9 }),
+], 'normalize-fingerprint')
+assertOk(
+  normalizedCards.length === 2
+    && normalizedCards[0].名称 === '天降横财'
+    && normalizedCards[1].名称 === '旧港借船'
+    && normalizedCards[1].权重 === 5
+    && normalizedCards.every((card) => card.sourceFingerprint === 'normalize-fingerprint'),
+  '事件卡归一化必须拒绝 1 字名、超 8 字名、非法正负与同批重名，并钳制权重到 1–5',
+)
+assertOk(
+  normalizeEventCards(
+    { 事件卡: [eventCard({ id: 'wrapped', 名称: '外敌入侵', 正负: '负' })] },
+    'wrapped-fingerprint',
+  ).length === 1
+    && normalizeEventCards(
+      [{ id: 'old-card', 事件: '旧版事件', 领域: 'bond_karma' }],
+      'old-fingerprint',
+    ).length === 0
+    && normalizeEventCards(
+      [eventCard({ id: 'legacy-fields', 名称: '临时封堵', 最低合龄: 16, 生命周期: 'unknown', 适用阶段: 'life-stage-1' })],
+      'legacy-fields-fingerprint',
+    ).map((card) => Object.keys(card).sort().join('|'))[0]
+      === ['sourceFingerprint', 'id', '名称', '正负', '权重'].sort().join('|'),
+  '事件卡归一化必须接受事件卡外壳、丢弃旧候选字段，并抹掉最低合龄、生命周期与适用阶段',
+)
+
+// 持久化：版本 3 才迁移；旧版本与旧候选字段都不进入当前事件池
+const restoredV2Plane = new NarrativeControlPlane()
+restoredV2Plane.restorePersistenceState({
+  schemaVersion: 2,
+  legacyHints: [],
+  eventCandidates: [eventCard({ id: 'legacy-cache', 名称: '旧版缓存卡' })],
+  timelineCommitments: [],
+})
+assertOk(
+  restoredV2Plane.capturePersistenceState().schemaVersion === 3
+    && restoredV2Plane.capturePersistenceState().eventCards.length === 0,
+  'schemaVersion 2 的缓存不迁移，直接重置为新的空事件卡池',
+)
+const restoredV3Plane = new NarrativeControlPlane()
+restoredV3Plane.restorePersistenceState({
+  schemaVersion: 3,
+  eventPoolFingerprint: 'restore-fingerprint',
+  eventCards: [
+    eventCard({ id: 'restored-valid', 名称: '宗族分灶', 正负: '负', 权重: 4, sourceFingerprint: 'restore-fingerprint' }),
+    { id: 'restored-old', 事件: '旧格式字段', sourceFingerprint: 'restore-fingerprint' },
+  ],
+  timelineCommitments: [],
+})
+const restoredCards = restoredV3Plane.capturePersistenceState().eventCards
+assertOk(
+  restoredCards.length === 1
+    && restoredCards[0].名称 === '宗族分灶'
+    && restoredCards[0].sourceFingerprint === 'restore-fingerprint',
+  '当前控制平面状态必须只保留合法事件卡并丢弃旧候选字段',
+)
+
+// 生成 Prompt：6–8 张、2–8 字、正负、权重三个字段；不读难度、不再要求旧字段
+const eventPromptText = buildNarrativeControlPrompt('event', { 世界: '雾港' }).systemPrompt
+const eventPromptsAcrossDifficulties = DIFFICULTY_ORDER.map((difficulty) => (
+  buildNarrativeControlPrompt('event', { difficulty, difficultyGuidance: DIFFICULTY_NARRATIVE_GUIDANCE[difficulty] })
+))
+assertOk(
+  eventPromptsAcrossDifficulties.every((prompt) => (
+    prompt.version === NARRATIVE_EVENT_POOL_VERSION
+      && prompt.systemPrompt === eventPromptsAcrossDifficulties[0].systemPrompt
+      && prompt.userPromptTemplate === '输入：{}'
+  ))
+    && eventPromptText.includes('{"事件卡":[{"名称":"","正负":"正","权重":3}]}')
+    && eventPromptText.includes('6 至 8 张')
+    && eventPromptText.includes('2 至 8 个字符')
+    && eventPromptText.includes('正、负、双面')
+    && eventPromptText.includes('权重')
+    && eventPromptText.includes('卡不是事实')
+    && !eventPromptText.includes('最低合龄')
+    && !eventPromptText.includes('生命周期')
+    && !eventPromptText.includes('适用阶段')
+    && !eventPromptText.includes('15%')
+    && !eventPromptText.includes('抽 3 张')
+    && !eventPromptText.includes('手牌'),
+  '事件卡生成指令必须只声明 名称/正负/权重 三个字段，且不残留合龄、生命周期、抽卡与手牌规则',
+)
+
+// 单轮故事不得被批量回收撕碎：没有「故事批次」锚点时原样返回
+const singleRoundResponse = JSON.stringify({
+  正文: '你在雾港的雨季里守住了旧闸门。',
+  命运分支: ['留下继续守闸', '先带人撤离'],
+  属性: { 心智: 1 },
+  结局: false,
+  角色死亡: false,
+})
+assertOk(singleRoundResponse.includes('命运分支":['), '单轮夹具必须保留会被误回收的分支数组')
+for (const rounds of [1, 10]) {
+  const singleRound = splitNarrativeBatchResponse(singleRoundResponse, rounds)
   assertOk(
-    round < 3
-      ? remainingTriggers.length === 0
-      : remainingTriggers.map((trigger) => trigger.kind).sort().join('|') === 'direction|event',
-    round < 3 ? '池内仍有候选时不重复调用辅助生成器' : '方向池与事件池耗尽后才重新生成',
+    singleRound.primary === singleRoundResponse && singleRound.queuedResponses.length === 0,
+    `无批量锚点的单轮故事对象必须原样返回（batchRounds=${rounds}），不得从分支数组撕出碎片`,
   )
 }
-assertOk(directionIds.size === 3 && eventIds.size === 3, '池内候选逐轮消耗，不连续重复同一方向或事件')
+for (const passthroughResponse of [
+  '本轮无事发生，[注：记录不全',
+  '本轮无事发生，结果:[1,2]',
+  JSON.stringify({ 正文: '附录见 [1,2] 号记录。', 命运分支: ['留下', '离开'] }),
+]) {
+  const passthrough = splitNarrativeBatchResponse(passthroughResponse, 10)
+  assertOk(
+    passthrough.primary === passthroughResponse && passthrough.queuedResponses.length === 0,
+    `无批量锚点、也不含故事对象数组的文本必须原样返回，不得从 [ 回收：${passthroughResponse.slice(0, 12)}`,
+  )
+}
+
+// 批量截断：按 batchRounds 截断到 10 项、回收已完整写出的前几项、零完整项明确报错
+const twelveRounds = Array.from({ length: 12 }, (_, index) => JSON.stringify({ 正文: `第${index + 1}轮` }))
+const cappedBatch = splitNarrativeBatchResponse(`{"故事批次":[${twelveRounds.join(',')}]}`, 12)
+assertOk(
+  cappedBatch.queuedResponses.length === 9
+    && JSON.parse(cappedBatch.primary).正文 === '第1轮'
+    && JSON.parse(cappedBatch.queuedResponses[8]).正文 === '第10轮',
+  '故事批次必须截断到最多 10 轮，且保留前 10 轮的原始顺序',
+)
+const truncatedBatch = splitNarrativeBatchResponse('{"故事批次":[{"正文":"完整一"},{"正文":"完整二"},{"正文":"被截', 10)
+assertOk(
+  JSON.parse(truncatedBatch.primary).正文 === '完整一' && truncatedBatch.queuedResponses.length === 1,
+  '响应被截断时必须回收已完整写出的前几轮，而不是把截断原文当单轮故事',
+)
+let truncatedBatchRejects = false
+try {
+  splitNarrativeBatchResponse('{"故事批次":[{"正文":"被截', 10)
+} catch {
+  truncatedBatchRejects = true
+}
+assertOk(truncatedBatchRejects, '批量响应被截断且回收不到任何完整故事项时必须明确报错')
+let emptyBatchRejects = false
+try {
+  splitNarrativeBatchResponse('{"故事批次":[]}', 10)
+} catch {
+  emptyBatchRejects = true
+}
+assertOk(emptyBatchRejects, '批量锚点存在但回收不到任何故事项时必须明确报错')
+
+const biasSamples = new Set()
+for (let round = 1; round <= 12; round += 1) {
+  const biasView = controlPlane.getView(
+    0,
+    controlPreparation.fingerprint,
+    timelineTrigger.fingerprint,
+    String(round),
+    'normal',
+  )
+  assertOk(
+    Boolean(biasView.dramaticBias) && biasView.dramaticBiasLabel === FATE_DRAMATIC_BIAS_LABELS[biasView.dramaticBias],
+    '每轮视图必须给出合法命运转折调性且标签与之一致',
+  )
+  biasSamples.add(biasView.dramaticBias)
+}
+assertOk(biasSamples.size > 1, '命运转折调性必须随回合推进变化，而不是恒定单一调性')
+
+const biasContextSegments = buildSegmentedPrompt(narrativePrompt, {
+  ...promptContext,
+  controlPlane: {
+    eventCards: [],
+    dueWorldEvents: [],
+    dramaticBias: 'dramatic_irony',
+    dramaticBiasLabel: FATE_DRAMATIC_BIAS_LABELS.dramatic_irony,
+  },
+})
+assertOk(
+  JSON.stringify(biasContextSegments).includes(FATE_DRAMATIC_BIAS_LABELS.dramatic_irony)
+    && JSON.stringify(biasContextSegments).includes('命运转折调性'),
+  '命运转折调性必须作为只读投影进入主故事动态数据',
+)
+
+// 批量：一次最多 10 轮，遇分支、结局或阶段结束即停
+const batchSegments = buildSegmentedPrompt(narrativePrompt, { ...promptContext, narrativeBatchSize: 10 })
+const batchMessage = JSON.parse(batchSegments.userSegments[0])[4].本次信息.批量输出
+assertOk(
+  typeof batchMessage === 'string'
+    && batchMessage.includes('最多10轮故事')
+    && batchMessage.includes('第一项对应本轮')
+    && batchMessage.includes('遇到命运分支、结局或人生阶段结束时，该轮即本批最后一项')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('一次最多返回 10 轮')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('遇到命运分支、结局或人生阶段结束时停止'),
+  '批量输出必须声明一次最多 10 轮，并在分支、结局或阶段结束时停止',
+)
+
+assertOk(
+  NARRATIVE_EVENT_POOL_VERSION === '3.0.0'
+    && NARRATIVE_PLAN_VERSION === '1.1.0'
+    && buildNarrativeControlInput(controlInput(1)).narrativeWindow === '本轮覆盖一个自然年。'
+    && DIFFICULTY_ORDER.join('|') === 'casual|relaxed|normal|hard|nightmare',
+  '事件池版本必须为 3.0.0，并保持规划版本、时间窗口与五档难度顺序',
+)
+
 const dueInput = controlInput(4, 365)
 const duePreparation = controlPlane.inspect(dueInput)
-const dueView = controlPlane.getView(1, duePreparation.fingerprint, timelineTrigger.fingerprint, '4')
+const dueView = controlPlane.getView(
+  1,
+  duePreparation.fingerprint,
+  timelineTrigger.fingerprint,
+  '4',
+  'normal',
+)
 assertOk(dueView.dueWorldEvents.length === 1, '世界时间线承诺到达目标年龄后才进入到期视图')
 controlPlane.commitRoundOutcome({
   fingerprint: duePreparation.fingerprint,

@@ -18,7 +18,6 @@ export type {
   NarrativeDestinyPatternGrowthOption,
   NarrativeDestinyPatternGrowthPattern,
   NarrativeDestinyPatternGrowthProjection,
-  NarrativeDestinyPatternGrowthRarity,
   EngineState,
   RoundResult,
   CompressionStats,

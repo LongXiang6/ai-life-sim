@@ -93,7 +93,6 @@ export type {
   RoundInfo,
   RoundResult,
   NarrativeChunk,
-  NarrativeEventResult,
   NarrativeDestinyPatternGrowthProjection,
   TimeStep,
 } from './types'

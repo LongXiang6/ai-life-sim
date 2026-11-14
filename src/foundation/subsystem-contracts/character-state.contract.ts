@@ -131,6 +131,8 @@ export interface CharacterNarrativeStatus {
   ageAnchorTotalDays: number
   ageDays: number
   maximumLifespanDays: number
+  /** World-authored, unscaled stage boundaries; lifeStages is derived from this template. */
+  lifeStageTemplate: CharacterLifeStageDefinition[]
   lifeStages: CharacterLifeStageDefinition[]
   currentStageId?: string
   endRisk: number

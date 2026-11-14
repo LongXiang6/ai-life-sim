@@ -36,7 +36,6 @@ function buildRecentStoriesProjection(orchestrator: OrchestratorSystem): string[
   const recent = history.slice(-RECENT_NARRATIVE_WINDOW)
   const stories = recent.map((entry) => projectNarrativeResultForPrompt({
     text: entry.text,
-    eventResults: entry.eventResults,
     displayAge: entry.displayAge,
     endingSummary: entry.endingSummary,
     branchTitle: entry.branchTitle,
@@ -85,6 +84,11 @@ export function assemblePromptContextRuntime(
     name: pattern.name,
     description: pattern.description,
     effect: pattern.effect ?? '',
+    aptitudeTier: pattern.aptitudeTier,
+    developmentStage: pattern.developmentStage,
+    ...('apexStrengthenLevel' in pattern
+      ? { apexStrengthenLevel: pattern.apexStrengthenLevel }
+      : {}),
     reference: `命格-${index + 1}`,
   }))
   const characterStore = useCharacterStore.getState()
@@ -153,7 +157,7 @@ export function assemblePromptContextRuntime(
     narrativeTimeWindow: narrativeTime.narrativeWindow,
     ...(useSettingsStore.getState().preGenerateRounds === 1
       && orchestrator.getPendingNarrativeBatch().length === 0
-      ? { narrativeBatchSize: 3 }
+      ? { narrativeBatchSize: 10 }
       : {}),
     wordCountInstruction: buildWordCountInstruction(
       useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET,
@@ -168,7 +172,6 @@ export function assemblePromptContextRuntime(
       round: orchestrator['state'].totalRounds,
       memorySummaryChars: memoryChars,
       foreshadowingChars: 0,
-      directionChars: 0,
       plotStructureChars: 0,
       estimatedTokens: Math.ceil(memoryChars / 2.5),
     })

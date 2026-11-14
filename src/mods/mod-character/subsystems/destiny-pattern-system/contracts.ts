@@ -5,9 +5,11 @@
  */
 
 export type DestinyPatternAIItem = {
-  category: string
+  category: import('../../types').DestinyPatternCategory
   name: string
   description: string
+  aptitudeTier: import('../../types').DestinyPatternAptitudeTier
+  developmentStage: import('../../types').DestinyPatternDevelopmentStage
   effect: string
   attrBonus: Record<string, number>
 }

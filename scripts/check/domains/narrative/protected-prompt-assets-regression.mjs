@@ -55,8 +55,14 @@ assertOk(
     && servers[0].includes('COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE')
     && servers[1].includes('COMPILED_NARRATIVE_STORY_CONTINUITY_SYSTEM_PROMPT')
     && servers[2].includes('COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT')
-    && servers.every((source) => !/详细故事输出示例|示例正文|few-shot|examples\s*:/iu.test(source)),
-  'fixed assets must own only their stable responsibilities without detailed examples',
+    && [...servers[0].matchAll(/【示例\d｜/gu)].length === 0
+    && servers.slice(1).every((source) => !/详细故事输出示例|示例正文|跨度写法示例|few-shot|examples\s*:/iu.test(source)),
+  'main-story asset must stay example-free with continuity and growth assets',
+)
+assertOk(
+  contracts[0].includes("version: '10.0.0'")
+    && contracts[0].includes('mod-engine:narrative:10.0.0'),
+  'the main-story asset contract must publish version 10.0.0',
 )
 assertOk(
   proxyRoute.includes('resolveModEngineServerPromptAsset(body.prompt_asset)')

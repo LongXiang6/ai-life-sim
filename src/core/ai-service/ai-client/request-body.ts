@@ -101,9 +101,11 @@ export function buildProxyBody(
   proxyBody.providerId = providerId
 
   const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
+  const batchRounds = options?.logContext?.batchRounds
   proxyBody.deadline_context = {
     callKind: options?.logContext?.callKind?.trim() || pool,
     reasoningEffort,
+    ...(Number.isFinite(batchRounds) ? { batchRounds: Math.floor(batchRounds as number) } : {}),
   }
   const modelForThinking = (options?.customModel?.trim() || config.model).toLowerCase()
   const isDeepSeekModel = modelForThinking.includes('deepseek')
@@ -146,14 +148,16 @@ export function resolveProxyBodyDeadlineMs(proxyBody: Record<string, unknown>): 
   if (!context || typeof context !== 'object' || Array.isArray(context)) {
     throw new Error('AI 请求缺少共享时限上下文')
   }
-  const deadlineContext = context as { callKind?: unknown; reasoningEffort?: unknown }
+  const deadlineContext = context as { callKind?: unknown; reasoningEffort?: unknown; batchRounds?: unknown }
   const callKind = typeof deadlineContext.callKind === 'string' ? deadlineContext.callKind : ''
   const reasoningEffort = deadlineContext.reasoningEffort
   if (!['disabled', 'auto', 'high', 'max'].includes(String(reasoningEffort))) {
     throw new Error('AI 请求包含无效推理时限模式')
   }
+  const batchRounds = Number(deadlineContext.batchRounds)
   return computeAiCallDeadlineMs({
     callKind,
     reasoningEffort: reasoningEffort as ReasoningEffort,
+    ...(Number.isFinite(batchRounds) && batchRounds > 0 ? { batchRounds: Math.floor(batchRounds) } : {}),
   })
 }

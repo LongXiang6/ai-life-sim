@@ -156,7 +156,7 @@ async function main() {
   const genericOpeningCount = results.filter((result) => result.genericTimeOpening).length
   const timeMarkerRoundCount = results.filter((result) => result.timeMarkers.length > 0).length
   console.log(JSON.stringify({
-    requirement: 'four sequential random stories use the formal five-segment history input',
+    requirement: 'four sequential random stories use the formal five-segment history input; natural time transitions are allowed, bare time-title openings are not',
     promptVersion: narrativePrompt.version,
     provider: PROVIDER,
     model: MODEL,
@@ -166,7 +166,7 @@ async function main() {
     results,
   }, null, 2))
 
-  if (genericOpeningCount > 0 || repeatedOpeningCount > 0 || timeMarkerRoundCount > 0) process.exit(1)
+  if (genericOpeningCount > 0 || repeatedOpeningCount > 0) process.exit(1)
 }
 
 main().catch((error) => {

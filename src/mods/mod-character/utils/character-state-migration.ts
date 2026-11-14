@@ -18,13 +18,16 @@ import {
 import { sanitizeCharacterNarrativeStatus } from '../subsystems/character-status-validation'
 import { getPatternLoadoutCount } from '../pattern-loadout'
 import {
-  createDestinyPatternLineageId,
   DESTINY_PATTERN_GROWTH_MINIMUM_AGE,
-  getNextDestinyPatternRarity,
+  getNextDestinyPatternDevelopmentStage,
 } from '../destiny-pattern-growth'
 import { basePointsFromCalendarDays } from '@/foundation'
-import { sanitizeDestinyPatternCategory } from './destiny-pattern-category-migration'
-import { normalizeCommonDestinyPatternCandidate } from '../subsystems/destiny-pattern-system/validation'
+import {
+  normalizeCommonDestinyPatternCandidate,
+  validateDestinyPatternAptitudeTier,
+  validateDestinyPatternAttrBonus,
+  validateDestinyPatternCategory,
+} from '../subsystems/destiny-pattern-system/validation'
 
 const BASE_ATTRIBUTE_KEYS = ['mind', 'physique', 'charisma', 'familyBackground'] as const
 const ATTRIBUTE_BONUS_KEYS = [...BASE_ATTRIBUTE_KEYS, 'luck'] as const
@@ -82,6 +85,23 @@ export function sanitizeCharacterBaseState(value: unknown): CharacterBaseState {
   }
 }
 
+export function resetPersistedTalentState(value: unknown): Record<string, unknown> {
+  const record = isRecord(value) ? value : {}
+  return {
+    ...record,
+    destinyPatterns: {
+      candidates: [],
+      patterns: [],
+      aptitudeCount: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
+      pendingGrowth: null,
+      growthHistory: [],
+      growthEvidence: [],
+      growthAssessments: [],
+    },
+    equippedReincarnationTalents: [],
+  }
+}
+
 function sanitizeAttrBonus(value: unknown): Partial<AttributeModifiers> {
   if (!isRecord(value)) return {}
   const result: Partial<AttributeModifiers> = {}
@@ -96,35 +116,57 @@ function sanitizeAttrBonus(value: unknown): Partial<AttributeModifiers> {
 
 export function sanitizeDestinyPattern(value: unknown): DestinyPattern | null {
   if (!isRecord(value)) return null
-  if (typeof value.id !== 'string' || typeof value.name !== 'string') return null
-  if (typeof value.description !== 'string' || typeof value.effect !== 'string') return null
-  const category = sanitizeDestinyPatternCategory(value.category)
-  if (!category) return null
-  if (!['common', 'fine', 'rare', 'epic', 'legendary'].includes(String(value.rarity))) return null
-
-  const lineageId = typeof value.lineageId === 'string' && value.lineageId.trim()
-    ? value.lineageId.trim()
-    : createDestinyPatternLineageId(`legacy:${value.id}`)
-  const version = Number.isSafeInteger(value.version) && Number(value.version) >= 1
-    ? Number(value.version)
-    : 1
+  if (
+    'rarity' in value
+    || 'strengthenLevel' in value
+    || 'apexStrengthenLevel' in value
+    || typeof value.id !== 'string'
+    || !value.id.trim()
+    || typeof value.lineageId !== 'string'
+    || !value.lineageId.trim()
+    || !Number.isSafeInteger(value.version)
+    || Number(value.version) < 1
+    || typeof value.name !== 'string'
+    || !value.name.trim()
+    || typeof value.description !== 'string'
+    || !value.description.trim()
+    || typeof value.effect !== 'string'
+    || !value.effect.trim()
+  ) return null
+  const category = validateDestinyPatternCategory(String(value.category))
+  const aptitudeTier = validateDestinyPatternAptitudeTier(value.aptitudeTier)
+  if (
+    !category
+    || aptitudeTier === null
+    || !['awakening', 'mastery', 'complete'].includes(String(value.developmentStage))
+  ) return null
+  let attrBonus: Partial<AttributeModifiers>
+  try {
+    attrBonus = validateDestinyPatternAttrBonus(
+      value.attrBonus as Record<string, number>,
+      aptitudeTier,
+    )
+  } catch {
+    return null
+  }
 
   return {
-    lineageId,
-    version,
-    id: value.id,
-    name: value.name,
-    description: value.description,
-    effect: value.effect,
+    lineageId: value.lineageId.trim(),
+    version: Number(value.version),
+    id: value.id.trim(),
+    name: value.name.trim(),
+    description: value.description.trim(),
+    effect: value.effect.trim(),
     category,
-    rarity: value.rarity as DestinyPattern['rarity'],
-    attrBonus: sanitizeAttrBonus(value.attrBonus),
+    aptitudeTier,
+    developmentStage: value.developmentStage as DestinyPattern['developmentStage'],
+    attrBonus,
   }
 }
 
 function sanitizeGrowthSource(value: unknown): DestinyPatternGrowthSource | null {
   if (!isRecord(value)) return null
-  return 'strengthenLevel' in value
+  return 'apexStrengthenLevel' in value
     ? sanitizeReincarnationTalent(value)
     : sanitizeDestinyPattern(value)
 }
@@ -136,8 +178,9 @@ function samePatternVersion(
   return left.id === right.id
     && left.lineageId === right.lineageId
     && left.version === right.version
-    && left.rarity === right.rarity
-    && ('strengthenLevel' in left) === ('strengthenLevel' in right)
+    && left.aptitudeTier === right.aptitudeTier
+    && left.developmentStage === right.developmentStage
+    && ('apexStrengthenLevel' in left) === ('apexStrengthenLevel' in right)
 }
 
 function sanitizeGrowthOption(
@@ -149,7 +192,8 @@ function sanitizeGrowthOption(
   if (!pattern) return null
   if (pattern.lineageId !== pendingSource.lineageId) return null
   if (pattern.version !== pendingSource.version + 1) return null
-  if (pattern.rarity !== getNextDestinyPatternRarity(pendingSource.rarity)) return null
+  if (pattern.aptitudeTier !== pendingSource.aptitudeTier) return null
+  if (pattern.developmentStage !== getNextDestinyPatternDevelopmentStage(pendingSource.developmentStage)) return null
   if (pattern.category !== pendingSource.category) return null
   if (!['深度强化', '广度强化', '转变强化'].includes(String(value.route))) return null
   return {
@@ -205,10 +249,11 @@ function sanitizeGrowthHistoryEntry(value: unknown): DestinyPatternGrowthHistory
   const source = sanitizeGrowthSource(value.source)
   const result = sanitizeGrowthSource(value.result)
   if (!source || !result) return null
-  if (('strengthenLevel' in source) !== ('strengthenLevel' in result)) return null
+  if (('apexStrengthenLevel' in source) !== ('apexStrengthenLevel' in result)) return null
   if (source.lineageId !== value.lineageId.trim() || result.lineageId !== source.lineageId) return null
   if (result.version !== source.version + 1) return null
-  if (result.rarity !== getNextDestinyPatternRarity(source.rarity)) return null
+  if (result.aptitudeTier !== source.aptitudeTier) return null
+  if (result.developmentStage !== getNextDestinyPatternDevelopmentStage(source.developmentStage)) return null
   if (result.category !== source.category) return null
   return {
     choiceId: value.choiceId.trim(),
@@ -264,7 +309,7 @@ export function restoreReincarnationTalentsBeforeUnderageGrowth(
   }
   return equippedReincarnationTalents.map((talent) => {
     const original = originalByLineage.get(talent.lineageId)
-    return original && 'strengthenLevel' in original
+    return original && 'apexStrengthenLevel' in original
       ? structuredClone(original)
       : talent
   })
@@ -277,12 +322,12 @@ function sanitizeGrowthEvidence(value: unknown): DestinyPatternGrowthEvidence[] 
     if (!isRecord(item)) continue
     if (typeof item.lineageId !== 'string' || !item.lineageId.trim()) continue
     if (!Number.isSafeInteger(item.sourceRound) || Number(item.sourceRound) < 1) continue
-    if (typeof item.usage !== 'string' || !item.usage.trim()) continue
     if (typeof item.result !== 'string' || !item.result.trim()) continue
+    const usage = typeof item.usage === 'string' && item.usage.trim() ? item.usage.trim() : undefined
     const evidence: DestinyPatternGrowthEvidence = {
       lineageId: item.lineageId.trim(),
       sourceRound: Number(item.sourceRound),
-      usage: item.usage.trim(),
+      ...(usage ? { usage } : {}),
       result: item.result.trim(),
       ...(typeof item.breakthrough === 'string' && item.breakthrough.trim()
         ? { breakthrough: item.breakthrough.trim() }
@@ -293,7 +338,15 @@ function sanitizeGrowthEvidence(value: unknown): DestinyPatternGrowthEvidence[] 
     byKey.set(key, previous
       ? {
           ...previous,
-          usage: previous.usage.includes(evidence.usage) ? previous.usage : `${previous.usage}；${evidence.usage}`,
+          ...(evidence.usage
+            ? {
+                usage: previous.usage
+                  ? previous.usage.includes(evidence.usage)
+                    ? previous.usage
+                    : `${previous.usage}；${evidence.usage}`
+                  : evidence.usage,
+              }
+            : {}),
           result: previous.result.includes(evidence.result) ? previous.result : `${previous.result}；${evidence.result}`,
           ...(previous.breakthrough || !evidence.breakthrough
             ? {}
@@ -328,19 +381,22 @@ function sanitizeGrowthAssessments(value: unknown): DestinyPatternGrowthAssessme
   return [...latest.values()]
 }
 
-function recountDestinyPatternRarity(
+function recountDestinyPatternAptitude(
   patterns: readonly DestinyPattern[],
-): DestinyPatternState['rarityCount'] {
-  const rarityCount: DestinyPatternState['rarityCount'] = {
-    common: 0,
-    fine: 0,
-    rare: 0,
-    epic: 0,
-    legendary: 0,
-    mythic: 0,
+): DestinyPatternState['aptitudeCount'] {
+  const aptitudeCount: DestinyPatternState['aptitudeCount'] = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+    6: 0,
+    7: 0,
+    8: 0,
+    9: 0,
   }
-  for (const pattern of patterns) rarityCount[pattern.rarity]++
-  return rarityCount
+  for (const pattern of patterns) aptitudeCount[pattern.aptitudeTier]++
+  return aptitudeCount
 }
 
 function removeUnderageDestinyPatternGrowth(
@@ -367,20 +423,20 @@ function removeUnderageDestinyPatternGrowth(
   }
   const patterns = state.patterns.map((pattern) => (
     originalByLineage.get(pattern.lineageId) &&
-      !('strengthenLevel' in originalByLineage.get(pattern.lineageId)!)
+      !('apexStrengthenLevel' in originalByLineage.get(pattern.lineageId)!)
       ? originalByLineage.get(pattern.lineageId) as DestinyPattern
       : pattern
   ))
   const nextReincarnationTalents = equippedReincarnationTalents.map((talent) => (
     originalByLineage.get(talent.lineageId) &&
-      'strengthenLevel' in originalByLineage.get(talent.lineageId)!
+      'apexStrengthenLevel' in originalByLineage.get(talent.lineageId)!
       ? originalByLineage.get(talent.lineageId) as ReincarnationTalent
       : talent
   ))
   return { state: {
     ...state,
     patterns,
-    rarityCount: recountDestinyPatternRarity(patterns),
+    aptitudeCount: recountDestinyPatternAptitude(patterns),
     pendingGrowth: null,
     growthHistory: [],
     growthEvidence: [],
@@ -404,7 +460,7 @@ export function sanitizeDestinyPatternState(
   const patterns = Array.isArray(record.patterns)
     ? record.patterns.map(sanitizeDestinyPattern).filter((item): item is DestinyPattern => item !== null)
     : []
-  const rarityCount = recountDestinyPatternRarity(patterns)
+  const aptitudeCount = recountDestinyPatternAptitude(patterns)
   const growthHistory = sanitizeGrowthHistory(record.growthHistory)
   const pendingGrowth = sanitizePendingGrowth(
     record.pendingGrowth,
@@ -425,7 +481,7 @@ export function sanitizeDestinyPatternState(
     {
       candidates,
       patterns,
-      rarityCount,
+      aptitudeCount,
       pendingGrowth,
       growthHistory,
       growthEvidence,
@@ -438,31 +494,58 @@ export function sanitizeDestinyPatternState(
 
 export function sanitizeReincarnationTalent(value: unknown): ReincarnationTalent | null {
   if (!isRecord(value)) return null
-  if (typeof value.id !== 'string' || typeof value.lineageId !== 'string' || typeof value.name !== 'string') return null
-  if (typeof value.description !== 'string' || typeof value.effect !== 'string') return null
-  const category = sanitizeDestinyPatternCategory(value.category)
-  if (!category) return null
-  if (!['common', 'fine', 'rare', 'epic', 'legendary', 'mythic'].includes(String(value.rarity))) return null
+  if (
+    'rarity' in value
+    || 'strengthenLevel' in value
+    || typeof value.id !== 'string'
+    || !value.id.trim()
+    || typeof value.lineageId !== 'string'
+    || !value.lineageId.trim()
+    || !Number.isSafeInteger(value.version)
+    || Number(value.version) < 1
+    || typeof value.name !== 'string'
+    || !value.name.trim()
+    || typeof value.description !== 'string'
+    || !value.description.trim()
+    || typeof value.effect !== 'string'
+    || !value.effect.trim()
+  ) return null
+  const category = validateDestinyPatternCategory(String(value.category))
+  const aptitudeTier = validateDestinyPatternAptitudeTier(value.aptitudeTier)
+  if (
+    !category
+    || aptitudeTier === null
+    || !['awakening', 'mastery', 'complete'].includes(String(value.developmentStage))
+    || !Number.isSafeInteger(value.apexStrengthenLevel)
+    || Number(value.apexStrengthenLevel) < 0
+    || (aptitudeTier !== 9 && value.apexStrengthenLevel !== 0)
+    || !Number.isSafeInteger(value.acquiredAt)
+    || Number(value.acquiredAt) < 0
+  ) return null
   if (!isRecord(value.source)
     || typeof value.source.worldName !== 'string'
     || typeof value.source.characterName !== 'string') return null
+  let attrBonus: Partial<AttributeModifiers>
+  try {
+    attrBonus = validateDestinyPatternAttrBonus(
+      value.attrBonus as Record<string, number>,
+      aptitudeTier,
+    )
+  } catch {
+    return null
+  }
   return {
-    id: value.id,
+    id: value.id.trim(),
     lineageId: value.lineageId.trim(),
-    version: Number.isSafeInteger(value.version) && Number(value.version) >= 1
-      ? Number(value.version)
-      : 1,
-    name: value.name,
-    description: value.description,
+    version: Number(value.version),
+    name: value.name.trim(),
+    description: value.description.trim(),
     category,
-    rarity: value.rarity as ReincarnationTalent['rarity'],
-    effect: value.effect,
-    attrBonus: sanitizeAttrBonus(value.attrBonus),
-    strengthenLevel: value.rarity === 'mythic'
-      ? Number.isSafeInteger(value.strengthenLevel) && Number(value.strengthenLevel) >= 0
-        ? Number(value.strengthenLevel)
-        : 0
-      : 0,
+    aptitudeTier,
+    developmentStage: value.developmentStage as ReincarnationTalent['developmentStage'],
+    effect: value.effect.trim(),
+    attrBonus,
+    apexStrengthenLevel: Number(value.apexStrengthenLevel),
     acquiredAt: finiteNumber(value.acquiredAt),
     source: {
       worldName: value.source.worldName,
@@ -551,7 +634,7 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
       : {
           ...destinyPatterns,
           patterns: [],
-          rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+          aptitudeCount: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
           pendingGrowth: null,
           growthHistory: [],
           growthEvidence: [],

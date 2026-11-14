@@ -118,6 +118,9 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
   const maximumLifespanDays = integer(value.maximumLifespanDays, 1, Number.MAX_SAFE_INTEGER)
   const endRisk = integer(value.endRisk, 0, 100)
   const lastAnalyzedAtTotalDays = integer(value.lastAnalyzedAtTotalDays, 0, Number.MAX_SAFE_INTEGER)
+  const lifeStageTemplate = Array.isArray(value.lifeStageTemplate)
+    ? value.lifeStageTemplate.map(sanitizeLifeStage)
+    : []
   const lifeStages = Array.isArray(value.lifeStages) ? value.lifeStages.map(sanitizeLifeStage) : []
   const guidance = stringList(value.guidance)
   if (
@@ -125,7 +128,8 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
     || !CLOCK_MODES.has(String(value.clockMode)) || ageAnchorTotalDays === undefined
     || (value.ageAnchorBasePoints !== undefined && ageAnchorBasePoints === undefined)
     || ageDays === undefined || maximumLifespanDays === undefined || endRisk === undefined
-    || lastAnalyzedAtTotalDays === undefined || lifeStages.length === 0
+    || lastAnalyzedAtTotalDays === undefined || lifeStageTemplate.length === 0
+    || lifeStageTemplate.some((stage) => !stage) || lifeStages.length === 0
     || lifeStages.some((stage) => !stage) || !guidance || !isRecord(value.health)
     || !isRecord(value.fortune)
   ) return undefined
@@ -162,6 +166,7 @@ export function sanitizeCharacterNarrativeStatus(value: unknown): CharacterNarra
     ageAnchorTotalDays,
     ageDays,
     maximumLifespanDays,
+    lifeStageTemplate: lifeStageTemplate as CharacterLifeStageDefinition[],
     lifeStages: lifeStages as CharacterLifeStageDefinition[],
     ...(typeof value.currentStageId === 'string' && value.currentStageId.trim()
       ? { currentStageId: value.currentStageId.trim() }

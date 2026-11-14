@@ -75,9 +75,9 @@ owner.setContext(
 )
 
 const stories = [
-  { 时间定位: '', 事件结果: [{ 事件: '制度变化', 成因: '外部规则改变。', 结果: '你获得新的公共机会。', 影响: '你的社会位置发生变化。' }], 正文: '第一轮宏观事件已经改变了你的机会。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
-  { 时间定位: '', 事件结果: [{ 事件: '组织重组', 成因: '新的组织进入你的生活。', 结果: '你被纳入新的学习与协作网络。', 影响: '你获得持续的关系资源。' }], 正文: '第二轮事件让你进入新的组织网络。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
-  { 时间定位: '', 事件结果: [{ 事件: '关系转折', 成因: '前项变化引发新的选择。', 结果: '你承担一项新的公共责任。', 影响: '你的长期方向被重新定义。' }], 正文: '第三轮事件把你的责任推向更大的公共范围。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
+  { 正文: '第一轮宏观事件已经改变了你的机会。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
+  { 正文: '第二轮事件让你进入新的组织网络。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
+  { 正文: '第三轮事件把你的责任推向更大的公共范围。', 命运分支: false, 属性: { 心智: 1, 体魄: 1, 魅力: 1, 财富: 2 }, 结局: false },
 ]
 
 const originalFetch = globalThis.fetch
@@ -138,6 +138,8 @@ try {
 
   const payload = JSON.parse(buildSegmentedPrompt(narrativePrompt, promptContext).userSegments[0])
   assert.equal(payload[4].本次信息.批量输出.includes('3轮'), true)
+  assert.equal(payload[4].本次信息.批量输出.includes('每项独立覆盖各自时间跨度'), true)
+  assert.equal(payload[4].本次信息.批量输出.includes('只承接已成立事实'), true)
 } finally {
   globalThis.fetch = originalFetch
 }

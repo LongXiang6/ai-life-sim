@@ -23,6 +23,7 @@ function assertOk(condition, message) {
 }
 
 const provider = read('src/core/ai-service/provider-config.ts')
+const endpointNormalizer = read('src/core/shared/openai-compatible-endpoint.ts')
 const proxy = read('src/app/api/proxy/route.ts')
 const serverTargets = read('src/core/ai-service/server-provider-targets.ts')
 const worldInitBundle = read('src/mods/mod-world/world-init-bundle.ts')
@@ -40,10 +41,18 @@ const settingsPersistenceVersion = Number(
 assertOk(
   provider.includes("DEFAULT_AI_PROVIDER_ID = 'custom'")
     && provider.includes("DEEPSEEK_PRESET_BASE_URL = 'https://api.deepseek.com/v1'")
-    && provider.includes("DEEPSEEK_PRESET_MODEL = 'deepseek-v4-flash'")
+    && provider.includes("DEEPSEEK_PRESET_MODEL = 'deepseek-flash'")
     && provider.includes('DEFAULT_AI_BASE_URL = DEEPSEEK_PRESET_BASE_URL')
     && provider.includes('DEFAULT_AI_MODEL = DEEPSEEK_PRESET_MODEL'),
   'player-owned API and DeepSeek fill defaults must come from one provider authority',
+)
+assertOk(
+  provider.includes('normalizeOpenAiCompatibleBasePath')
+    && proxy.includes('normalizeOpenAiCompatibleEndpoint(baseUrl,')
+    && endpointNormalizer.includes("'/chat/completions'")
+    && endpointNormalizer.includes("'/images/generations'")
+    && endpointNormalizer.includes('stripKnownEndpointSuffixes'),
+  'main API endpoints must use the shared URL normalization contract',
 )
 assertOk(
   !provider.includes('managed-a6')

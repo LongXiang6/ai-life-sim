@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Purpose: Preserve the public narrative type API and the code-generated PromptContext source contract.
  * Owner: foundation:types
  * Responsibility: Prompt-facing types and explicit exports only; narrative subdomains live below narrative/.
@@ -11,10 +11,14 @@ import type { NarrativeControlPlaneView } from './narrative/control-plane'
 export type {
   NarrativeBirthProfile,
   NarrativeLifePlan,
-  NarrativeDirectionHint,
-  NarrativeEventCandidate,
+  NarrativeEventCard,
   NarrativeWorldTimelineCommitment,
   NarrativeControlPlaneView,
+  FateDramaticBias,
+} from './narrative/control-plane'
+export {
+  FATE_DRAMATIC_BIAS_LABELS,
+  FATE_DRAMATIC_BIASES,
 } from './narrative/control-plane'
 
 export interface WorldSetting {
@@ -32,8 +36,9 @@ export interface CharacterDestinyPatternSummary {
   name: string
   description: string
   effect?: string
-  rarity?: string
-  polarity?: string
+  aptitudeTier: number
+  developmentStage: 'awakening' | 'mastery' | 'complete'
+  apexStrengthenLevel?: number
 }
 
 export interface CharacterState {
@@ -50,6 +55,9 @@ export interface NarrativeTalentPromptView {
   /** 本轮请求内的不透明引用；不暴露持久化 lineageId。 */
   引用?: string
   名称: string
+  资质阶位: string
+  开发阶段: string
+  至高强化阶数?: number
   效果: string
 }
 
@@ -101,8 +109,8 @@ export type { DifficultyLevel } from './narrative/difficulty'
 export {
   DIFFICULTY_DESCRIPTIONS,
   DIFFICULTY_LABELS,
-  DIFFICULTY_MULTIPLIERS_FORTUNE,
-  DIFFICULTY_MULTIPLIERS_HEALTH,
+  DIFFICULTY_NARRATIVE_GUIDANCE,
+  DIFFICULTY_ORDER,
 } from './narrative/difficulty'
 export type {
   CompressedMemoryEvent,

@@ -102,7 +102,6 @@ export function projectNarrativeHistoryEntryRuntime(
   const contextLabel = entry.contextName || entry.contextId
   const narrative = projectNarrativeResultForPrompt({
     text: entry.text,
-    eventResults: entry.eventResults,
   })
   const roundLabel = `第${round}轮`
   const timeLabel = entry.displayTimeLabel?.trim() || roundLabel

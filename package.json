@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "6.7.3",
+  "version": "6.7.6",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -30,6 +30,7 @@
     "test:new-life-isolation": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/new-life-isolation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
     "test:creation-settings": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/creation-settings-regression.mjs",
     "test:account-cloud": "node scripts/check/index.mjs account --verbose",
+    "test:image-api-presets": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/image-api-presets-regression.mjs",
     "test:player-mail-reward": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-mail-ops-smoke.mjs",
     "test:data-viewer": "node scripts/check/domains/account/data-viewer-smoke.mjs",
     "test:account-cloud:browser": "node scripts/check/domains/ui/account-cloud-browser.cjs",
@@ -70,10 +71,13 @@
     "gate-check:quick": "node scripts/check/gate-check.mjs --quick"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-sc": "^5.3.1",
     "better-sqlite3": "^12.4.1",
+    "lxgw-wenkai-webfont": "^1.7.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },

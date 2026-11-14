@@ -4,9 +4,11 @@
  * Responsibility: Provider identifiers, presets, and base-URL classification only.
  */
 
+import { normalizeOpenAiCompatibleBasePath } from '@/core/shared/openai-compatible-endpoint'
+
 export const DEFAULT_AI_PROVIDER_ID = 'custom'
 export const DEEPSEEK_PRESET_BASE_URL = 'https://api.deepseek.com/v1'
-export const DEEPSEEK_PRESET_MODEL = 'deepseek-v4-flash'
+export const DEEPSEEK_PRESET_MODEL = 'deepseek-flash'
 export const DEFAULT_AI_BASE_URL = DEEPSEEK_PRESET_BASE_URL
 export const DEFAULT_AI_MODEL = DEEPSEEK_PRESET_MODEL
 
@@ -18,11 +20,11 @@ export const DEEPSEEK_API_PRESET = {
 
 function normalizeProviderBaseUrl(baseUrl: string): string | undefined {
   try {
-    const parsed = new URL(baseUrl)
+    const parsed = new URL(baseUrl.trim())
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
       return undefined
     }
-    return `${parsed.origin}${parsed.pathname.replace(/\/+$/u, '')}`
+    return normalizeOpenAiCompatibleBasePath(baseUrl)
   } catch {
     return undefined
   }

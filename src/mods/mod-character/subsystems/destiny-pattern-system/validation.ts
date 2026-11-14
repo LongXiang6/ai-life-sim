@@ -6,50 +6,35 @@
 
 import { parseAIJSONCandidates } from '@/core'
 import {
+  DESTINY_PATTERN_APTITUDE_CONFIG,
   DESTINY_PATTERN_CATEGORY_CONFIG,
   DESTINY_PATTERN_ID_PREFIX,
 } from '../../constants'
 import type {
   DestinyPattern,
+  DestinyPatternAptitudeTier,
   DestinyPatternCategory,
-  DestinyPatternRarity,
+  DestinyPatternDevelopmentStage,
 } from '../../types'
 import type { DestinyPatternAIItem } from './contracts'
-import { validateDestinyPatternAttrBonusForRarity } from '../../destiny-pattern-growth'
-
-const CATEGORY_BY_LABEL = Object.fromEntries(
-  Object.entries(DESTINY_PATTERN_CATEGORY_CONFIG).map(([category, config]) => [config.label, category]),
-) as Record<string, DestinyPatternCategory>
+import { validateDestinyPatternAttrBonusForAptitude } from '../../destiny-pattern-growth'
 
 const ATTRIBUTE_BY_LABEL: Record<string, string> = {
   体魄: 'physique',
-  力量: 'physique',
-  体质: 'physique',
   心智: 'mind',
-  智力: 'mind',
-  智慧: 'mind',
   魅力: 'charisma',
-  容貌: 'charisma',
-  气质: 'charisma',
   财富: 'familyBackground',
-  家庭: 'familyBackground',
-  出身: 'familyBackground',
-  资源: 'familyBackground',
   气运: 'luck',
-  physique: 'physique',
-  mind: 'mind',
-  charisma: 'charisma',
-  familybackground: 'familyBackground',
-  luck: 'luck',
 }
 
 const FIELD_ALIASES = {
-  category: ['类别', '分类', '方向', 'category', 'type'],
-  name: ['名称', '名字', '命格名称', 'name', 'title'],
-  description: ['设定描述', '描述', '背景', '详细介绍', 'description', 'detail'],
-  effect: ['效果', '作用', '效果描述', '影响', 'effect', 'result'],
-  attrBonus: ['属性加成', '属性', '属性变化', '加成', 'attrBonus', 'attributes'],
-  items: ['天赋', '命格', '候选', '候选命格', 'patterns', 'talents', 'candidates', 'items'],
+  category: ['类别'],
+  name: ['名称'],
+  description: ['简介'],
+  aptitudeTier: ['资质阶位'],
+  developmentStage: ['开发阶段'],
+  effect: ['效果'],
+  attrBonus: ['属性加成'],
 } as const
 
 /**
@@ -95,140 +80,91 @@ function pickField(record: Record<string, unknown>, aliases: readonly string[]):
   for (const alias of aliases) {
     if (Object.prototype.hasOwnProperty.call(record, alias)) return record[alias]
   }
-  const normalized = new Map(Object.entries(record).map(([key, value]) => [key.normalize('NFKC').toLocaleLowerCase(), value]))
-  for (const alias of aliases) {
-    const value = normalized.get(alias.normalize('NFKC').toLocaleLowerCase())
-    if (value !== undefined) return value
-  }
   return undefined
 }
 
 function textValue(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim()
+  return typeof value === 'string' ? value.trim() : ''
 }
 
-function normalizeCategory(value: unknown, fallback?: DestinyPatternCategory): DestinyPatternCategory | null {
-  const text = textValue(value)
-  const english: Record<string, DestinyPatternCategory> = {
-    enhancement: 'enhancement', enhance: 'enhancement', transformation: 'enhancement', evolution: 'enhancement',
-    control: 'control', projection: 'control', manipulation: 'control', influence: 'control',
-    perception: 'perception', information: 'perception', sensing: 'perception', cognition: 'perception',
-    summoning: 'summoning', summon: 'summoning', clone: 'summoning', contract: 'summoning',
-    creation: 'creation', crafting: 'creation', transmutation: 'creation', conversion: 'creation',
-  }
-  return CATEGORY_BY_LABEL[text] ?? english[text.toLocaleLowerCase()] ?? fallback ?? null
+function normalizeCategory(value: unknown): DestinyPatternCategory | null {
+  return typeof value === 'string' && Object.hasOwn(DESTINY_PATTERN_CATEGORY_CONFIG, value)
+    ? value as DestinyPatternCategory
+    : null
 }
 
-function normalizeAttributeKey(value: string): string | null {
-  const compact = value.normalize('NFKC').trim().replace(/[\s_-]+/gu, '').toLocaleLowerCase()
-  return ATTRIBUTE_BY_LABEL[compact] ?? ATTRIBUTE_BY_LABEL[value.trim()] ?? null
-}
-
-function addAttribute(result: Record<string, number>, label: unknown, rawValue: unknown): void {
-  const key = normalizeAttributeKey(textValue(label))
-  const value = Number(rawValue)
-  if (!key || !Number.isInteger(value) || value === 0) return
-  result[key] = (result[key] ?? 0) + value
-}
-
-function normalizeAttrBonus(value: unknown): Record<string, number> {
+function normalizeAttrBonus(value: unknown): Record<string, number> | null {
+  if (!isRecord(value)) return null
   const result: Record<string, number> = {}
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (isRecord(entry)) {
-        addAttribute(result, pickField(entry, ['属性', '名称', 'attribute', 'name', 'key']), pickField(entry, ['数值', '值', 'value', 'amount', 'bonus']))
-      } else if (typeof entry === 'string') {
-        Object.assign(result, normalizeAttrBonus(entry))
-      }
-    }
-    return result
+  for (const [label, amount] of Object.entries(value)) {
+    const key = ATTRIBUTE_BY_LABEL[label]
+    if (!key || typeof amount !== 'number' || !Number.isSafeInteger(amount)) return null
+    if (amount !== 0) result[key] = amount
   }
-  if (isRecord(value)) {
-    for (const [label, rawValue] of Object.entries(value)) addAttribute(result, label, rawValue)
-    return result
-  }
-  if (typeof value !== 'string') return result
-  if (/^(无|没有|无属性|无加成|none|none\s*bonus)$/iu.test(value.trim())) return result
-  const pattern = /(体魄|力量|体质|心智|智力|智慧|魅力|容貌|气质|财富|家庭|出身|资源|气运|physique|mind|charisma|familybackground|luck)\s*[:：=]?\s*([+-]?\d+)/giu
-  for (const match of value.matchAll(pattern)) addAttribute(result, match[1], match[2])
   return result
 }
 
-function looksLikePattern(value: Record<string, unknown>): boolean {
-  return FIELD_ALIASES.name.some((key) => Object.prototype.hasOwnProperty.call(value, key))
-    || FIELD_ALIASES.description.some((key) => Object.prototype.hasOwnProperty.call(value, key))
-    || FIELD_ALIASES.effect.some((key) => Object.prototype.hasOwnProperty.call(value, key))
+function aptitudeTierValue(value: unknown): DestinyPatternAptitudeTier | null {
+  return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 9
+    ? Number(value) as DestinyPatternAptitudeTier
+    : null
 }
 
-function collectPatternItems(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value.flatMap((entry) => collectPatternItems(entry))
-  if (!isRecord(value)) return []
-  const nested = pickField(value, FIELD_ALIASES.items)
-  if (nested !== undefined) return collectPatternItems(nested)
-  if (looksLikePattern(value)) return [value]
-  return Object.values(value).flatMap((entry) => (
-    Array.isArray(entry) || isRecord(entry) ? collectPatternItems(entry) : []
-  ))
+function developmentStageValue(value: unknown): DestinyPatternDevelopmentStage | null {
+  if (value === '初醒' || value === 'awakening') return 'awakening'
+  if (value === '掌握' || value === 'mastery') return 'mastery'
+  if (value === '圆满' || value === 'complete') return 'complete'
+  return null
 }
 
-function normalizePatternItem(value: unknown, fallbackCategory?: DestinyPatternCategory): DestinyPatternAIItem | null {
+function normalizePatternItem(value: unknown): DestinyPatternAIItem | null {
   if (!isRecord(value)) return null
+  if (['rarity', 'strengthenLevel', '等级', '稀有度'].some((key) => key in value)) return null
   const name = textValue(pickField(value, FIELD_ALIASES.name))
-  let description = textValue(pickField(value, FIELD_ALIASES.description))
-  let effect = textValue(pickField(value, FIELD_ALIASES.effect))
-  if (!description && effect) description = effect
-  if (!effect && description) effect = description
-  const category = normalizeCategory(pickField(value, FIELD_ALIASES.category), fallbackCategory)
-  if (!category || !name || !description || !effect) return null
+  const description = textValue(pickField(value, FIELD_ALIASES.description))
+  const effect = textValue(pickField(value, FIELD_ALIASES.effect))
+  const category = normalizeCategory(pickField(value, FIELD_ALIASES.category))
+  const aptitudeTier = aptitudeTierValue(pickField(value, FIELD_ALIASES.aptitudeTier))
+  const developmentStage = developmentStageValue(pickField(value, FIELD_ALIASES.developmentStage))
+  const attrBonus = normalizeAttrBonus(pickField(value, FIELD_ALIASES.attrBonus))
+  if (!category || !name || !description || !effect || aptitudeTier === null || !developmentStage || !attrBonus) return null
   return {
     category,
     name,
     description,
+    aptitudeTier,
+    developmentStage,
     effect,
-    attrBonus: normalizeAttrBonus(pickField(value, FIELD_ALIASES.attrBonus)),
+    attrBonus,
   }
 }
 
-export function parseDestinyPatternAIResponse(
-  response: string,
-  expectedCategory?: DestinyPatternCategory,
-): DestinyPatternAIItem[] {
+export function parseDestinyPatternAIResponse(response: string): DestinyPatternAIItem[] {
   const candidates = parseAIJSONCandidates<unknown>(response)
-  const items = candidates.flatMap((candidate) => collectPatternItems(candidate.value))
-  const normalized: DestinyPatternAIItem[] = []
-  for (const item of items) {
-    const parsed = normalizePatternItem(item, expectedCategory)
-    if (parsed) normalized.push(parsed)
-  }
-  return normalized
+  return candidates.flatMap((candidate) => {
+    if (!isRecord(candidate.value) || !Array.isArray(candidate.value['天赋'])) return []
+    return candidate.value['天赋']
+      .map(normalizePatternItem)
+      .filter((item): item is DestinyPatternAIItem => item !== null)
+  })
 }
 
 export function validateDestinyPatternCategory(category: string): DestinyPatternCategory | null {
   return normalizeCategory(category)
 }
 
-export function validateDestinyPatternRarity(rarity: string): DestinyPatternRarity | null {
-  const valid: DestinyPatternRarity[] = ['common', 'fine', 'rare', 'epic', 'legendary']
-  return valid.includes(rarity as DestinyPatternRarity) ? rarity as DestinyPatternRarity : null
+export function validateDestinyPatternAptitudeTier(value: unknown): DestinyPatternAptitudeTier | null {
+  return aptitudeTierValue(value)
 }
 
 export function validateDestinyPatternAttrBonus(
   bonus: Record<string, number> | undefined,
-  rarity: DestinyPatternRarity,
+  aptitudeTier: DestinyPatternAptitudeTier,
 ): Partial<Record<string, number>> {
-  if (!bonus || typeof bonus !== 'object') return {}
-
-  const validKeys = ['mind', 'physique', 'charisma', 'familyBackground', 'luck']
-  const result: Record<string, number> = {}
-  for (const key of validKeys) {
-    const value = Number(bonus[key])
-    if (!Number.isInteger(value) || value === 0) continue
-    result[key] = value
+  if (!isRecord(bonus) || !validateDestinyPatternAttrBonusForAptitude(bonus, aptitudeTier)) {
+    throw new Error(`${getDestinyPatternAptitudeLabel(aptitudeTier)}资质天赋属性加成超过边界或包含无效值`)
   }
-  if (!validateDestinyPatternAttrBonusForRarity(result, rarity)) {
-    throw new Error(`${getDestinyPatternRarityLabel(rarity)}天赋属性加成超过等级边界或包含无效值`)
-  }
-  return result
+  return { ...bonus }
 }
 
 /** Normalize a persisted or hydrated common candidate without judging its written content. */
@@ -247,9 +183,13 @@ export function normalizeCommonDestinyPatternCandidate(pattern: DestinyPattern):
     || !pattern.description.trim()
     || typeof pattern.effect !== 'string'
     || !pattern.effect.trim()
-    || pattern.rarity !== 'common'
+    || 'rarity' in pattern
+    || 'strengthenLevel' in pattern
+    || 'apexStrengthenLevel' in pattern
   ) return null
 
+  const aptitudeTier = validateDestinyPatternAptitudeTier(pattern.aptitudeTier)
+  if (aptitudeTier === null || aptitudeTier > 3 || pattern.developmentStage !== 'awakening') return null
   const category = validateDestinyPatternCategory(pattern.category)
   if (!category) return null
   try {
@@ -261,9 +201,11 @@ export function normalizeCommonDestinyPatternCandidate(pattern: DestinyPattern):
       description: pattern.description.trim(),
       effect: pattern.effect.trim(),
       category,
+      aptitudeTier,
+      developmentStage: 'awakening',
       attrBonus: validateDestinyPatternAttrBonus(
         pattern.attrBonus as Record<string, number> | undefined,
-        'common',
+        aptitudeTier,
       ),
     }
   } catch {
@@ -271,9 +213,6 @@ export function normalizeCommonDestinyPatternCandidate(pattern: DestinyPattern):
   }
 }
 
-export function getDestinyPatternRarityLabel(rarity: DestinyPatternRarity): string {
-  const labels: Record<DestinyPatternRarity, string> = {
-    common: '普通', fine: '精良', rare: '稀有', epic: '史诗', legendary: '传说', mythic: '神话',
-  }
-  return labels[rarity]
+export function getDestinyPatternAptitudeLabel(aptitudeTier: DestinyPatternAptitudeTier): string {
+  return DESTINY_PATTERN_APTITUDE_CONFIG[aptitudeTier].label
 }

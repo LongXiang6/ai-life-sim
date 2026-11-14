@@ -1,7 +1,7 @@
 /**
  * Purpose: Build and validate deterministic destiny-pattern growth choices.
  * Owner: mod-character
- * Responsibility: Stable lineage, strict next-rarity choices, and pure resolution only.
+ * Responsibility: Stable lineage, strict development-stage choices, and pure resolution only.
  */
 
 import type {
@@ -12,23 +12,27 @@ import type {
   DestinyPatternGrowthHistoryEntry,
   DestinyPatternGrowthOption,
   DestinyPatternGrowthRoute,
-  DestinyPatternRarity,
+  DestinyPatternAptitudeTier,
+  DestinyPatternDevelopmentStage,
   DestinyPatternState,
   PendingDestinyPatternGrowth,
   ReincarnationTalent,
   DestinyPatternGrowthSource,
 } from './types'
 import { basePointsToCalendarDays } from '@/foundation'
-import { DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP } from './constants'
+import { DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER } from './constants'
 
-/** 每个目标稀有度允许的属性净分配上限。 */
-export const DESTINY_PATTERN_ATTRIBUTE_CAPS: Readonly<Record<DestinyPatternRarity, number>> = {
-  common: DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP,
-  fine: 4,
-  rare: 6,
-  epic: 8,
-  legendary: 10,
-  mythic: 12,
+/** 每条天赋的属性净加成与负值绝对总和按资质阶位分别封顶。 */
+export const DESTINY_PATTERN_ATTRIBUTE_CAPS: Readonly<Record<DestinyPatternAptitudeTier, number>> = {
+  1: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER,
+  2: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 2,
+  3: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 3,
+  4: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 4,
+  5: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 5,
+  6: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 6,
+  7: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 7,
+  8: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 8,
+  9: DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER * 9,
 }
 
 /** 局内命格成长开始进入资格判断的最低年龄。 */
@@ -43,13 +47,14 @@ const DESTINY_PATTERN_ATTRIBUTE_KEYS = ['mind', 'physique', 'charisma', 'familyB
 
 /**
  * 校验一组完整属性加成，不做静默截断。
- * 净分配与负属性绝对值分别受目标等级上限约束，允许不使用满额点数。
+ * 净分配与负属性绝对值分别受资质阶位上限约束，允许不使用满额点数。
  */
-export function validateDestinyPatternAttrBonusForRarity(
+export function validateDestinyPatternAttrBonusForAptitude(
   bonus: Partial<Record<(typeof DESTINY_PATTERN_ATTRIBUTE_KEYS)[number], number>> | undefined,
-  rarity: DestinyPatternRarity,
+  aptitudeTier: DestinyPatternAptitudeTier,
 ): boolean {
-  const cap = DESTINY_PATTERN_ATTRIBUTE_CAPS[rarity]
+  const cap = DESTINY_PATTERN_ATTRIBUTE_CAPS[aptitudeTier]
+  if (!Number.isSafeInteger(cap) || !bonus || typeof bonus !== 'object' || Array.isArray(bonus)) return false
   let net = 0
   let negativeTotal = 0
   for (const [key, rawValue] of Object.entries(bonus ?? {})) {
@@ -62,14 +67,7 @@ export function validateDestinyPatternAttrBonusForRarity(
   return net <= cap && negativeTotal <= cap && net >= -cap
 }
 
-const RARITY_ORDER: readonly DestinyPatternRarity[] = [
-  'common',
-  'fine',
-  'rare',
-  'epic',
-  'legendary',
-  'mythic',
-]
+const APTITUDE_ORDER: readonly DestinyPatternAptitudeTier[] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 function sourceMatches(
   source: DestinyPatternGrowthSource,
@@ -78,13 +76,14 @@ function sourceMatches(
   return source.lineageId === pending.lineageId
     && source.id === pending.source.id
     && source.version === pending.source.version
-    && source.rarity === pending.source.rarity
+    && source.aptitudeTier === pending.source.aptitudeTier
+    && source.developmentStage === pending.source.developmentStage
 }
 
 function isReincarnationGrowthSource(
   source: DestinyPatternGrowthSource,
 ): source is ReincarnationTalent {
-  return 'strengthenLevel' in source
+  return 'apexStrengthenLevel' in source
 }
 
 function normalizeText(value: string): string {
@@ -126,19 +125,27 @@ export function withInitialDestinyPatternGrowthIdentity(
   }
 }
 
-export function getNextDestinyPatternRarity(
-  rarity: DestinyPatternRarity,
-): DestinyPatternRarity | null {
-  const index = RARITY_ORDER.indexOf(rarity)
-  return index >= 0 && index < RARITY_ORDER.length - 1
-    ? RARITY_ORDER[index + 1]!
+export function getNextDestinyPatternAptitudeTier(
+  aptitudeTier: DestinyPatternAptitudeTier,
+): DestinyPatternAptitudeTier | null {
+  const index = APTITUDE_ORDER.indexOf(aptitudeTier)
+  return index >= 0 && index < APTITUDE_ORDER.length - 1
+    ? APTITUDE_ORDER[index + 1]!
     : null
+}
+
+export function getNextDestinyPatternDevelopmentStage(
+  developmentStage: DestinyPatternDevelopmentStage,
+): DestinyPatternDevelopmentStage | null {
+  if (developmentStage === 'awakening') return 'mastery'
+  if (developmentStage === 'mastery') return 'complete'
+  return null
 }
 
 function normalizeDirection(
   direction: DestinyPatternGrowthDirection,
   index: number,
-  targetRarity: DestinyPatternRarity,
+  aptitudeTier: DestinyPatternAptitudeTier,
 ): DestinyPatternGrowthDirection {
   const route = direction.route
   const name = normalizeText(direction.name)
@@ -151,8 +158,8 @@ function normalizeDirection(
     throw new Error(`天赋成长方向 ${index + 1} 缺少合规名称、详细介绍或效果描述`)
   }
   const attrBonus = { ...direction.attrBonus }
-  if (!validateDestinyPatternAttrBonusForRarity(attrBonus, targetRarity)) {
-    throw new Error(`天赋成长方向 ${index + 1} 的属性加成超过${targetRarity}等级边界或包含无效值`)
+  if (!validateDestinyPatternAttrBonusForAptitude(attrBonus, aptitudeTier)) {
+    throw new Error(`天赋成长方向 ${index + 1} 的属性加成超过资质${aptitudeTier}阶边界或包含无效值`)
   }
   return { route, name, description, effect, attrBonus }
 }
@@ -171,11 +178,15 @@ export function createPendingDestinyPatternGrowth(input: {
   if (!input.source.lineageId.trim() || !Number.isSafeInteger(input.source.version) || input.source.version < 1) {
     throw new Error('天赋成长来源缺少稳定血脉身份或版本')
   }
-  const targetRarity = getNextDestinyPatternRarity(input.source.rarity)
-  if (!targetRarity || input.source.rarity === 'legendary') throw new Error('局内天赋成长最高到传说')
+  const targetDevelopmentStage = getNextDestinyPatternDevelopmentStage(input.source.developmentStage)
+  if (!targetDevelopmentStage) throw new Error('该天赋已圆满，不能继续局内成长')
   if (input.directions.length !== 3) throw new Error('天赋成长必须提供深度强化、广度强化、转变强化三个下一阶方向')
 
-  const directions = input.directions.map((direction, index) => normalizeDirection(direction, index, targetRarity)) as [
+  const directions = input.directions.map((direction, index) => normalizeDirection(
+    direction,
+    index,
+    input.source.aptitudeTier,
+  )) as [
     DestinyPatternGrowthDirection,
     DestinyPatternGrowthDirection,
     DestinyPatternGrowthDirection,
@@ -197,7 +208,7 @@ export function createPendingDestinyPatternGrowth(input: {
       ...input.source,
       id: `${input.source.lineageId}:v${nextVersion}:option-${index + 1}`,
       version: nextVersion,
-      rarity: targetRarity,
+      developmentStage: targetDevelopmentStage,
       name: direction.name,
       description: direction.description,
       effect: direction.effect,
@@ -229,8 +240,11 @@ export function resolvePendingDestinyPatternGrowth(
   if (selected.pattern.version !== pending.source.version + 1) {
     throw new Error('天赋成长方向版本不连续')
   }
-  if (selected.pattern.rarity !== getNextDestinyPatternRarity(pending.source.rarity)) {
-    throw new Error('天赋成长方向没有进入严格下一等级')
+  if (selected.pattern.aptitudeTier !== pending.source.aptitudeTier) {
+    throw new Error('天赋成长方向改变了固定资质阶位')
+  }
+  if (selected.pattern.developmentStage !== getNextDestinyPatternDevelopmentStage(pending.source.developmentStage)) {
+    throw new Error('天赋成长方向没有推进到下一开发阶段')
   }
   return {
     choiceId: pending.choiceId,
@@ -246,19 +260,22 @@ export function resolvePendingDestinyPatternGrowth(
   }
 }
 
-function recountRarity(
+function recountAptitude(
   patterns: readonly DestinyPattern[],
-): DestinyPatternState['rarityCount'] {
-  const rarityCount: DestinyPatternState['rarityCount'] = {
-    common: 0,
-    fine: 0,
-    rare: 0,
-    epic: 0,
-    legendary: 0,
-    mythic: 0,
+): DestinyPatternState['aptitudeCount'] {
+  const aptitudeCount: DestinyPatternState['aptitudeCount'] = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+    6: 0,
+    7: 0,
+    8: 0,
+    9: 0,
   }
-  for (const pattern of patterns) rarityCount[pattern.rarity] += 1
-  return rarityCount
+  for (const pattern of patterns) aptitudeCount[pattern.aptitudeTier] += 1
+  return aptitudeCount
 }
 
 export function registerPendingDestinyPatternGrowthInState(
@@ -323,7 +340,7 @@ export function resolvePendingDestinyPatternGrowthInState(
     state: {
       ...state,
       patterns,
-      rarityCount: recountRarity(patterns),
+      aptitudeCount: recountAptitude(patterns),
       pendingGrowth: null,
       growthHistory: [...state.growthHistory, historyEntry],
     },
@@ -350,15 +367,17 @@ export function recordDestinyPatternGrowthEvidenceInState(
       !patterns.has(item.lineageId)
       || !Number.isSafeInteger(item.sourceRound)
       || item.sourceRound < 1
-      || !item.usage.trim()
       || !item.result.trim()
     ) continue
     const key = `${item.lineageId}:${item.sourceRound}`
     const previous = merged.get(key)
+    const usage = item.usage?.trim()
+      ? mergeEvidenceText(previous?.usage, item.usage)
+      : previous?.usage
     merged.set(key, {
       lineageId: item.lineageId,
       sourceRound: item.sourceRound,
-      usage: mergeEvidenceText(previous?.usage, item.usage),
+      ...(usage ? { usage } : {}),
       result: mergeEvidenceText(previous?.result, item.result),
       ...(previous?.breakthrough || !item.breakthrough?.trim()
         ? (previous?.breakthrough ? { breakthrough: previous.breakthrough } : {})

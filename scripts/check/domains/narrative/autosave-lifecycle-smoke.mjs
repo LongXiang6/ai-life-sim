@@ -1,4 +1,10 @@
 /**
+ * Purpose: Regress rollback behavior when replacing an invalidated life record.
+ * Owner: quality:narrative
+ * Responsibility: Autosave lifecycle smoke assertions only.
+ */
+
+/**
  * 自动存档生命周期回归：旧人生在目录替换过程中失效时必须回滚槽 0。
  */
 
@@ -17,9 +23,10 @@ Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), 
 Object.defineProperty(globalThis, 'window', { value: globalThis, configurable: true })
 Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true })
 
-const [{ opfsStorage }, { saveManager }] = await Promise.all([
+const [{ opfsStorage }, { saveManager }, { GAME_SAVE_SCHEMA_VERSION }] = await Promise.all([
   import('../../../../src/core/storage/opfs-storage.ts'),
   import('../../../../src/core/storage/save-manager.ts'),
+  import('../../../../src/core/storage/save-manager/save-format.ts'),
 ])
 
 const files = new Map()
@@ -62,6 +69,15 @@ opfsStorage.deleteDirectory = async (dirPath) => {
 
 function payload(timeline, totalRounds) {
   return {
+    saveSchemaVersion: GAME_SAVE_SCHEMA_VERSION,
+    engine: { timeline, totalRounds },
+    character: { name: timeline },
+    world: { name: timeline },
+  }
+}
+
+function unversionedPayload(timeline, totalRounds) {
+  return {
     engine: { timeline, totalRounds },
     character: { name: timeline },
     world: { name: timeline },
@@ -79,6 +95,68 @@ try {
     payload('baseline', 7),
   )
   assert(baseline?.worldName === 'baseline-world', 'baseline auto-save must commit')
+
+  const baselineEngine = files.get('save/0/engine.json')?.slice(0)
+  assert(GAME_SAVE_SCHEMA_VERSION === 3, 'new whole-game saves must use v3')
+  files.set('save/0/saveSchemaVersion.json', encoder.encode('2').buffer)
+  const legacyFiles = new Map([...files].map(([name, data]) => [name, data.slice(0)]))
+  await saveManager.loadSave(0).then(
+    () => { throw new Error('v2 whole-game saves must be rejected') },
+    (error) => assert(error.message.includes('不提供旧存档迁移'), 'v2 rejection must explain incompatibility'),
+  )
+  await saveManager.autoSave('new', 'new', payload('new', 8)).then(
+    () => { throw new Error('v2 autosaves must not be replaced') },
+    (error) => assert(error.message.includes('保留原文件'), 'v2 autosave rejection must preserve old files'),
+  )
+  assert(files.size === legacyFiles.size && [...legacyFiles].every(([name, data]) => (
+    Buffer.from(files.get(name) ?? []).equals(Buffer.from(data))
+  )), 'all v2 files must remain byte-identical after rejected loading and saving')
+  files.set('save/0/saveSchemaVersion.json', encoder.encode(String(GAME_SAVE_SCHEMA_VERSION)).buffer)
+  let unversionedAutoSaveRejected = false
+  try {
+    await saveManager.autoSave('unversioned-world', 'unversioned-character', unversionedPayload('unversioned', 8))
+  } catch (error) {
+    unversionedAutoSaveRejected = error instanceof Error && error.message.includes('未标记格式')
+  }
+  assert(unversionedAutoSaveRejected, 'auto-save writes must reject payloads without an explicit schema version')
+  assert(
+    Buffer.from(files.get('save/0/engine.json') ?? []).equals(Buffer.from(baselineEngine ?? [])),
+    'rejecting an unversioned auto-save payload must preserve the current slot',
+  )
+
+  let unversionedManualSaveRejected = false
+  try {
+    await saveManager.saveToSlot(1, '未标记存档', '测试世界', '测试角色', unversionedPayload('unversioned', 8))
+  } catch (error) {
+    unversionedManualSaveRejected = error instanceof Error && error.message.includes('未标记格式')
+  }
+  assert(unversionedManualSaveRejected, 'manual-save writes must reject payloads without an explicit schema version')
+  assert(!saveManager.slotExists(1), 'rejecting an unversioned manual save must not create a slot')
+
+  files.delete('save/0/saveSchemaVersion.json')
+  let oldAutoSaveRejected = false
+  try {
+    await saveManager.autoSave('replacement-world', 'replacement-character', payload('replacement-life', 8))
+  } catch (error) {
+    oldAutoSaveRejected = error instanceof Error
+      && error.message.includes('自动保存已停止并保留原文件')
+  }
+  assert(oldAutoSaveRejected, 'old auto-save slots must stop automatic replacement')
+  assert(
+    Buffer.from(files.get('save/0/engine.json') ?? []).equals(Buffer.from(baselineEngine ?? [])),
+    'rejecting an old auto-save format must preserve the original payload',
+  )
+  let oldLoadRejected = false
+  try {
+    await saveManager.loadSave(0)
+  } catch (error) {
+    oldLoadRejected = error instanceof Error && error.message.includes('不提供旧存档迁移')
+  }
+  assert(oldLoadRejected, 'local save loading must reject a missing schema marker')
+  files.set(
+    'save/0/saveSchemaVersion.json',
+    encoder.encode(String(GAME_SAVE_SCHEMA_VERSION)).buffer,
+  )
 
   let generationIsCurrent = true
   pauseOldTargetWrite = true
@@ -115,6 +193,13 @@ try {
   const restoreSource = await fs.readFile(
     new URL('../../../../src/mods/mod-engine/helpers/save-restore.ts', import.meta.url),
     'utf8',
+  )
+  assert(
+    restoreSource.indexOf('assertCurrentGameSaveFormat(data)')
+      < restoreSource.indexOf("assertRuntimeReady('加载存档')")
+      && restoreSource.indexOf('assertCurrentGameSaveFormat(data)')
+        < restoreSource.indexOf('const previous ='),
+    'save schema must be checked before readiness side effects or current state capture',
   )
   assert(
     orchestratorSource.includes('() => this.lifeGeneration === saveGeneration')

@@ -101,18 +101,21 @@ function endRisk(status: CharacterNarrativeStatus): number {
 }
 
 export function refreshCharacterGuidance(status: CharacterNarrativeStatus): CharacterNarrativeStatus {
+  status.lifeStages = scaleLifeStages(status.lifeStageTemplate, status.maximumLifespanDays)
   const stage = findCurrentLifeStage(status)
+  const currentEndRisk = endRisk(status)
   const activeConditions = status.health.conditions.filter((condition) => condition.status !== 'resolved')
   const healthGuidance = status.health.alive
     ? activeConditions.length > 0
       ? `角色当前存在健康问题：${activeConditions.map((item) => `${item.name}（严重度${item.severity}）`).join('、')}`
       : `角色当前生命状态 ${status.health.vitality}/${status.health.maxVitality}，体力 ${status.health.stamina}，精神 ${status.health.spirit}`
     : `角色已经死亡：${status.health.death?.causeLabel ?? '等待历史事实确认'}`
-  const riskGuidance = status.endRisk > 0
-    ? `角色已接近叙事寿命上限，终局风险为 ${status.endRisk}%；可以合理触发衰老、告别或人生结局，但不因到龄自动死亡`
+  const riskGuidance = currentEndRisk > 0
+    ? `角色已接近自然寿命参考年龄，终局风险提示为 ${currentEndRisk}%；可以合理触发衰老、告别或人生结局，但不因到龄自动死亡`
     : undefined
   return {
     ...status,
+    endRisk: currentEndRisk,
     currentStageId: stage?.stageId,
     guidance: [stage?.guidance, healthGuidance, status.fortune.guidance, riskGuidance]
       .filter((item): item is string => Boolean(item)),
@@ -128,6 +131,9 @@ export function createCharacterNarrativeStatus(input: {
   lifeStageTemplate?: CharacterLifeStageDefinition[]
 }): CharacterNarrativeStatus {
   const maximumLifespanDays = Math.max(1, Math.round(input.lifespanDraft.maximumLifespanYears * CHARACTER_DAYS_PER_YEAR))
+  const lifeStageTemplate = structuredClone(
+    input.lifeStageTemplate?.length ? input.lifeStageTemplate : DEFAULT_LIFE_STAGES,
+  )
   const ageAnchorBasePoints = resolveInitialAgeAnchorBasePoints(input.totalBasePoints)
   const derivedTotalDays = input.totalDays ?? calendarDaysFromBasePoints(input.totalBasePoints)
   const fortune = { value: 0, level: 'ordinary' as const, guidance: fortuneGuidance('ordinary') }
@@ -140,7 +146,8 @@ export function createCharacterNarrativeStatus(input: {
     ageAnchorTotalDays: calendarDaysFromBasePoints(ageAnchorBasePoints),
     ageDays: Math.max(0, Math.round(input.startingAgeYears * CHARACTER_DAYS_PER_YEAR)),
     maximumLifespanDays,
-    lifeStages: scaleLifeStages(input.lifeStageTemplate, maximumLifespanDays),
+    lifeStageTemplate,
+    lifeStages: scaleLifeStages(lifeStageTemplate, maximumLifespanDays),
     endRisk: 0,
     health: {
       vitality: DEFAULT_VITALITY,

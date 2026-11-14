@@ -4,7 +4,7 @@
  * Responsibility: Read-only narrative projection only; source systems retain state ownership.
  */
 
-import type { CharacterState, WorldSetting } from '@/foundation'
+import type { CharacterNarrativeStatus, CharacterState, WorldSetting } from '@/foundation'
 import { getAttrSemantic } from '@/mods/mod-character'
 
 const GENDER_LABELS: Record<string, string> = {
@@ -35,6 +35,7 @@ export interface NarrativeAICharacterProfileView extends Record<string, unknown>
 
 export interface NarrativeAICharacterStatusView extends Record<string, unknown> {
   年龄: number
+  自然寿命参考年龄?: number
   属性数值: Record<NarrativeAttributeKey, number>
 }
 
@@ -44,7 +45,7 @@ export interface NarrativeAICharacterBaseState {
   base: Record<NarrativeAttributeKey, number>
   current: Record<NarrativeAttributeKey, number>
   modifiers: Record<NarrativeAttributeKey, number>
-  status?: { fortune?: { value?: number } }
+  status?: CharacterNarrativeStatus
 }
 
 export interface NarrativeAIAttributeSemanticSet extends Record<string, unknown> {
@@ -175,6 +176,9 @@ export function projectCharacterForNarrativeAI(
     },
     status: {
       年龄: character.age,
+      ...(baseState.status
+        ? { 自然寿命参考年龄: Math.ceil(baseState.status.maximumLifespanDays / 365) }
+        : {}),
       属性数值: {
         mind: baseState.current.mind,
         physique: baseState.current.physique,

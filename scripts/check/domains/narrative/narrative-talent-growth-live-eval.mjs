@@ -11,7 +11,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { inspectNarrativeTalentGrowthQuality } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
-import { validateDestinyPatternAttrBonusForRarity } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
+import { getNextDestinyPatternDevelopmentStage, validateDestinyPatternAttrBonusForAptitude } from '../../../../src/mods/mod-character/destiny-pattern-growth.ts'
 import { narrativeTalentGrowthPrompt } from '../../../../src/mods/mod-engine/prompts/narrative-talent-growth-prompt.ts'
 import { COMPILED_NARRATIVE_TALENT_GROWTH_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts'
 import {
@@ -24,7 +24,6 @@ const PROVIDER = 'deepseek'
 const MODEL = 'deepseek-v4-flash'
 const ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const REQUESTS_PER_SAMPLE = Math.max(1, Number.parseInt(process.env.LIVE_EVAL_ATTEMPTS ?? '2', 10) || 2)
-const TARGET_RARITY = { common: 'fine', fine: 'rare', rare: 'epic' }
 const ATTR_TO_INTERNAL = { 心智: 'mind', 体魄: 'physique', 魅力: 'charisma', 财富: 'familyBackground', 气运: 'luck' }
 const COST_TERMS = /代价|限制|副作用|牺牲|消耗|必须|仅能|不能|无法|不得|受限|付出/gu
 const SYSTEM_TERMS = /成功率|触发率|判定值|冷却|概率|数值判定/u
@@ -46,13 +45,13 @@ function normalizeRouteResult(result, sample, promptInput) {
   }
   const decision = result.成长判定
   const source = sample.patterns.find((item) => item.lineageId === decision.命格血脉编号)
-  const targetRarity = source ? TARGET_RARITY[source.rarity] : undefined
+  const targetStage = source ? getNextDestinyPatternDevelopmentStage(source.developmentStage) : undefined
   const evidenceWindowIds = decision.依据窗口编号 ?? []
   const availableEvidenceWindows = source
     ? (promptInput.evidenceWindowsByLineage[source.lineageId] ?? [])
     : []
   const minimumEvidenceWindows = source
-    ? ({ common: 2, fine: 3, rare: 4, epic: 5 }[source.rarity] ?? Number.POSITIVE_INFINITY)
+    ? ({ awakening: 2, mastery: 3 }[source.developmentStage] ?? Number.POSITIVE_INFINITY)
     : Number.POSITIVE_INFINITY
   const evidenceWindowIdsAreUnique = new Set(evidenceWindowIds).size === evidenceWindowIds.length
   const evidenceWindowIdsAreAllowed = evidenceWindowIds.every((id) => availableEvidenceWindows.some((window) => window.id === id))
@@ -88,10 +87,10 @@ function normalizeRouteResult(result, sample, promptInput) {
     pass: new Set(routes.map((item) => item.名称)).size === routes.length,
     detail: routes.map((item) => item.名称).join('|'),
   })
-  checks.push({ name: 'target-rarity-known', pass: Boolean(targetRarity), detail: targetRarity ?? 'unknown-source' })
+  checks.push({ name: 'target-development-known', pass: Boolean(targetStage), detail: targetStage ?? 'unknown-source' })
   const attrResults = routes.map((route) => {
     const internal = Object.fromEntries(Object.entries(route.属性加成 ?? {}).map(([key, value]) => [ATTR_TO_INTERNAL[key] ?? key, value]))
-    return { route: route.路线, pass: Boolean(targetRarity) && validateDestinyPatternAttrBonusForRarity(internal, targetRarity), attrs: route.属性加成 }
+    return { route: route.路线, pass: Boolean(targetStage) && validateDestinyPatternAttrBonusForAptitude(internal, source.aptitudeTier), attrs: route.属性加成 }
   })
   checks.push({ name: 'attribute-bounds', pass: attrResults.every((item) => item.pass), detail: attrResults })
   const descriptions = routes.flatMap((item) => [item.详细介绍, item.效果描述]).join(' ')

@@ -58,15 +58,16 @@ export const useReincarnationLibraryStore = create<ReincarnationLibraryStore>()(
     }),
     {
       name: 'mod-character:persist:reincarnation-library',
-      version: 1,
-      migrate: (persistedState: unknown) => {
-        const raw = persistedState && typeof persistedState === 'object' && !Array.isArray(persistedState)
-          ? persistedState as { talents?: unknown }
-          : {}
-        const talents = Array.isArray(raw.talents)
-          ? raw.talents.map(sanitizeReincarnationTalent).filter((item): item is ReincarnationTalent => item !== null)
+      version: 2,
+      migrate: () => {
+        return { talents: [] }
+      },
+      merge: (persisted, current) => {
+        const record = persisted as { talents?: unknown } | undefined
+        const talents = Array.isArray(record?.talents)
+          ? record.talents.map(sanitizeReincarnationTalent).filter((item): item is ReincarnationTalent => item !== null)
           : []
-        return { talents }
+        return { ...current, talents }
       },
       partialize: (state) => ({ talents: state.talents }),
     },

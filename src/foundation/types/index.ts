@@ -107,10 +107,10 @@ export type {
   LongTermMemory,
   NarrativeBirthProfile,
   NarrativeLifePlan,
-  NarrativeDirectionHint,
-  NarrativeEventCandidate,
+  NarrativeEventCard,
   NarrativeWorldTimelineCommitment,
   NarrativeControlPlaneView,
+  FateDramaticBias,
 } from './narrative.types'
 export type {
   NarrativeDirection,
@@ -124,8 +124,10 @@ export {
   SAFETY_GUIDE,
   DIFFICULTY_LABELS,
   DIFFICULTY_DESCRIPTIONS,
-  DIFFICULTY_MULTIPLIERS_HEALTH,
-  DIFFICULTY_MULTIPLIERS_FORTUNE,
+  DIFFICULTY_NARRATIVE_GUIDANCE,
+  DIFFICULTY_ORDER,
+  FATE_DRAMATIC_BIAS_LABELS,
+  FATE_DRAMATIC_BIASES,
 } from './narrative.types'
 
 // 属性类型

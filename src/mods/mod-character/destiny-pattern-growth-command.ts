@@ -50,13 +50,16 @@ function sameGrowthResult(
     && left.result.id === right.result.id
     && left.result.lineageId === right.result.lineageId
     && left.result.version === right.result.version
-    && left.result.rarity === right.result.rarity
+    && left.result.aptitudeTier === right.result.aptitudeTier
+    && left.result.developmentStage === right.result.developmentStage
 }
 
 function projectPattern(pattern: DestinyPatternGrowthSource): NarrativeDestinyPatternGrowthPattern {
   return {
     name: pattern.name,
-    rarity: pattern.rarity,
+    aptitudeTier: pattern.aptitudeTier,
+    developmentStage: pattern.developmentStage,
+    ...('apexStrengthenLevel' in pattern ? { apexStrengthenLevel: pattern.apexStrengthenLevel } : {}),
     description: pattern.description,
     effect: pattern.effect,
     attrBonus: { ...pattern.attrBonus },

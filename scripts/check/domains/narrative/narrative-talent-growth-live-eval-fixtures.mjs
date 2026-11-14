@@ -15,7 +15,7 @@ export const DEFAULT_TALENT_GROWTH_LIVE_EVAL_SAMPLES = [
   'growth-history-continuity',
 ]
 
-function pattern({ lineageId, name, category = 'perception', rarity = 'common', description, effect, attrBonus = { familyBackground: 1 } }) {
+function pattern({ lineageId, name, category = 'perception', aptitudeTier = 2, developmentStage = 'awakening', description, effect, attrBonus = { familyBackground: 1 } }) {
   return {
     lineageId,
     version: 1,
@@ -23,7 +23,8 @@ function pattern({ lineageId, name, category = 'perception', rarity = 'common', 
     name,
     description,
     category,
-    rarity,
+    aptitudeTier,
+    developmentStage,
     effect,
     attrBonus,
   }
@@ -150,7 +151,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
     const evolved = pattern({
       lineageId: source.lineageId,
       name: '回声定域',
-      rarity: 'fine',
+      developmentStage: 'mastery',
       description: '能主动敲击管壁、拍击水面或投入小石制造声源，再根据回声延迟与强弱勾勒近处堵塞、空洞和断裂的轮廓。',
       effect: '在静水或自然水声不足时，也能通过主动声学探查定位近处结构异常。',
       attrBonus: { familyBackground: 2 },
@@ -160,7 +161,7 @@ export function buildTalentGrowthLiveEvalSample(id) {
     return {
       id,
       expected: 'growth-preserving-active-probe',
-      currentRound: 25,
+      currentRound: 26,
       totalDays: 16_061,
       patterns: [evolved],
       growthEvidence: [21, 22, 24, 25, 26].map((round, index) => ({

@@ -24,6 +24,18 @@ function nonEmpty(value: unknown): string | undefined {
   return typeof value === 'string' ? value.trim() || undefined : undefined
 }
 
+function formatNarrativeAddressing(value: PromptContext['narrativeAddressing']): string {
+  switch (value) {
+    case 'first-person':
+      return '第一人称（用“我/我的”）'
+    case 'character-name':
+      return '角色姓名（用主角姓名称呼）'
+    case 'second-person':
+    default:
+      return '第二人称（用“你/你的”）'
+  }
+}
+
 function integerString(value: unknown): string | undefined {
   const numeric = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(numeric) ? String(Math.trunc(numeric)) : undefined
@@ -56,10 +68,7 @@ function buildHistoricalEvents(context: PromptContext): string[] {
 }
 
 function buildNarrativeWindowProjection(context: PromptContext): string {
-  const suppliedWindow = nonEmpty(context.narrativeTimeWindow)
-  const abstractWindow = suppliedWindow?.match(/(?:本轮覆盖[^。；]+。|已推进\d+天（[^）]+）。)/u)?.[0]
-  const window = abstractWindow ?? '本轮采用日历时间尺度。'
-  return `${window}时间输入提供本轮覆盖范围、事实顺序和生成尺度。请在这段范围内依据世界规则、世界状态摘要、历史事实、玩家条件和开放可能性形成新的局面、行动、结果和代价；按年或更长跨度时，呈现积累、转折和已经落地的状态变化，不把整段跨度压成一个孤立现场。具体日期、季节、年龄和内部推进数值只供内部判定，不是故事素材。`
+  return nonEmpty(context.narrativeTimeWindow) ?? '本轮采用日历时间尺度。'
 }
 
 function buildControlPlaneProjection(context: PromptContext): Record<string, unknown> | undefined {
@@ -70,17 +79,33 @@ function buildControlPlaneProjection(context: PromptContext): Record<string, unk
     const { id: _id, sourceFingerprint: _sourceFingerprint, ...publicValue } = source
     return publicValue
   }
+  const stripTimelineMetadata = (value: object): Record<string, unknown> => {
+    const source = value as Record<string, unknown>
+    const {
+      id: _id,
+      sourceFingerprint: _sourceFingerprint,
+      触发状态: _status,
+      ...publicValue
+    } = source
+    return publicValue
+  }
+  // 事件卡池只投影名称：正负、权重、合龄与指纹留在本地校验与消费扣除，不进模型输入。
+  const eventCards = controlPlane.eventCards
+    .map((card) => nonEmpty(card.名称))
+    .filter((name): name is string => Boolean(name))
+  const difficultyGuidance = nonEmpty(controlPlane.difficultyGuidance)
   return {
     ...(controlPlane.birthProfile ? { 出生背景: stripInternalMetadata(controlPlane.birthProfile) } : {}),
     ...(controlPlane.lifePlan ? { 人生规划: stripInternalMetadata(controlPlane.lifePlan) } : {}),
-    ...(controlPlane.directionHints.length > 0
-      ? { 本轮方向候选: controlPlane.directionHints.map(stripInternalMetadata) }
+    ...(controlPlane.dramaticBiasLabel
+      ? { 命运转折调性: controlPlane.dramaticBiasLabel }
       : {}),
-    ...(controlPlane.eventCandidates.length > 0
-      ? { 抽象事件候选: controlPlane.eventCandidates.map(stripInternalMetadata) }
+    ...(difficultyGuidance ? { 难度指引: difficultyGuidance } : {}),
+    ...(eventCards.length > 0
+      ? { 事件卡池: eventCards }
       : {}),
     ...(controlPlane.dueWorldEvents.length > 0
-      ? { 到期世界事实: controlPlane.dueWorldEvents.map(stripInternalMetadata) }
+      ? { 到期世界事实: controlPlane.dueWorldEvents.map(stripTimelineMetadata) }
       : {}),
   }
 }
@@ -106,15 +131,24 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     描述: buildWorldDescription(context, rawWorld.描述),
   }
   const rawCharacter = context.characterProfileView
+  const rawBaseAttributes = rawCharacter.基础属性 && typeof rawCharacter.基础属性 === 'object'
+    && !Array.isArray(rawCharacter.基础属性)
+    ? rawCharacter.基础属性 as Record<string, unknown>
+    : {}
   const currentAge = context.characterStatusView.年龄
   const character = {
     姓名: nonEmpty(rawCharacter.姓名) ?? '',
     性别: nonEmpty(rawCharacter.性别) ?? '未设定',
     种族: nonEmpty(rawCharacter.种族) ?? '未设定',
     背景: nonEmpty(rawCharacter.背景) ?? '',
+    属性尺度: '-10为凡人最差下限，0为凡世凡人基准，+10为凡人正面上限；超出±10才属于超凡',
+    当前属性语义: rawBaseAttributes.当前状态 ?? {},
     天赋技能: (context.talents ?? []).map((talent) => ({
       ...(talent.引用 ? { 引用: talent.引用 } : {}),
       名称: talent.名称,
+      资质阶位: talent.资质阶位,
+      开发阶段: talent.开发阶段,
+      ...(Number.isSafeInteger(talent.至高强化阶数) ? { 至高强化阶数: talent.至高强化阶数 } : {}),
       效果: talent.效果,
     })),
   }
@@ -134,13 +168,18 @@ export function buildNarrativeUserJson(context: PromptContext): unknown {
     },
     {
       本次信息: {
-        时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`,
+        时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不转写为正文`,
         时间窗口: buildNarrativeWindowProjection(context),
+        ...(Number.isFinite(context.characterStatusView.自然寿命参考年龄)
+          ? { 自然寿命参考年龄: Math.max(1, Math.trunc(Number(context.characterStatusView.自然寿命参考年龄))) }
+          : {}),
         ...(Number.isSafeInteger(context.narrativeBatchSize) && (context.narrativeBatchSize ?? 0) > 1
-          ? { 批量输出: `请在同一次调用中按顺序生成${context.narrativeBatchSize}轮故事；第一项对应本轮，其余项作为后续轮次缓存。` }
+          ? { 批量输出: `请在同一次调用中按顺序生成最多${context.narrativeBatchSize}轮故事；第一项对应本轮，其余项作为后续轮次缓存；每项独立覆盖各自时间跨度，允许自然跳时，只承接已成立事实。遇到命运分支、结局或人生阶段结束时，该轮即本批最后一项，不再生成其后的回合；不足${context.narrativeBatchSize}轮是正常结果。` }
           : {}),
         命运分支: branch,
         篇幅偏好: nonEmpty(context.wordCountInstruction) ?? '',
+        叙事称呼: formatNarrativeAddressing(context.narrativeAddressing),
+        文风偏好: nonEmpty(context.narrativeStyle) ?? '',
         ...(controlPlane ? { 控制平面: controlPlane } : {}),
       },
     },

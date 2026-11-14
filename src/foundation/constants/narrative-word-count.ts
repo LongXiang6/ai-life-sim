@@ -26,7 +26,7 @@ export const NARRATIVE_WORD_COUNT_TARGETS = [
 
 export type NarrativeWordCountTarget = (typeof NARRATIVE_WORD_COUNT_TARGETS)[number]
 
-export const DEFAULT_WORD_COUNT_TARGET: NarrativeWordCountTarget = 100
+export const DEFAULT_WORD_COUNT_TARGET: NarrativeWordCountTarget = 300
 
 const NARRATIVE_WORD_COUNT_TARGET_SET = new Set<number>(NARRATIVE_WORD_COUNT_TARGETS)
 

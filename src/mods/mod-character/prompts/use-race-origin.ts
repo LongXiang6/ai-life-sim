@@ -1,4 +1,10 @@
 /**
+ * Purpose: Request a race-origin narrative only after explicit player action.
+ * Owner: mod-character
+ * Responsibility: Race-origin prompt request state only.
+ */
+
+/**
  * @module use-race-origin.ts
  * @description 种族由来生成 Hook —— 仅在玩家显式操作时调用 AI
  * @mod mod-character
@@ -20,7 +26,7 @@ import { stringifyPrompt } from '@/foundation'
 
 /** 默认 AI 配置：提供调用模型与格式，不设置输出上限。 */
 const DEFAULT_CONFIG: AIModelConfig = {
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   temperature: 0.7,
   responseFormat: { type: 'text' },
   reasoningEffort: 'disabled',

@@ -10,6 +10,8 @@
  * 规范来源：mod-specification.md §7 子系统规范
  */
 
+import type { DifficultyLevel } from './narrative/difficulty'
+
 /** 子系统状态快照 */
 export interface SubSystemState {
   /** 子系统 ID */
@@ -71,7 +73,7 @@ export interface RoundContext {
   /** 时间步长 */
   timeStep: TimeStep,
   /** 全局难度等级 */
-  difficulty: 'normal' | 'hard' | 'nightmare' | 'hell',
+  difficulty: DifficultyLevel,
   /** 其他子系统的当前状态（按 ID 索引） */
   subsystemStates: Record<string, SubSystemState>,
   /** 引擎累计推进次数（每轮 +1，用于子系统幂等 guard） */
@@ -230,7 +232,7 @@ export interface ReadonlyRoundContext {
     readonly month: number
   }
   readonly timeStep: TimeStep
-  readonly difficulty: 'normal' | 'hard' | 'nightmare' | 'hell'
+  readonly difficulty: DifficultyLevel
   readonly subsystemStates: Readonly<Record<string, SubSystemState>>
   readonly basePointsPassed: number
   readonly totalBasePoints: number

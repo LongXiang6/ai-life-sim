@@ -22,6 +22,8 @@ export interface AICallLogContext {
   executionKind?: string
   promptVersion?: string
   targetWordCount?: number
+  /** 主故事批量轮数：用于按轮数放宽请求时限，其它调用不传。 */
+  batchRounds?: number
   styleSource?: 'default' | 'custom'
   styleText?: string
   styleVersion?: number

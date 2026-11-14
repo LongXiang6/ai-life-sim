@@ -54,11 +54,11 @@ export interface EngineConfig {
   temperature: number
 }
 
-export type NarrativeDestinyPatternGrowthRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary' | 'mythic'
-
 export interface NarrativeDestinyPatternGrowthPattern {
   name: string
-  rarity: NarrativeDestinyPatternGrowthRarity
+  aptitudeTier: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  developmentStage: 'awakening' | 'mastery' | 'complete'
+  apexStrengthenLevel?: number
   description: string
   effect: string
   attrBonus: Partial<Record<'mind' | 'physique' | 'charisma' | 'familyBackground' | 'luck', number>>
@@ -81,14 +81,6 @@ export interface NarrativeDestinyPatternGrowthProjection {
   ]
   selectedOptionId?: string
   result?: NarrativeDestinyPatternGrowthPattern
-}
-
-/** 主叙事同次生成、并由叙事历史承接的结构化事件事实。 */
-export interface NarrativeEventResult {
-  事件: string
-  成因: string
-  结果: string
-  影响: string
 }
 
 /** 已提交的逐轮叙事记录 */
@@ -118,8 +110,6 @@ export interface NarrativeChunk {
   endingTitle?: string,
   /** 结局对象中的最终总结。 */
   endingSummary?: string,
-  /** 本轮生成并已提交的事件事实；不直接展示，由历史投影供后续主故事读取。 */
-  eventResults?: NarrativeEventResult[],
   /** 玩家已确认的分支选择 */
   resolvedChoice?: string,
   /** 玩家实际确认该选择时的回合；旧存档缺失时回退到原分支条目轮次。 */
@@ -164,6 +154,7 @@ export interface EngineState {
   pendingNarrativeBatch: Array<{
     roundSequence: number
     response: string
+    stageId?: string
   }>
   /** 本局抽中的低频跨世界传奇；只作为一次性低优先级叙事素材。 */
   legendaryEncounter?: LegendaryEncounterProjection & {

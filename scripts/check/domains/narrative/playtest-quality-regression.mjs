@@ -51,7 +51,7 @@ import {
   buildReincarnationPromotionUserPrompt,
   createPromotedReincarnationTalent,
   decideReincarnationPromotion,
-  getReincarnationPromotionTargetRarity,
+  getReincarnationPromotionTargetAptitudeTier,
 } from '../../../../src/mods/mod-character/reincarnation-talent-access.ts'
 import {
   buildDestinyPatternSystemPrompt,
@@ -163,6 +163,7 @@ function loadPersistMigration(sourceText) {
     'normalizeNarrativeAddressing',
     'normalizeImportedModelSettings',
     'normalizeCustomModelProfiles',
+    'normalizeImageApiPresets',
     transpiled,
   )(
     module,
@@ -198,6 +199,7 @@ function loadPersistMigration(sourceText) {
       }
     },
     normalizeCustomModelProfiles,
+    (value) => Array.isArray(value) ? value : [],
   )
   return module.exports
 }
@@ -380,26 +382,27 @@ const validPromotionOutput = {
 assertOk(reincarnationPromotionOutputSchema.safeParse(validPromotionOutput).success, 'reincarnation promotion schema must accept a valid promoted entry')
 assertOk(!reincarnationPromotionOutputSchema.safeParse({ ...validPromotionOutput, description: '' }).success, 'reincarnation promotion schema must reject an empty description')
 
-const promotionRarities = ['common', 'fine', 'rare', 'epic', 'legendary', 'mythic']
-const promotionTargets = ['fine', 'rare', 'epic', 'legendary', 'mythic', 'mythic']
-for (const [index, rarity] of promotionRarities.entries()) {
+const promotionTiers = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+const promotionTargets = [2, 3, 4, 5, 6, 7, 8, 9, 9]
+for (const [index, aptitudeTier] of promotionTiers.entries()) {
   const source = {
-    lineageId: `lineage-${rarity}`,
+    lineageId: `lineage-${aptitudeTier}`,
     version: index + 1,
-    name: `${rarity}-source`,
+    name: `${aptitudeTier}-source`,
     description: '来源说明',
     effect: '来源效果',
     category: 'perception',
-    rarity,
+    aptitudeTier,
+    developmentStage: 'complete',
     attrBonus: {},
-    strengthenLevel: rarity === 'mythic' ? 3 : 0,
+    apexStrengthenLevel: aptitudeTier === 9 ? 3 : 0,
   }
-  const target = getReincarnationPromotionTargetRarity(rarity)
+  const target = getReincarnationPromotionTargetAptitudeTier(aptitudeTier)
   const promotionDecision = decideReincarnationPromotion(source, () => 0.99)
-  assertSame(target, promotionTargets[index], `${rarity} settlement promotion target`)
+  assertSame(target, promotionTargets[index], `${aptitudeTier} settlement promotion target`)
 
   const promoted = createPromotedReincarnationTalent(source, {
-    name: `${rarity}-promoted`,
+    name: `${aptitudeTier}-promoted`,
     description: '升阶说明',
     effect: '升阶效果',
     attrBonus: { mind: 3 },
@@ -409,10 +412,11 @@ for (const [index, rarity] of promotionRarities.entries()) {
     runId: 'run-promotion',
   }, 100 + index)
 
-  assertSame(promoted.rarity, promotionTargets[index], `${rarity} promoted rarity`)
-  assertSame(promoted.strengthenLevel, rarity === 'mythic' ? 4 : 0, `${rarity} strengthen level`)
-  assertSame(promoted.version, source.version + 1, `${rarity} promoted version`)
-  assertOk(ReincarnationTalentSchema.safeParse(promoted).success, `${rarity} promotion must satisfy persistence schema`)
+  assertSame(promoted.aptitudeTier, promotionTargets[index], `${aptitudeTier} promoted aptitude`)
+  assertSame(promoted.developmentStage, 'awakening', 'reincarnation must reset development')
+  assertSame(promoted.apexStrengthenLevel, aptitudeTier === 9 ? 4 : 0, `${aptitudeTier} strengthen level`)
+  assertSame(promoted.version, source.version + 1, `${aptitudeTier} promoted version`)
+  assertOk(ReincarnationTalentSchema.safeParse(promoted).success, `${aptitudeTier} promotion must satisfy persistence schema`)
 
   const prompt = buildReincarnationPromotionUserPrompt({
     worldName: '测试世界',
@@ -424,8 +428,8 @@ for (const [index, rarity] of promotionRarities.entries()) {
     strengthTier: { id: 'deep', label: '深刻', guidance: '形成清晰且有用的概念倾向。' },
     promotionDecision,
   })
-  assertOk(new RegExp(`"rarity"\\s*:\\s*"${rarity}"`).test(prompt), `${rarity} source rarity must enter the promotion prompt`)
-  assertOk(new RegExp(`"targetRarity"\\s*:\\s*"${target}"`).test(prompt), `${target} target rarity must enter the promotion prompt`)
+  assertSame(JSON.parse(prompt).selectedPattern.aptitudeTier, aptitudeTier, 'source aptitude must enter the promotion prompt')
+  assertSame(JSON.parse(prompt).selectedPattern.targetAptitudeTier, target, 'target aptitude must enter the promotion prompt')
 }
 
 const invalidNonMythicReincarnation = {
@@ -435,15 +439,16 @@ const invalidNonMythicReincarnation = {
   name: '错误精良',
   description: '说明',
   category: 'enhancement',
-  rarity: 'fine',
+  aptitudeTier: 2,
+  developmentStage: 'awakening',
   effect: '效果',
   attrBonus: {},
-  strengthenLevel: 1,
+  apexStrengthenLevel: 1,
   acquiredAt: 1,
   source: { worldName: '测试世界', characterName: '测试角色' },
 }
-assertOk(!ReincarnationTalentSchema.safeParse(invalidNonMythicReincarnation).success, 'non-mythic reincarnation talents must have strengthenLevel 0')
-assertOk(ReincarnationTalentSchema.safeParse({ ...invalidNonMythicReincarnation, rarity: 'mythic', strengthenLevel: 0 }).success, 'newly promoted mythic reincarnation talents must allow strengthenLevel 0')
+assertOk(!ReincarnationTalentSchema.safeParse(invalidNonMythicReincarnation).success, 'non-apex talents must have apexStrengthenLevel 0')
+assertOk(ReincarnationTalentSchema.safeParse({ ...invalidNonMythicReincarnation, aptitudeTier: 9, apexStrengthenLevel: 0 }).success, 'new apex talents must allow apexStrengthenLevel 0')
 
 const migratedCharacter = sanitizeCharacterStateSnapshot({
   characterBase: {
@@ -470,8 +475,7 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
 assertOk(!('resources' in migratedCharacter.characterBase.base), 'old character saves must remove resources from base attributes')
 assertOk(!('talentAptitude' in migratedCharacter.characterBase.base), 'old character saves must remove the retired talent attribute')
 assertSame(Object.keys(migratedCharacter.characterBase.base).join(','), 'mind,physique,charisma,familyBackground', 'migrated character saves must expose the four canonical base attributes in order')
-assertOk(!('resources' in migratedCharacter.destinyPatterns.patterns[0].attrBonus), 'old character saves must remove resources from destiny bonuses')
-assertOk(!('polarity' in migratedCharacter.destinyPatterns.patterns[0]), 'old character saves must discard the retired destiny polarity field')
+assertSame(migratedCharacter.destinyPatterns.patterns.length, 0, 'old talent shapes must be discarded without conversion')
 assertSame(migratedCharacter.equippedReincarnationTalents.length, 0, 'old character saves must default equipped reincarnation slots to empty')
 
 const legacyScpDescription = '基金会为收容物赋予SCP编号。休谟指数用于衡量现实强度，现实扭曲者能够改变规则。玩家追加：故事从2000年开始。'
@@ -659,13 +663,13 @@ assertSame(
   'adding two new IDs must retain only one candidate per canonicalized name',
 )
 
-assertSame(DEFAULT_WORD_COUNT_TARGET, 100, 'new and reset preferences must default to about 100 narrative characters')
+assertSame(DEFAULT_WORD_COUNT_TARGET, 300, 'new and reset preferences must default to about 300 narrative characters')
 assertSame(
   NARRATIVE_WORD_COUNT_TARGETS.join(','),
   '50,100,150,200,250,300,400,500,600,700,800,1000,1200,1500,1800,2000',
   'narrative length must expose exactly the sixteen fixed player choices',
 )
-assertSame(resolveNarrativeWordCountTarget(777), 100, 'non-contract length values must not enter narrative runtime state')
+assertSame(resolveNarrativeWordCountTarget(777), 300, 'non-contract length values must fall back to the new default')
 assertSame(resolveNarrativeWordCountTarget(200), 200, 'saved valid preferences must retain their chosen length')
 assertSame(resolveNarrativeWordCountRange(200).preferredMin, 160, 'the 200-character option must expose a focused lower guidance bound')
 assertSame(resolveNarrativeWordCountRange(200).preferredMax, 240, 'the 200-character option must expose a focused upper guidance bound')
@@ -725,6 +729,11 @@ assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
   400,
   'a current fixed length option must remain unchanged by unrelated settings migrations',
+)
+assertSame(
+  migrateSettings({ wordCountTarget: 100, theme: 'minimal-white' }, 2).wordCountTarget,
+  100,
+  'an existing saved 100-character preference must not be replaced by the new default',
 )
 assertSame(
   migrateSettings({ wordCountTarget: 300, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -805,11 +814,11 @@ assertSame(DESTINY_PATTERN_DISPLAY_COUNT, 20, 'destiny display count must expose
 assertSame(DESTINY_PATTERN_CATEGORY_TARGET_COUNT, 12, 'destiny background target must be twelve per category')
 assertSame(DESTINY_PATTERN_CATEGORY_ORDER.join(','), 'enhancement,control,perception,summoning,creation', 'destiny category order must remain stable')
 assertOk(
-  DESTINY_PATTERN_CATEGORY_CONFIG.enhancement.label === '强化与变身'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.control.label === '操控与投射'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.perception.label === '感知与信息'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.summoning.label === '召唤与分身'
-    && DESTINY_PATTERN_CATEGORY_CONFIG.creation.label === '创造与转化'
+  DESTINY_PATTERN_CATEGORY_CONFIG.enhancement.label === '灵躯蜕变'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.control.label === '万象听令'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.perception.label === '洞察天机'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.summoning.label === '万灵随行'
+    && DESTINY_PATTERN_CATEGORY_CONFIG.creation.label === '造化成形'
     && Object.values(DESTINY_PATTERN_CATEGORY_CONFIG).every((entry) => entry.guidance.includes('不限制其他能力类型')),
   'destiny categories must describe primary mechanisms without restricting other ability types',
 )
@@ -818,14 +827,14 @@ for (const category of DESTINY_PATTERN_CATEGORY_ORDER) {
   assertOk(
     prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].label)
       && prompt.includes(DESTINY_PATTERN_CATEGORY_CONFIG[category].guidance)
-      && prompt.includes('能力类型决定能做什么，稀有度决定做到什么程度')
-      && prompt.includes('不得把特殊机制降格为普通观察力、熟练技巧或仅有属性加成'),
+      && prompt.includes('只评估机制复杂度')
+      && prompt.includes('不能只写成普通技能'),
     `${category} destiny prompt must carry its own primary-mechanism guidance`,
   )
   assertOk(
-    prompt.includes('设定描述：不超过30字')
-      && prompt.includes('完整作用方式和边界放在效果字段'),
-    `${category} destiny prompt must limit the candidate summary to thirty characters without shortening the full effect`,
+    prompt.includes('约30至45字')
+      && prompt.includes('供故事与成长长期遵守'),
+    `${category} destiny prompt must request a vivid hook and a separate complete effect`,
   )
 }
 assertOk(
@@ -841,27 +850,27 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(
-    destinyPromptSrc.includes('类似游戏、小说中觉醒天赋的开局能力')
-    && destinyPromptSrc.includes('主动使用或可观察的生效机制')
-    && destinyPromptSrc.includes('不把孤立的身体素质、性格标签、训练履历或身份设定当作完整天赋')
+    destinyPromptSrc.includes('有辨识度的能力钩子')
+    && destinyPromptSrc.includes('清楚的触发动作或条件')
+    && destinyPromptSrc.includes('身体素质、性格标签、训练履历或身份设定')
     && destinyPromptSrc.includes('能力来源、形成过程、过去经历和既定身份必须留白'),
   'destiny prompt must require skill-like present abilities while leaving biography open',
 )
-assertOk(destinyPromptSrc.includes('顶层含“天赋”'), 'destiny prompt must match the Chinese object contract')
+assertOk(destinyPromptSrc.includes('顶层只含“天赋”'), 'destiny prompt must match the Chinese object contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'9\.3\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'12\.3\.0'/.test(destinyPromptSrc)
     && /DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc)
     && /buildDestinyPatternSystemPrompt/.test(destinyPromptSrc),
-  'destiny prompt builder and cache version must share version 9.3.0',
+  'destiny prompt builder and cache version must share version 12.3.0',
 )
 assertOk(
-  destinyPromptSrc.includes('每条命格必须先提供明确、可实际生效的正向收益')
-    && destinyPromptSrc.includes('同一条命格必须同时说明额外补偿收益以及补偿如何实际兑现')
-    && destinyPromptSrc.includes('禁止生成只有损失、限制、惩罚、失败倾向或负属性的纯负面命格'),
+  destinyPromptSrc.includes('每条能力必须提供明确、可实际生效的正向收益')
+    && destinyPromptSrc.includes('边界内仍提供的实际收益')
+    && destinyPromptSrc.includes('禁止只有损失、惩罚或负属性的纯负面天赋'),
   'destiny prompt must require a real benefit and explicit compensation for every negative effect',
 )
 assertOk(
-  destinyPromptSrc.includes('首句直接落到技能机制、触发条件、动作、可观察现象或世界反馈')
+  destinyPromptSrc.includes('首句直接落到能力机制、触发条件、动作、可观察现象或世界反馈')
     && destinyPromptSrc.includes('此人')
     && destinyPromptSrc.includes('该角色')
     && destinyPromptSrc.includes('这位人物')
@@ -886,30 +895,38 @@ assertOk(
 )
 assertOk(
   destinyPromptSrc.includes('二至六个汉字')
-    && destinyPromptSrc.includes('保留古典用词质感')
+    && destinyPromptSrc.includes('保留幻想质感')
     && destinyPromptSrc.includes('比喻最多一处')
      && destinyPromptSrc.includes('主机制族只用于候选浏览和生成分配')
-    && destinyPromptSrc.includes('世界题材只影响倾向和适配，不决定能力类型是否允许出现')
+    && destinyPromptSrc.includes('不是能力类型白名单')
     && destinyPromptSrc.includes('种族与背景不得扩写为出生、成长、职业、师承、关系或过去事件')
-    && destinyPromptSrc.includes('能力类型决定能做什么，稀有度决定做到什么程度')
-    && destinyPromptSrc.includes('普通级是任意能力类型的低阶形态，保留真实作用机制')
-    && destinyPromptSrc.includes('不得把特殊机制降格为普通观察力、熟练技巧或仅有属性加成')
+    && destinyPromptSrc.includes('开发阶段只表示当前掌握程度，与资质分轴')
+    && destinyPromptSrc.includes('本次开局抽取只生成资质 1 至 3 阶')
+    && destinyPromptSrc.includes('按每条能力的实际机制独立评定')
     && !destinyPromptSrc.includes('凡俗尺度')
-     && destinyPromptSrc.includes('不能因为主机制族而把普通候选收窄为单一题材'),
-  'destiny prompt must preserve real ability mechanisms while rarity controls strength, not type',
+     && destinyPromptSrc.includes('不把候选收窄为单一题材'),
+  'destiny prompt must separate aptitude complexity from development and strength',
 )
 assertOk(
-  ['特异功能', '超能力', '异常能力', '修炼能力', '游戏技能', '系统面板'].every((kind) => destinyPromptSrc.includes(kind))
-    && destinyPromptSrc.includes('现代都市或纯科幻世界也能抽到修炼、玄幻、超能力等天赋')
-    && destinyPromptSrc.includes('跨题材能力出现倾向较低但始终可能')
+  destinyPromptSrc.includes('跨题材能力也始终可能')
+    && destinyPromptSrc.includes('不因能力抽取而把模拟世界改造成全民觉醒社会')
     && destinyPromptSrc.includes('金手指可以自带自身成立所需的局部机制')
     && !destinyPromptSrc.includes('只沿用其中已经明确的规则'),
   'destiny prompt must allow cross-genre cheats without inventing a shared world power system or biography',
 )
+assertOk(
+  destinyPromptSrc.includes('能力应实质改变行动选择或局面')
+    && destinyPromptSrc.includes('信息型能力须说明线索如何转成行动优势')
+    && destinyPromptSrc.includes('它打开的新机会或风险')
+    && destinyPromptSrc.includes('约30至45字的短句'),
+  'destiny prompt must connect a vivid scene hook to a concrete player-facing outcome',
+)
 const makeDestinyPattern = (index, category) => ({
   类别: category,
   名称: `命格${index}`,
-  设定描述: `稳定成立且适应当前世界的命格特质${index}`,
+  简介: `稳定成立且适应当前世界的命格特质${index}`,
+  资质阶位: 1,
+  开发阶段: '初醒',
   效果: `持续提供清楚可用的影响${index}`,
   属性加成: { 心智: 1 },
 })
@@ -920,7 +937,7 @@ const diverseDestinyCandidates = parseDestinyPatternAIResponse(JSON.stringify({ 
   ['元素掌控', '直接引导近处元素。'],
   ['矢量操纵', '改变接触物体的运动方向。'],
   ['无限进化', '经历促成身体或能力的适应性变化。'],
-].map(([名称, 效果]) => ({ 类别: '创造与转化', 名称, 设定描述: 效果, 效果, 属性加成: {} })) }), 'creation')
+].map(([名称, 效果]) => ({ 类别: 'creation', 名称, 简介: 效果, 资质阶位: 1, 开发阶段: '初醒', 效果, 属性加成: {} })) }))
 assertOk(
   diverseDestinyCandidates.length === 6
     && diverseDestinyCandidates.every((candidate) => candidate.category === 'creation' && candidate.effect),
@@ -930,18 +947,18 @@ assertOk(destinyPatternOutputSchema.safeParse({ 命格: [makeDestinyPattern(0, '
 const compatibleResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
   { 类别: '感知与信息', 名称: '踏野寻踪', 设定描述: '可识别痕迹。', 效果: '追踪更稳。', 属性加成: '心智+1，财富+1，魅力-1' },
   { 类别: '感知与信息', 名称: '过目不忘', 设定描述: '记忆清晰。', 效果: '回忆细节更准。', 属性加成: '心智+2' },
-] }), 'perception')
-assertOk(compatibleResponse.length === 2 && compatibleResponse[0].attrBonus.mind === 1, 'destiny parser must recover string attribute bonuses')
-const partialResponse = parseDestinyPatternAIResponse(JSON.stringify({ 命格: [
-  { 类别: '强化与变身', 名称: '铁壁磐石', 设定描述: '筋骨强健。', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
+] }))
+assertSame(compatibleResponse.length, 0, 'destiny parser must reject the retired talent shape')
+const partialResponse = parseDestinyPatternAIResponse(JSON.stringify({ 天赋: [
+  { 类别: 'enhancement', 名称: '铁壁磐石', 简介: '筋骨强健。', 资质阶位: 1, 开发阶段: '初醒', 效果: '承压更稳。', 属性加成: { 体魄: 2 } },
   { 类别: '强化与变身', 名称: '坏项', 设定描述: '', 效果: '', 属性加成: '体魄+1' },
-] }), 'enhancement')
+] }))
 assertOk(partialResponse.length === 1 && partialResponse[0].name === '铁壁磐石', 'destiny parser must keep valid siblings when one item is unusable')
 const completeDestinyDescription = '触碰物件后能够读取它留下的局部信息，描述长度由生成 Prompt 负责，解析保留完整内容。'
 const completeDestinyEffect = '触碰普通物件时能读取最近留下的局部痕迹，效果保留实际发动方式、可观察结果与信息边界。'
 const completeDestinyResponse = parseDestinyPatternAIResponse(JSON.stringify({ 天赋: [
-  { 类别: '感知与信息', 名称: '触物读痕', 设定描述: completeDestinyDescription, 效果: completeDestinyEffect, 属性加成: {} },
-] }), 'perception')
+  { 类别: 'perception', 名称: '触物读痕', 简介: completeDestinyDescription, 资质阶位: 3, 开发阶段: '初醒', 效果: completeDestinyEffect, 属性加成: {} },
+] }))
 assertOk(
   completeDestinyResponse.length === 1
     && completeDestinyResponse[0].description === completeDestinyDescription
@@ -951,12 +968,10 @@ assertOk(
 const numberedResponse = parseDestinyPatternAIResponse(JSON.stringify({
   第一条: { effect: '交流更稳。', attributes: '魅力+2，心智-1', title: '言简意明', type: 'control', detail: '能迅速说清重点。' },
   第二条: { 属性加成: { 魅力: '1' }, 效果: '关系更易维持。', 名称: '守信重诺', 描述: '答应的事会认真完成。' },
-}), 'control')
+}))
 assertOk(
-  numberedResponse.length === 2
-    && numberedResponse[0].name === '言简意明'
-    && numberedResponse[1].category === 'control',
-  'destiny parser must recognize numbered object wrappers, aliases, missing assigned categories, and field disorder',
+  numberedResponse.length === 0,
+  'destiny parser must not convert retired field shapes or category aliases',
 )
 assertOk(
   !destinyValidationSrc.includes('isSimilarDestinyPattern')
@@ -972,12 +987,13 @@ assertOk(
 assertOk(
   /const category = validateDestinyPatternCategory\(item\.category\)[\s\S]{0,180}const name = item\.name/.test(destinySystemSrc)
     && /category !== expectedCategory/.test(destinySystemSrc)
-    && /rarity:\s*'common'/.test(destinySystemSrc),
-  'destiny response parsing must enforce the locally assigned category and local common rarity',
+    && /aptitudeTier > 3/.test(destinySystemSrc)
+    && /item\.developmentStage !== 'awakening'/.test(destinySystemSrc),
+  'destiny response parsing must enforce assigned category, tiers 1-3, and awakening development',
 )
 assertOk(
-  !/rarity:\s*z\./.test(destinyPromptSrc) && !/[“\"]稀有度[”\"]/.test(destinyPromptSrc),
-  'destiny AI must not own the initial rarity decision',
+  destinyPromptSrc.includes('按每条能力的实际机制独立评定') && destinyPromptSrc.includes('不设概率、数量配额或强度配额'),
+  'AI must assess aptitude from mechanisms without quotas or probability',
 )
 assertOk(
   !destinyPromptSrc.includes('极性') && !destinySystemSrc.includes('polarity'),
@@ -985,7 +1001,7 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('resources:'), 'destiny output schema must reject the removed resources attribute')
 assertOk(
-  destinyPromptSrc.includes('心智、体魄、魅力、财富或低概率出现的气运')
+  destinyPromptSrc.includes('心智、体魄、魅力、财富或较少出现的气运')
     && destinyPromptSrc.includes('Transport-only schema'),
   'destiny prompt must keep the shared attribute semantics without strict whole-response gating',
 )
@@ -995,21 +1011,20 @@ assertOk(
   'destiny generation must not retain retired system modifiers',
 )
 assertOk(
-  destinyPromptSrc.includes('技能作用方式和边界')
-    && destinyPromptSrc.includes('只有确实存在时才补充条件、代价或限制')
-    && destinyPromptSrc.includes('每条说明实际效果与边界')
-    && destinyPromptSrc.includes('效果局部、有限且可观察')
-    && destinyPromptSrc.includes('普通候选不直接提供无条件的全局结果、绝对控制、必然命运、无限持续'),
+  destinyPromptSrc.includes('完整效果按')
+    && destinyPromptSrc.includes('没有额外代价时不强行添加')
+    && destinyPromptSrc.includes('触发条件、动作或机制、实际结果、边界及真实代价')
+    && destinyPromptSrc.includes('不得生成无条件的全局结果、绝对控制、必然命运、无限持续'),
   'conceptual rules and ordinary-tier semantics must match the current prompt contract',
 )
-assertOk(/叙事与模拟长期遵守的技能作用方式/.test(destinyPromptSrc), 'destiny effect must remain a narrative skill rule instead of only numeric modifiers')
+assertOk(/供故事与成长长期遵守/.test(destinyPromptSrc), 'destiny effect must remain a narrative skill rule instead of only numeric modifiers')
 assertOk(
-  ['稳息行军', '察隙', '承诺印记', '流程归位', '拼接灵感'].every((name) => constantsSrc.includes(`name: '${name}'`))
+  ['骨鸣换力', '残音寻踪', '灯下替身', '旧物复新', '影墨成形'].every((name) => constantsSrc.includes(`name: '${name}'`))
     && !['负重耐行', '观微知著', '守诺如山', '洁身有序', '零碎灵感'].some((name) => constantsSrc.includes(`name: '${name}'`)),
   'explicit preset candidates must use skill-like entries while keeping the existing preset path',
 )
 assertOk(
-  /version:\s*11/.test(characterStoreSrc)
+  /version:\s*12/.test(characterStoreSrc)
     && ['characterBase', 'destinyPatterns', 'lifespanDraft'].every((field) => characterStoreSrc.includes(field))
     && !['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].some((field) => characterStoreSrc.includes(field)),
   'character persistence must retain identity and unified status while excluding retired runtime projections',
@@ -1031,20 +1046,20 @@ assertOk(
 )
 assertOk(
   /z\.object\(\{[\s\S]*name:[\s\S]*description:[\s\S]*effect:/.test(reincarnationPromptSrc)
-    && /version:\s*'2\.1\.0'/.test(reincarnationPromptSrc)
+    && /version:\s*'3\.0\.0'/.test(reincarnationPromptSrc)
     && reincarnationPromptSrc.includes('模板化起句'),
   'reincarnation promotion must keep its schema and vary direct openings',
 )
 assertOk(
-  /非数值概念规则/.test(reincarnationPromptSrc) && /持续生效/.test(reincarnationPromptSrc),
-  'reincarnation promotion must remain a non-numeric conceptual rule',
+  /非数值规则/.test(reincarnationPromptSrc) && /完整保留既有能力/.test(reincarnationPromptSrc),
+  'reincarnation promotion must retain established abilities and may add narrative rules',
 )
 assertOk(
   /promoteReincarnationTalent/.test(reincarnationAccessSrc) && /setReincarnationPromotionAIService/.test(reincarnationAccessSrc),
   'mod-character must expose a configurable reincarnation promotion entry',
 )
 assertOk(
-  /selectedPattern:\s*\{[\s\S]{0,400}strengthenLevel:\s*input\.selectedPattern\.strengthenLevel/.test(reincarnationAccessSrc),
+  /selectedPattern:\s*\{[\s\S]{0,650}apexStrengthenLevel:\s*input\.selectedPattern\.apexStrengthenLevel/.test(reincarnationAccessSrc),
   'reincarnation promotion must send only a compact selected-pattern projection instead of every stored talent effect',
 )
 assertOk(
@@ -1129,8 +1144,9 @@ assertOk(
 assertOk(
   /const completeFullDraw = useCallback\(\(patterns: DestinyPattern\[\]\)/.test(talentDrawPageSrc)
     && /DESTINY_PATTERN_CATEGORY_ORDER\.every/.test(talentDrawPageSrc)
-    && /setSlots\(revealSlotsInOrder\(visiblePatterns\)\)/.test(talentDrawPageSrc)
-    && /completionTimerRef\.current = window\.setTimeout\([\s\S]{0,220}setPhase\('ready'\)/.test(talentDrawPageSrc),
+    && /setSlots\(slotsFromInitialPool\(acceptedPatterns\)\)/.test(talentDrawPageSrc)
+    && /setPhase\('ready'\)/.test(talentDrawPageSrc)
+    && !/completionTimerRef|revealSlotsInOrder/.test(talentDrawPageSrc),
   'AI destiny readiness must require usable candidates from all five categories before the handoff opens',
 )
 assertOk(
@@ -1182,11 +1198,10 @@ assertOk(
   'destiny redraw must reject repeated IDs and canonicalized names',
 )
 assertOk(
-  /\.aura\s*\{[^}]*width:\s*calc\(220 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
-    && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
-    && /\.drawStageComplete \.aura\s*\{[^}]*top:\s*calc\(224 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
-    && /\.drawStageComplete \.sealWrap\s*\{[^}]*opacity:\s*0/s.test(talentDrawCssSrc)
-    && /aria-label="五类首批命印"/.test(talentDrawPageSrc)
+  /\.categoryProgressList\s*\{/.test(talentDrawCssSrc)
+    && /\.categorySlots\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s.test(talentDrawCssSrc)
+    && !/\.aura|@keyframes|animation:/.test(talentDrawCssSrc)
+    && /aria-label="五类首批命印进度"/.test(talentDrawPageSrc)
     && /DESTINY_PATTERN_CATEGORY_ORDER\.map/.test(talentDrawPageSrc)
     && /DESTINY_PATTERN_CATEGORY_CONFIG\[id\]\.label/.test(talentDrawPageSrc)
     && /\{ id: 'mythic', label: '轮回天赋' \}/.test(talentDrawPageSrc)
@@ -1196,7 +1211,7 @@ assertOk(
     && !/role="dialog"|TalentDrawMythicLibrary|useTalentDrawMythicLibrary/.test(talentDrawPageSrc)
     && !/TalentAstrolabe|astrolabe|fateNode/.test(talentDrawPageSrc)
     && !/progressTrack|progressFill/.test(talentDrawPageSrc),
-  'the completed destiny handoff must keep the selected aura, five-category seals, six tabs, and four shared slots',
+  'destiny draw must show static five-category progress, six tabs, and four shared slots without ritual animation',
 )
 
 assertOk(
@@ -1249,27 +1264,41 @@ assertOk(
     && narrativeSignalsSrc.includes('命运分支必须使用命运或传承语域'),
   'branch eligibility must remain owned by the local semantic contract',
 )
-assertOk(/version:\s*'9\.30\.0'/.test(narrativePromptSrc), 'narrative contract must use version 9.30.0')
+assertOk(/version:\s*'10\.0\.0'/.test(narrativePromptSrc), 'narrative contract must use version 10.0.0')
+assertOk(
+  DEFAULT_WORD_COUNT_TARGET === 300
+    && resolveNarrativeWordCountTarget(250) === 250
+    && resolveNarrativeWordCountTarget(400) === 400,
+  'the new default must not overwrite saved valid narrative length preferences',
+)
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文使用第二人称“你/你的”')
-     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文选择最能证明玩家经历、位置或关系改变且最有故事张力的结果作为重心')
-     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('不预设尚未发生的成功')
-     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('细节必须服务玩家的行动、位置、关系、结果或代价')
+  COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('你是人生模拟器')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('角色是中心')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('历史是已经发生的人生')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('正文像人生小说的一章，不是因果报告')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('允许概括、跳跃、留白')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('事件卡池只提供卡名')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('按本次信息.篇幅偏好')
+     && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('按本次信息.叙事称呼和文风偏好')
     && promptBuilderSrc.includes('本次信息')
+    && promptBuilderSrc.includes('叙事称呼: formatNarrativeAddressing')
+    && promptBuilderSrc.includes('文风偏好')
     && promptBuilderSrc.includes('命运分支'),
-  'fixed Prompt must own addressing while dynamic assembly owns current information',
+  'fixed Prompt must own character-first prose rules while dynamic assembly owns current information',
 )
 assertOk(
   !timeScaleSrc.includes('根据当前事实自然展开')
     && timeScaleSrc.includes('历史和本轮事实供合理叙事参考')
     && !promptBuilderSrc.includes('叙述风格：')
-    && !promptBuilderSrc.includes('DEFAULT_NARRATIVE_STYLE'),
-  'time-scale entry must remain live while custom style does not override the fixed Prompt',
+    && !promptBuilderSrc.includes('DEFAULT_NARRATIVE_STYLE')
+    && promptBuilderSrc.includes('文风偏好: nonEmpty(context.narrativeStyle)')
+    && COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('不要写成提纲、规则解释、设定说明或事件清单'),
+  'time-scale entry must remain live while custom style stays a subordinate preference',
 )
 assertOk(
   promptBuilderSrc.includes('context.timelineMemory ?? []')
@@ -1294,7 +1323,7 @@ assertOk(
     && promptBuilderSrc.includes('{ 历史输出: { 事件: historicalEvents } }')
     && promptBuilderSrc.includes('玩家本次点属性: buildNarrativeAttributes')
     && promptBuilderSrc.includes('本次信息: {')
-     && promptBuilderSrc.includes('时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`')
+     && promptBuilderSrc.includes('时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不转写为正文`')
     && promptBuilderSrc.includes('时间窗口: buildNarrativeWindowProjection(context)')
     && promptBuilderSrc.includes('篇幅偏好: nonEmpty(context.wordCountInstruction)')
     && promptBuilderSrc.includes("财富: '0'")

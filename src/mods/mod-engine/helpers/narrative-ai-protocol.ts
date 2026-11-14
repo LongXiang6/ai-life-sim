@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import { parseAIJSON } from '@/core/ai-service/parse-ai-json'
+import type { CharacterDeathCauseKind } from '@/foundation'
 
 const NarrativeAINonBlankStringSchema = z.string().refine(
   (value) => value.trim().length > 0,
@@ -24,19 +25,17 @@ export const NarrativeAIEndingSchema = z.object({
   总结: NarrativeAINonBlankStringSchema,
 })
 
-export const NarrativeAIEventResultSchema = z.object({
-  事件: NarrativeAINonBlankStringSchema,
-  成因: NarrativeAINonBlankStringSchema,
-  结果: NarrativeAINonBlankStringSchema,
-  影响: NarrativeAINonBlankStringSchema,
-})
+export const NarrativeAICharacterDeathSchema = z.union([
+  z.literal(false),
+  z.object({
+    死因类型: z.enum(['story', 'condition', 'trauma', 'life-ending']),
+    死因: NarrativeAINonBlankStringSchema,
+  }),
+])
 
 export const NarrativeAITalentEvidenceHintSchema = z.object({
   引用: z.string().trim().min(1),
-  来源回合: z.number().int().positive(),
-  实际使用: NarrativeAINonBlankStringSchema,
   可观察结果: NarrativeAINonBlankStringSchema,
-  突破契机: NarrativeAINonBlankStringSchema.optional(),
 })
 
 const NarrativeAIAttributeDeltaSchema = z.number().int().min(-3).max(3).refine(
@@ -55,18 +54,18 @@ export const NarrativeAIAttributeChangesSchema = z.object({
 )
 
 const NarrativeAIReportedAttributesSchema = z.object({
-  心智: z.number().int(),
-  体魄: z.number().int(),
-  魅力: z.number().int(),
-  财富: z.number().int(),
+  心智: z.number().int().optional(),
+  体魄: z.number().int().optional(),
+  魅力: z.number().int().optional(),
+  财富: z.number().int().optional(),
 })
 
 export const NarrativeAIStoryResultSchema = z.object({
-  时间定位: z.string(),
-  事件结果: z.array(NarrativeAIEventResultSchema),
+  事件卡消费: z.array(NarrativeAINonBlankStringSchema).optional(),
   天赋表现线索: z.array(NarrativeAITalentEvidenceHintSchema).optional(),
   正文: NarrativeAINonBlankStringSchema,
   属性: NarrativeAIReportedAttributesSchema,
+  角色死亡: NarrativeAICharacterDeathSchema,
   命运分支: z.union([
     z.literal(false),
     z.array(NarrativeAINonBlankStringSchema).min(2).max(4),
@@ -81,6 +80,12 @@ export const NarrativeAIStoryResultSchema = z.object({
 }).superRefine((data, context) => {
   if (data.命运分支 !== false && data.结局 !== false) {
     context.addIssue({ code: 'custom', message: '命运分支与结局必须互斥' })
+  }
+  if (data.角色死亡 !== false && data.命运分支 !== false) {
+    context.addIssue({ code: 'custom', message: '角色死亡不能同时返回命运分支' })
+  }
+  if (data.角色死亡 !== false && data.结局 === false) {
+    context.addIssue({ code: 'custom', message: '角色死亡必须同时返回结局' })
   }
 })
 
@@ -134,7 +139,10 @@ export const NarrativeAIStoryContinuityDataSchema = z.object({
 
 export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
 export type NarrativeAIEnding = z.infer<typeof NarrativeAIEndingSchema>
-export type NarrativeAIEventResult = z.infer<typeof NarrativeAIEventResultSchema>
+export type NarrativeAICharacterDeath = Exclude<
+  z.infer<typeof NarrativeAICharacterDeathSchema>,
+  false
+> & { 死因类型: CharacterDeathCauseKind }
 export type NarrativeAITalentEvidenceHint = z.infer<typeof NarrativeAITalentEvidenceHintSchema>
 export type NarrativeAIAttributeChanges = z.infer<typeof NarrativeAIAttributeChangesSchema>
 export type NarrativeAIStoryResult = z.infer<typeof NarrativeAIStoryResultSchema>

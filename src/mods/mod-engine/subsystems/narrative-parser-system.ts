@@ -21,7 +21,8 @@ import type { NarrativeAIAttributeChanges } from '../helpers/narrative-ai-protoc
 
 export interface ParsedNarrative {
   narrative: string
-  eventResults?: import('../helpers/narrative-ai-protocol').NarrativeAIEventResult[]
+  事件卡消费?: string[]
+  characterDeath?: import('../helpers/narrative-ai-protocol').NarrativeAICharacterDeath
   talentEvidenceHints?: import('../helpers/narrative-ai-protocol').NarrativeAITalentEvidenceHint[]
   endingTitle?: string
   endingSummary?: string
@@ -62,7 +63,10 @@ export class NarrativeParserSystem extends BaseSubsystem {
     const envelope = parseNarrativeResponseEnvelope(content, options)
     const result: ParsedNarrative = {
       narrative: envelope.narrative,
-      ...(envelope.eventResults ? { eventResults: structuredClone(envelope.eventResults) } : {}),
+      ...(envelope.eventCardsConsumed
+        ? { 事件卡消费: structuredClone(envelope.eventCardsConsumed) }
+        : {}),
+      ...(envelope.characterDeath ? { characterDeath: structuredClone(envelope.characterDeath) } : {}),
       ...(envelope.talentEvidenceHints
         ? { talentEvidenceHints: structuredClone(envelope.talentEvidenceHints) }
         : {}),

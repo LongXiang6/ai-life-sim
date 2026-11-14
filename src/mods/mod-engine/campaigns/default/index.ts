@@ -208,6 +208,7 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
   if (!ctx._narrativeParsed || !ctx._preparedNarrative || !ctx._promptContext) {
     throw narrativeRejection('专项调用输入缺少已经严格解析并准备的主故事。')
   }
+  const preparedNarrative = ctx._preparedNarrative
   const roundContext = orchestrator.getRoundContextSnapshot()
   const engineState = orchestrator.getState()
   const narrativeHistory = structuredClone(engineState.narrativeHistory)
@@ -220,7 +221,6 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
       timeLabel: ctx._promptContext.currentTime,
       branchTitle: ctx._narrativeParsed.branchTitle,
       branchOptions: ctx._narrativeParsed.branchOptions,
-      eventResults: ctx._narrativeParsed.eventResults,
     },
   })
   const continuityStories = buildAllStoriesForRound({
@@ -243,7 +243,6 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     displayTimeLabel: ctx._promptContext.currentTime,
     branchTitle: ctx._narrativeParsed.branchTitle,
     branchOptions: ctx._narrativeParsed.branchOptions,
-    eventResults: ctx._narrativeParsed.eventResults,
   }
 
   const selectedPatterns = getDestinyPatternSystem().getPatterns()
@@ -255,15 +254,12 @@ function buildFrozenSpecialistInputs(ctx: StageRuntimeContext): void {
     lineageByPromptReference.set(`轮回-${index + 1}`, talent.lineageId)
   })
   const evidenceHints = (ctx._narrativeParsed.talentEvidenceHints ?? []).flatMap((hint) => {
-    if (hint.来源回合 !== ctx._preparedNarrative?.roundSequence) return []
     const lineageId = lineageByPromptReference.get(hint.引用)
     if (!lineageId) return []
     return [{
       lineageId,
-      sourceRound: hint.来源回合,
-      usage: hint.实际使用,
+      sourceRound: preparedNarrative.roundSequence,
       result: hint.可观察结果,
-      ...(hint.突破契机 ? { breakthrough: hint.突破契机 } : {}),
     }]
   })
   if (evidenceHints.length > 0) {
@@ -440,9 +436,18 @@ export function loadStages(
         if (!ctx._promptContext) throw narrativeRejection('主故事调用缺少叙事上下文。')
 
         const state = orchestrator.getState()
-        const nextQueued = orchestrator.getPendingNarrativeBatch()[0]
-        if (nextQueued && nextQueued.roundSequence !== state.totalRounds) {
+        let nextQueued: ReturnType<typeof orchestrator.getPendingNarrativeBatch>[number] | undefined =
+          orchestrator.getPendingNarrativeBatch()[0]
+        const currentStageId = orchestrator.getCurrentStageId()
+        if (
+          nextQueued
+          && (
+            nextQueued.roundSequence !== state.totalRounds
+            || (nextQueued.stageId && currentStageId && nextQueued.stageId !== currentStageId)
+          )
+        ) {
           orchestrator.clearPendingNarrativeBatch()
+          nextQueued = undefined
         }
         const queued = nextQueued?.roundSequence === state.totalRounds ? nextQueued : undefined
         const request = prepareMainNarrativeRequest({
@@ -535,10 +540,12 @@ export function loadStages(
         if (ctx._narrativeParsed.branch || ctx._narrativeParsed.endingTitle) {
           orchestrator.clearPendingNarrativeBatch()
         } else if (ctx._queuedNarrativeResponses?.length) {
+          const stageId = orchestrator.getCurrentStageId()
           orchestrator.setPendingNarrativeBatch(
             ctx._queuedNarrativeResponses.map((response, index) => ({
               roundSequence: prepared.roundSequence + index + 1,
               response,
+              ...(stageId ? { stageId } : {}),
             })),
           )
         }
@@ -725,8 +732,9 @@ export function loadStages(
         const availableEvidenceWindows = ctx._talentInput.evidenceWindowsByLineage[source.lineageId] ?? []
         const allowedEvidenceWindowIds = new Set(availableEvidenceWindows.map((window) => window.id))
         const evidenceWindowIds = decision.依据窗口编号
-        const targetRarity = source.rarity as 'common' | 'fine' | 'rare' | 'epic'
-        const minimumEvidenceWindows = getDestinyPatternMinimumEvidenceWindows(targetRarity)
+        const minimumEvidenceWindows = getDestinyPatternMinimumEvidenceWindows(
+          source.developmentStage as 'awakening' | 'mastery',
+        )
         if (
           evidenceWindowIds.length < minimumEvidenceWindows
           || new Set(evidenceWindowIds).size !== evidenceWindowIds.length
@@ -761,7 +769,7 @@ export function loadStages(
           logger.info('narrative-quality', 'talent-growth-response-accepted', {
             round: prepared.roundSequence,
             lineageId: pending.lineageId,
-            targetRarity: pending.options[0].pattern.rarity,
+            targetDevelopmentStage: pending.options[0].pattern.developmentStage,
           })
         } catch (error) {
           ctx._preparedTalentGrowth = null
@@ -875,7 +883,7 @@ export function loadStages(
           })
           orchestrator.finalizeNarrativeResponse(prepared.narrativeId)
           try {
-            orchestrator.commitNarrativeControlPlaneOutcome()
+            orchestrator.commitNarrativeControlPlaneOutcome(ctx._narrativeParsed?.事件卡消费)
           } catch (error) {
             logger.warn('narrative-control-plane', 'round-outcome-commit-deferred', {
               round: prepared.roundSequence,

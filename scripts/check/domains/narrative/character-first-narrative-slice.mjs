@@ -91,7 +91,7 @@ check(
       'setAge(startingAge)',
       'setCharacterBase({',
       'startingAge,',
-      'setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })',
+      'setLifespanDraft({ raceId, race: confirmedRace, maximumLifespanYears: maxAge })',
       'prepareCachedTalentDrawSelection()',
       "router.push('/talent-draw')",
     ])

@@ -26,6 +26,7 @@ import {
 import {
   createGlobalCharacterId,
   restoreReincarnationTalentsBeforeUnderageGrowth,
+  resetPersistedTalentState,
   sanitizeCharacterStateSnapshot,
   sanitizeDestinyPatternState,
 } from './utils/character-state-migration'
@@ -67,7 +68,7 @@ const initialCharacterBase = (): CharacterBaseState => ({
 const initialDestinyPatterns = (): DestinyPatternState => ({
   candidates: [],
   patterns: [],
-  rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 },
+  aptitudeCount: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
   pendingGrowth: null,
   growthHistory: [],
   growthEvidence: [],
@@ -83,7 +84,7 @@ const initialLifespanDraft = (): LifespanDraftState => ({
 interface CharacterStore {
   characterId: string
   name: string
-  gender: 'male' | 'female'
+  gender: string
   race: string
   background: string
   raceOrigin: string
@@ -101,7 +102,7 @@ interface CharacterStore {
   getSummary: () => CharacterSummary
   ensureCharacterId: () => string
   setName: (name: string) => void
-  setGender: (gender: 'male' | 'female') => void
+  setGender: (gender: string) => void
   setAge: (age: number) => void
   setRace: (race: string) => void
   setBackground: (background: string) => void
@@ -208,8 +209,8 @@ export const useCharacterStore = create<CharacterStore>()(
       setPatternLoadout: (patterns, reincarnationTalents, candidates) => set((state) => {
         const equippedReincarnationTalents = normalizeEquippedReincarnationTalents(reincarnationTalents)
         assertPatternLoadout(patterns, equippedReincarnationTalents)
-        const rarityCount = { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 } satisfies DestinyPatternState['rarityCount']
-        for (const pattern of patterns) rarityCount[pattern.rarity]++
+        const aptitudeCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 } satisfies DestinyPatternState['aptitudeCount']
+        for (const pattern of patterns) aptitudeCount[pattern.aptitudeTier]++
         return {
           characterBase: {
             ...initialCharacterBase(),
@@ -219,7 +220,7 @@ export const useCharacterStore = create<CharacterStore>()(
             ...state.destinyPatterns,
             candidates: [...candidates],
             patterns: [...patterns],
-            rarityCount,
+            aptitudeCount,
             pendingGrowth: null,
             growthHistory: [],
             growthEvidence: [],
@@ -276,13 +277,16 @@ export const useCharacterStore = create<CharacterStore>()(
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 11,
-      migrate: (persistedState: unknown) => {
+      version: 12,
+      migrate: (persistedState: unknown, version: number) => {
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')
           return undefined as unknown as CharacterStore
         }
-        return sanitizeCharacterStateSnapshot(persistedState) as unknown as CharacterStore
+        const nextState = version < 12
+          ? resetPersistedTalentState(persistedState)
+          : persistedState
+        return sanitizeCharacterStateSnapshot(nextState) as unknown as CharacterStore
       },
       merge: (persistedState, currentState) => {
         if (

@@ -34,6 +34,7 @@ import {
   normalizeCommonDestinyPatternCandidate,
   parseDestinyPatternAIResponse,
   validateDestinyPatternAttrBonus,
+  validateDestinyPatternAptitudeTier,
   validateDestinyPatternCategory,
 } from './validation'
 
@@ -177,7 +178,7 @@ export class DestinyPatternAiPoolService {
         failures.push(`${category}分类调用失败`)
         continue
       }
-      const parsed = parseDestinyPatternAIResponse(result.value, category)
+      const parsed = parseDestinyPatternAIResponse(result.value)
       this.mergeItems(parsed, category, generationId, categoryIndex)
       const state = this.poolFillStatus.categories[category]
       state.count = this.countCategory(category)
@@ -293,7 +294,7 @@ export class DestinyPatternAiPoolService {
           model,
           sessionId,
         )
-        const parsed = parseDestinyPatternAIResponse(response, category)
+        const parsed = parseDestinyPatternAIResponse(response)
         this.mergeItems(parsed, category, generationId + batchIndex + 1, categoryIndex)
         state.count = this.countCategory(category)
         this.publish()
@@ -371,13 +372,16 @@ export class DestinyPatternAiPoolService {
         const name = item.name.trim()
         if (category !== expectedCategory || !name) continue
         const id = `${DESTINY_PATTERN_ID_PREFIX.AI}-${generationId}-${categoryIndex}-${slotIndex}`
-        const attrBonus = validateDestinyPatternAttrBonus(item.attrBonus, 'common')
+        const aptitudeTier = validateDestinyPatternAptitudeTier(item.aptitudeTier)
+        if (aptitudeTier === null || aptitudeTier > 3 || item.developmentStage !== 'awakening') continue
+        const attrBonus = validateDestinyPatternAttrBonus(item.attrBonus, aptitudeTier)
         additions.push(withInitialDestinyPatternGrowthIdentity({
           id,
           name,
           description: item.description.trim(),
           category,
-          rarity: 'common',
+          aptitudeTier,
+          developmentStage: item.developmentStage,
           effect: item.effect.trim(),
           attrBonus,
         }, id))

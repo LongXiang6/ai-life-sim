@@ -34,7 +34,6 @@ export const COMPACT_JSON_KEY_MAP: Record<string, string> = {
   n: 'narrative',
   a: 'attr',
   s: 'stay',
-  d: 'direction',
   e: 'events',
   c: 'changes',
   w: 'world',

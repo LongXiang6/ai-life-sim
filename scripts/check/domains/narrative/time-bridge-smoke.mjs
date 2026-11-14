@@ -25,7 +25,7 @@ const narrativeCalendar = fs.readFileSync(
 
 if (
   !builder.includes('function buildNarrativeWindowProjection(context: PromptContext): string')
-  || !builder.includes('时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不得转写为正文或事件结果`')
+  || !builder.includes('时间节点: `当前年龄=${currentAgeValue}；内部阶段索引=${currentAgeValue}；只用于合龄裁决，不转写为正文`')
   || !builder.includes('时间窗口: buildNarrativeWindowProjection(context)')
   || promptContextRuntime.includes('elapsedYears:')
 ) {

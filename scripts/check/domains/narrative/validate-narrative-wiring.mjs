@@ -36,6 +36,7 @@ const continuityServer = read('src/mods/mod-engine/server/narrative-story-contin
 const talentServer = read('src/mods/mod-engine/server/narrative-talent-growth-system-prompt.ts')
 const serverAssets = read('src/mods/mod-engine/server-prompt-assets.ts')
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
+const orchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const fetchExecutor = read('src/core/ai-service/ai-client/fetch-executor.ts')
 const schemaValidation = read('src/core/ai-service/ai-client/schema-validation.ts')
@@ -48,6 +49,10 @@ const cachePool = read('src/core/ai-service/cache-pool.ts')
 const promptContextRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts')
 const timelineProjectionRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts')
 const timelineMemory = read('src/mods/mod-engine/helpers/timeline-memory.ts')
+const controlPlane = read('src/mods/mod-engine/helpers/narrative-control-plane.ts')
+const controlPlaneInput = read('src/mods/mod-engine/helpers/narrative-control-plane-input.ts')
+const controlPlaneCall = read('src/mods/mod-engine/helpers/narrative-control-plane-call.ts')
+const eventNormalizer = read('src/mods/mod-engine/helpers/narrative-control-plane-normalizers.ts')
 
 assertOk(
   promptBuilder.includes('userSegments: string[]')
@@ -63,6 +68,9 @@ assertOk(
     && promptBuilder.includes('时间节点')
     && promptBuilder.includes('时间窗口')
     && promptBuilder.includes('篇幅偏好: nonEmpty(context.wordCountInstruction)')
+    && promptBuilder.includes('叙事称呼: formatNarrativeAddressing(context.narrativeAddressing)')
+    && promptBuilder.includes('文风偏好: nonEmpty(context.narrativeStyle)')
+    && promptBuilder.includes('难度指引')
     && promptBuilder.includes("财富: '0'")
     && promptBuilder.includes('recentStories')
     && promptBuilder.includes('timelineMemory')
@@ -73,13 +81,16 @@ assertOk(
 assertOk(
   mainNarrativeCall.includes('prepareMainNarrativeRequest')
     && mainNarrativeCall.includes('executeMainNarrativeRequest')
+    && [...mainNarrativeCall.matchAll(/callAIWithPromptTemplate\(/gu)].length === 1
     && !mainNarrativeCall.includes("name: 'submit_story_turn'")
     && !mainNarrativeCall.includes('toolChoice')
     && !mainNarrativeCall.includes('responseToolName')
     && mainNarrativeCall.includes('splitNarrativeBatchResponse')
     && mainNarrativeCall.includes('queuedResponses')
     && mainNarrativeCall.includes('故事批次')
-    && promptContextRuntime.includes('narrativeBatchSize: 3')
+    && promptContextRuntime.includes('narrativeBatchSize: 10')
+    && promptBuilder.includes('最多${context.narrativeBatchSize}轮故事')
+    && promptBuilder.includes('该轮即本批最后一项')
     && !fs.existsSync(path.join(ROOT, 'src/mods/mod-engine/helpers/narrative-pre-generation.ts')),
   '01 批次必须由正式主故事响应拆包，且不保留独立预生成入口',
 )
@@ -94,15 +105,15 @@ assertOk(
   '01 必须宽容解析人生重开文本、简写分支结局与状态行属性，不启用工具或额外严格请求',
 )
 assertOk(
-  narrativePrompt.includes("version: '9.30.0'")
-    && narrativePrompt.includes('mod-engine:narrative:9.30.0')
-    && !narrativePrompt.includes('mod-engine:narrative:7.79.0')
+  narrativePrompt.includes("version: '10.0.0'")
+    && narrativePrompt.includes('mod-engine:narrative:10.0.0')
+    && !narrativePrompt.includes('mod-engine:narrative:9.50.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.56.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.55.0')
     && !narrativePrompt.includes('mod-engine:narrative:7.1.1')
     && continuityPrompt.includes("version: '3.2.0'")
-    && talentPrompt.includes("version: '3.8.0'")
-    && talentPrompt.includes('mod-engine:narrative-talent-growth:3.8.0')
+    && talentPrompt.includes("version: '4.0.0'")
+    && talentPrompt.includes('mod-engine:narrative-talent-growth:4.0.0')
     && [narrativePrompt, continuityPrompt, talentPrompt].every((source) => (
       source.includes("systemPrompt: ''") && source.includes('serverPromptAssetId:')
     )),
@@ -111,50 +122,56 @@ assertOk(
 assertOk(
   narrativeServer.includes('composeNarrativeUserMessage')
     && narrativeServer.includes('COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE')
-    && narrativeServer.includes("你是宏观事件级的人生模拟器")
-    && narrativeServer.includes("不把宏观写成公共报告，也不缩成写实小说式的家庭日常")
-    && narrativeServer.includes("正文是宏观事件记录，不是连续小说、事项清单、家庭影响报告或单一现场的动作回放")
-    && narrativeServer.includes("历史只提供已经成立的事实、来源、关系、身份、资源和后果，不提供本轮主题、续写顺序、段落结构或文风")
-    && narrativeServer.includes("世界按自己的规则、资源边界、相关者行动和开放可能性变化")
-    && narrativeServer.includes("家庭只能作为玩家的背景、资源、关系或处境证据，不能把家庭成员的工作、搬迁、收入、手续或家庭存续写成替代玩家人生的主线")
-    && narrativeServer.includes("玩家是事件身份、因果主线和正文重心的归属者")
-    && narrativeServer.includes("即使玩家处于幼年或依赖阶段，也要写时代、制度、经济、公共危机、教育资源、迁徙或组织变化如何通过照料、资源和机会作用于玩家")
-    && narrativeServer.includes("先形成改变玩家社会位置、制度机会、资源、组织关系、教育路径、迁徙方向、职业身份或生存条件的外部局面")
-    && narrativeServer.includes("事件结果是正文唯一的事实底稿")
-    && narrativeServer.includes("正文使用第二人称“你/你的”")
-    && narrativeServer.includes("细节只作为证明玩家行动、位置、关系、结果或代价的少量证据")
-    && narrativeServer.includes("本次调用内依次完成")
-    && narrativeServer.includes("每项“事件结果”只含“事件”“成因”“结果”“影响”四个字符串")
+    && narrativeServer.includes('你是人生模拟器')
+    && narrativeServer.includes('角色是中心')
+    && narrativeServer.includes('历史是已经发生的人生')
+    && narrativeServer.includes('正文像人生小说的一章，不是因果报告')
+    && narrativeServer.includes('允许概括、跳跃、留白')
+    && narrativeServer.includes('“人生规划”和“事件卡池”只是软提示')
+    && narrativeServer.includes('事件卡池只提供卡名')
+    && narrativeServer.includes('属性只写发生持续变化的项')
+    && narrativeServer.includes('事件卡消费（可选）')
+    && narrativeServer.includes('天赋表现线索（可选）')
     && narrativeServer.includes('dynamic[0].世界')
     && narrativeServer.includes('dynamic[1].玩家信息')
     && narrativeServer.includes('dynamic[2].历史输出')
     && narrativeServer.includes('dynamic[3].玩家本次点属性')
     && narrativeServer.includes('dynamic[4].本次信息')
-    && narrativeServer.includes('时间窗口')
     && narrativeServer.includes('"正文": ""')
     && narrativeServer.includes('"命运分支": false')
     && narrativeServer.includes('"属性": {')
-    && narrativeServer.includes('"时间定位": ""')
-    && narrativeServer.includes('"事件结果": [')
     && narrativeServer.includes('"财富": 0')
     && narrativeServer.includes('"结局": false')
+    && narrativeServer.includes('"角色死亡": false')
     && narrativeServer.includes('故事批次')
-    && narrativeServer.includes('按年或更长跨度时，呈现跨度中的积累、转折和结果如何改变玩家的位置、关系或处境'),
-  '01 必须按宏观事件级目标编译五段动态数据、批次和故事输出契约',
+    && narrativeServer.includes('命运分支：本轮自然形成')
+    && narrativeServer.includes('结局：人生不可逆终态')
+    && narrativeServer.includes('事件卡消费（可选）')
+    && !narrativeServer.includes('事件结果是锁定本轮重要事实')
+    && !narrativeServer.includes('正文是宏观事件记录')
+    && !narrativeServer.includes('先形成改变玩家社会位置'),
+  '01 必须按 V3A 职责区块编译角色、输入、写法、最小输出与动态数据',
+)
+const narrativePromptSections = ['# 角色', '# 输入', '# 写法', '# 输出'].map((section) => narrativeServer.indexOf(section))
+assertOk(
+  narrativePromptSections.every((position, index) => position >= 0
+    && (index === 0 || position > narrativePromptSections[index - 1])),
+  '主故事 Prompt 必须按角色、输入、写法、输出顺序组织',
 )
 assertOk(
   promptContextRuntime.includes('projectNarrativeResultForPrompt')
     && promptContextRuntime.includes('displayAge: entry.displayAge')
     && promptContextRuntime.includes('buildWorldStateSummaries')
     && timelineMemory.includes('formatAgePrefixedStory')
-    && timelineMemory.includes('已成立事实')
+    && timelineMemory.includes('endingSummary')
+    && !timelineMemory.includes('已结束事件身份：')
+    && !timelineMemory.includes('eventResults')
     && timelineProjectionRuntime.includes('displayAge: time?.displayAge')
     && timelineProjectionRuntime.includes("orchestrator['resolveNarrativeRoundTime'](entry.sortRound)?.displayAge")
     && !promptContextRuntime.includes('return `${ageLabel}·${timeLabel}·第${round}轮：${text}`')
     && !timelineMemory.includes('已结算现实结果：')
-    && !timelineMemory.includes('已结算事实：')
-    && timelineMemory.includes('已结束事件身份：'),
-  '01 历史读取投影必须使用发生年龄前缀，且不附加结算标签或轮次标题',
+    && !timelineMemory.includes('已结算事实：'),
+  '01 历史读取投影必须只保留正文与发生年龄前缀，不附加事件账本或结算标签',
 )
 assertOk(
   serverAssets.includes("delivery: 'composed-user'")
@@ -167,9 +184,12 @@ assertOk(
   '01 主故事必须在服务端合成唯一 user 消息，02/03 继续使用各自 system 资产',
 )
 assertOk(
-  worldCatalog.includes('霍格沃茨是欧洲最著名的魔法学校，接收适龄巫师入学')
-    && !worldCatalog.includes('你收到了一封来自霍格沃茨魔法学校的录取通知书'),
-  '世界预设不得把后续年龄事件写成当前既成事实',
+  worldCatalog.includes("name: '烬海诸邦'")
+    && worldCatalog.includes("name: '远星航标'")
+    && !worldCatalog.includes('霍格沃茨')
+    && !worldCatalog.includes('SCP基金会')
+    && !worldCatalog.includes('斗气大陆'),
+  '世界预设应使用原创题材，避免直接采用存在版权争议的作品设定',
 )
 assertOk(
     continuityServer.includes('你是人生模拟器的故事连续性提取器。')
@@ -183,8 +203,8 @@ assertOk(
     && talentServer.includes('你是天赋成长的推演者。')
     && continuityServer.includes('未来事件')
     && talentServer.includes('深度强化、广度强化、转变强化')
-    && talentServer.includes('转变强化依据玩家本局已成立经历和突破契机重新塑造能力')
-    && talentServer.includes('新天赋可以与最初天赋毫不相干')
+    && talentServer.includes('转变强化依据本局经历和突破契机重塑机制组合')
+    && talentServer.includes('三条路线都必须保留当前已成立能力')
     && talentServer.includes('不默认叠加历代能力')
     && !talentServer.includes('每条路线保留同一命格的核心来源')
     && !talentServer.includes('不额外扩大影响总量')
@@ -196,12 +216,12 @@ assertOk(
     && talentServer.includes('证据链最完整')
     && talentServer.includes('突破契机最明确')
     && talentServer.includes('直接证据三要素')
-    && talentServer.includes('统一使用第二人称“你”')
+    && talentServer.includes('资质阶位保持不变')
     && talentServer.includes('二至六个汉字')
     && talentServer.includes('三项共同成立')
     && !talentServer.includes('不得转为直接')
     && !talentServer.includes('禁止直接操控'),
-  '三个固定 Prompt 必须分别承担故事、连续性和成长职责，且 03 不增加转变路线替代限制',
+  '三个固定 Prompt 分别承担故事、连续性和成长职责，03 只推进开发阶段且保留已有能力',
 )
 
 const registeredAssetIds = sortedMatches(serverAssets, /^\s*\[(NARRATIVE(?:_[A-Z]+)*_SERVER_PROMPT_ASSET_ID)\]:/gmu)
@@ -302,6 +322,86 @@ assertOk(
     && envelope.includes('isExplicitPermanentNoAgency')
     && envelope.includes('extractTaggedFields'),
   '01 宽容解析必须继续支持正文、分支和结局的既有恢复边界',
+)
+const eventRefreshStart = orchestrator.indexOf('private scheduleNarrativeEventPoolRefresh')
+const eventRefreshEnd = orchestrator.indexOf('\n  /**', eventRefreshStart)
+const eventRefresh = eventRefreshStart >= 0 && eventRefreshEnd > eventRefreshStart
+  ? orchestrator.slice(eventRefreshStart, eventRefreshEnd)
+  : ''
+assertOk(
+  orchestrator.includes("const parallelKinds = ['plan', 'timeline', 'event'] as const")
+    && orchestrator.includes('await Promise.all(parallelKinds.map(async (kind) =>')
+    && orchestrator.includes('prepared.triggers.find((item) => item.kind === kind)')
+    && orchestrator.includes('this.scheduleNarrativeEventPoolRefresh({')
+    && orchestrator.includes('this.state.pendingNarrativeBatch.length > 0 ? { suppressEventRefill: true }')
+    && controlPlaneInput.includes('suppressEventRefill?: boolean')
+    && orchestrator.indexOf('commitPlan(entry.value') < orchestrator.indexOf('commitTimeline(entry.value')
+    && orchestrator.indexOf('commitTimeline(entry.value') < orchestrator.indexOf('commitEvents(entry.value')
+    && /try \{\s*this\.narrativeControlPlane\.commitPlan\(entry\.value[\s\S]{0,400}?conditional-call-deferred/u.test(orchestrator)
+    && eventRefresh.includes('void executeNarrativeControlCall({')
+    && eventRefresh.includes('pendingNarrativeEventPoolRefreshes')
+    && eventRefresh.includes('.then(({ value }) =>') && eventRefresh.includes('generation !== this.narrativeControlGeneration')
+    && eventRefresh.includes('lifeRunId !== this.state.lifeRunId') && eventRefresh.includes('currentFingerprint !== input.fingerprint')
+    && controlPlane.includes('if (this.currentFingerprint !== fingerprint) return false')
+    && controlPlane.includes('isCardAvailableFor') && !controlPlane.includes('drawEventHand')
+    && !/kind: 'event'[\s\S]{0,200}?hasCurrentPlan/u.test(controlPlane)
+    && controlPlane.includes('!input.suppressEventRefill')
+    && /this\.state\.eventPoolFingerprint !== fingerprint \|\| rawPool\.length === 0/u.test(controlPlane)
+    && !controlPlane.includes('最低合龄') && !eventNormalizer.includes('最低合龄') && !controlPlaneCall.includes('最低合龄')
+    && !read('src/foundation/types/narrative/control-plane.ts').includes('最低合龄')
+    && controlPlaneInput.includes("NARRATIVE_EVENT_POOL_VERSION = '3.0.0'")
+    && controlPlaneInput.includes("NARRATIVE_PLAN_VERSION = '1.1.0'")
+    && orchestrator.includes("input.context.difficulty ?? 'normal'")
+    && eventNormalizer.includes('EVENT_CARD_NAME_MIN') && eventNormalizer.includes('EVENT_CARD_NAME_MAX')
+    && eventNormalizer.includes('EVENT_CARD_POLARITIES') && eventNormalizer.includes('seenNames.has(nameKey)')
+    && eventNormalizer.includes('boundedWeight(card.权重)')
+    && !eventNormalizer.includes('生命周期') && !eventNormalizer.includes('适用阶段')
+    && eventNormalizer.includes('名称: name')
+    && protocol.includes('事件卡消费')
+    && envelope.includes('eventCardsConsumed')
+    && campaign.includes('commitNarrativeControlPlaneOutcome(ctx._narrativeParsed?.事件卡消费)'),
+  '事件卡池异步补充且拒绝过期写入，首轮 plan/timeline/event 并行并按 plan→timeline→event 提交，规划诊断错误延后不阻断回合，入池只保留名称、正负与权重',
+)
+const eventPoolProjectionStart = promptBuilder.indexOf('const eventCards = controlPlane.eventCards')
+const eventPoolProjectionEnd = promptBuilder.indexOf('事件卡池: eventCards', eventPoolProjectionStart)
+const eventPoolProjection = eventPoolProjectionStart >= 0 && eventPoolProjectionEnd > eventPoolProjectionStart
+  ? promptBuilder.slice(eventPoolProjectionStart, eventPoolProjectionEnd)
+  : ''
+assertOk(
+  eventPoolProjection.includes('.map((card) => nonEmpty(card.名称))')
+    && eventPoolProjection.includes('.filter((name): name is string => Boolean(name))')
+    && !/正负|权重|最低合龄|sourceFingerprint|card\.id/u.test(eventPoolProjection),
+  '事件卡池只投影 2–8 字卡名，正负、权重、最低合龄、id 与来源指纹不得进入模型输入',
+)
+assertOk(
+  orchestrator.includes('commitNarrativeControlPlaneOutcome(consumedEventNames?: readonly string[])')
+    && orchestrator.includes('const consumed = new Set(')
+    && orchestrator.includes('.filter((card) => consumed.has(card.名称))')
+    && orchestrator.includes('.map((card) => card.id)')
+    && orchestrator.includes('eventCardPool')
+    && controlPlane.includes('const selectedEventIdSet = new Set(selectedEventIds)')
+    && controlPlane.includes('!selectedEventIdSet.has(item.id)'),
+  '主故事返回的事件卡名必须先在池内映射成 id 再扣除，池外卡名不扣也不采纳',
+)
+assertOk(
+  narrativeServer.includes('一次最多返回 10 轮')
+    && narrativeServer.includes('遇到命运分支、结局或人生阶段结束时停止')
+    && promptContextRuntime.includes('narrativeBatchSize: 10')
+    && promptBuilder.includes('最多${context.narrativeBatchSize}轮故事')
+    && mainNarrativeCall.includes('const MAX_NARRATIVE_BATCH_ROUNDS = 10') && mainNarrativeCall.includes('export function splitNarrativeBatchResponse(')
+    && mainNarrativeCall.includes('items.slice(0, limit)') && mainNarrativeCall.includes('批量故事包被截断且无法回收任何完整故事项')
+    && read('src/core/ai-service/ai-call-deadline.ts').includes('batchRounds') && read('src/app/api/proxy/route/contracts.ts').includes('batchRounds')
+    && campaign.includes('if (ctx._narrativeParsed.branch || ctx._narrativeParsed.endingTitle)')
+    && campaign.includes('clearPendingNarrativeBatch()')
+    && campaign.includes('consumePendingNarrativeBatch('),
+  '批量上限必须为 10 轮：数组截断到 10、时限随 batchRounds 放大、截断回收完整前项，遇分支/结局/阶段结束立即停止',
+)
+assertOk(
+  narrativeServer.includes('玩家行动是尝试，不是命令')
+    && narrativeServer.includes('可以成功、失败、延迟、转化或产生意外')
+    && narrativeServer.includes('未知不补')
+    && narrativeServer.includes('自然寿命参考年龄只是背景，不是死亡线'),
+  '自定义命运输入必须保留为尝试，由角色条件与世界规则自然裁决',
 )
 
 if (failed > 0) {

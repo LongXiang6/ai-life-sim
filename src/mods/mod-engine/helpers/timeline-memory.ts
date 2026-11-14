@@ -5,7 +5,6 @@
  */
 
 import type { CompressedMemoryEvent, CompressedSummaryItem } from '@/foundation'
-import type { NarrativeEventResult } from '../types'
 
 /** 主叙事唯一可见的记忆投影；内部派生字段不会进入格式化文本。 */
 export interface NarrativeTimelineEntry {
@@ -78,7 +77,6 @@ function formatAgePrefixedStory(age: number | undefined, story: string): string 
  */
 export function projectNarrativeResultForPrompt(input: {
   text: string
-  eventResults?: readonly NarrativeEventResult[]
   displayAge?: number
   endingSummary?: string
   branchTitle?: string
@@ -87,14 +85,7 @@ export function projectNarrativeResultForPrompt(input: {
 }): string {
   const narrative = normalizeTimelineText(input.text).replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
   const endingSummary = normalizeTimelineText(input.endingSummary ?? '')
-  const eventFacts = (input.eventResults ?? []).map((event) => (
-    `已结束事件身份：${normalizeTimelineText(event.事件)}；已成立事实：成因：${normalizeTimelineText(event.成因)}；结果：${normalizeTimelineText(event.结果)}；影响：${normalizeTimelineText(event.影响)}`
-  ))
-  const facts = eventFacts.length > 0
-    // 结构化事件结果已经是本轮事实底稿；再次附加完整正文会把同一主线
-    // 以两种高密度形式重复投影，诱发下一轮把旧题当作续写入口。
-    ? eventFacts
-    : (narrative ? [narrative] : [])
+  const facts = narrative ? [narrative] : []
   if (endingSummary && endingSummary !== narrative) facts.push(endingSummary)
   const branchTitle = normalizeTimelineText(input.branchTitle ?? '')
   const branchOptions = (input.branchOptions ?? [])

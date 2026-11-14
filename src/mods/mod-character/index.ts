@@ -15,7 +15,8 @@ export type {
   DestinyPatternGrowthEvidence,
   DestinyPatternGrowthHistoryEntry,
   DestinyPatternGrowthOption,
-  DestinyPatternRarity,
+  DestinyPatternAptitudeTier,
+  DestinyPatternDevelopmentStage,
   DestinyPatternState,
   PendingDestinyPatternGrowth,
   ReincarnationTalent,
@@ -44,8 +45,9 @@ export {
   RACE_LIFESPAN,
   PRESET_DESTINY_PATTERNS,
   DESTINY_PATTERN_CATEGORY_CONFIG,
-  DESTINY_PATTERN_RARITY_CONFIG,
-  DESTINY_PATTERN_RARITY_RANK,
+  DESTINY_PATTERN_APTITUDE_ORDER,
+  DESTINY_PATTERN_APTITUDE_CONFIG,
+  DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG,
   DESTINY_PATTERN_DISPLAY_COUNT,
   DEFAULT_DESTINY_PATTERN_COUNT,
   PATTERN_LOADOUT_SLOT_COUNT,
@@ -54,7 +56,7 @@ export {
   AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS,
   DESTINY_PATTERN_CATEGORY_ORDER,
   DESTINY_PATTERN_CATEGORY_TARGET_COUNT,
-  DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP,
+  DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER,
   CUSTOM_WORLD_CODE_START,
   DESTINY_PATTERN_ID_PREFIX,
   DEFAULT_MAX_VITALITY,
@@ -78,20 +80,18 @@ export {
   createDestinyPatternLineageId,
   createPendingDestinyPatternGrowth,
   DESTINY_PATTERN_GROWTH_MINIMUM_AGE,
-  getNextDestinyPatternRarity,
+  getNextDestinyPatternAptitudeTier,
+  getNextDestinyPatternDevelopmentStage,
   registerPendingDestinyPatternGrowthInState,
   resolvePendingDestinyPatternGrowth,
   resolvePendingDestinyPatternGrowthInState,
   withInitialDestinyPatternGrowthIdentity,
 } from './destiny-pattern-growth'
 export { useReincarnationLibraryStore } from './reincarnation-library-store'
-export { getReincarnationPromotionTargetRarity } from './reincarnation-talent-access'
+export { getReincarnationPromotionTargetAptitudeTier } from './reincarnation-talent-access'
 export { useLifeRecordStore } from './life-record-store'
 export { useCharacter, useCharacterStatus, useDestinyPatterns } from './hooks'
 export { useRaceOrigin } from './prompts/use-race-origin'
-
-export { DESTINY_PATTERN_PRESETS_MATERIALIST } from './destiny-pattern-presets-materialist'
-export { DESTINY_PATTERN_PRESETS_IDEALIST } from './destiny-pattern-presets-idealist'
 
 export { raceOriginPrompt } from './prompts/race-origin'
 export { sanitizeCharacterStateSnapshot } from './utils/character-state-migration'

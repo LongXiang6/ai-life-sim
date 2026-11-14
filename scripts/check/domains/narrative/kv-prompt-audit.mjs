@@ -81,12 +81,12 @@ if (
     ['本次信息'],
   ])
   || JSON.stringify(Object.keys(parsedSegments[0]?.世界 ?? {})) !== JSON.stringify(['名称', '描述'])
-  || JSON.stringify(Object.keys(parsedSegments[1]?.玩家信息 ?? {})) !== JSON.stringify(['姓名', '性别', '种族', '背景', '天赋技能'])
+  || JSON.stringify(Object.keys(parsedSegments[1]?.玩家信息 ?? {})) !== JSON.stringify(['姓名', '性别', '种族', '背景', '属性尺度', '当前属性语义', '天赋技能'])
   || JSON.stringify(parsedSegments[2]?.历史输出?.事件) !== JSON.stringify(['已成立记忆', '最近正文'])
   || JSON.stringify(Object.keys(parsedSegments[3]?.玩家本次点属性 ?? {})) !== JSON.stringify(['心智', '体魄', '魅力', '财富'])
   || Object.values(parsedSegments[3]?.玩家本次点属性 ?? {}).some((value) => typeof value !== 'string' || !/^-?\d+$/u.test(value))
-  || JSON.stringify(Object.keys(parsedSegments[4]?.本次信息 ?? {})) !== JSON.stringify(['时间节点', '时间窗口', '命运分支', '篇幅偏好'])
-  || parsedSegments[4]?.本次信息?.时间节点 !== '当前年龄=20；内部阶段索引=20；只用于合龄裁决，不得转写为正文或事件结果'
+  || JSON.stringify(Object.keys(parsedSegments[4]?.本次信息 ?? {})) !== JSON.stringify(['时间节点', '时间窗口', '命运分支', '篇幅偏好', '叙事称呼', '文风偏好'])
+  || parsedSegments[4]?.本次信息?.时间节点 !== '当前年龄=20；内部阶段索引=20；只用于合龄裁决，不转写为正文'
   || !parsedSegments[4]?.本次信息?.时间窗口
   || parsedSegments[4]?.本次信息?.命运分支 !== '另一条路'
   || parsedSegments[4]?.本次信息?.篇幅偏好 !== '正文约200字。'
@@ -96,17 +96,23 @@ if (
 if (/⟦(?:全局信息|记忆|本轮素材)⟧/u.test(segments.userSegments[0])) {
   fail('main narrative data layer must not carry object-external labels')
 }
-for (const heading of ['【身份与任务】', '【核心规则】', '【正文要求】', '【一次调用内的生成流程】', '【本轮输入】', '【返回协议】']) {
+for (const heading of ['# 角色', '# 输入', '# 写法', '# 输出']) {
   if (!COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(heading)) fail(`main narrative Prompt is missing ${heading}`)
+}
+if ([...COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.matchAll(/【示例\d｜/gu)].length !== 0) {
+  fail('main narrative Prompt must not carry example matrices')
 }
 if (COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('代码区块')) {
   fail('main narrative Prompt must not require code-block execution order')
 }
 if (
-  !['"时间定位"', '"事件结果"', '"正文"', '"命运分支"', '"属性"', '"结局"'].every((field) => COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
+  !['"正文"', '"属性"', '"命运分支"', '"结局"', '"角色死亡"', '事件卡消费（可选）', '天赋表现线索（可选）'].every((field) => COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes(field))
+  || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"时间定位"')
+  || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"事件结果"')
+  || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"自然寿命变化"')
   || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"历史事件"')
   || COMPILED_NARRATIVE_USER_PROMPT_TEMPLATE.includes('"当前状态"')
-) fail('main narrative fixed Prompt must preserve the approved six-field output contract')
+) fail('main narrative fixed Prompt must preserve the V3A minimal output contract')
 const composed = composeNarrativeUserMessage(segments.userSegments[0])
 if (composed.includes('代码区块')) fail('server composition must not require code-block execution order')
 if (

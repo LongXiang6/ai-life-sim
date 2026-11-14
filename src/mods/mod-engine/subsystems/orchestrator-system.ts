@@ -17,6 +17,7 @@ import {
   executionSequenceError,
   runExecutionSequence,
   BASE_POINTS_PER_YEAR,
+  DIFFICULTY_NARRATIVE_GUIDANCE,
   normalizeCanonicalTimeStep,
 } from '@/foundation'
 import { getMvpRuntimeSubsystemOrder } from '../helpers/mvp-runtime-policy'
@@ -83,6 +84,8 @@ import {
 import {
   ATTR_KEYS,
   ATTRIBUTE_NAMES,
+  DESTINY_PATTERN_APTITUDE_CONFIG,
+  DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG,
   getAttrSemantic,
   useCharacterStore,
 } from '@/mods/mod-character'
@@ -141,9 +144,12 @@ import type {
   PreparedNarrativeStoryContinuityLedger,
   StoryContinuitySourceTime,
 } from './orchestrator-system/narrative-story-continuity-contracts'
+import { baseFingerprint, currentStageId, projectLifePlanForControlPlane } from '../helpers/narrative-control-plane-input'
+import { buildNarrativeTimeContext } from '../helpers/narrative-calendar'
 import {
   buildNarrativeControlInput,
   NarrativeControlPlane,
+  type NarrativeControlTrigger,
   type NarrativeControlTriggerInput,
   type NarrativeControlPlanePersistenceState,
 } from '../helpers/narrative-control-plane'
@@ -283,8 +289,6 @@ interface AcceptedNarrativeRecord {
   narrative: ParsedNarrative
   /** Prepared visible text; the parsed protocol remains in `narrative`. */
   narrativeText: string
-  /** Structured event facts are persisted with the narrative history entry and projected later. */
-  eventResults?: import('../types').NarrativeEventResult[]
   playerChoice?: string
   ageAtRound: number
   displayTimeLabel: string
@@ -320,12 +324,13 @@ export class OrchestratorSystem extends BaseSubsystem {
   private readonly runtime: OrchestratorRuntimeDependencies
   private readonly projectionMode: boolean
   private readonly narrativeControlPlane = new NarrativeControlPlane()
+  private narrativeControlGeneration = 0
+  private readonly pendingNarrativeEventPoolRefreshes = new Map<string, number>()
   private pendingNarrativeControlPlaneSelection?: {
     roundSequence: number
     fingerprint: string
     timelineFingerprint: string
-    selectedDirectionId?: string
-    selectedEventId?: string
+    eventCardPool: Array<{ id: string; 名称: string }>
     hadDueWorldEvents: boolean
   }
   private pendingBirthBackgroundCall?: Promise<NarrativeBirthProfile | undefined>
@@ -751,8 +756,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.lifeGeneration
   }
 
-  getPendingNarrativeBatch(): Array<{ roundSequence: number; response: string }> {
+  getPendingNarrativeBatch(): Array<{ roundSequence: number; response: string; stageId?: string }> {
     return structuredClone(this.state.pendingNarrativeBatch)
+  }
+
+  /** 当前人生阶段标识；供批次在阶段变化后失效。 */
+  getCurrentStageId(): string | undefined {
+    const input = this.buildNarrativeControlTriggerInput(this.buildRoundContext())
+    return input ? currentStageId(input) : undefined
   }
 
   getBirthNarrativeProfile(): NarrativeBirthProfile | undefined {
@@ -760,7 +771,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   setPendingNarrativeBatch(
-    batch: Array<{ roundSequence: number; response: string }>,
+    batch: Array<{ roundSequence: number; response: string; stageId?: string }>,
   ): void {
     this.state.pendingNarrativeBatch = structuredClone(batch)
     if (!this.projectionMode) useEngineStore.setState({
@@ -984,6 +995,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     state: OrchestratorPersistenceState,
     restorePersistentSubsystemStates = true,
   ): void {
+    this.invalidatePendingNarrativeControlPlaneCalls()
     this.lastSubsystemStates = structuredClone(state.lastSubsystemStates ?? {})
     if (restorePersistentSubsystemStates) {
       this.importPersistentSubsystemStates(
@@ -1105,6 +1117,11 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 新人生 Store 已清空时，旧 orchestrator/子系统单例不得反向复活上一局。
     if (!storeHasProgress && runtimeHasResidualState) {
       this.reset()
+    }
+    const contextChanged = this.worldSetting?.contextId !== worldSetting.contextId
+      || this.characterState?.characterId !== characterState.characterId
+    if (contextChanged) {
+      this.invalidatePendingNarrativeControlPlaneCalls()
     }
     if (
       this.worldSetting?.contextId !== worldSetting.contextId
@@ -1324,7 +1341,8 @@ export class OrchestratorSystem extends BaseSubsystem {
           name: p.name,
           description: p.description,
           effect: p.effect,
-          rarity: p.rarity,
+          aptitudeTier: p.aptitudeTier,
+          developmentStage: p.developmentStage,
         }))
       : this.characterState.destinyPatterns
     const synced = {
@@ -1517,8 +1535,14 @@ export class OrchestratorSystem extends BaseSubsystem {
   invalidatePendingLifeOperations(): void {
     this.clearPendingNarrativeBatch()
     this.lifeGeneration += 1
+    this.invalidatePendingNarrativeControlPlaneCalls()
     this.pendingNarrativeRoundPreparation = undefined
     this.pendingNarrativeControlPlaneSelection = undefined
+  }
+
+  private invalidatePendingNarrativeControlPlaneCalls(): void {
+    this.narrativeControlGeneration += 1
+    this.pendingNarrativeEventPoolRefreshes.clear()
   }
 
   reset(): void {
@@ -1567,6 +1591,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
   hydrateFromEngineStore(): void {
+    this.invalidatePendingNarrativeControlPlaneCalls()
     this.acceptedNarrativeRecords.clear()
     this.pendingNarrativeRoundPreparation = undefined
     const store = useEngineStore.getState()
@@ -1643,7 +1668,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   getNarrativeControlPlaneView(context = this.buildRoundContext()): NarrativeControlPlaneView {
     const input = this.buildNarrativeControlTriggerInput(context)
     if (!input) {
-      return { directionHints: [], eventCandidates: [], dueWorldEvents: [] }
+      return {
+        difficulty: context.difficulty,
+        difficultyGuidance: DIFFICULTY_NARRATIVE_GUIDANCE[context.difficulty],
+        eventCards: [],
+        dueWorldEvents: [],
+      }
     }
     const prepared = this.narrativeControlPlane.inspect(input)
     const controlInput = buildNarrativeControlInput(input)
@@ -1651,18 +1681,14 @@ export class OrchestratorSystem extends BaseSubsystem {
       controlInput.age,
       prepared.fingerprint,
       controlInput.timelineFingerprint,
-      String(context.roundSequence),
+      context.roundSequence ?? 0,
+      context.difficulty,
     )
     this.pendingNarrativeControlPlaneSelection = {
       roundSequence: context.roundSequence ?? 0,
       fingerprint: prepared.fingerprint,
       timelineFingerprint: controlInput.timelineFingerprint,
-      ...(view.directionHints[0]?.id
-        ? { selectedDirectionId: view.directionHints[0].id }
-        : {}),
-      ...(view.eventCandidates[0]?.id
-        ? { selectedEventId: view.eventCandidates[0].id }
-        : {}),
+      eventCardPool: view.eventCards.map((card) => ({ id: card.id, 名称: card.名称 })),
       hadDueWorldEvents: view.dueWorldEvents.length > 0,
     }
     return view
@@ -1683,59 +1709,166 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!input) return
     const controlInput = buildNarrativeControlInput(input)
     const { birthContext: _birthContext, ...sharedControlInput } = controlInput
-    let prepared = this.narrativeControlPlane.inspect(input)
-    const order = ['birth', 'timeline', 'plan', 'direction', 'event'] as const
-    for (const kind of order) {
-      const trigger = prepared.triggers.find((item) => item.kind === kind)
-      if (!trigger) continue
-      const currentView = this.narrativeControlPlane.getView(
-        controlInput.age,
-        prepared.fingerprint,
-        controlInput.timelineFingerprint,
-        String(controlInput.roundSequence),
-      )
+    const prepared = this.narrativeControlPlane.inspect(input)
+    const buildPayload = (
+      kind: 'birth' | 'plan' | 'timeline' | 'event',
+      currentView: ReturnType<typeof this.narrativeControlPlane.getView>,
+    ): Record<string, unknown> => {
+      const controlLifePlan = kind === 'event'
+        ? projectLifePlanForControlPlane(currentView.lifePlan)
+        : currentView.lifePlan
+      return {
+        ...sharedControlInput,
+        ...(kind === 'birth' ? { birthContext: controlInput.birthContext } : {}),
+        ...(kind !== 'birth' && currentView.birthProfile
+          ? { birthProfile: currentView.birthProfile }
+          : {}),
+        ...(controlLifePlan ? { lifePlan: controlLifePlan } : {}),
+        ...(currentView.eventCards.length > 0 ? { eventCards: currentView.eventCards } : {}),
+        ...(currentView.dueWorldEvents.length > 0 ? { dueWorldEvents: currentView.dueWorldEvents } : {}),
+        当前时间: {
+          年: this.state.round.year,
+          月: this.state.round.month,
+          日: this.state.round.day,
+          totalDays: this.state.round.totalDays,
+          totalBasePoints: this.state.round.totalBasePoints,
+        },
+      }
+    }
+    const currentView = () => this.narrativeControlPlane.getView(
+      controlInput.age,
+      prepared.fingerprint,
+      controlInput.timelineFingerprint,
+      controlInput.roundSequence,
+      input.context.difficulty ?? 'normal',
+    )
+    // 出生必须先于规划、时间线与事件池：三者的输入都要用到出生背景。
+    const birthTrigger = prepared.triggers.find((item) => item.kind === 'birth')
+    if (birthTrigger) {
+      const result = await executeNarrativeControlCall({
+        kind: 'birth',
+        trigger: birthTrigger.reason,
+        payload: buildPayload('birth', currentView()),
+        aiConfig,
+        lifeRunId: this.state.lifeRunId,
+        round: this.state.totalRounds,
+        sessionId,
+      })
+      this.narrativeControlPlane.commitBirth(result.value, birthTrigger.fingerprint)
+    }
+    // 事件池不依赖人生规划，因此与 plan/timeline 同批并行生成；三路都拿到结果后
+    // 再按固定顺序提交（plan 会清空旧池，必须早于 event），保证拼主故事 Prompt 前池已就绪。
+    const generation = this.narrativeControlGeneration
+    const lifeRunId = this.state.lifeRunId
+    const fetchControlValue = async (
+      kind: 'plan' | 'timeline' | 'event',
+      trigger: NarrativeControlTrigger,
+    ): Promise<unknown | undefined> => {
       try {
         const result = await executeNarrativeControlCall({
           kind,
           trigger: trigger.reason,
-          payload: {
-            ...sharedControlInput,
-            ...(kind === 'birth' ? { birthContext: controlInput.birthContext } : {}),
-            ...(kind !== 'birth' && currentView.birthProfile
-              ? { birthProfile: currentView.birthProfile }
-              : {}),
-            ...(currentView.lifePlan ? { lifePlan: currentView.lifePlan } : {}),
-            ...(currentView.directionHints.length > 0 ? { directionHints: currentView.directionHints } : {}),
-            ...(currentView.eventCandidates.length > 0 ? { eventCandidates: currentView.eventCandidates } : {}),
-            ...(currentView.dueWorldEvents.length > 0 ? { dueWorldEvents: currentView.dueWorldEvents } : {}),
-            当前时间: {
-              年: this.state.round.year,
-              月: this.state.round.month,
-              日: this.state.round.day,
-              totalDays: this.state.round.totalDays,
-              totalBasePoints: this.state.round.totalBasePoints,
-            },
-          },
+          payload: buildPayload(kind, currentView()),
           aiConfig,
-          lifeRunId: this.state.lifeRunId,
+          lifeRunId,
           round: this.state.totalRounds,
           sessionId,
         })
-        if (kind === 'birth') this.narrativeControlPlane.commitBirth(result.value, trigger.fingerprint)
-        if (kind === 'plan') this.narrativeControlPlane.commitPlan(result.value, trigger.fingerprint)
-        if (kind === 'direction') this.narrativeControlPlane.commitDirections(result.value, trigger.fingerprint)
-        if (kind === 'event') this.narrativeControlPlane.commitEvents(result.value, trigger.fingerprint)
-        if (kind === 'timeline') this.narrativeControlPlane.commitTimeline(result.value, trigger.fingerprint)
+        return result.value
       } catch (error) {
-        if (kind === 'birth') throw error
         logger.warn('narrative-control-plane', 'conditional-call-deferred', {
           kind,
           round: this.state.totalRounds,
           reason: error instanceof Error ? error.message : String(error),
         })
+        if (kind === 'event') {
+          // 本轮拿不到池就退回后台补池，不阻塞回合；下一轮 inspect 仍会再次触发。
+          this.scheduleNarrativeEventPoolRefresh({
+            trigger: trigger.reason,
+            fingerprint: trigger.fingerprint,
+            payload: buildPayload('event', currentView()),
+            aiConfig,
+            sessionId,
+          })
+        }
+        return undefined
       }
-      prepared = this.narrativeControlPlane.inspect(input)
     }
+    const parallelKinds = ['plan', 'timeline', 'event'] as const
+    const settled = await Promise.all(parallelKinds.map(async (kind) => {
+      const trigger = prepared.triggers.find((item) => item.kind === kind)
+      if (!trigger) return undefined
+      const value = await fetchControlValue(kind, trigger)
+      return value === undefined ? undefined : { kind, trigger, value }
+    }))
+    for (const entry of settled) {
+      if (!entry) continue
+      if (entry.kind === 'plan') {
+        try {
+          this.narrativeControlPlane.commitPlan(entry.value, entry.trigger.fingerprint)
+        } catch (error) {
+          // 规划响应字段缺失属于诊断错误：记录并延后到下一轮重试，不能让整回合失败。
+          logger.warn('narrative-control-plane', 'conditional-call-deferred', {
+            kind: 'plan',
+            round: this.state.totalRounds,
+            reason: error instanceof Error ? error.message : String(error),
+          })
+        }
+      }
+      if (entry.kind === 'timeline') this.narrativeControlPlane.commitTimeline(entry.value, entry.trigger.fingerprint)
+      if (entry.kind === 'event') {
+        if (
+          generation !== this.narrativeControlGeneration
+          || lifeRunId !== this.state.lifeRunId
+        ) continue
+        this.narrativeControlPlane.commitEvents(entry.value, entry.trigger.fingerprint)
+      }
+    }
+  }
+
+  private scheduleNarrativeEventPoolRefresh(input: {
+    trigger: string
+    fingerprint: string
+    payload: Record<string, unknown>
+    aiConfig: AIModelConfig
+    sessionId?: string
+  }): void {
+    const lifeRunId = this.state.lifeRunId
+    const generation = this.narrativeControlGeneration
+    const key = `${lifeRunId}:${input.fingerprint}`
+    if (this.pendingNarrativeEventPoolRefreshes.has(key)) return
+    this.pendingNarrativeEventPoolRefreshes.set(key, generation)
+
+    void executeNarrativeControlCall({
+      kind: 'event',
+      trigger: input.trigger,
+      payload: input.payload,
+      aiConfig: input.aiConfig,
+      lifeRunId,
+      round: this.state.totalRounds,
+      sessionId: input.sessionId,
+    }).then(({ value }) => {
+      if (
+        generation !== this.narrativeControlGeneration
+        || lifeRunId !== this.state.lifeRunId
+      ) return
+      const currentInput = this.buildNarrativeControlTriggerInput(this.getRoundContextSnapshot())
+      if (!currentInput) return
+      const currentFingerprint = baseFingerprint(currentInput)
+      this.narrativeControlPlane.inspect(currentInput)
+      if (currentFingerprint !== input.fingerprint) return
+      this.narrativeControlPlane.commitEvents(value, input.fingerprint)
+    }).catch((error) => {
+      logger.warn('narrative-control-plane', 'conditional-call-deferred', {
+        kind: 'event',
+        round: this.state.totalRounds,
+        reason: error instanceof Error ? error.message : String(error),
+      })
+    }).finally(() => {
+      if (this.pendingNarrativeEventPoolRefreshes.get(key) === generation) {
+        this.pendingNarrativeEventPoolRefreshes.delete(key)
+      }
+    })
   }
 
   /**
@@ -1759,7 +1892,8 @@ export class OrchestratorSystem extends BaseSubsystem {
         controlInput.age,
         prepared.fingerprint,
         controlInput.timelineFingerprint,
-        String(controlInput.roundSequence),
+        controlInput.roundSequence,
+        input.context.difficulty ?? 'normal',
       )
       const trigger = prepared.triggers.find((item) => item.kind === 'birth')
       if (!trigger) return currentView.birthProfile
@@ -1769,6 +1903,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         trigger: '命运预览缺少出生背景',
         payload: {
           ...controlInput,
+          起始年龄: controlInput.startingAge,
           当前时间: {
             年: this.state.round.year,
             月: this.state.round.month,
@@ -1782,12 +1917,17 @@ export class OrchestratorSystem extends BaseSubsystem {
         round: this.state.totalRounds,
         sessionId,
       })
-      this.narrativeControlPlane.commitBirth(result.value, trigger.fingerprint)
+      this.narrativeControlPlane.commitBirth(
+        result.value,
+        trigger.fingerprint,
+        controlInput.startingAge,
+      )
       return this.narrativeControlPlane.getView(
         controlInput.age,
         trigger.fingerprint,
         controlInput.timelineFingerprint,
-        String(controlInput.roundSequence),
+        controlInput.roundSequence,
+        input.context.difficulty ?? 'normal',
       ).birthProfile
     }
 
@@ -1801,10 +1941,23 @@ export class OrchestratorSystem extends BaseSubsystem {
     return tracked
   }
 
-  commitNarrativeControlPlaneOutcome(): void {
+  commitNarrativeControlPlaneOutcome(consumedEventNames?: readonly string[]): void {
     const selection = this.pendingNarrativeControlPlaneSelection
     if (!selection) return
-    this.narrativeControlPlane.commitRoundOutcome(selection)
+    const consumed = new Set(
+      (consumedEventNames ?? [])
+        .map((name) => name.trim())
+        .filter(Boolean),
+    )
+    const selectedEventIds = selection.eventCardPool
+      .filter((card) => consumed.has(card.名称))
+      .map((card) => card.id)
+    this.narrativeControlPlane.commitRoundOutcome({
+      fingerprint: selection.fingerprint,
+      timelineFingerprint: selection.timelineFingerprint,
+      ...(selectedEventIds.length > 0 ? { selectedEventIds } : {}),
+      hadDueWorldEvents: selection.hadDueWorldEvents,
+    })
     this.pendingNarrativeControlPlaneSelection = undefined
   }
 
@@ -1828,16 +1981,30 @@ export class OrchestratorSystem extends BaseSubsystem {
       const talentBonus = openingTalents.reduce((total, pattern) => (
         total + (pattern.attrBonus?.[key] ?? 0)
       ), 0)
+      const points = character.characterBase.base[key] + talentBonus
       return [
         ATTRIBUTE_NAMES[key],
-        getAttrSemantic(key, character.characterBase.base[key] + talentBonus),
+        { 点数: points, 语义: getAttrSemantic(key, points) },
       ]
-    })) as Record<'心智' | '体魄' | '魅力' | '财富', string>
+    })) as Record<'心智' | '体魄' | '魅力' | '财富', { 点数: number, 语义: string }>
     const selectedTalents = openingTalents.map((talent) => ({
       名称: talent.name,
       介绍: talent.description,
       效果: talent.effect,
+      资质阶位: DESTINY_PATTERN_APTITUDE_CONFIG[talent.aptitudeTier].label,
+      开发阶段: DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG[talent.developmentStage].label,
+      ...('apexStrengthenLevel' in talent && talent.apexStrengthenLevel > 0
+        ? { 至高强化阶数: talent.apexStrengthenLevel }
+        : {}),
     }))
+    const currentBase = this.lastSubsystemStates['character-base']?.data as {
+      current?: Record<string, number>
+    } | undefined
+    const currentAttributes = Object.fromEntries(ATTR_KEYS.map((key) => {
+      const points = Number(currentBase?.current?.[key] ?? character.characterBase.current[key])
+      return [ATTRIBUTE_NAMES[key], { 点数: points, 语义: getAttrSemantic(key, points) }]
+    })) as Record<'心智' | '体魄' | '魅力' | '财富', { 点数: number, 语义: string }>
+    const narrativeWindow = buildNarrativeTimeContext(context, this.worldSetting).narrativeWindow
     return {
       world: this.worldSetting,
       character: this.characterState,
@@ -1846,10 +2013,29 @@ export class OrchestratorSystem extends BaseSubsystem {
       lifeRunId: this.state.lifeRunId,
       playerIntent: this.lastPlayerChoice,
       historyLength: this.state.narrativeHistory.length,
+      ...(narrativeWindow ? { narrativeWindow } : {}),
       birthContext: {
+        属性尺度: {
+          凡人最差: -10,
+          凡人基准: 0,
+          凡人正面上限: 10,
+          超凡: '小于-10或大于10',
+        },
         开局属性: openingAttributes,
         已选天赋: selectedTalents,
       },
+      characterContext: {
+        属性尺度: {
+          凡人最差: -10,
+          凡人基准: 0,
+          凡人正面上限: 10,
+          超凡: '小于-10或大于10',
+        },
+        当前属性: currentAttributes,
+        已选天赋: selectedTalents,
+      },
+      // 有待消费的批量故事时禁止整体替换事件池：排队轮的卡名必须还能映射到同一批 id。
+      ...(this.state.pendingNarrativeBatch.length > 0 ? { suppressEventRefill: true } : {}),
     }
   }
 

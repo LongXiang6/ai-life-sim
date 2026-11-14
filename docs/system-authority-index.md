@@ -2,7 +2,7 @@
 
 状态：历史记录，按需读取。活动路由是 `docs/authority-index.md` 及其四份体系树。
 
-本文件保留系统责任、运行成员、生命周期、AI 参与和持久化事实，不再定义全局体系、优先级或冲突处理。当前用户要求高于本文件；冲突时执行用户要求，完成任务后再在建议区说明。
+本文件保留系统责任、运行成员、存续规则、AI 参与和持久化事实，不再定义全局体系、优先级或冲突处理。当前用户要求高于本文件；冲突时执行用户要求，完成任务后再在建议区说明。
 
 精确数据形状以实时代码、类型、Manifest、生成注册表和 `src/mods/mod-engine/helpers/mvp-stages-config.default.json` 为准。不要整篇加载本文件，只在活动权威树指向历史证据时读取对应段落。
 
@@ -65,7 +65,7 @@ Supersession: none
 - `historical-event-ledger` persists its complete Store v2 through `capturePersistenceState()` / `restorePersistenceState()` in the orchestrator snapshot. Its `collectState()` uses a read-only cached index and returns only global or current-including `scheduled/active` facts plus related edges; complete cloning is reserved for explicit save/rollback. Explicit restore and browser/Zustand hydration share strict validation for IDs, chains, evidence-reference arrays, endpoints and world references before replacement or use; invalid current Store state is quarantined from queries, commits and saves without silent reset, and malformed current/future versions reject. v1 Store or old `event-pool` / `causal-simulation` collected states migrate into the current save's original context instead of global or cross-save residue.
 - Accepted ledger IDs flow to consumers instead of duplicating facts: memory and core-memory use `historicalEventIds`, foreshadowing uses `plantedFromEventIds/resolvedByEventIds`, plot structure uses `lastHistoricalEventIds`, and delayed causality uses `originEventId/resolutionEventId`. Compression and repeated relationship merges retain ID unions; old snapshots default missing reference arrays to empty.
 - Main narrative AI may write only the internal IDs in `narrativeChange`; current writable systems remain `character-base`, `lifespan`, `luck`, and `morality`. `historical-event-ledger` is registered separately as `event-input`, so validated local orchestration may submit historical batches without exposing it as a fifth direct state-change target. AI-visible input uses only registered Chinese system and field names; `src/mods/mod-engine/helpers/subsystem-field-registry.ts` owns the one-to-one translation.
-- Main narrative Prompt `7.69.0` is the protected fixed asset. `src/mods/mod-engine/server/narrative-system-prompt.ts` composes the current `D:/AI/docs/prompt.txt` rules with the five-element dynamic data layer into one independent `user` message. The called model has no request-external context; history is projected as settled facts and events, while the current time node determines the event draw and settlement. The parser consumes 正文、属性、命运分支和结局; the public Chinese attribute name is 财富, while the existing internal `familyBackground` owner remains unchanged.
+- Main narrative Prompt `10.0.0` is the protected fixed asset. `src/mods/mod-engine/server/narrative-system-prompt.ts` owns the character-first story rules and composes them with the five-element dynamic data layer into one independent `user` message. The called model has no request-external context; history is projected as prose with occurrence age, while the current time step bounds the story span and the event-card pool is projected as names for the main story to consume and report with `事件卡消费`. The parser consumes 正文、属性、命运分支、结局、角色死亡 and the optional 事件卡消费、天赋表现线索; the public Chinese attribute name is 财富, while the existing internal `familyBackground` owner remains unchanged.
 
 ### 3.1 Player-owned AI channel
 

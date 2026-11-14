@@ -8,7 +8,7 @@ import type {
   BaseAttributes,
   DestinyPattern,
   DestinyPatternCategory,
-  DestinyPatternRarity,
+  DestinyPatternAptitudeTier,
   RaceLifespanConfig,
 } from './types'
 
@@ -104,7 +104,7 @@ export const ATTR_DECREASE_KEYWORDS = ['下降', '减少', '降低', '衰退', '
 export const ROUND_DECIMALS = 4
 
 // ============================================================
-// 命格（对齐废弃项目 TalentRarity + TALENT_PRESETS_SHARED）
+// 命格候选与携带槽
 // ============================================================
 
 /** 首批五类普通候选总数：每类各四条。 */
@@ -145,15 +145,15 @@ export const AI_DESTINY_PATTERN_THREAD_ASSIGNMENTS: readonly (readonly DestinyPa
 
 /** 命格类别名称与说明；类别只用于候选整理，不限制天赋题材或作用类型。 */
 export const DESTINY_PATTERN_CATEGORY_CONFIG: Record<DestinyPatternCategory, { label: string; guidance: string }> = {
-  enhancement: { label: '强化与变身', guidance: '以身体、精神、形态、属性或成长进化产生直接改变为主；可包含再生、适应、熟练度和变身子型，但不限制其他能力类型。' },
-  control: { label: '操控与投射', guidance: '以主动影响外物、能量、元素、空间、时间或因果关系为主；可包含念动力、元素、矢量和时空子型，但不限制其他能力类型。' },
-  perception: { label: '感知与信息', guidance: '以获得、解析、标记、预测或呈现信息为主；可包含鉴定、预感、读心、记忆和系统面板子型，但不限制其他能力类型。' },
-  summoning: { label: '召唤与分身', guidance: '以召唤、契约、复制体、伙伴或独立行动单元为主；可包含任务、契约和临时借用子型，但不限制其他能力类型。' },
-  creation: { label: '创造与转化', guidance: '以创造、合成、炼化、复制、提取或改变对象性质为主；可包含制造、资源转化和能力获取子型，但不限制其他能力类型。' },
+  enhancement: { label: '灵躯蜕变', guidance: '以身体、精神、形态、属性或成长进化产生直接改变为主；可包含再生、适应、熟练度和变身子型，但不限制其他能力类型。' },
+  control: { label: '万象听令', guidance: '以主动影响外物、能量、元素、空间、时间或因果关系为主；可包含念动力、元素、矢量和时空子型，但不限制其他能力类型。' },
+  perception: { label: '洞察天机', guidance: '以获得、解析、标记、预测或呈现信息为主；可包含鉴定、预感、读心、记忆和系统面板子型，但不限制其他能力类型。' },
+  summoning: { label: '万灵随行', guidance: '以召唤、契约、复制体、伙伴或独立行动单元为主；可包含任务、契约和临时借用子型，但不限制其他能力类型。' },
+  creation: { label: '造化成形', guidance: '以创造、合成、炼化、复制、提取或改变对象性质为主；可包含制造、资源转化和能力获取子型，但不限制其他能力类型。' },
 }
 
-/** 普通级命格的属性净分配与负属性绝对值上限。 */
-export const DESTINY_PATTERN_COMMON_ATTRIBUTE_CAP = 2
+/** 属性净加成与负属性绝对值均按资质阶位乘以此值封顶。 */
+export const DESTINY_PATTERN_ATTRIBUTE_CAP_MULTIPLIER = 2
 
 /** 自定义世界编码起始偏移（对齐废弃项目 CUSTOM_WORLD_CODE_START） */
 export const CUSTOM_WORLD_CODE_START = 10000
@@ -165,93 +165,78 @@ export const DESTINY_PATTERN_ID_PREFIX = {
 } as const
 
 // ============================================================
-// 命格稀有度 UI 视觉配置
+// 命格资质展示配置
 // ============================================================
 
-/** 稀有度颜色 + 光效配置 */
-export const DESTINY_PATTERN_RARITY_CONFIG: Record<DestinyPatternRarity, { label: string; color: string; glow: string }> = {
-  common: { label: '普通', color: '#94a3b8', glow: '0 0 6px #94a3b8', },
-  fine: { label: '精良', color: '#22c55e', glow: '0 0 8px #22c55e', },
-  rare: { label: '稀有', color: '#3b82f6', glow: '0 0 12px #3b82f6', },
-  epic: { label: '史诗', color: '#a855f7', glow: '0 0 16px #a855f7', },
-  legendary: { label: '传说', color: '#f59e0b', glow: '0 0 20px #f59e0b', },
-  mythic: { label: '神话', color: '#e879f9', glow: '0 0 24px #e879f9', },
+export const DESTINY_PATTERN_APTITUDE_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const
+
+export const DESTINY_PATTERN_APTITUDE_CONFIG: Record<
+  DestinyPatternAptitudeTier,
+  { label: string; color: string }
+> = {
+  1: { label: '普通', color: '#64748b' },
+  2: { label: '良好', color: '#15803d' },
+  3: { label: '优秀', color: '#0369a1' },
+  4: { label: '卓越', color: '#0f766e' },
+  5: { label: '史诗', color: '#b45309' },
+  6: { label: '传说', color: '#be123c' },
+  7: { label: '神话', color: '#7e22ce' },
+  8: { label: '本源', color: '#c2410c' },
+  9: { label: '至高', color: '#1f2937' },
 }
 
-/** 稀有度排序值（用于 UI 列表排序） */
-export const DESTINY_PATTERN_RARITY_RANK: Record<DestinyPatternRarity, number> = {
-  common: 0, fine: 1, rare: 2, epic: 3, legendary: 4, mythic: 5,
-}
+export const DESTINY_PATTERN_DEVELOPMENT_STAGE_CONFIG = {
+  awakening: { label: '初醒' },
+  mastery: { label: '掌握' },
+  complete: { label: '圆满' },
+} as const
 
-/** 内置预设命格库（AI 不可用时的降级池）。 */
+/** 内置原创能力池，模型不可用时仍保持开局资质与阶段契约。 */
 export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id' | 'category' | 'lineageId' | 'version'>[] = [
-  { name: '稳息行军', description: '开始持续移动或负重后，可主动调整步幅、呼吸和停歇，把体力消耗维持在可控制的节奏；连续透支仍会正常力竭。', rarity: 'common', effect: '长程行动中更容易保持稳定', attrBonus: { physique: 1, }, },
-  { name: '承诺印记', description: '明确答应一件事后，会自然记住承诺内容并在交涉中主动回报进度；承诺过多时仍会分散时间与精力。', rarity: 'common', effect: '履行承诺时更容易建立信任', attrBonus: { charisma: 1, }, },
-  { name: '察隙', description: '主动观察人、物或环境时，能先锁定不协调的细节，再沿着异常寻找线索；信息不足时不能直接还原全貌。', rarity: 'common', effect: '发现局部变化与线索略占优势', attrBonus: { mind: 1, }, },
-  { name: '稳手校准', description: '开始重复操作后，可用固定手势和节奏及时修正偏差，让连续工序保持在较小误差内；陌生技艺仍需练习。', rarity: 'common', effect: '重复制作与操作更稳定', attrBonus: { physique: 1, }, },
-  { name: '定势回稳', description: '遭遇压力、冲撞或对抗时，先固定呼吸与重心再作判断，能减少被第一轮情绪带偏；连续惊变仍需经验应对。', rarity: 'common', effect: '承压时较易保持判断', attrBonus: { mind: 1, }, },
-  { name: '火候调谐', description: '处理火候或配比时，可通过气味、声音和表面变化主动微调步骤，把普通材料做得更妥帖；器具和材料不足时仍受限制。', rarity: 'common', effect: '烹饪与日常制作略占优势', attrBonus: { }, },
-  { name: '察言应对', description: '初次交涉时，可先读取场合分寸再选择语气和动作，减少明显失礼；陌生规矩仍需观察学习。', rarity: 'common', effect: '初次相处更容易留下好印象', attrBonus: { charisma: 1, }, },
-  { name: '流程归位', description: '开始整理住处、器具或事务时，能按固定顺序把物件和步骤归回位置，减少遗漏；长期混乱仍需持续投入。', rarity: 'common', effect: '日常整理与维护略占优势', attrBonus: { physique: 1, }, },
-  { name: '定念校验', description: '面对互相矛盾的说法时，可主动复述依据并检查自己的判断，不易被一句话带偏；先入为主仍可能漏掉提醒。', rarity: 'common', effect: '复杂信息中较能保持判断', attrBonus: { charisma: 1, }, },
-  { name: '记痕回放', description: '主动回想见过的人事或路径时，能先抓住关键顺序和显眼细节再复述；久远细节仍会淡去。', rarity: 'common', effect: '记忆与复述略占优势', attrBonus: { mind: 1, }, },
-  { name: '晨息定位', description: '在清晨开始探索或整理线索时，可借更稳定的感知节奏确认方向和细节；作息被打乱时，效果会减弱。', rarity: 'common', effect: '清晨探索与观察更有效率', attrBonus: { physique: 1, }, },
-  { name: '进度守恒', description: '面对重复、等待或缓慢事务时，可把任务拆成连续的小步并维持执行；需要立即转向时可能慢半拍。', rarity: 'common', effect: '耐心事务更容易完成', attrBonus: { mind: 1, }, },
-  { name: '共情回响', description: '认真倾听他人时，能复述对方真正关心的部分并给出对应回应；过度投入时容易被对方处境牵住。', rarity: 'common', effect: '更容易取得他人好感', attrBonus: { charisma: 1, }, },
-
-  { name: '风险预读', description: '作出重要决定前，可主动列出一层直接后果再选择，较少犯轻率的错；局势骤变时准备过程会拖慢反应。', rarity: 'common', effect: '复杂选择较少轻率失误', attrBonus: { mind: -1, }, },
-  { name: '旧痕索引', description: '检查旧物或旧事时，能主动把细节与熟人关系对应起来，较快找回线索；过度回看旧事会拖慢当前行动。', rarity: 'common', effect: '旧关系与旧物线索更易被记起', attrBonus: { mind: -1, }, },
-  { name: '信任蓄力', description: '初次相处时先观察而不急于靠近，一旦确认对方可靠便会持续投入并稳定回应；关系启动会比旁人更慢。', rarity: 'common', effect: '长期关系更稳定，初期推进较慢', attrBonus: {}, },
-  { name: '复核成品', description: '交付前主动回看关键细节，可让成品更完整可靠；反复确认会额外消耗时间，急事中未必占优。', rarity: 'common', effect: '作品更完整，但耗时更长', attrBonus: { mind: -1, }, },
-  { name: '夜间聚焦', description: '在安静环境中开始处理细事时，可维持较长的专注节奏；若用休息换取专注，次日体力与反应会受影响。', rarity: 'common', effect: '夜间专注较强，恢复较慢', attrBonus: { mind: 1, physique: -1, }, },
-
-  { name: '拼接灵感', description: '遇到卡住的小问题时，可主动把两个不相干的细节并置，偶尔得到有限的新思路；灵感不能替代持续思考。', rarity: 'common', effect: '偶发获得有限的新思路', attrBonus: {}, },
-  { name: '顺手时机', description: '处理小事前先观察周围条件，偶尔能抓住刚好空出的路径、工具或顺路机会；这种偏移无法左右重大结果。', rarity: 'common', effect: '小事偶尔得到轻微便利', attrBonus: {}, },
-  { name: '环境回响', description: '主动留意冷热、明暗或空气变化时，能较早捕捉到局部异常；感觉模糊时仍需实际确认。', rarity: 'common', effect: '对环境细微异常略敏感', attrBonus: { physique: 1, }, },
-  { name: '迁移入门', description: '接触陌生话题时，可主动借用相近领域的零碎经验找到入手步骤；没有基础时仍须按部学习。', rarity: 'common', effect: '跨领域入门略快一些', attrBonus: { }, },
-
-  // ===================== 其余备用命格 =====================
-  { name: '标记回收', description: '未主动留下标记的细节容易从记忆中滑走，但给物件、地点或任务做出明显标记后，能较快沿标记找回相关线索；没有标记时仍可能遗漏。', rarity: 'common', effect: '有标记时更容易找回遗忘线索', attrBonus: { mind: -1, }, },
-  { name: '路痴', description: '在地图上看懂路线是一回事，走着走着又是另一回事了；明明来过的地方换个方向就不认识了，导航是你出门最离不开的东西。', rarity: 'common', effect: '容易迷路', attrBonus: {}, },
-  { name: '拖延症', description: '作业和任务总是等到截止日期前才开始动手，前期各种磨蹭找理由，后期疯狂赶工；虽然最后总能完成，但过程中的焦虑一点也没少受。', rarity: 'common', effect: '经常赶工', attrBonus: { mind: -1, }, },
-  { name: '粗心大意', description: '做题时思路是对的但计算总出错，写字一不留神就多一笔少一画；出门忘关灯、洗完忘拔插头，这些小失误在你的生活中频繁上演。', rarity: 'common', effect: '容易出错', attrBonus: {}, },
-  { name: '情绪过载', description: '冲突升高时，你能迅速察觉对方的态度并直接亮明立场，避免长时间含糊拉扯；情绪一旦越过承受线，关系缓和会更困难。', rarity: 'common', effect: '冲突中立场更直接，但关系修复较慢', attrBonus: { charisma: -1, }, },
-  { name: '运气一般', description: '抽奖永远抽不到大奖，排队总是排到最慢的那一队，赶公交总是差那么几步；不是特别倒霉，但好事也很少自己落到你头上。', rarity: 'common', effect: '随机事件略差', attrBonus: {}, },
-  { name: '后手识变', description: '突发变化时会先捕捉模式再行动，复杂场面中较少被第一眼假象带偏；需要立即抢先时，准备过程会让你慢半拍。', rarity: 'common', effect: '复杂突发场面判断略稳，但抢先行动较慢', attrBonus: { mind: -1, }, },
-  { name: '挑食', description: '盘子里不喜欢的菜会一根根挑出来放边上，味道奇怪的东西尝一口就不肯再碰了；吃饭这件事上你有一套自己的规矩，换个地方吃饭经常吃不惯。', rarity: 'common', effect: '容易吃不好', attrBonus: { physique: -1, }, },
-  { name: '坐不住', description: '在椅子上坐不到二十分钟就想站起来走一走，看书看一会儿就忍不住摸手机；让你长时间安安静静地做同一件事简直是一种折磨，屁股像长了刺。', rarity: 'common', effect: '需要专注的任务困难', attrBonus: { mind: -1, }, },
-  { name: '胆子小', description: '一个人走夜路总觉得身后有脚步声，看恐怖片会好几天不敢关灯睡觉；遇到冲突和争吵时第一反应是想躲开，心跳加速手心冒汗是常态。', rarity: 'common', effect: '容易害怕', attrBonus: { mind: -1, }, },
-  { name: '预热蓄势', description: '静止后直接加速会明显吃力，但先完成短暂热身并找到节奏后，能把有限体力稳定投入持续行动；临场起步仍不占优。', rarity: 'common', effect: '进入节奏后持续行动更稳，但起步较慢', attrBonus: { physique: -1, }, },
-  { name: '脸皮薄', description: '在众人面前说话脸会红到耳根，被老师点名回答问题声音小得像蚊子叫；向陌生人求助或者跟人讨价还价对你来说尤其艰难，宁可不做也不愿开口。', rarity: 'common', effect: '社交困难', attrBonus: { charisma: -1, }, },
-  { name: '丢三落四', description: '钥匙、钱包、学生证——这三样东西你轮流丢，每学期至少补办一次；明明出门时还记得带上的东西，到地方一摸口袋发现不知什么时候弄丢了。', rarity: 'common', effect: '经常找不到东西', attrBonus: {}, },
+  { name: '骨鸣换力', description: '撞击落在身上，骨节反而响起低鸣；下一拳挥出时，刚才吞下的冲力也沿指骨一并砸出。', aptitudeTier: 2, developmentStage: 'awakening', effect: '主动绷紧身体承受钝击时，可将身体承受范围内的一部分冲力暂存于骨节，再由下一次肢体动作释放；未被吸收的伤害照常成立，不能储存穿刺伤、叠存多次冲击或永久保留力量，骨骼受伤时无法使用。', attrBonus: { physique: 1 } },
+  { name: '影衣蜕形', description: '闭眼屏息三息后，衣角与轮廓一同沉入暗处，让守望者更难看清你的动作。', aptitudeTier: 1, developmentStage: 'awakening', effect: '在有遮蔽的昏暗处屏息片刻，可让自身轮廓短暂融入邻近阴影；移动、受光或发出明显声响都会暴露位置，不能隐去实体。', attrBonus: { physique: 1 } },
+  { name: '回伤织骨', description: '掌心贴住新鲜伤口，细密暖意沿裂口收拢，让浅伤止血结痂，却留不住流失的血。', aptitudeTier: 2, developmentStage: 'awakening', effect: '以手掌持续接触自身新鲜浅表伤口时，可加快止血和组织闭合；无法恢复失血、断肢或旧伤，持续施力与深度创口会打断效果。', attrBonus: { physique: 1 } },
+  { name: '猎步借势', description: '追着同一个目标疾奔，脚下会接连亮起落点；踩中亮痕，下一步便借着上一踏的余劲弹出。', aptitudeTier: 2, developmentStage: 'awakening', effect: '锁定可见的移动目标后，落脚处会浮现适合自身步幅的追逐亮痕，踩中可回收部分上一踏的冲力；亮痕不保证道路安全，目标脱离视线即断开，不能凭空飞行或超过身体承受。', attrBonus: { physique: 1 } },
+  { name: '碎雨牵丝', description: '雨水在指间绷成透明丝线，绕过栏杆缠住刀柄；手腕一收，整片雨帘都朝你的方向倾斜。', aptitudeTier: 1, developmentStage: 'awakening', effect: '以指尖接触现存清水后，可将相连水体拉成能牵引物件的水丝；拉力不超过自身手臂承受，必须保持接触与专注，水丝断裂或蒸散即失效，不能控制生物体内液体。', attrBonus: { mind: 1 } },
+  { name: '折风回刃', description: '掷出的刃片越过门框，忽然在半空折向；它沿你目光划出的弧线，撞向躲在侧面的目标。', aptitudeTier: 1, developmentStage: 'awakening', effect: '亲手投出的物件尚在视线内时，可主动改变一次飞行方向；不能增加其动能或穿过实体，过重物体、失去视线和已有束缚都会使改向失败，回收时仍须自行接住。', attrBonus: { physique: 1 } },
+  { name: '静默之握', description: '凝视并合拢五指，无形的手便扣住远处器物；锁舌缓缓退开，悬着的利刃停在半空。', aptitudeTier: 1, developmentStage: 'awakening', effect: '在看清对象并保持专注时，可用一道无形握力推拉或固定近处单件物体，受力不超过自身单手力量；不能伸入遮蔽内部或直接捏压活体器官，目标反抗与持续施力都会消耗体力。', attrBonus: {} },
+  { name: '迟影寸步', description: '迈步后，旧位置还留着一道迟迟未散的人影；再扣响指节，身体便沿那一步的痕迹退回。', aptitudeTier: 3, developmentStage: 'awakening', effect: '主动迈步时可在原处留下一道误导视线的残影，在残影消散前主动沿刚走过的路径退回该落点；一次只保留一个落点，不能穿越新障碍、倒转受伤或带回已松手物品，路径被占据时无法退回。', attrBonus: { physique: 1 } },
+  { name: '残音寻踪', description: '敲过门框再闭眼倾听，回声会把空腔与暗门的位置描出一圈薄亮边缘。', aptitudeTier: 2, developmentStage: 'awakening', effect: '在安静环境敲击相邻表面并专注聆听，可辨出近处空腔、夹层或明显结构差异；无法读出内部物件，也会受厚软材料和持续噪声干扰。', attrBonus: { mind: 1 } },
+  { name: '血温识谎', description: '听完一句回答，对方的声音便在耳中分出冷暖；刻意违背所知的话，会留下一道刺耳杂音。', aptitudeTier: 1, developmentStage: 'awakening', effect: '面对面听清对象主动说出的完整陈述时，可听见其是否刻意违背自身认知的异常音色；不能读取真实答案、判断自以为真的错误或识别未说出口的隐瞒，模糊和歧义回答也可能无法分辨。', attrBonus: { mind: 1 } },
+  { name: '一眼析隙', description: '目光沿器物边缘扫过，最先承力的裂纹会浮亮一瞬，提醒你从何处下手。', aptitudeTier: 1, developmentStage: 'awakening', effect: '专注检查一件可见器物时，可短暂标出最明显的松动、裂损或受力薄弱处；不能透视、判断成因，也不能发现被遮住的缺陷。', attrBonus: { mind: 1 } },
+  { name: '梦痕预警', description: '临睡前握住一件牵挂之物，梦里会闪过它将遇险的碎片；醒来再见相同景象，耳边便响起碎裂声。', aptitudeTier: 3, developmentStage: 'awakening', effect: '入睡前持续接触一件具体物品，可在梦中接收它近期可能遭遇危险的一段感官碎片，现实线索吻合时触发提醒；只能牵挂一件物品，梦不提供完整时间、因果或必然结果，行动改变后原片段可能不再发生。', attrBonus: { luck: 1 } },
+  { name: '纸鹤传信', description: '写下一句短话折成纸鹤，它便沿你看得见的路飞向熟悉的人，送达后落地。', aptitudeTier: 1, developmentStage: 'awakening', effect: '将一条简短信息写在纸上折成纸鹤，可使它沿可见且畅通的路线飞向熟悉对象；无法穿墙、避开守卫或确认收信者是否阅读。', attrBonus: { charisma: 1 } },
+  { name: '灯下替身', description: '脚下影子站起身，替你推开门扇；你刚做完的动作，它会在另一处原样做出，连停顿也不差。', aptitudeTier: 2, developmentStage: 'awakening', effect: '在稳定光源下可分出一个具有触物力量的影身，令它在近处重复自己刚完成的一组简单动作；影身力量不超过本体，不能独立思考，需持续分神维持，光源消失或影身被击散即结束。', attrBonus: {} },
+  { name: '回声役灵', description: '一句命令在墙间来回碰撞，空处便站起透明人形；它听完吩咐，抬起重箱穿过尘土。', aptitudeTier: 1, developmentStage: 'awakening', effect: '在有清晰回声的空间说出一个具体动作，可凝成单个役灵执行搬运、推拉或守住某处等简单指令；力量不超过本体，无法自行解释复杂意图，声音被持续噪声盖过或离开回声空间便消散。', attrBonus: { mind: 1 } },
+  { name: '借感之约', description: '与愿意靠近的动物交换一个呼吸，随后片刻，你能感到它听见的方向与闻到的气息。', aptitudeTier: 2, developmentStage: 'awakening', effect: '与愿意接近的动物短暂对视并触碰后，可借用其一种感官片刻；只能接收模糊感觉，不能操纵动物或理解其记忆。', attrBonus: { charisma: 1 } },
+  { name: '铜屑生刃', description: '散落的铜屑沿掌纹聚起，拉成锋亮的刃与钩；攥紧时金属低鸣，松手又碎成一捧细砂。', aptitudeTier: 1, developmentStage: 'awakening', effect: '接触铜质材料并集中精神，可把等量铜塑成自己理解的简单实心工具或刃器；不能增加材料、改变金属性质或制造复杂机关，持续维持会消耗体力，松手后形体逐渐碎散。', attrBonus: { physique: 1 } },
+  { name: '旧物复新', description: '掌心按住坏掉的器具，裂缝便倒着合拢；旧齿轮再度咬合，重新走完本已停住的那一程。', aptitudeTier: 2, developmentStage: 'awakening', effect: '持续接触损坏但主要部件仍在的器具，可使其暂时恢复最近一次完好时的结构并正常使用；松手后逐步回到损坏状态，不能补出缺失的大块材料、凭空补充燃料或作用于活物。', attrBonus: { mind: 1 } },
+  { name: '盐火炼印', description: '把火焰压进一撮盐里，晶粒便藏起暗红火光；捻碎撒出时，那口热意重新扑向眼前。', aptitudeTier: 2, developmentStage: 'awakening', effect: '用盐接触现存热源，可将一部分热量封入结晶，捻碎时在撒落处释放；热量来自原热源，盐会逐渐散热且受潮失效，不能借此制造无限火焰，过热结晶同样会烫伤持有者。', attrBonus: {} },
+  { name: '影墨成形', description: '纸上画出的黑色阶梯忽然立起，墨迹托住脚底；你踏过它之后，身后的台阶逐层洇回纸面。', aptitudeTier: 3, developmentStage: 'awakening', effect: '以墨画出自己理解的简单物体，可从连续笔画中立起短暂实体供触碰和承重，并在维持期间调整已画出的连接处；材料来自墨迹与自身精力，形体须与原画相连，无法复制生命、精密机关或未知性质，断笔与力竭会使其坍散。', attrBonus: { mind: 1 } },
 ]
 
-/** 非 AI 模式使用的人工分类；未列入的旧预设不进入新分类抽取。 */
+/** 预设候选按主要机制族编排。 */
 export const PRESET_DESTINY_PATTERN_CATEGORY_BY_NAME: Readonly<Record<string, DestinyPatternCategory>> = {
-  稳息行军: 'enhancement',
-  定势回稳: 'enhancement',
-  预热蓄势: 'enhancement',
-  后手识变: 'enhancement',
-  察隙: 'perception',
-  记痕回放: 'perception',
-  晨息定位: 'perception',
-  定念校验: 'perception',
-  标记回收: 'perception',
-  承诺印记: 'control',
-  察言应对: 'control',
-  共情回响: 'control',
-  信任蓄力: 'control',
-  情绪过载: 'control',
-  稳手校准: 'creation',
-  火候调谐: 'creation',
-  流程归位: 'creation',
-  进度守恒: 'creation',
-  复核成品: 'creation',
-  风险预读: 'creation',
-  拼接灵感: 'creation',
-  顺手时机: 'creation',
-  环境回响: 'perception',
-  迁移入门: 'creation',
+  骨鸣换力: 'enhancement',
+  影衣蜕形: 'enhancement',
+  回伤织骨: 'enhancement',
+  猎步借势: 'enhancement',
+  碎雨牵丝: 'control',
+  折风回刃: 'control',
+  静默之握: 'control',
+  迟影寸步: 'control',
+  残音寻踪: 'perception',
+  血温识谎: 'perception',
+  一眼析隙: 'perception',
+  梦痕预警: 'perception',
+  纸鹤传信: 'summoning',
+  灯下替身: 'summoning',
+  回声役灵: 'summoning',
+  借感之约: 'summoning',
+  铜屑生刃: 'creation',
+  旧物复新: 'creation',
+  盐火炼印: 'creation',
+  影墨成形: 'creation',
 }
 
 // ============================================================

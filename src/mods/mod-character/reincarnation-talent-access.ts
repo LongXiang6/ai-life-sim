@@ -4,15 +4,16 @@
  * Responsibility: Build the promotion AI request and construct persisted talents; callers supply inputs and consume results.
  */
 
-import { stringifyPrompt } from '@/foundation'
-
 import type {
   AttributeModifiers,
   DestinyPatternCategory,
-  DestinyPatternRarity,
+  DestinyPatternAptitudeTier,
+  DestinyPatternDevelopmentStage,
   ReincarnationTalent,
   ReincarnationTalentSource,
 } from './types'
+import { DESTINY_PATTERN_APTITUDE_ORDER } from './constants'
+import { validateDestinyPatternAttrBonusForAptitude } from './destiny-pattern-growth'
 import {
   reincarnationPromotionOutputSchema,
   reincarnationPromotionPrompt,
@@ -26,10 +27,11 @@ export interface ReincarnationPromotionSource {
   description: string
   effect: string
   category: DestinyPatternCategory
-  rarity: DestinyPatternRarity
+  aptitudeTier: DestinyPatternAptitudeTier
+  developmentStage: DestinyPatternDevelopmentStage
   attrBonus: Partial<AttributeModifiers>
   /** 普通命格为 0；已入库轮回天赋为其当前强化等级。 */
-  strengthenLevel: number
+  apexStrengthenLevel: number
 }
 
 export interface ReincarnationPromotionInput {
@@ -57,8 +59,6 @@ export interface ReincarnationPromotionInput {
   promotionDecision: ReincarnationPromotionDecision
 }
 
-const REINCARNATION_PROMOTION_RARITY_ORDER: readonly DestinyPatternRarity[] = ['common', 'fine', 'rare', 'epic', 'legendary', 'mythic']
-
 export interface ReincarnationPromotionResult {
   name: string
   description: string
@@ -76,18 +76,14 @@ export type ReincarnationMutationSeverity =
 
 export interface ReincarnationPromotionDecision {
   success: boolean
-  sourceRarity: DestinyPatternRarity
-  targetRarity: DestinyPatternRarity
-  currentStrengthenLevel: number
-  attemptedStrengthenLevel: number
-  resultingStrengthenLevel: number
+  sourceAptitudeTier: DestinyPatternAptitudeTier
+  targetAptitudeTier: DestinyPatternAptitudeTier
+  currentApexStrengthenLevel: number
+  attemptedApexStrengthenLevel: number
+  resultingApexStrengthenLevel: number
   failureRate: number
   mutationSeverity: ReincarnationMutationSeverity
   attributeCap: number
-}
-
-const REINCARNATION_ATTRIBUTE_CAP: Readonly<Record<DestinyPatternRarity, number>> = {
-  common: 3, fine: 6, rare: 9, epic: 12, legendary: 15, mythic: 18,
 }
 
 function mutationSeverity(failureRate: number): ReincarnationMutationSeverity {
@@ -121,69 +117,69 @@ export function setReincarnationPromotionAIService(callAI: ReincarnationPromotio
   configuredCallAI = callAI
 }
 
-/** 六个结算等级都可升阶；神话保持等级并继续强化。 */
+/** 九阶资质都可结算；至高保持资质并继续强化。 */
 export function isPromotableReincarnationSource(source: ReincarnationPromotionSource): boolean {
-  return REINCARNATION_PROMOTION_RARITY_ORDER.includes(source.rarity)
+  return DESTINY_PATTERN_APTITUDE_ORDER.includes(source.aptitudeTier)
 }
 
-export function getReincarnationPromotionTargetRarity(
-  sourceRarity: DestinyPatternRarity,
-): DestinyPatternRarity {
-  const sourceIndex = REINCARNATION_PROMOTION_RARITY_ORDER.indexOf(sourceRarity)
+export function getReincarnationPromotionTargetAptitudeTier(
+  sourceAptitudeTier: DestinyPatternAptitudeTier,
+): DestinyPatternAptitudeTier {
+  const sourceIndex = DESTINY_PATTERN_APTITUDE_ORDER.indexOf(sourceAptitudeTier)
   if (sourceIndex < 0) throw new Error('[reincarnation-promotion] 待升阶词条等级无效')
-  return REINCARNATION_PROMOTION_RARITY_ORDER[
-    Math.min(sourceIndex + 1, REINCARNATION_PROMOTION_RARITY_ORDER.length - 1)
+  return DESTINY_PATTERN_APTITUDE_ORDER[
+    Math.min(sourceIndex + 1, DESTINY_PATTERN_APTITUDE_ORDER.length - 1)
   ]!
 }
 
-/** 程序唯一拥有神话强化成败；注入 random 便于确定性测试。 */
+/** 程序唯一拥有至高强化成败；注入 random 便于确定性测试。 */
 export function decideReincarnationPromotion(
   source: ReincarnationPromotionSource,
   random: () => number = Math.random,
 ): ReincarnationPromotionDecision {
-  const targetRarity = getReincarnationPromotionTargetRarity(source.rarity)
-  if (source.rarity !== 'mythic') {
+  const targetAptitudeTier = getReincarnationPromotionTargetAptitudeTier(source.aptitudeTier)
+  if (source.aptitudeTier !== 9) {
     return {
       success: true,
-      sourceRarity: source.rarity,
-      targetRarity,
-      currentStrengthenLevel: source.strengthenLevel,
-      attemptedStrengthenLevel: 0,
-      resultingStrengthenLevel: 0,
+      sourceAptitudeTier: source.aptitudeTier,
+      targetAptitudeTier,
+      currentApexStrengthenLevel: source.apexStrengthenLevel,
+      attemptedApexStrengthenLevel: 0,
+      resultingApexStrengthenLevel: 0,
       failureRate: 0,
       mutationSeverity: '无异变',
-      attributeCap: REINCARNATION_ATTRIBUTE_CAP[targetRarity],
+      attributeCap: targetAptitudeTier * 2,
     }
   }
 
-  const currentStrengthenLevel = Math.max(0, Math.trunc(source.strengthenLevel))
-  const attemptedStrengthenLevel = currentStrengthenLevel + 1
-  const failureRate = attemptedStrengthenLevel >= 6
-    ? Math.min(50, (attemptedStrengthenLevel - 5) * 10)
+  const currentApexStrengthenLevel = Math.max(0, Math.trunc(source.apexStrengthenLevel))
+  const attemptedApexStrengthenLevel = currentApexStrengthenLevel + 1
+  const failureRate = attemptedApexStrengthenLevel >= 6
+    ? Math.min(50, (attemptedApexStrengthenLevel - 5) * 10)
     : 0
   const sample = random()
   if (!Number.isFinite(sample) || sample < 0 || sample >= 1) {
     throw new Error('[reincarnation-promotion] 随机源必须返回大于等于0且小于1的有限数')
   }
   const success = failureRate === 0 || sample >= failureRate / 100
-  const resultingStrengthenLevel = success
-    ? attemptedStrengthenLevel
-    : Math.max(0, currentStrengthenLevel - 1)
+  const resultingApexStrengthenLevel = success
+    ? attemptedApexStrengthenLevel
+    : Math.max(0, currentApexStrengthenLevel - 1)
   return {
     success,
-    sourceRarity: source.rarity,
-    targetRarity,
-    currentStrengthenLevel,
-    attemptedStrengthenLevel,
-    resultingStrengthenLevel,
+    sourceAptitudeTier: source.aptitudeTier,
+    targetAptitudeTier,
+    currentApexStrengthenLevel,
+    attemptedApexStrengthenLevel,
+    resultingApexStrengthenLevel,
     failureRate,
     mutationSeverity: success ? '无异变' : mutationSeverity(failureRate),
-    attributeCap: REINCARNATION_ATTRIBUTE_CAP.mythic + resultingStrengthenLevel,
+    attributeCap: 18,
   }
 }
 
 export function buildReincarnationPromotionUserPrompt(input: ReincarnationPromotionInput): string {
-  return stringifyPrompt({
+  return JSON.stringify({
     worldName: input.worldName || '未知世界',
     worldDescription: input.worldDescription?.trim() || undefined,
     characterName: input.characterName || '无名之辈',
@@ -197,10 +193,11 @@ export function buildReincarnationPromotionUserPrompt(input: ReincarnationPromot
       name: input.selectedPattern.name,
       description: input.selectedPattern.description,
       effect: input.selectedPattern.effect,
-      rarity: input.selectedPattern.rarity,
-      targetRarity: getReincarnationPromotionTargetRarity(input.selectedPattern.rarity),
+      aptitudeTier: input.selectedPattern.aptitudeTier,
+      developmentStage: input.selectedPattern.developmentStage,
+      targetAptitudeTier: getReincarnationPromotionTargetAptitudeTier(input.selectedPattern.aptitudeTier),
       category: input.selectedPattern.category,
-      strengthenLevel: input.selectedPattern.strengthenLevel,
+      apexStrengthenLevel: input.selectedPattern.apexStrengthenLevel,
       attrBonus: input.selectedPattern.attrBonus,
     },
     promotionDecision: input.promotionDecision,
@@ -257,6 +254,9 @@ export async function promoteReincarnationTalent(
   if (!result.success) {
     throw new Error(`[reincarnation-promotion] AI 返回结构无效: ${result.error.issues.map((issue) => issue.message).join('；')}`)
   }
+  if (!validateDestinyPatternAttrBonusForAptitude(result.data.attrBonus, input.promotionDecision.targetAptitudeTier)) {
+    throw new Error('[reincarnation-promotion] 属性加成超过目标资质边界或包含无效值')
+  }
   return result.data
 }
 
@@ -268,9 +268,12 @@ export function createPromotedReincarnationTalent(
   sourceMeta: ReincarnationTalentSource,
   acquiredAt = Date.now(),
 ): ReincarnationTalent {
-  const targetRarity = getReincarnationPromotionTargetRarity(source.rarity)
-  if (decision.sourceRarity !== source.rarity || decision.targetRarity !== targetRarity) {
+  const targetAptitudeTier = getReincarnationPromotionTargetAptitudeTier(source.aptitudeTier)
+  if (decision.sourceAptitudeTier !== source.aptitudeTier || decision.targetAptitudeTier !== targetAptitudeTier) {
     throw new Error('[reincarnation-promotion] 强化决定与来源词条不一致')
+  }
+  if (!validateDestinyPatternAttrBonusForAptitude(promoted.attrBonus, targetAptitudeTier)) {
+    throw new Error('[reincarnation-promotion] 属性加成超过目标资质边界或包含无效值')
   }
   return {
     id: `${source.lineageId}:v${source.version + 1}`,
@@ -279,10 +282,11 @@ export function createPromotedReincarnationTalent(
     name: promoted.name,
     description: promoted.description,
     category: source.category,
-    rarity: targetRarity,
+    aptitudeTier: targetAptitudeTier,
+    developmentStage: 'awakening',
     effect: promoted.effect,
     attrBonus: { ...promoted.attrBonus },
-    strengthenLevel: decision.resultingStrengthenLevel,
+    apexStrengthenLevel: decision.resultingApexStrengthenLevel,
     acquiredAt,
     source: {
       worldName: sourceMeta.worldName.trim() || '未知世界',

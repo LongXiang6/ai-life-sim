@@ -83,7 +83,6 @@ export function buildNarrativeStoryContinuityPromptInput(input: {
         待压缩五轮正文: sourceStories.map((story) => ({
           轮次: story.回合,
           时间窗口: storyTime(story),
-          ...(story.事件结果 ? { 事件结果: story.事件结果 } : {}),
           正文: story.故事全文,
         })),
       }),
